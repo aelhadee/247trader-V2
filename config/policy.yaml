@@ -1,0 +1,151 @@
+# 247trader-v2 Policy Configuration
+# Hard constraints that NO component (rules, AI, or human) can violate
+
+risk:
+  # Global exposure limits
+  max_total_at_risk_pct: 15.0  # 15% of NLV in active risk positions
+  
+  # Per-asset limits
+  max_position_size_pct: 5.0  # 5% of NLV per coin
+  min_position_size_pct: 0.5
+  
+  # Per-theme limits (cluster exposure)
+  max_per_theme_pct:
+    L2: 10.0      # 10% across ARB/OP/STRK/etc
+    MEME: 5.0     # 5% max in meme coins
+    DEFI: 10.0    # 10% max in DeFi
+  
+  # Drawdown controls
+  daily_stop_pnl_pct: -3.0    # -3% NLV on day → stop new trades
+  weekly_stop_pnl_pct: -7.0   # -7% week → tighten / only de-risk
+  max_drawdown_pct: 10.0
+  
+  # Trade frequency
+  max_trades_per_day: 10
+  max_trades_per_hour: 4
+  
+  # Cooldown after losses
+  cooldown_after_loss_trades: 3  # 3 losing trades in row → pause
+  cooldown_minutes: 60
+  
+  # Minimum trade size
+  min_trade_notional_usd: 100  # Skip dust
+  
+  # Hard stops per position
+  stop_loss_pct: 8.0
+  take_profit_pct: 15.0
+
+position_sizing:
+  # Base sizing method
+  method: "risk_parity"  # fixed | risk_parity | kelly
+  
+  # Risk per trade (when using risk_parity)
+  risk_per_trade_pct: 1.0
+  
+  # Fixed size (when using fixed method)
+  fixed_size_usd: 100.0
+  
+  # Sizing constraints
+  min_order_usd: 10.0
+  max_order_usd: 10000.0
+  
+  # Pyramid rules
+  allow_pyramiding: false
+  max_pyramid_positions: 2
+
+microstructure:
+  # Liquidity filters (hard rejections)
+  min_24h_volume_usd: 5_000_000
+  max_spread_bps: 100  # 1.00%
+  min_orderbook_depth_usd: 10_000
+  
+  # Slippage protection
+  max_expected_slippage_bps: 50  # 0.50%
+  
+  # Quote freshness
+  max_quote_age_seconds: 30
+
+regime:
+  # Market regime adjustments
+  enabled: true
+  
+  # Regime-specific multipliers (applied to position sizing)
+  bull:
+    position_size_multiplier: 1.2
+    max_positions: 5
+  chop:
+    position_size_multiplier: 0.8
+    max_positions: 3
+  bear:
+    position_size_multiplier: 0.5
+    max_positions: 2
+  crash:
+    position_size_multiplier: 0.0  # No new positions
+    max_positions: 0
+
+execution:
+  # Order types
+  default_order_type: "limit"  # limit | market
+  
+  # Limit order behavior
+  limit_offset_bps: 5  # Post limit 5bps inside mid
+  limit_timeout_seconds: 30
+  
+  # Post-trade confirmation
+  require_fill_confirmation: true
+  fill_timeout_seconds: 60
+  
+  # Retry logic
+  max_retries: 3
+  retry_delay_seconds: 5
+
+ai:
+  # AI module configuration
+  enabled: false  # Start with rules-only
+  
+  # Model selection
+  m1_model: "gpt-4o"  # Fundamental analyst
+  m2_model: "gpt-4o"  # Quantitative analyst
+  m3_model: "o3-mini"  # Arbitrator/governor
+  
+  # API configuration
+  openai_api_key: "${OPENAI_API_KEY}"
+  
+  # AI constraints
+  ai_can_create_symbols: false  # AI can only veto/adjust rule proposals
+  ai_can_override_risk: false  # AI cannot violate risk rules
+  ai_max_position_adjustment_pct: 20  # AI can adjust size by ±20%
+  
+  # News sources (allowlist only)
+  news_sources:
+    - "coindesk.com"
+    - "theblock.co"
+    - "cointelegraph.com"
+  
+  # Rate limits
+  max_ai_calls_per_hour: 60
+  
+  # Cost controls
+  max_cost_per_cycle_usd: 2.0
+
+governance:
+  # Decision logging
+  require_decision_reasoning: true
+  min_reasoning_length: 50
+  
+  # Audit trail
+  log_all_decisions: true
+  log_ai_prompts: true
+  log_ai_responses: true
+  
+  # Human override
+  allow_manual_override: true
+  require_override_reason: true
+  
+  # Kill switches
+  kill_switch_enabled: true
+  kill_switch_file: "data/KILL_SWITCH"  # Create this file to halt
+  
+  # Emergency contacts
+  emergency_slack_webhook: "${SLACK_WEBHOOK_URL}"
+  emergency_email: "${ALERT_EMAIL}"

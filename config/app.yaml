@@ -1,0 +1,71 @@
+# 247trader-v2 Application Configuration
+# Rules-first, AI-optional architecture
+
+app:
+  name: "247trader-v2"
+  version: "2.0.0"
+  mode: "LIVE"  # DRY_RUN | PAPER | LIVE
+
+exchange:
+  name: "coinbase"
+  api_key: "${COINBASE_API_KEY}"
+  api_secret: "${COINBASE_API_SECRET}"
+  
+  # Read-only mode for safety
+  read_only: false
+  
+  # Rate limits (per second)
+  rate_limit:
+    public: 10
+    private: 5
+
+loop:
+  # Main execution loop
+  interval_minutes: 0.5
+  
+  # Skip weekends/holidays
+  skip_weekends: false
+  
+  # Timezone
+  timezone: "UTC"
+
+logging:
+  level: "INFO"  # DEBUG | INFO | WARNING | ERROR
+  format: "json"  # json | text
+  
+  # File output
+  file: "logs/247trader-v2.log"
+  rotate: true
+  max_bytes: 10485760  # 10MB
+  backup_count: 5
+  
+  # Structured fields
+  include_timestamps: true
+  include_hostname: true
+  
+  # Sensitive data redaction
+  redact_api_keys: true
+  redact_tokens: true
+
+state:
+  # State persistence
+  store: "sqlite"  # sqlite | redis | memory
+  path: "data/state.db"
+  
+  # How often to persist
+  persist_interval_seconds: 60
+  
+  # Backup state
+  backup_enabled: true
+  backup_interval_hours: 24
+
+monitoring:
+  # Health checks
+  healthcheck_port: 8080
+  
+  # Metrics
+  metrics_enabled: true
+  metrics_port: 9090
+  
+  # Alerts (future)
+  alerts_enabled: false

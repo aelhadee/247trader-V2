@@ -1,0 +1,424 @@
+"""
+247trader-v2 Core: Universe Manager
+
+Loads universe config and enforces eligibility rules.
+Salvaged from v1 but simplified and hardened.
+"""
+
+import yaml
+from typing import Dict, List, Set, Optional, Tuple
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+import logging
+
+from core.exchange_coinbase import get_exchange, Quote
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class UniverseAsset:
+    """Asset in the trading universe"""
+    symbol: str
+    tier: int  # 1 = core, 2 = rotational, 3 = event-driven
+    allocation_min_pct: float
+    allocation_max_pct: float
+    volume_24h: float
+    spread_bps: float
+    depth_usd: float
+    eligible: bool
+    ineligible_reason: Optional[str] = None
+
+
+@dataclass
+class UniverseSnapshot:
+    """Snapshot of eligible universe at a point in time"""
+    timestamp: datetime
+    regime: str
+    tier_1_assets: List[UniverseAsset]
+    tier_2_assets: List[UniverseAsset]
+    tier_3_assets: List[UniverseAsset]
+    excluded_assets: List[str]
+    total_eligible: int
+    
+    def get_all_eligible(self) -> List[UniverseAsset]:
+        """Get all eligible assets across tiers"""
+        return self.tier_1_assets + self.tier_2_assets + self.tier_3_assets
+    
+    def get_asset(self, symbol: str) -> Optional[UniverseAsset]:
+        """Get specific asset by symbol"""
+        for asset in self.get_all_eligible():
+            if asset.symbol == symbol:
+                return asset
+        return None
+
+
+class UniverseManager:
+    """
+    Manages trading universe with tier-based eligibility.
+    
+    Responsibilities:
+    - Load universe config
+    - Apply liquidity filters
+    - Enforce tier constraints
+    - Return eligible assets by regime
+    """
+    
+    def __init__(self, config_path: str = "config/universe.yaml"):
+        self.config_path = Path(config_path)
+        self.config = self._load_config()
+        self._cache: Optional[UniverseSnapshot] = None
+        self._cache_time: Optional[datetime] = None
+        
+        logger.info(f"Initialized UniverseManager from {config_path}")
+    
+    def _load_config(self) -> dict:
+        """Load universe configuration"""
+        if not self.config_path.exists():
+            raise FileNotFoundError(f"Universe config not found: {self.config_path}")
+        
+        with open(self.config_path) as f:
+            config = yaml.safe_load(f)
+        
+        # Check if dynamic mode is enabled
+        universe_config = config.get('universe', {})
+        if universe_config.get('method') == 'dynamic_discovery':
+            logger.info("Using dynamic universe discovery from Coinbase")
+            config = self._build_dynamic_universe(config)
+        
+        logger.info(f"Loaded universe config with {len(config.get('tiers', {}))} tiers")
+        return config
+    
+    def _build_dynamic_universe(self, config: dict) -> dict:
+        """
+        Dynamically discover tradable assets from Coinbase.
+        
+        Fetches all USD pairs and categorizes them into tiers based on:
+        - Market cap proxy (volume)
+        - Liquidity metrics
+        - Exchange support
+        """
+        logger.info("Fetching all tradable pairs from Coinbase...")
+        
+        try:
+            exchange = get_exchange()
+            symbols = exchange.get_symbols()
+            
+            # Filter to USD pairs only
+            usd_pairs = [s for s in symbols if s.endswith('-USD')]
+            logger.info(f"Found {len(usd_pairs)} USD trading pairs")
+            
+            # Get current config for thresholds
+            universe_config = config.get('universe', {})
+            dynamic_config = universe_config.get('dynamic_config', {})
+            
+            # Volume thresholds for tiering
+            tier1_min_volume = dynamic_config.get('tier1_min_volume_usd', 100_000_000)  # $100M
+            tier2_min_volume = dynamic_config.get('tier2_min_volume_usd', 20_000_000)   # $20M
+            tier3_min_volume = dynamic_config.get('tier3_min_volume_usd', 5_000_000)    # $5M
+            
+            # Fetch product data for all pairs
+            tier1_symbols = []
+            tier2_symbols = []
+            tier3_symbols = []
+            
+            for symbol in usd_pairs[:50]:  # Limit to first 50 to avoid rate limits
+                try:
+                    quote = exchange.get_quote(symbol)
+                    
+                    # Categorize by 24h volume
+                    if quote.volume_24h >= tier1_min_volume:
+                        tier1_symbols.append(symbol)
+                    elif quote.volume_24h >= tier2_min_volume:
+                        tier2_symbols.append(symbol)
+                    elif quote.volume_24h >= tier3_min_volume:
+                        tier3_symbols.append(symbol)
+                    
+                except Exception as e:
+                    logger.debug(f"Failed to fetch {symbol}: {e}")
+                    continue
+            
+            logger.info(f"Dynamic universe: {len(tier1_symbols)} tier1, {len(tier2_symbols)} tier2, {len(tier3_symbols)} tier3")
+            
+            # Update config with discovered symbols
+            if 'tiers' not in config:
+                config['tiers'] = {}
+            
+            config['tiers']['tier_1_core'] = {
+                'symbols': tier1_symbols,
+                'constraints': config.get('tiers', {}).get('tier_1_core', {}).get('constraints', {
+                    'min_allocation_pct': 5.0,
+                    'max_allocation_pct': 40.0,
+                    'min_24h_volume_usd': tier1_min_volume,
+                    'max_spread_bps': 30
+                })
+            }
+            
+            config['tiers']['tier_2_rotational'] = {
+                'symbols': tier2_symbols,
+                'constraints': config.get('tiers', {}).get('tier_2_rotational', {}).get('constraints', {
+                    'min_allocation_pct': 2.0,
+                    'max_allocation_pct': 20.0,
+                    'min_24h_volume_usd': tier2_min_volume,
+                    'max_spread_bps': 50
+                }),
+                'filters': ['volume_spike', 'trend_strength', 'regime_adjusted']
+            }
+            
+            config['tiers']['tier_3_event_driven'] = {
+                'symbols': tier3_symbols[:10],  # Limit tier 3
+                'constraints': config.get('tiers', {}).get('tier_3_event_driven', {}).get('constraints', {
+                    'min_allocation_pct': 1.0,
+                    'max_allocation_pct': 10.0,
+                    'min_24h_volume_usd': tier3_min_volume,
+                    'max_spread_bps': 100
+                })
+            }
+            
+            return config
+            
+        except Exception as e:
+            logger.error(f"Failed to build dynamic universe: {e}")
+            logger.warning("Falling back to static universe from config")
+            return config
+    
+    def get_universe(self, regime: str = "chop", 
+                     force_refresh: bool = False) -> UniverseSnapshot:
+        """
+        Get eligible universe snapshot for given regime.
+        
+        Args:
+            regime: "bull" | "chop" | "bear" | "crash"
+            force_refresh: Skip cache and rebuild
+            
+        Returns:
+            UniverseSnapshot with eligible assets
+        """
+        # Check cache
+        if not force_refresh and self._is_cache_valid(regime):
+            logger.debug(f"Using cached universe (age: {datetime.utcnow() - self._cache_time})")
+            return self._cache
+        
+        logger.info(f"Building universe snapshot for regime={regime}")
+        
+        exchange = get_exchange()
+        
+        # Get tier definitions
+        tiers_config = self.config.get("tiers", {})
+        liquidity_config = self.config.get("liquidity", {})
+        regime_mods = self.config.get("regime_modifiers", {}).get(regime, {})
+        exclusions = self.config.get("exclusions", {})
+        
+        # Build tier 1 (core)
+        tier_1 = self._build_tier_1(
+            tiers_config.get("tier_1_core", {}),
+            liquidity_config,
+            regime_mods,
+            exchange
+        )
+        
+        # Build tier 2 (rotational)
+        tier_2 = self._build_tier_2(
+            tiers_config.get("tier_2_rotational", {}),
+            liquidity_config,
+            regime_mods,
+            exchange
+        )
+        
+        # Build tier 3 (event-driven)
+        tier_3 = self._build_tier_3(
+            tiers_config.get("tier_3_event_driven", {}),
+            liquidity_config,
+            regime_mods
+        )
+        
+        # Get exclusions
+        excluded = set(exclusions.get("never_trade", []))
+        
+        snapshot = UniverseSnapshot(
+            timestamp=datetime.utcnow(),
+            regime=regime,
+            tier_1_assets=tier_1,
+            tier_2_assets=tier_2,
+            tier_3_assets=tier_3,
+            excluded_assets=list(excluded),
+            total_eligible=len(tier_1) + len(tier_2) + len(tier_3)
+        )
+        
+        # Cache result
+        self._cache = snapshot
+        self._cache_time = datetime.utcnow()
+        
+        logger.info(
+            f"Universe snapshot: {len(tier_1)} core, {len(tier_2)} rotational, "
+            f"{len(tier_3)} event-driven, {len(excluded)} excluded"
+        )
+        
+        return snapshot
+    
+    def _build_tier_1(self, tier_config: dict, liquidity_config: dict,
+                      regime_mods: dict, exchange) -> List[UniverseAsset]:
+        """Build tier 1 (core) assets"""
+        symbols = tier_config.get("symbols", [])
+        constraints = tier_config.get("constraints", {})
+        
+        assets = []
+        for symbol in symbols:
+            try:
+                # Get market data
+                quote = exchange.get_quote(symbol)
+                orderbook = exchange.get_orderbook(symbol)
+                
+                # Check liquidity
+                eligible, reason = self._check_liquidity(
+                    quote, orderbook, liquidity_config, constraints
+                )
+                
+                # Apply regime modifier
+                multiplier = regime_mods.get("tier_1_multiplier", 1.0)
+                
+                asset = UniverseAsset(
+                    symbol=symbol,
+                    tier=1,
+                    allocation_min_pct=constraints.get("min_allocation_pct", 5.0) * multiplier,
+                    allocation_max_pct=constraints.get("max_allocation_pct", 40.0) * multiplier,
+                    volume_24h=quote.volume_24h,
+                    spread_bps=quote.spread_bps,
+                    depth_usd=orderbook.total_depth_usd,
+                    eligible=eligible,
+                    ineligible_reason=reason
+                )
+                
+                if eligible:
+                    assets.append(asset)
+                else:
+                    logger.warning(f"Tier 1 asset {symbol} ineligible: {reason}")
+                
+            except Exception as e:
+                logger.error(f"Failed to process tier 1 asset {symbol}: {e}")
+        
+        return assets
+    
+    def _build_tier_2(self, tier_config: dict, liquidity_config: dict,
+                      regime_mods: dict, exchange) -> List[UniverseAsset]:
+        """Build tier 2 (rotational) assets"""
+        symbols = tier_config.get("symbols", [])
+        constraints = tier_config.get("constraints", {})
+        filters = tier_config.get("filters", [])
+        
+        assets = []
+        for symbol in symbols:
+            try:
+                # Get market data
+                quote = exchange.get_quote(symbol)
+                orderbook = exchange.get_orderbook(symbol)
+                
+                # Check liquidity
+                eligible, reason = self._check_liquidity(
+                    quote, orderbook, liquidity_config, constraints
+                )
+                
+                if not eligible:
+                    logger.debug(f"Tier 2 asset {symbol} failed liquidity: {reason}")
+                    continue
+                
+                # Apply additional filters
+                if "volume_spike" in filters:
+                    # TODO: Check if volume > 1.5x average
+                    pass
+                
+                if "trend_strength" in filters:
+                    # TODO: Check trend indicators
+                    pass
+                
+                # Apply regime modifier
+                multiplier = regime_mods.get("tier_2_multiplier", 1.0)
+                
+                # If multiplier is 0, skip this asset
+                if multiplier == 0.0:
+                    continue
+                
+                asset = UniverseAsset(
+                    symbol=symbol,
+                    tier=2,
+                    allocation_min_pct=constraints.get("min_allocation_pct", 2.0) * multiplier,
+                    allocation_max_pct=constraints.get("max_allocation_pct", 20.0) * multiplier,
+                    volume_24h=quote.volume_24h,
+                    spread_bps=quote.spread_bps,
+                    depth_usd=orderbook.total_depth_usd,
+                    eligible=True,
+                    ineligible_reason=None
+                )
+                
+                assets.append(asset)
+                
+            except Exception as e:
+                logger.error(f"Failed to process tier 2 asset {symbol}: {e}")
+        
+        return assets
+    
+    def _build_tier_3(self, tier_config: dict, liquidity_config: dict,
+                      regime_mods: dict) -> List[UniverseAsset]:
+        """Build tier 3 (event-driven) assets"""
+        # TODO: Implement event detection
+        # For now, return empty list
+        return []
+    
+    def _check_liquidity(self, quote: Quote, orderbook, 
+                         global_config: dict, tier_config: dict) -> Tuple[bool, Optional[str]]:
+        """
+        Check if asset passes liquidity requirements.
+        
+        Returns:
+            (eligible, reason_if_not)
+        """
+        # Volume check
+        min_volume_global = global_config.get("min_24h_volume_usd", 5_000_000)
+        min_volume_tier = tier_config.get("min_24h_volume_usd", min_volume_global)
+        min_volume = max(min_volume_global, min_volume_tier)
+        
+        if quote.volume_24h < min_volume:
+            return False, f"Volume ${quote.volume_24h:,.0f} < ${min_volume:,.0f}"
+        
+        # Spread check
+        max_spread_global = global_config.get("max_spread_bps", 100)
+        max_spread_tier = tier_config.get("max_spread_bps", max_spread_global)
+        max_spread = min(max_spread_global, max_spread_tier)
+        
+        if quote.spread_bps > max_spread:
+            return False, f"Spread {quote.spread_bps:.1f}bps > {max_spread}bps"
+        
+        # Depth check
+        min_depth = global_config.get("min_orderbook_depth_usd", 10_000)
+        if orderbook.total_depth_usd < min_depth:
+            return False, f"Depth ${orderbook.total_depth_usd:,.0f} < ${min_depth:,.0f}"
+        
+        return True, None
+    
+    def _is_cache_valid(self, regime: str) -> bool:
+        """Check if cached snapshot is still valid"""
+        if self._cache is None or self._cache_time is None:
+            return False
+        
+        # Check regime matches
+        if self._cache.regime != regime:
+            return False
+        
+        # Check age
+        age_seconds = (datetime.utcnow() - self._cache_time).total_seconds()
+        max_age_seconds = self.config.get("universe", {}).get("refresh_interval_hours", 24) * 3600
+        
+        return age_seconds < max_age_seconds
+    
+    def get_cluster_limits(self) -> Dict[str, float]:
+        """Get cluster exposure limits"""
+        return self.config.get("clusters", {}).get("limits", {})
+    
+    def get_asset_cluster(self, symbol: str) -> Optional[str]:
+        """Get cluster membership for asset"""
+        clusters = self.config.get("clusters", {}).get("definitions", {})
+        for cluster_name, symbols in clusters.items():
+            if symbol in symbols:
+                return cluster_name
+        return None

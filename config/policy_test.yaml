@@ -1,0 +1,81 @@
+ai:
+  ai_can_create_symbols: false
+  ai_can_override_risk: false
+  ai_max_position_adjustment_pct: 20
+  enabled: false
+  m1_model: gpt-4o
+  m2_model: gpt-4o
+  m3_model: o3-mini
+  max_ai_calls_per_hour: 60
+  max_cost_per_cycle_usd: 2.0
+  news_sources:
+  - coindesk.com
+  - theblock.co
+  - cointelegraph.com
+  openai_api_key: ${OPENAI_API_KEY}
+execution:
+  default_order_type: limit
+  fill_timeout_seconds: 60
+  limit_offset_bps: 5
+  limit_timeout_seconds: 30
+  max_retries: 3
+  require_fill_confirmation: true
+  retry_delay_seconds: 5
+governance:
+  allow_manual_override: true
+  emergency_email: ${ALERT_EMAIL}
+  emergency_slack_webhook: ${SLACK_WEBHOOK_URL}
+  kill_switch_enabled: true
+  kill_switch_file: data/KILL_SWITCH
+  log_ai_prompts: true
+  log_ai_responses: true
+  log_all_decisions: true
+  min_reasoning_length: 50
+  require_decision_reasoning: true
+  require_override_reason: true
+microstructure:
+  max_expected_slippage_bps: 50
+  max_quote_age_seconds: 30
+  max_spread_bps: 100
+  min_24h_volume_usd: 5000000
+  min_orderbook_depth_usd: 10000
+position_sizing:
+  allow_pyramiding: false
+  fixed_size_usd: 100.0
+  max_order_usd: 10000.0
+  max_pyramid_positions: 2
+  method: risk_parity
+  min_order_usd: 10.0
+  risk_per_trade_pct: 1.0
+regime:
+  bear:
+    max_positions: 2
+    position_size_multiplier: 0.5
+  bull:
+    max_positions: 5
+    position_size_multiplier: 1.2
+  chop:
+    max_positions: 3
+    position_size_multiplier: 0.8
+  crash:
+    max_positions: 0
+    position_size_multiplier: 0.0
+  enabled: true
+risk:
+  cooldown_after_loss_trades: 4
+  cooldown_minutes: 90
+  daily_stop_pnl_pct: -3.0
+  max_drawdown_pct: 10.0
+  max_per_theme_pct:
+    DEFI: 10.0
+    L2: 10.0
+    MEME: 5.0
+  max_position_size_pct: 5.0
+  max_total_at_risk_pct: 15.0
+  max_trades_per_day: 10
+  max_trades_per_hour: 4
+  min_position_size_pct: 0.5
+  min_trade_notional_usd: 100
+  stop_loss_pct: 8.0
+  take_profit_pct: 15.0
+  weekly_stop_pnl_pct: -7.0
