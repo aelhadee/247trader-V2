@@ -166,7 +166,8 @@ class TradingLoop:
             trades_this_hour=state.get("trades_this_hour", 0),
             consecutive_losses=state.get("consecutive_losses", 0),
             last_loss_time=datetime.fromisoformat(state["last_loss_time"]) if state.get("last_loss_time") else None,
-            current_time=datetime.utcnow()
+            # Use timezone-aware UTC to avoid deprecation warning
+            current_time=datetime.now(timezone.utc)
         )
     
     def run_cycle(self):
@@ -184,6 +185,14 @@ class TradingLoop:
             # Step 1: Build universe
             logger.info("Step 1: Building universe...")
             universe = self.universe_mgr.get_universe(regime=self.current_regime)
+
+            # Optional purge: liquidate excluded/ineligible holdings proactively
+            try:
+                pm_cfg = self.policy_config.get("portfolio_management", {})
+                if pm_cfg.get("auto_liquidate_ineligible", False):
+                    self._purge_ineligible_holdings(universe)
+            except Exception as e:
+                logger.warning(f"Purge step skipped: {e}")
             
             if not universe or universe.total_eligible == 0:
                 reason = "empty_universe"
@@ -378,6 +387,68 @@ class TradingLoop:
                 final_orders=[],
                 no_trade_reason=f"exception:{type(e).__name__}",
             )
+
+    def _purge_ineligible_holdings(self, universe) -> None:
+        """Sell holdings that are excluded or currently ineligible.
+
+        - Skips preferred quote currencies (USD/USDC/USDT/BTC/ETH)
+        - Only sells if estimated USD value >= portfolio_management.min_liquidation_value_usd
+        - Limits to portfolio_management.max_liquidations_per_cycle per cycle
+        - Uses market sell fallback path and respects exchange constraints
+        """
+        pm_cfg = self.policy_config.get("portfolio_management", {})
+        min_value = float(pm_cfg.get("min_liquidation_value_usd", 10))
+        max_liqs = int(pm_cfg.get("max_liquidations_per_cycle", 2))
+
+        excluded = set(universe.excluded_assets or [])
+        eligible_symbols = {a.symbol for a in universe.get_all_eligible()}
+
+        try:
+            accounts = self.exchange.get_accounts()
+        except Exception as e:
+            logger.warning(f"Cannot fetch accounts for purge: {e}")
+            return
+
+        liquidations = 0
+        for acc in accounts:
+            if liquidations >= max_liqs:
+                break
+
+            currency = acc.get('currency')
+            balance = float(acc.get('available_balance', {}).get('value', 0))
+
+            if not currency or balance <= 0:
+                continue
+
+            # Skip preferred quote currencies
+            if currency in ["USD", "USDC", "USDT", "BTC", "ETH"]:
+                continue
+
+            symbol = f"{currency}-USD"
+            is_excluded = symbol in excluded
+            is_not_eligible = symbol not in eligible_symbols
+
+            if not (is_excluded or is_not_eligible):
+                continue
+
+            # Estimate USD value
+            try:
+                quote = self.exchange.get_quote(symbol)
+                value_usd = balance * quote.mid
+            except Exception as e:
+                logger.info(f"Skip purge for {symbol}: cannot quote ({e})")
+                continue
+
+            if value_usd < min_value:
+                continue
+
+            tag = "excluded" if is_excluded else "ineligible"
+            logger.info(f"Purge: selling {balance:.6f} {currency} ({tag}), ~${value_usd:.2f}")
+
+            if self._sell_via_market_order(currency, balance):
+                liquidations += 1
+            else:
+                logger.warning(f"Purge sell failed for {symbol}")
     
     def _auto_rebalance_for_trade(self, proposals: List[TradeProposal]) -> bool:
         """
@@ -494,7 +565,11 @@ class TradingLoop:
             result = self.executor.execute(
                 symbol=pair,
                 side="SELL",
-                size_usd=size_usd
+                size_usd=size_usd,
+                # Purge must bypass post-only default
+                force_order_type="market",
+                # Skip depth/spread checks for excluded/ineligible liquidation
+                skip_liquidity_checks=True
             )
             
             if result.success:

@@ -56,16 +56,16 @@ position_sizing:
   max_pyramid_positions: 2
 
 liquidity:
-  # Spec-compliant liquidity filters
-  min_24h_volume_usd: 20_000_000    # $20M minimum (spec default)
-  max_spread_bps: 60                # 0.60% max spread (spec default)
-  min_depth_20bps_usd: 50_000       # $50K depth within 20bps (spec requirement)
+  # Unified liquidity filters (single source of truth)
+  min_24h_volume_usd: 8_000_000     # $8M minimum (unified policy)
+  max_spread_bps: 80                # 0.80% max spread (unified policy)
+  min_depth_20bps_usd: 10_000       # $10K depth within 20bps (broader universe, monitor slippage)
 
 triggers:
   # Price-move based triggers
   price_move:
-    pct_15m: 3.5                    # abs move >= 3.5% in 15m
-    pct_60m: 6.0                    # abs move >= 6.0% in 60m
+    pct_15m: 3.0                    # abs move >= 3.0% in 15m
+    pct_60m: 5.0                    # abs move >= 5.0% in 60m
 
   # Volume spike trigger
   volume_spike:
@@ -88,17 +88,13 @@ strategy:
   max_open_positions: 8             # cap simultaneous distinct holdings
 
   # Require at least this conviction from rules to emit a proposal
-  min_conviction_to_propose: 0.5    # 0..1 (below this = no trade)
+  min_conviction_to_propose: 0.45    # 0..1 (below this = no trade)
 
 microstructure:
-  # Liquidity filters (hard rejections) - legacy section, kept for compatibility
-  min_24h_volume_usd: 5_000_000     # Your original conservative setting
-  max_spread_bps: 100               # 1.00%
-  min_orderbook_depth_usd: 10_000
-  
+  # Liquidity filters moved to top-level 'liquidity'; avoid duplication.
+  # Retain only execution-time microstructure guardrails.
   # Slippage protection
   max_expected_slippage_bps: 50  # 0.50%
-  
   # Quote freshness
   max_quote_age_seconds: 30
 
@@ -135,7 +131,7 @@ execution:
   
   # Hard guardrails
   max_slippage_bps: 40              # 0.40% max allowed vs reference
-  hard_max_spread_bps: 60           # must align with liquidity.max_spread_bps
+  hard_max_spread_bps: 80           # must align with liquidity.max_spread_bps
   
   # Order management
   cancel_after_seconds: 60          # cancel resting orders if not filled
@@ -158,6 +154,14 @@ execution:
     lookback_minutes: 60
     move_threshold_pct: 8.0         # if asset moves >8% in 1h
     size_reduction_factor: 0.5      # halve proposed size
+
+portfolio_management:
+  # Automatically liquidate assets that are excluded or currently ineligible
+  auto_liquidate_ineligible: true
+  # Only liquidate holdings worth at least this much (USD equivalent)
+  min_liquidation_value_usd: 10
+  # Cap liquidations per cycle to avoid mass sells
+  max_liquidations_per_cycle: 2
 
 ai:
   # AI module configuration

@@ -37,9 +37,9 @@ exclusions:
   temporary_ban_hours: 168
 liquidity:
   max_quote_staleness_seconds: 60
-  max_spread_bps: 60           # align with policy
-  min_24h_volume_usd: 20000000 # align with policy
-  min_orderbook_depth_usd: 10000  # Lower to $10K
+  max_spread_bps: 80           # align with policy (broadened)
+  min_24h_volume_usd: 8000000  # align with policy (broadened)
+  min_orderbook_depth_usd: 10000  # align with policy (broadened depth)
   # min_exchanges_listed / required_exchanges omitted for now (Coinbase-only)
 regime_modifiers:
   bear:
@@ -111,11 +111,11 @@ universe:
   max_universe_size: 30
   refresh_interval_hours: 24
   dynamic_config:
-    max_spread_bps: 60
+    max_spread_bps: 80
     min_price_usd: 0.01
     tier1_max_symbols: 10
-    tier1_min_volume_usd: 100000000
+    tier1_min_volume_usd: 80000000
     tier2_max_symbols: 20
-    tier2_min_volume_usd: 20000000
+    tier2_min_volume_usd: 8000000
     tier3_max_symbols: 0           # off for now
     tier3_min_volume_usd: 5000000

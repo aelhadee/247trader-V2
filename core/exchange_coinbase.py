@@ -14,7 +14,7 @@ import uuid
 import secrets
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 import requests
 
@@ -276,84 +276,170 @@ class CoinbaseExchange:
     
     def get_quote(self, symbol: str) -> Quote:
         """
-        Get real-time quote for symbol using product ticker API.
-        
-        Args:
-            symbol: e.g. "BTC-USD"
-            
-        Returns:
-            Quote with bid/ask/mid/spread
+        Get real-time quote for symbol using Coinbase public ticker endpoint.
+        Falls back to product info if ticker data is incomplete.
+
+        Returns a Quote with bid/ask/mid/spread and 24h volume.
         """
         self._rate_limit("quote")
-        
         logger.debug(f"Fetching quote for {symbol}")
-        
-        # Get product info (includes price and volume)
-        products = self.get_products([symbol])
-        if not products:
-            raise ValueError(f"Product not found: {symbol}")
-        
-        product = products[0]
-        
-        # Parse price info
-        price = float(product.get("price", 0))
-        volume_24h = float(product.get("volume_24h", 0) or 0)
-        
-        # Validate that asset has liquidity
-        if price == 0 or price < 0.000001:
-            raise ValueError(f"No liquidity for {symbol}: price={price}, volume_24h={volume_24h}")
-        
-        # Estimate bid/ask from price (Coinbase doesn't provide bid/ask in product endpoint)
-        # Use typical spread of 5-10 bps for liquid pairs
-        spread_bps = 5.0
-        bid = price * (1 - spread_bps / 20000)
-        ask = price * (1 + spread_bps / 20000)
-        mid = (bid + ask) / 2
-        
+
+        best_bid = best_ask = last = 0.0
+        volume_24h = 0.0
+
+        # 1) Try public ticker for best bid/ask and last trade
+        try:
+            url = f"https://api.coinbase.com/api/v3/brokerage/market/products/{symbol}/ticker"
+            r = requests.get(url, params={"limit": 1}, timeout=8)
+            r.raise_for_status()
+            data = r.json() or {}
+
+            # Normalize possible key names
+            bb = data.get("best_bid") or data.get("best_bid_price") or data.get("bid")
+            ba = data.get("best_ask") or data.get("best_ask_price") or data.get("ask")
+            lp = data.get("price") or data.get("last") or data.get("last_price")
+            vol = data.get("volume_24h") or data.get("quote_volume_24h")
+
+            if bb: best_bid = float(bb)
+            if ba: best_ask = float(ba)
+            if lp: last = float(lp)
+            if vol: volume_24h = float(vol)
+        except Exception as e:
+            logger.warning(f"ticker fetch failed for {symbol}: {e}")
+
+        # 2) If volume or prices missing, load product as fallback
+        if not volume_24h or not (best_bid and best_ask):
+            try:
+                products = self.get_products([symbol])
+                if products:
+                    p = products[0]
+                    if not last:
+                        last = float(p.get("price") or 0)
+                    if not volume_24h:
+                        volume_24h = float(p.get("volume_24h") or 0)
+            except Exception as e:
+                logger.warning(f"product fallback failed for {symbol}: {e}")
+
+        # 3) Derive missing bid/ask from last if necessary
+        if (not best_bid or not best_ask) and last > 0:
+            # Assume a tight spread if we lack explicit bid/ask
+            assumed_spread_bps = 6.0
+            best_bid = best_bid or last * (1 - assumed_spread_bps / 20000)
+            best_ask = best_ask or last * (1 + assumed_spread_bps / 20000)
+
+        if best_bid <= 0 or best_ask <= 0:
+            raise ValueError(f"No liquidity for {symbol}: bid={best_bid}, ask={best_ask}, last={last}")
+
+        mid = (best_bid + best_ask) / 2.0
+        spread_bps = (best_ask - best_bid) / mid * 10000.0 if mid > 0 else 0.0
+
         return Quote(
             symbol=symbol,
-            bid=bid,
-            ask=ask,
+            bid=best_bid,
+            ask=best_ask,
             mid=mid,
             spread_bps=spread_bps,
-            last=price,
+            last=last or mid,
             volume_24h=volume_24h,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(timezone.utc)
         )
     
     def get_orderbook(self, symbol: str, depth_levels: int = 50) -> OrderbookSnapshot:
         """
-        Get orderbook depth snapshot.
+        Get orderbook depth snapshot using Coinbase market book if available.
+        Falls back to heuristic based on 24h volume when book is unavailable.
+        
+        Depth is computed within ±20bps of mid to match policy "min_depth_20bps_usd".
         
         Args:
             symbol: e.g. "BTC-USD"
-            depth_levels: Number of levels to fetch (not used - Coinbase returns best bid/ask)
+            depth_levels: Number of levels to fetch (best-effort; 50-100 typical)
             
         Returns:
             OrderbookSnapshot with depth metrics
         """
         self._rate_limit("orderbook")
-        
         logger.debug(f"Fetching orderbook for {symbol}")
-        
-        # Coinbase doesn't provide full orderbook depth via REST API easily
-        # For now, estimate depth from product info
-        # In production, could use WebSocket for real orderbook
-        
-        quote = self.get_quote(symbol)
-        
-        # Estimate depth (conservative)
-        estimated_depth_usd = quote.volume_24h * 0.0001  # 0.01% of 24h volume
-        
-        return OrderbookSnapshot(
-            symbol=symbol,
-            bid_depth_usd=estimated_depth_usd / 2,
-            ask_depth_usd=estimated_depth_usd / 2,
-            total_depth_usd=estimated_depth_usd,
-            bid_levels=10,  # Estimated
-            ask_levels=10,
-            timestamp=datetime.utcnow()
-        )
+
+        try:
+            # Try Coinbase Advanced Trade market product book endpoint
+            # API: /api/v3/brokerage/market/product_book?product_id=BTC-USD&limit=100
+            url = "https://api.coinbase.com/api/v3/brokerage/market/product_book"
+            params = {"product_id": symbol, "limit": max(1, min(depth_levels, 100))}
+            r = requests.get(url, params=params, timeout=10)
+            r.raise_for_status()
+            data = r.json() or {}
+
+            # Response may wrap levels under a 'pricebook' object
+            pricebook = data.get("pricebook") or {}
+            bids = pricebook.get("bids") if pricebook else data.get("bids") or []
+            asks = pricebook.get("asks") if pricebook else data.get("asks") or []
+
+            if not bids or not asks:
+                raise ValueError("Empty book")
+
+            # Prices and sizes may be strings; normalize
+            def _norm(side):
+                out = []
+                for lvl in side:
+                    p = float(lvl.get("price") or lvl.get("px") or 0)
+                    s = float(lvl.get("size") or lvl.get("qty") or 0)
+                    out.append((p, s))
+                return out
+
+            bids_n = _norm(bids)
+            asks_n = _norm(asks)
+
+            best_bid = bids_n[0][0]
+            best_ask = asks_n[0][0]
+            if best_bid <= 0 or best_ask <= 0:
+                raise ValueError("Invalid top of book")
+
+            mid = (best_bid + best_ask) / 2.0
+            band = 0.002  # 20 bps
+            max_buy_px = mid * (1 + band)
+            min_sell_px = mid * (1 - band)
+
+            # Sum USD depth within the price band (price * base_size)
+            bid_depth_usd = 0.0
+            for px, sz in bids_n:
+                if px < min_sell_px:
+                    break
+                bid_depth_usd += px * sz
+
+            ask_depth_usd = 0.0
+            for px, sz in asks_n:
+                if px > max_buy_px:
+                    break
+                ask_depth_usd += px * sz
+
+            total_depth_usd = bid_depth_usd + ask_depth_usd
+
+            return OrderbookSnapshot(
+                symbol=symbol,
+                bid_depth_usd=bid_depth_usd,
+                ask_depth_usd=ask_depth_usd,
+                total_depth_usd=total_depth_usd,
+                bid_levels=len(bids_n),
+                ask_levels=len(asks_n),
+                timestamp=datetime.now(timezone.utc)
+            )
+
+        except Exception as e:
+            logger.warning(f"product_book fetch failed for {symbol}: {e}; using heuristic depth")
+
+            # Fallback heuristic from 24h volume
+            quote = self.get_quote(symbol)
+            estimated_depth_usd = quote.volume_24h * 0.0005  # 0.05% of 24h volume (less conservative)
+            return OrderbookSnapshot(
+                symbol=symbol,
+                bid_depth_usd=estimated_depth_usd / 2,
+                ask_depth_usd=estimated_depth_usd / 2,
+                total_depth_usd=estimated_depth_usd,
+                bid_levels=0,
+                ask_levels=0,
+                timestamp=datetime.now(timezone.utc)
+            )
     
     def get_ohlcv(self, symbol: str, interval: str = "1h", 
                    limit: int = 100) -> List[OHLCV]:
@@ -590,16 +676,36 @@ class CoinbaseExchange:
         
         self._rate_limit("preview_order")
         
-        body = {
-            "order_configuration": {
-                "market_market_ioc": {
-                    "quote_size": f"{quote_size_usd:.2f}"
-                }
-            },
-            "product_id": product_id,
-            "side": side.upper(),
-            "client_order_id": str(uuid.uuid4()),
-        }
+        side_up = side.upper()
+
+        # Per Coinbase, market SELLs must be parameterized with base_size
+        if side_up == "SELL":
+            # Compute base size from quote_size using current price
+            quote = self.get_quote(product_id)
+            if quote.mid <= 0:
+                raise ValueError(f"Invalid price for {product_id} in preview")
+            base_size = quote_size_usd / quote.mid
+            base_size_str = self._round_to_precision(base_size, product_id)
+            body = {
+                "order_configuration": {
+                    "market_market_ioc": {
+                        "base_size": base_size_str
+                    }
+                },
+                "product_id": product_id,
+                "side": side_up
+            }
+        else:
+            # BUY: quote_size is accepted
+            body = {
+                "order_configuration": {
+                    "market_market_ioc": {
+                        "quote_size": f"{quote_size_usd:.2f}"
+                    }
+                },
+                "product_id": product_id,
+                "side": side_up
+            }
         
         logger.info(f"Previewing {side} {quote_size_usd} USD of {product_id}")
         return self._req("POST", "/orders/preview", body, authenticated=True)
@@ -677,11 +783,22 @@ class CoinbaseExchange:
             # Round base_size to appropriate precision
             base_size_str = self._round_to_precision(base_size, product_id)
             
+            # Dynamic price precision: tiny-priced assets need more decimals.
+            if limit_price >= 1:
+                price_fmt = f"{limit_price:.2f}"
+            elif limit_price >= 0.1:
+                price_fmt = f"{limit_price:.4f}"
+            elif limit_price >= 0.01:
+                price_fmt = f"{limit_price:.5f}"
+            else:
+                price_fmt = f"{limit_price:.8f}"
+
             body = {
                 "order_configuration": {
                     "limit_limit_gtc": {
                         "base_size": base_size_str,
-                        "limit_price": f"{limit_price:.2f}",
+                        # Use adaptive precision to avoid $0.00 rounding on micro-priced assets (e.g. PUMP)
+                        "limit_price": price_fmt,
                         "post_only": True  # Critical: ensures maker-only
                     }
                 },
@@ -689,22 +806,43 @@ class CoinbaseExchange:
                 "side": side.upper(),
                 "client_order_id": client_order_id or str(uuid.uuid4()),
             }
-            
-            logger.warning(f"PLACING LIMIT POST-ONLY ORDER: {side} {base_size_str} of {product_id} @ ${limit_price:.2f} (bid={quote.bid:.2f}, ask={quote.ask:.2f})")
+            logger.warning(
+                f"PLACING LIMIT POST-ONLY ORDER: {side} {base_size_str} of {product_id} @ ${price_fmt} "
+                f"(bid={quote.bid:.8f}, ask={quote.ask:.8f})")
         else:
             # Market IOC order
-            body = {
-                "order_configuration": {
-                    "market_market_ioc": {
-                        "quote_size": f"{quote_size_usd:.2f}"
-                    }
-                },
-                "product_id": product_id,
-                "side": side.upper(),
-                "client_order_id": client_order_id or str(uuid.uuid4()),
-            }
-            
-            logger.warning(f"PLACING MARKET ORDER: {side} {quote_size_usd} USD of {product_id}")
+            side_up = side.upper()
+            if side_up == "SELL":
+                # SELL must be in base_size
+                quote = self.get_quote(product_id)
+                if quote.mid <= 0:
+                    raise ValueError(f"Invalid price for {product_id}")
+                base_size = quote_size_usd / quote.mid
+                base_size_str = self._round_to_precision(base_size, product_id)
+                body = {
+                    "order_configuration": {
+                        "market_market_ioc": {
+                            "base_size": base_size_str
+                        }
+                    },
+                    "product_id": product_id,
+                    "side": side_up,
+                    "client_order_id": client_order_id or str(uuid.uuid4()),
+                }
+                logger.warning(f"PLACING MARKET ORDER: {side} {base_size_str} {product_id.split('-')[0]} of {product_id}")
+            else:
+                # BUY may use quote_size
+                body = {
+                    "order_configuration": {
+                        "market_market_ioc": {
+                            "quote_size": f"{quote_size_usd:.2f}"
+                        }
+                    },
+                    "product_id": product_id,
+                    "side": side_up,
+                    "client_order_id": client_order_id or str(uuid.uuid4()),
+                }
+                logger.warning(f"PLACING MARKET ORDER: {side} {quote_size_usd} USD of {product_id}")
         
         return self._req("POST", "/orders", body, authenticated=True)
     

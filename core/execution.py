@@ -506,7 +506,7 @@ class ExecutionEngine:
             logger.error(f"Error finding trading pair: {e}")
             return None
     
-    def preview_order(self, symbol: str, side: str, size_usd: float) -> Dict:
+    def preview_order(self, symbol: str, side: str, size_usd: float, skip_liquidity_checks: bool = False) -> Dict:
         """
         Preview an order without placing it.
         
@@ -527,45 +527,40 @@ class ExecutionEngine:
         try:
             # Get quote for slippage estimate
             quote = self.exchange.get_quote(symbol)
-            
-            # Check spread
-            if quote.spread_bps > self.max_spread_bps:
-                return {
-                    "success": False,
-                    "error": f"Spread {quote.spread_bps:.1f}bps exceeds max {self.max_spread_bps}bps"
-                }
-            
-            # Check orderbook depth (critical for LIVE mode)
-            try:
-                orderbook = self.exchange.get_orderbook(symbol, depth_levels=20)
-                
-                # Use estimated depth from orderbook snapshot
-                # Note: Coinbase REST API doesn't provide full orderbook, so we use estimates
-                if side.upper() == "BUY":
-                    # For buys, check ask side depth
-                    depth_available_usd = orderbook.ask_depth_usd
-                else:
-                    # For sells, check bid side depth
-                    depth_available_usd = orderbook.bid_depth_usd
-                
-                # Check if sufficient depth (want 2x our size available)
-                min_depth_required = size_usd * self.min_depth_multiplier
-                if depth_available_usd < min_depth_required:
+
+            if not skip_liquidity_checks:
+                # Check spread
+                if quote.spread_bps > self.max_spread_bps:
                     return {
                         "success": False,
-                        "error": f"Insufficient depth: ${depth_available_usd:.0f} < ${min_depth_required:.0f} required"
+                        "error": f"Spread {quote.spread_bps:.1f}bps exceeds max {self.max_spread_bps}bps"
                     }
-                
-                logger.debug(f"Depth check passed: ${depth_available_usd:.0f} available for ${size_usd:.0f} order")
-                
-            except Exception as e:
-                logger.warning(f"Depth check failed (continuing): {e}")
-                # In LIVE mode, depth check failure should block execution
-                if self.mode == "LIVE":
-                    return {
-                        "success": False,
-                        "error": f"Cannot verify orderbook depth: {e}"
-                    }
+
+                # Check orderbook depth (critical for LIVE mode)
+                try:
+                    orderbook = self.exchange.get_orderbook(symbol, depth_levels=20)
+
+                    if side.upper() == "BUY":
+                        depth_available_usd = orderbook.ask_depth_usd
+                    else:
+                        depth_available_usd = orderbook.bid_depth_usd
+
+                    min_depth_required = size_usd * self.min_depth_multiplier
+                    if depth_available_usd < min_depth_required:
+                        return {
+                            "success": False,
+                            "error": f"Insufficient depth: ${depth_available_usd:.0f} < ${min_depth_required:.0f} required"
+                        }
+                    logger.debug(f"Depth check passed: ${depth_available_usd:.0f} available for ${size_usd:.0f} order")
+                except Exception as e:
+                    logger.warning(f"Depth check failed (continuing): {e}")
+                    if self.mode == "LIVE":
+                        return {
+                            "success": False,
+                            "error": f"Cannot verify orderbook depth: {e}"
+                        }
+            else:
+                logger.debug(f"Skipping liquidity checks for {symbol} {side} purge/forced execution.")
             
             # Estimate fill
             if side.upper() == "BUY":
@@ -606,7 +601,9 @@ class ExecutionEngine:
     
     def execute(self, symbol: str, side: str, size_usd: float,
                 client_order_id: Optional[str] = None,
-                max_slippage_bps: Optional[float] = None) -> ExecutionResult:
+                max_slippage_bps: Optional[float] = None,
+                force_order_type: Optional[str] = None,
+                skip_liquidity_checks: bool = False) -> ExecutionResult:
         """
         Execute a trade.
         
@@ -677,7 +674,7 @@ class ExecutionEngine:
         
         if self.mode == "LIVE":
             # Real execution
-            return self._execute_live(symbol, side, size_usd, client_order_id, max_slippage_bps)
+            return self._execute_live(symbol, side, size_usd, client_order_id, max_slippage_bps, force_order_type, skip_liquidity_checks)
         
         raise ValueError(f"Invalid mode: {self.mode}")
     
@@ -727,7 +724,9 @@ class ExecutionEngine:
     
     def _execute_live(self, symbol: str, side: str, size_usd: float,
                      client_order_id: Optional[str],
-                     max_slippage_bps: Optional[float]) -> ExecutionResult:
+                     max_slippage_bps: Optional[float],
+                     force_order_type: Optional[str] = None,
+                     skip_liquidity_checks: bool = False) -> ExecutionResult:
         """
         Execute real order on Coinbase.
         """
@@ -742,7 +741,7 @@ class ExecutionEngine:
         
         try:
             # Preview first
-            preview = self.preview_order(symbol, side, size_usd)
+            preview = self.preview_order(symbol, side, size_usd, skip_liquidity_checks=skip_liquidity_checks)
             if not preview.get("success"):
                 return ExecutionResult(
                     success=False,
@@ -769,8 +768,8 @@ class ExecutionEngine:
                     error=f"Slippage {preview['estimated_slippage_bps']:.1f}bps exceeds max {max_slip}bps"
                 )
             
-            # Place order (use post-only if configured)
-            order_type = "limit_post_only" if self.limit_post_only else "market"
+            # Place order (use post-only if configured), but allow explicit override
+            order_type = force_order_type or ("limit_post_only" if self.limit_post_only else "market")
             result = self.exchange.place_order(
                 product_id=symbol,
                 side=side.lower(),
@@ -820,7 +819,7 @@ class ExecutionEngine:
             
         except Exception as e:
             logger.error(f"Live execution failed: {e}")
-            order_type = "limit_post_only" if self.limit_post_only else "market"
+            order_type = force_order_type or ("limit_post_only" if self.limit_post_only else "market")
             return ExecutionResult(
                 success=False,
                 order_id=None,
