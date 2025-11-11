@@ -113,12 +113,54 @@ class ExecutionEngine:
         # Track last failure by symbol to avoid retry spam
         self._last_fail = {}
 
+        # Quote staleness threshold from policy
+        self.max_quote_age_seconds = microstructure_config.get("max_quote_age_seconds", 30)
+
         logger.info(
             f"Initialized ExecutionEngine (mode={self.mode}, min_notional=${self.min_notional_usd}, "
             f"quotes={self.preferred_quotes}, auto_convert={self.auto_convert_preferred_quote}, "
             f"clamp_small_trades={self.clamp_small_trades}, maker_fee={self.maker_fee_bps}bps, "
-            f"taker_fee={self.taker_fee_bps}bps)"
+            f"taker_fee={self.taker_fee_bps}bps, max_quote_age={self.max_quote_age_seconds}s)"
         )
+    
+    def _validate_quote_freshness(self, quote, symbol: str) -> Optional[str]:
+        """
+        Validate quote timestamp is fresh enough for trading decisions.
+        
+        Args:
+            quote: Quote object with timestamp field
+            symbol: Symbol name for logging
+            
+        Returns:
+            Error string if stale, None if fresh
+        """
+        if quote is None:
+            return f"Quote is None for {symbol}"
+        
+        if not hasattr(quote, 'timestamp') or quote.timestamp is None:
+            return f"Quote missing timestamp for {symbol}"
+        
+        now = datetime.now(timezone.utc)
+        
+        # Ensure quote timestamp is timezone-aware
+        quote_ts = quote.timestamp
+        if quote_ts.tzinfo is None:
+            # Assume UTC if naive
+            quote_ts = quote_ts.replace(tzinfo=timezone.utc)
+        
+        age_seconds = (now - quote_ts).total_seconds()
+        
+        if age_seconds > self.max_quote_age_seconds:
+            return (f"Quote too stale for {symbol}: {age_seconds:.1f}s old "
+                   f"(max: {self.max_quote_age_seconds}s)")
+        
+        if age_seconds < 0:
+            # Future timestamp - clock skew issue
+            return (f"Quote timestamp in future for {symbol}: {age_seconds:.1f}s ahead "
+                   f"(possible clock skew)")
+        
+        logger.debug(f"Quote freshness OK for {symbol}: {age_seconds:.1f}s old")
+        return None
     
     def generate_client_order_id(self, symbol: str, side: str, size_usd: float, 
                                   timestamp: Optional[datetime] = None) -> str:
@@ -707,6 +749,11 @@ class ExecutionEngine:
                         # Try direct USD pair first
                         quote_pair = f"{quote}-USD"
                         quote_obj = self.exchange.get_quote(quote_pair)
+                        # Validate quote freshness
+                        staleness_error = self._validate_quote_freshness(quote_obj, quote_pair)
+                        if staleness_error:
+                            logger.debug(f"  Skipping {quote_pair}: {staleness_error}")
+                            continue
                         balance_usd = balance * quote_obj.mid
                         logger.debug(f"  {quote} balance: {balance:.6f} * ${quote_obj.mid:.2f} = ${balance_usd:.2f} USD")
                     except:
@@ -714,6 +761,11 @@ class ExecutionEngine:
                         try:
                             quote_pair = f"{quote}-USDC"
                             quote_obj = self.exchange.get_quote(quote_pair)
+                            # Validate quote freshness
+                            staleness_error = self._validate_quote_freshness(quote_obj, quote_pair)
+                            if staleness_error:
+                                logger.debug(f"  Skipping {quote_pair}: {staleness_error}")
+                                continue
                             balance_usd = balance * quote_obj.mid
                             logger.debug(f"  {quote} balance: {balance:.6f} * ${quote_obj.mid:.2f} = ${balance_usd:.2f} USDC (≈USD)")
                         except Exception as e:
@@ -812,6 +864,14 @@ class ExecutionEngine:
         try:
             # Get quote for slippage estimate
             quote = self.exchange.get_quote(symbol)
+            
+            # Validate quote freshness
+            staleness_error = self._validate_quote_freshness(quote, symbol)
+            if staleness_error:
+                return {
+                    "success": False,
+                    "error": staleness_error
+                }
 
             if not skip_liquidity_checks:
                 # Check spread
@@ -1149,6 +1209,22 @@ class ExecutionEngine:
             # Get current price for constraint enforcement
             try:
                 quote = self.exchange.get_quote(symbol)
+                
+                # Validate quote freshness
+                staleness_error = self._validate_quote_freshness(quote, symbol)
+                if staleness_error:
+                    logger.warning(f"Stale quote rejected in _execute_live: {staleness_error}")
+                    return ExecutionResult(
+                        success=False,
+                        order_id=None,
+                        filled_size=0.0,
+                        filled_price=0.0,
+                        fees=0.0,
+                        slippage_bps=0.0,
+                        route="live_rejected",
+                        error=staleness_error
+                    )
+                
                 current_price = quote.mid
             except Exception as e:
                 logger.warning(f"Failed to get quote for {symbol}: {e}")

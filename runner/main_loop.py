@@ -126,9 +126,129 @@ class TradingLoop:
         logger.info(f"Initialized TradingLoop in {self.mode} mode")
     
     def _handle_stop(self, *_):
-        """Handle shutdown signals"""
-        logger.warning("Shutdown signal received, stopping after current cycle.")
+        """
+        Handle shutdown signals with graceful cleanup.
+        
+        Strategy:
+        1. Set _running = False to stop after current cycle
+        2. Cancel all active orders from OrderStateMachine
+        3. Flush StateStore to disk
+        4. Log cleanup summary
+        
+        Safety:
+        - Only cancels orders if not in DRY_RUN mode
+        - Logs all actions for audit trail
+        - Continues even if individual cleanup steps fail
+        """
+        logger.warning("=" * 80)
+        logger.warning("SHUTDOWN SIGNAL RECEIVED - Initiating graceful shutdown")
+        logger.warning("=" * 80)
+        
+        # Stop loop after current cycle
         self._running = False
+        
+        # Graceful cleanup (only if not DRY_RUN)
+        if self.mode == "DRY_RUN":
+            logger.info("DRY_RUN mode - skipping order cancellation")
+            return
+        
+        cleanup_summary = {
+            "orders_canceled": 0,
+            "cancel_errors": 0,
+            "state_flushed": False,
+        }
+        
+        try:
+            # Step 1: Cancel all active orders
+            logger.info("Step 1: Canceling active orders...")
+            
+            # Get all active (non-terminal) orders from OrderStateMachine
+            active_orders = self.executor.order_state_machine.get_active_orders()
+            
+            if not active_orders:
+                logger.info("No active orders to cancel")
+            else:
+                logger.info(f"Found {len(active_orders)} active orders to cancel")
+                
+                # Group by exchange order ID for batch cancellation
+                order_ids_to_cancel = []
+                client_id_map = {}
+                
+                for order in active_orders:
+                    if order.order_id:
+                        order_ids_to_cancel.append(order.order_id)
+                        client_id_map[order.order_id] = order.client_order_id
+                        logger.info(f"  - {order.symbol} {order.side} (order_id={order.order_id})")
+                    else:
+                        logger.warning(f"  - {order.symbol} {order.side} (no exchange order_id, skipping)")
+                
+                # Cancel orders via exchange
+                if order_ids_to_cancel:
+                    try:
+                        if len(order_ids_to_cancel) == 1:
+                            # Single order cancel
+                            result = self.exchange.cancel_order(order_ids_to_cancel[0])
+                            if result.get("success"):
+                                cleanup_summary["orders_canceled"] = 1
+                                logger.info(f"✅ Canceled order {order_ids_to_cancel[0]}")
+                            else:
+                                cleanup_summary["cancel_errors"] = 1
+                                logger.warning(f"⚠️ Failed to cancel order {order_ids_to_cancel[0]}: {result.get('error')}")
+                        else:
+                            # Batch cancel
+                            result = self.exchange.cancel_orders(order_ids_to_cancel)
+                            if result.get("success") or "results" in result:
+                                cleanup_summary["orders_canceled"] = len(order_ids_to_cancel)
+                                logger.info(f"✅ Batch canceled {len(order_ids_to_cancel)} orders")
+                            else:
+                                cleanup_summary["cancel_errors"] = len(order_ids_to_cancel)
+                                logger.warning(f"⚠️ Batch cancel failed: {result.get('error')}")
+                        
+                        # Transition canceled orders to CANCELED state
+                        from core.order_state import OrderStatus
+                        for order_id, client_id in client_id_map.items():
+                            if client_id:
+                                try:
+                                    self.executor.order_state_machine.transition(
+                                        client_id,
+                                        OrderStatus.CANCELED
+                                    )
+                                    # Close in state store
+                                    if self.state_store:
+                                        self.executor._close_order_in_state_store(
+                                            client_id,
+                                            "canceled",
+                                            {"reason": "graceful_shutdown"}
+                                        )
+                                except Exception as e:
+                                    logger.warning(f"Failed to transition order {client_id} to CANCELED: {e}")
+                        
+                    except Exception as e:
+                        cleanup_summary["cancel_errors"] = len(order_ids_to_cancel)
+                        logger.error(f"Failed to cancel orders: {e}", exc_info=True)
+            
+            # Step 2: Flush StateStore to disk
+            logger.info("Step 2: Flushing StateStore to disk...")
+            try:
+                # StateStore saves automatically on each operation, but force a final save
+                state = self.state_store.load()
+                self.state_store.save(state)
+                cleanup_summary["state_flushed"] = True
+                logger.info("✅ StateStore flushed to disk")
+            except Exception as e:
+                logger.error(f"Failed to flush StateStore: {e}", exc_info=True)
+            
+            # Step 3: Log cleanup summary
+            logger.warning("=" * 80)
+            logger.warning("GRACEFUL SHUTDOWN COMPLETE")
+            logger.warning(f"  Orders canceled: {cleanup_summary['orders_canceled']}")
+            logger.warning(f"  Cancel errors: {cleanup_summary['cancel_errors']}")
+            logger.warning(f"  State flushed: {cleanup_summary['state_flushed']}")
+            logger.warning("=" * 80)
+            
+        except Exception as e:
+            logger.error(f"Error during graceful shutdown: {e}", exc_info=True)
+            logger.warning("Shutdown will continue despite cleanup errors")
     
     def _load_yaml(self, filename: str) -> dict:
         """Load YAML config file"""
