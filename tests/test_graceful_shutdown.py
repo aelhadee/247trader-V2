@@ -19,6 +19,25 @@ from core.execution import ExecutionResult
 class TestGracefulShutdown:
     """Test graceful shutdown handler"""
     
+    @pytest.fixture(autouse=True)
+    def cleanup_lock(self):
+        """Clean up instance lock before and after each test"""
+        import os
+        lock_file = "data/247trader-v2.pid"
+        # Clean up before test
+        if os.path.exists(lock_file):
+            try:
+                os.remove(lock_file)
+            except:
+                pass
+        yield
+        # Clean up after test
+        if os.path.exists(lock_file):
+            try:
+                os.remove(lock_file)
+            except:
+                pass
+    
     @pytest.fixture
     def mock_components(self):
         """Mock all external dependencies"""
