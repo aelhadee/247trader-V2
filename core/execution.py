@@ -1733,18 +1733,14 @@ class ExecutionEngine:
                         # Less than 95% filled = partial
                         self.order_state_machine.transition(
                             client_id,
-                            OrderStatus.PARTIAL_FILL,
-                            filled_size=new_filled_size,
-                            filled_value=new_filled_value
+                            OrderStatus.PARTIAL_FILL
                         )
                         logger.debug(f"Order {client_id} partially filled: ${new_filled_value:.2f}/${order_state.size_usd:.2f}")
                     else:
                         # 95%+ filled = complete
                         self.order_state_machine.transition(
                             client_id,
-                            OrderStatus.FILLED,
-                            filled_size=new_filled_size,
-                            filled_value=new_filled_value
+                            OrderStatus.FILLED
                         )
                         logger.info(f"Order {client_id} fully filled: ${new_filled_value:.2f}")
                         
