@@ -421,13 +421,24 @@ class TradingLoop:
                 )
                 return False
             
+            # Get account UUIDs for conversion
+            accounts = self.exchange.get_accounts()
+            from_account = next((a for a in accounts if a['currency'] == worst['currency']), None)
+            to_account = next((a for a in accounts if a['currency'] == 'USDC'), None)
+            
+            if not from_account or not to_account:
+                logger.error(f"Cannot find account UUIDs for {worst['currency']} or USDC")
+                return False
+            
             # Liquidate worst performer to USDC
             logger.info(f"Converting {worst['currency']} → USDC to raise capital...")
             
             result = self.executor.convert_asset(
                 from_currency=worst['currency'],
                 to_currency='USDC',
-                amount=worst['balance']
+                amount=str(worst['balance']),
+                from_account_uuid=from_account['uuid'],
+                to_account_uuid=to_account['uuid']
             )
             
             if result.success:
