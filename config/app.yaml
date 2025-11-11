@@ -4,7 +4,7 @@
 app:
   name: "247trader-v2"
   version: "2.0.0"
-  mode: "DRY_RUN"  # DRY_RUN | PAPER | LIVE (safe default)
+  mode: "LIVE"  # DRY_RUN | PAPER | LIVE (safe default)
 
 exchange:
   name: "coinbase"
@@ -12,7 +12,7 @@ exchange:
   api_secret: "${COINBASE_API_SECRET}"
   
   # Read-only mode for safety (run_live.sh can override for LIVE mode)
-  read_only: true
+  read_only: false
   
   # Rate limits (per second)
   rate_limit:

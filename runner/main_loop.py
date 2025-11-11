@@ -163,14 +163,35 @@ class TradingLoop:
             approved_proposals = risk_result.approved_proposals
             logger.info(f"Risk checks PASSED: {len(approved_proposals)}/{len(proposals)} proposals approved")
             
-            # Step 5: Execute (Phase 1: DRY_RUN only)
+            # Step 5: Execute trades
+            logger.info(f"Step 5: Executing {len(approved_proposals)} approved trades...")
+            executed_trades = []
+            
             if self.mode == "DRY_RUN":
-                logger.info("Step 5: DRY_RUN mode - no execution")
-                executed_trades = []
+                logger.info("DRY_RUN mode - no execution")
             else:
-                # TODO: Phase 5 - implement execution
-                logger.info("Step 5: Execution not yet implemented")
-                executed_trades = []
+                # Execute each approved proposal
+                for proposal in approved_proposals:
+                    logger.info(f"Executing: {proposal.side} {proposal.symbol} (size={proposal.size_pct}%)")
+                    
+                    result = self.executor.execute(proposal)
+                    
+                    if result["status"] == "EXECUTED":
+                        logger.info(f"✅ Trade executed: {proposal.symbol} - {result.get('message', 'Success')}")
+                        executed_trades.append({
+                            "proposal": proposal,
+                            "result": result
+                        })
+                    elif result["status"] == "SIMULATED":
+                        logger.info(f"📝 Trade simulated: {proposal.symbol} - {result.get('message', 'Paper trade')}")
+                        executed_trades.append({
+                            "proposal": proposal,
+                            "result": result
+                        })
+                    else:
+                        logger.warning(f"⚠️ Trade failed: {proposal.symbol} - {result.get('error', 'Unknown error')}")
+                
+                logger.info(f"Execution complete: {len(executed_trades)}/{len(approved_proposals)} trades successful")
             
             # Build summary (use approved_proposals, not original proposals)
             summary = self._build_summary(
