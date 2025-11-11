@@ -56,18 +56,41 @@ class PortfolioState:
     consecutive_losses: int = 0
     last_loss_time: Optional[datetime] = None
     current_time: Optional[datetime] = None  # Current time (simulation or real)
+    weekly_pnl_pct: float = 0.0
     
     def get_position_usd(self, symbol: str) -> float:
         """Get USD value of a position (enforces schema)"""
         pos = self.open_positions.get(symbol, {})
-        return pos.get("usd", 0.0) if isinstance(pos, dict) else 0.0
+        if not isinstance(pos, dict):
+            return 0.0
+        if "usd" in pos:
+            try:
+                return float(pos["usd"])
+            except (TypeError, ValueError):
+                return 0.0
+        if "usd_value" in pos:
+            try:
+                return float(pos["usd_value"])
+            except (TypeError, ValueError):
+                return 0.0
+        return 0.0
     
     def get_total_exposure_usd(self) -> float:
         """Get total USD exposure across all positions"""
-        return sum(
-            pos.get("usd", 0.0) if isinstance(pos, dict) else 0.0
-            for pos in self.open_positions.values()
-        )
+        total = 0.0
+        for pos in self.open_positions.values():
+            if not isinstance(pos, dict):
+                continue
+            value = pos.get("usd")
+            if value is None:
+                value = pos.get("usd_value")
+            if value is None:
+                continue
+            try:
+                total += float(value)
+            except (TypeError, ValueError):
+                continue
+        return total
 
 
 class RiskEngine:

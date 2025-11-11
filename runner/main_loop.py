@@ -30,7 +30,8 @@ from core.universe import UniverseManager
 from core.triggers import TriggerEngine
 from strategy.rules_engine import RulesEngine, TradeProposal
 from core.risk import RiskEngine, PortfolioState
-from core.execution import ExecutionEngine
+from core.execution import ExecutionEngine, ExecutionResult
+from infra.alerting import AlertService, AlertSeverity
 from infra.state_store import StateStore
 from core.audit_log import AuditLogger
 
@@ -86,6 +87,17 @@ class TradingLoop:
         self.exchange = CoinbaseExchange(read_only=self.read_only)
         self.state_store = StateStore()
         self.audit = AuditLogger(audit_file=log_file.replace('.log', '_audit.jsonl'))
+
+        monitoring_cfg = self.app_config.get("monitoring", {}) or {}
+        self.alerts = AlertService.from_config(
+            monitoring_cfg.get("alerts_enabled", False),
+            monitoring_cfg.get("alerts"),
+        )
+        if self.alerts.is_enabled():
+            logger.info(
+                "Alerting enabled (min_severity=%s)",
+                monitoring_cfg.get("alerts", {}).get("min_severity", "warning"),
+            )
         
         self.universe_mgr = UniverseManager(self.config_dir / "universe.yaml")
         self.trigger_engine = TriggerEngine()
@@ -168,18 +180,123 @@ class TradingLoop:
 
                 logger.info(f"Real account value: ${account_value_usd:.2f}")
         
+        positions = self._normalize_positions_for_risk(state.get("positions", {}))
+
+        pnl_today_usd = float(state.get("pnl_today", 0.0) or 0.0)
+        pnl_week_usd = float(state.get("pnl_week", 0.0) or 0.0)
+
+        def _pct(pnl_usd: float) -> float:
+            baseline = account_value_usd - pnl_usd
+            if baseline <= 0:
+                baseline = account_value_usd if account_value_usd > 0 else 1.0
+            try:
+                return (pnl_usd / baseline) * 100.0 if baseline else 0.0
+            except ZeroDivisionError:
+                return 0.0
+
+        daily_pnl_pct = _pct(pnl_today_usd)
+        weekly_pnl_pct = _pct(pnl_week_usd)
+
         return PortfolioState(
             account_value_usd=account_value_usd,
-            open_positions=state.get("positions", {}),
-            daily_pnl_pct=state.get("pnl_today", 0.0),
+            open_positions=positions,
+            daily_pnl_pct=daily_pnl_pct,
             max_drawdown_pct=0.0,  # TODO: Calculate from history
             trades_today=state.get("trades_today", 0),
             trades_this_hour=state.get("trades_this_hour", 0),
             consecutive_losses=state.get("consecutive_losses", 0),
             last_loss_time=datetime.fromisoformat(state["last_loss_time"]) if state.get("last_loss_time") else None,
             # Use timezone-aware UTC to avoid deprecation warning
-            current_time=datetime.now(timezone.utc)
+            current_time=datetime.now(timezone.utc),
+            weekly_pnl_pct=weekly_pnl_pct,
         )
+
+    @staticmethod
+    def _normalize_positions_for_risk(raw_positions: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+        """Ensure position entries expose 'usd' for risk calculations."""
+        if not raw_positions:
+            return {}
+
+        normalized: Dict[str, Dict[str, Any]] = {}
+
+        for key, value in raw_positions.items():
+            if not isinstance(value, dict):
+                continue
+
+            entry = dict(value)
+
+            units = entry.get("units")
+            if units is None:
+                units = entry.get("total") or entry.get("quantity")
+            try:
+                units_f = float(units) if units is not None else 0.0
+            except (TypeError, ValueError):
+                units_f = 0.0
+
+            usd_value = entry.get("usd")
+            if usd_value is None:
+                usd_value = entry.get("usd_value") or entry.get("notional")
+            try:
+                usd_f = float(usd_value) if usd_value is not None else 0.0
+            except (TypeError, ValueError):
+                usd_f = 0.0
+
+            if usd_f <= 0 and abs(units_f) <= 1e-9:
+                continue
+
+            symbol = key
+            if "-" not in symbol:
+                base = entry.get("currency") or key
+                symbol = f"{base}-USD"
+
+            entry["units"] = units_f
+            entry["usd"] = usd_f
+            entry.setdefault("currency", symbol.split('-')[0])
+            normalized[symbol] = entry
+
+        return normalized
+
+    def _post_trade_refresh(self, executed_orders: List[ExecutionResult]) -> None:
+        """Pull a fresh exchange snapshot after trades settle to avoid state drift."""
+        if self.mode == "DRY_RUN":
+            return
+
+        if not executed_orders:
+            return
+
+        filled = [order for order in executed_orders if order and order.filled_size > 0]
+        if not filled:
+            logger.debug("Post-trade refresh skipped: no fills recorded yet.")
+            return
+
+        wait_cfg = self.app_config.get("execution", {}).get("post_trade_reconcile_wait_seconds")
+        try:
+            wait_seconds = float(wait_cfg) if wait_cfg is not None else 0.5
+        except (TypeError, ValueError):
+            wait_seconds = 0.5
+
+        wait_seconds = max(0.0, min(wait_seconds, 5.0))
+        if wait_seconds > 0:
+            time.sleep(wait_seconds)
+
+        try:
+            self._reconcile_exchange_state()
+        except CriticalDataUnavailable as data_exc:
+            logger.warning(
+                "Post-trade reconcile failed (%s): %s",
+                data_exc.source,
+                str(data_exc.original) if data_exc.original else "unknown error",
+            )
+            return
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning("Post-trade reconcile skipped: %s", exc)
+            return
+
+        try:
+            self.portfolio = self._init_portfolio_state()
+            logger.debug("Portfolio snapshot refreshed after trade fills.")
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning("Failed to refresh portfolio after fills: %s", exc)
 
     def _abort_cycle_due_to_data(self, cycle_started: datetime, source: str,
                                  detail: Optional[str] = None) -> None:
@@ -188,6 +305,16 @@ class TradingLoop:
         if detail:
             msg += f" ({detail})"
         logger.warning(msg)
+        self.alerts.notify(
+            AlertSeverity.CRITICAL,
+            "Data unavailable",
+            msg,
+            {
+                "source": source,
+                "detail": detail,
+                "mode": self.mode,
+            },
+        )
         self.audit.log_cycle(
             ts=cycle_started,
             mode=self.mode,
@@ -491,6 +618,7 @@ class TradingLoop:
             # Update state after fills
             if final_orders:
                 self.state_store.update_from_fills(final_orders, self.portfolio)
+                self._post_trade_refresh(final_orders)
                 logger.info(f"Executed {len(final_orders)} order(s)")
             else:
                 logger.info("NO_TRADE: execution layer filtered all proposals (liquidity/slippage/notional/etc)")
@@ -521,6 +649,15 @@ class TradingLoop:
         except Exception as e:
             # Hard rule: any unexpected error => NO_TRADE this cycle
             logger.exception(f"Error in run_cycle: {e}")
+            self.alerts.notify(
+                AlertSeverity.CRITICAL,
+                "Trading loop exception",
+                str(e),
+                {
+                    "exception": type(e).__name__,
+                    "mode": self.mode,
+                },
+            )
             self.audit.log_cycle(
                 ts=cycle_started,
                 mode=self.mode,

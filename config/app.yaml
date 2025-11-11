@@ -69,3 +69,8 @@ monitoring:
   
   # Alerts (future)
   alerts_enabled: false
+  alerts:
+    webhook_env: "ALERT_WEBHOOK_URL"
+    min_severity: "warning"
+    dry_run: false
+    timeout_seconds: 5
