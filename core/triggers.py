@@ -128,8 +128,19 @@ class TriggerEngine:
         # Current volume (last candle)
         current_volume = candles[-1].volume
         
-        # Average volume (24 hours ago to 7 days ago)
-        avg_volume = sum(c.volume for c in candles[-168:-24]) / 144
+        # Average volume (24 hours ago to up to 7 days ago, adapt to available data)
+        # Use actual number of candles instead of hardcoded 144
+        if len(candles) >= 168:
+            # Ideal case: full 7 days of history
+            historical_candles = candles[-168:-24]
+        else:
+            # Fallback: use what we have (excluding last 24h)
+            historical_candles = candles[:-24] if len(candles) > 24 else candles[:len(candles)//2]
+        
+        if not historical_candles:
+            return None
+        
+        avg_volume = sum(c.volume for c in historical_candles) / len(historical_candles)
         
         if avg_volume == 0:
             return None

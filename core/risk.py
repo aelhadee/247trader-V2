@@ -24,10 +24,13 @@ class RiskCheckResult:
     approved: bool
     reason: Optional[str] = None
     violated_checks: List[str] = None
+    approved_proposals: Optional[List] = None  # Filtered list of approved proposals
     
     def __post_init__(self):
         if self.violated_checks is None:
             self.violated_checks = []
+        if self.approved_proposals is None:
+            self.approved_proposals = []
 
 
 @dataclass
@@ -98,8 +101,18 @@ class RiskEngine:
         if not result.approved:
             return result
         
+        # 2b. Weekly stop loss
+        result = self._check_weekly_stop(portfolio)
+        if not result.approved:
+            return result
+        
         # 3. Max drawdown
         result = self._check_max_drawdown(portfolio)
+        if not result.approved:
+            return result
+        
+        # 3b. Global at-risk limit (existing + proposed)
+        result = self._check_global_at_risk(proposals, portfolio)
         if not result.approved:
             return result
         
@@ -141,7 +154,8 @@ class RiskEngine:
         
         return RiskCheckResult(
             approved=True,
-            violated_checks=violated if violated else []
+            violated_checks=violated if violated else [],
+            approved_proposals=approved_proposals  # Return filtered list
         )
     
     def _check_kill_switch(self) -> RiskCheckResult:
@@ -161,7 +175,9 @@ class RiskEngine:
     
     def _check_daily_stop(self, portfolio: PortfolioState) -> RiskCheckResult:
         """Check if daily stop loss hit"""
-        max_daily_loss_pct = self.risk_config.get("daily_stop_loss_pct", 2.0)
+        # Support both naming conventions: daily_stop_pnl_pct (policy.yaml) and daily_stop_loss_pct (legacy)
+        max_daily_loss_pct = abs(self.risk_config.get("daily_stop_pnl_pct", 
+                                                      self.risk_config.get("daily_stop_loss_pct", 3.0)))
         
         if portfolio.daily_pnl_pct <= -max_daily_loss_pct:
             logger.error(f"Daily stop loss hit: {portfolio.daily_pnl_pct:.2f}% (max: -{max_daily_loss_pct}%)")
@@ -169,6 +185,24 @@ class RiskEngine:
                 approved=False,
                 reason=f"Daily stop loss hit: {portfolio.daily_pnl_pct:.2f}% loss",
                 violated_checks=["daily_stop_loss"]
+            )
+        
+        return RiskCheckResult(approved=True)
+    
+    def _check_weekly_stop(self, portfolio: PortfolioState) -> RiskCheckResult:
+        """Check if weekly stop loss hit"""
+        # Support both naming conventions
+        max_weekly_loss_pct = abs(self.risk_config.get("weekly_stop_pnl_pct",
+                                                       self.risk_config.get("weekly_stop_loss_pct", 7.0)))
+        
+        # Assume portfolio has weekly_pnl_pct attribute; if not, skip this check
+        weekly_pnl = getattr(portfolio, 'weekly_pnl_pct', None)
+        if weekly_pnl is not None and weekly_pnl <= -max_weekly_loss_pct:
+            logger.error(f"Weekly stop loss hit: {weekly_pnl:.2f}% (max: -{max_weekly_loss_pct}%)")
+            return RiskCheckResult(
+                approved=False,
+                reason=f"Weekly stop loss hit: {weekly_pnl:.2f}% loss",
+                violated_checks=["weekly_stop_loss"]
             )
         
         return RiskCheckResult(approved=True)
@@ -184,6 +218,37 @@ class RiskEngine:
                 reason=f"Max drawdown {portfolio.max_drawdown_pct:.2f}% exceeds limit",
                 violated_checks=["max_drawdown"]
             )
+        
+        return RiskCheckResult(approved=True)
+    
+    def _check_global_at_risk(self, proposals: List[TradeProposal],
+                             portfolio: PortfolioState) -> RiskCheckResult:
+        """Check if total at-risk (existing + proposed) exceeds global limit"""
+        max_total_at_risk_pct = self.risk_config.get("max_total_at_risk_pct", 15.0)
+        
+        # Calculate current exposure from open positions
+        current_exposure_pct = sum(abs(v) for v in portfolio.open_positions.values()) / portfolio.account_value_usd * 100
+        
+        # Calculate proposed exposure
+        proposed_pct = sum(p.size_pct for p in proposals)
+        
+        total_at_risk_pct = current_exposure_pct + proposed_pct
+        
+        if total_at_risk_pct > max_total_at_risk_pct:
+            logger.error(
+                f"Total at-risk would exceed limit: {total_at_risk_pct:.1f}% > {max_total_at_risk_pct:.1f}% "
+                f"(current: {current_exposure_pct:.1f}% + proposed: {proposed_pct:.1f}%)"
+            )
+            return RiskCheckResult(
+                approved=False,
+                reason=f"Total at-risk {total_at_risk_pct:.1f}% exceeds cap of {max_total_at_risk_pct:.1f}%",
+                violated_checks=["max_total_at_risk_pct"]
+            )
+        
+        logger.debug(
+            f"Global at-risk check passed: {total_at_risk_pct:.1f}%/{max_total_at_risk_pct:.1f}% "
+            f"(current: {current_exposure_pct:.1f}% + proposed: {proposed_pct:.1f}%)"
+        )
         
         return RiskCheckResult(approved=True)
     

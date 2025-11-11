@@ -50,23 +50,35 @@ class ExecutionEngine:
     - Slippage protection
     """
     
-    def __init__(self, mode: str = "DRY_RUN", exchange: Optional[CoinbaseExchange] = None):
+    def __init__(self, mode: str = "DRY_RUN", exchange: Optional[CoinbaseExchange] = None,
+                 policy: Optional[Dict] = None):
         """
         Initialize execution engine.
         
         Args:
             mode: "DRY_RUN" | "PAPER" | "LIVE"
             exchange: Coinbase exchange instance
+            policy: Policy configuration dict (optional, for reading limits)
         """
         self.mode = mode.upper()
         self.exchange = exchange or get_exchange()
+        self.policy = policy or {}
         
-        # Limits
-        self.max_slippage_bps = 50.0  # 0.5%
-        self.max_spread_bps = 100.0  # 1.0%
-        self.min_notional_usd = 10.0
+        # Load limits from policy or use defaults
+        execution_config = self.policy.get("execution", {})
+        microstructure_config = self.policy.get("microstructure", {})
+        risk_config = self.policy.get("risk", {})
         
-        logger.info(f"Initialized ExecutionEngine (mode={self.mode})")
+        self.max_slippage_bps = microstructure_config.get("max_expected_slippage_bps", 50.0)
+        self.max_spread_bps = microstructure_config.get("max_spread_bps", 100.0)
+        self.min_notional_usd = risk_config.get("min_trade_notional_usd", 100.0)  # From policy.yaml
+        self.min_depth_multiplier = 2.0  # Want 2x order size in depth
+        
+        # Order type preference
+        self.default_order_type = execution_config.get("default_order_type", "limit")
+        self.limit_post_only = (self.default_order_type == "limit_post_only")
+        
+        logger.info(f"Initialized ExecutionEngine (mode={self.mode}, min_notional=${self.min_notional_usd})")
     
     def preview_order(self, symbol: str, side: str, size_usd: float) -> Dict:
         """
@@ -96,6 +108,46 @@ class ExecutionEngine:
                     "success": False,
                     "error": f"Spread {quote.spread_bps:.1f}bps exceeds max {self.max_spread_bps}bps"
                 }
+            
+            # Check orderbook depth (critical for LIVE mode)
+            try:
+                orderbook = self.exchange.get_orderbook(symbol, depth_levels=20)
+                
+                # Calculate depth within 20bps of mid
+                mid = quote.mid
+                depth_20bps_usd = 0.0
+                
+                if side.upper() == "BUY":
+                    # For buys, check ask side depth
+                    max_price = mid * 1.002  # 20bps above mid
+                    for level in orderbook.asks:
+                        if level["price"] <= max_price:
+                            depth_20bps_usd += level["price"] * level["size"]
+                else:
+                    # For sells, check bid side depth
+                    min_price = mid * 0.998  # 20bps below mid
+                    for level in orderbook.bids:
+                        if level["price"] >= min_price:
+                            depth_20bps_usd += level["price"] * level["size"]
+                
+                # Check if sufficient depth
+                min_depth_required = size_usd * 2.0  # Want 2x our size available
+                if depth_20bps_usd < min_depth_required:
+                    return {
+                        "success": False,
+                        "error": f"Insufficient depth: ${depth_20bps_usd:.0f} < ${min_depth_required:.0f} required (20bps)"
+                    }
+                
+                logger.debug(f"Depth check passed: ${depth_20bps_usd:.0f} available for ${size_usd:.0f} order")
+                
+            except Exception as e:
+                logger.warning(f"Depth check failed (continuing): {e}")
+                # In LIVE mode, depth check failure should block execution
+                if self.mode == "LIVE":
+                    return {
+                        "success": False,
+                        "error": f"Cannot verify orderbook depth: {e}"
+                    }
             
             # Estimate fill
             if side.upper() == "BUY":
@@ -261,13 +313,17 @@ class ExecutionEngine:
                     error=f"Slippage {preview['estimated_slippage_bps']:.1f}bps exceeds max {max_slip}bps"
                 )
             
-            # Place order
+            # Place order (use post-only if configured)
+            order_type = "limit_post_only" if self.limit_post_only else "market"
             result = self.exchange.place_order(
                 product_id=symbol,
                 side=side.lower(),
                 quote_size_usd=size_usd,
-                client_order_id=client_order_id
+                client_order_id=client_order_id,
+                order_type=order_type
             )
+            
+            route = f"live_{order_type}"
             
             # Parse result
             order_id = result.get("order_id") or result.get("success_response", {}).get("order_id")
@@ -296,11 +352,12 @@ class ExecutionEngine:
                 filled_price=filled_price,
                 fees=fees,
                 slippage_bps=actual_slippage,
-                route="live_market_ioc"
+                route=route
             )
             
         except Exception as e:
             logger.error(f"Live execution failed: {e}")
+            order_type = "limit_post_only" if self.limit_post_only else "market"
             return ExecutionResult(
                 success=False,
                 order_id=None,
@@ -308,7 +365,7 @@ class ExecutionEngine:
                 filled_price=0.0,
                 fees=0.0,
                 slippage_bps=0.0,
-                route="live_market_ioc",
+                route=f"live_{order_type}",
                 error=str(e)
             )
     
@@ -345,9 +402,9 @@ class ExecutionEngine:
 _executor = None
 
 
-def get_executor(mode: str = "DRY_RUN") -> ExecutionEngine:
+def get_executor(mode: str = "DRY_RUN", policy: Optional[Dict] = None) -> ExecutionEngine:
     """Get singleton executor instance"""
     global _executor
     if _executor is None or _executor.mode != mode.upper():
-        _executor = ExecutionEngine(mode=mode)
+        _executor = ExecutionEngine(mode=mode, policy=policy)
     return _executor

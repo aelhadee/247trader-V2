@@ -54,6 +54,12 @@ class TradingLoop:
         self.policy_config = self._load_yaml("policy.yaml")
         self.universe_config = self._load_yaml("universe.yaml")
         
+        # Ensure log directory exists
+        log_file = self.app_config.get("logging", {}).get("file", "logs/247trader-v2.log")
+        log_path = Path(log_file)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Log directory ensured: {log_path.parent}")
+        
         # Mode
         self.mode = self.app_config.get("app", {}).get("mode", "DRY_RUN")
         
@@ -63,7 +69,7 @@ class TradingLoop:
         self.trigger_engine = TriggerEngine()
         self.rules_engine = RulesEngine(config={})
         self.risk_engine = RiskEngine(self.policy_config, universe_manager=self.universe_mgr)
-        self.executor = get_executor(mode=self.mode)
+        self.executor = get_executor(mode=self.mode, policy=self.policy_config)
         self.state_store = get_state_store()
         
         # State
@@ -153,7 +159,9 @@ class TradingLoop:
                     cycle_start=cycle_start
                 )
             
-            logger.info(f"Risk checks PASSED: {len(proposals)} proposals approved")
+            # Use the filtered approved proposals from risk engine
+            approved_proposals = risk_result.approved_proposals
+            logger.info(f"Risk checks PASSED: {len(approved_proposals)}/{len(proposals)} proposals approved")
             
             # Step 5: Execute (Phase 1: DRY_RUN only)
             if self.mode == "DRY_RUN":
@@ -164,15 +172,15 @@ class TradingLoop:
                 logger.info("Step 5: Execution not yet implemented")
                 executed_trades = []
             
-            # Build summary
+            # Build summary (use approved_proposals, not original proposals)
             summary = self._build_summary(
                 universe=universe,
                 triggers=triggers,
                 proposals=proposals,
-                approved_trades=proposals,
+                approved_trades=approved_proposals,  # Use filtered list from risk engine
                 executed_trades=executed_trades,
                 no_trade_reason=None,
-                violated_checks=[],
+                violated_checks=risk_result.violated_checks,
                 cycle_start=cycle_start
             )
             
@@ -275,12 +283,12 @@ class TradingLoop:
         
         return summary
     
-    def run_forever(self, interval_minutes: int = 15):
+    def run_forever(self, interval_minutes: float = 15):
         """
         Run trading loop continuously.
         
         Args:
-            interval_minutes: Minutes between cycles
+            interval_minutes: Minutes between cycles (can be fractional, e.g., 0.5 for 30 seconds)
         """
         logger.info(f"Starting continuous loop (interval={interval_minutes}m)")
         
@@ -315,7 +323,7 @@ def main():
     
     parser = argparse.ArgumentParser(description="247trader-v2 Trading Bot")
     parser.add_argument("--once", action="store_true", help="Run once and exit")
-    parser.add_argument("--interval", type=int, default=15, help="Minutes between cycles")
+    parser.add_argument("--interval", type=float, default=15, help="Minutes between cycles")
     parser.add_argument("--config-dir", default="config", help="Config directory")
     
     args = parser.parse_args()

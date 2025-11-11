@@ -200,34 +200,79 @@ class CoinbaseExchange:
             raise NotImplementedError(f"Unknown authentication mode: {self._mode}")
     
     def _req(self, method: str, endpoint: str, body: Optional[dict] = None, 
-             authenticated: bool = True) -> dict:
-        """Make HTTP request to Coinbase API"""
+             authenticated: bool = True, max_retries: int = 3) -> dict:
+        """
+        Make HTTP request to Coinbase API with exponential backoff.
+        
+        Retries on:
+        - 429 (rate limit)
+        - 5xx (server errors)
+        - Network errors (timeout, connection)
+        
+        Does NOT retry on:
+        - 4xx (except 429) - client errors like 400, 401, 403
+        """
         path = f"/api/v3/brokerage{endpoint}"
         url = CB_BASE + endpoint
         
-        try:
-            if authenticated:
-                # For JWT, strip query params from path (they're not included in the signature)
-                path_for_auth = path.split('?')[0] if '?' in path else path
-                headers = self._headers(method, path_for_auth, body)
-            else:
-                headers = {"Content-Type": "application/json"}
+        last_exception = None
+        
+        for attempt in range(max_retries):
+            try:
+                if authenticated:
+                    # For JWT, strip query params from path (they're not included in the signature)
+                    path_for_auth = path.split('?')[0] if '?' in path else path
+                    headers = self._headers(method, path_for_auth, body)
+                else:
+                    headers = {"Content-Type": "application/json"}
+                
+                response = requests.request(
+                    method,
+                    url,
+                    headers=headers,
+                    json=body,
+                    timeout=20
+                )
+                response.raise_for_status()
+                return response.json()
+                
+            except requests.exceptions.HTTPError as e:
+                status_code = e.response.status_code
+                
+                # Don't retry on client errors (except 429)
+                if 400 <= status_code < 500 and status_code != 429:
+                    logger.error(f"Coinbase API client error: {status_code} - {e.response.text}")
+                    raise
+                
+                # Retry on 429 (rate limit) or 5xx (server errors)
+                if status_code == 429:
+                    logger.warning(f"Rate limited (429) on {endpoint}, attempt {attempt + 1}/{max_retries}")
+                elif status_code >= 500:
+                    logger.warning(f"Server error ({status_code}) on {endpoint}, attempt {attempt + 1}/{max_retries}")
+                
+                last_exception = e
+                
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+                logger.warning(f"Network error on {endpoint}: {e}, attempt {attempt + 1}/{max_retries}")
+                last_exception = e
+                
+            except Exception as e:
+                logger.error(f"Request failed: {e}")
+                raise
             
-            response = requests.request(
-                method,
-                url,
-                headers=headers,
-                json=body,
-                timeout=20
-            )
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.HTTPError as e:
-            logger.error(f"Coinbase API error: {e.response.status_code} - {e.response.text}")
-            raise
-        except Exception as e:
-            logger.error(f"Request failed: {e}")
-            raise
+            # Exponential backoff with jitter if not last attempt
+            if attempt < max_retries - 1:
+                import random
+                backoff = (2 ** attempt) + random.uniform(0, 1)  # 1-2s, 2-3s, 4-5s
+                logger.info(f"Retrying in {backoff:.1f}s...")
+                time.sleep(backoff)
+        
+        # All retries exhausted
+        logger.error(f"All {max_retries} retries exhausted for {endpoint}")
+        if last_exception:
+            raise last_exception
+        else:
+            raise Exception(f"Request to {endpoint} failed after {max_retries} attempts")
     
     def get_quote(self, symbol: str) -> Quote:
         """
@@ -556,15 +601,17 @@ class CoinbaseExchange:
         return self._req("POST", "/orders/preview", body, authenticated=True)
     
     def place_order(self, product_id: str, side: str, quote_size_usd: float, 
-                   client_order_id: Optional[str] = None) -> dict:
+                   client_order_id: Optional[str] = None, 
+                   order_type: str = "market") -> dict:
         """
-        Place a market order.
+        Place an order (market or limit).
         
         Args:
             product_id: e.g. "BTC-USD"
             side: "buy" or "sell"
             quote_size_usd: USD amount to trade
             client_order_id: Optional idempotency key
+            order_type: "market" or "limit_post_only"
             
         Returns:
             Order result with fill details
@@ -574,18 +621,47 @@ class CoinbaseExchange:
         
         self._rate_limit("place_order")
         
-        body = {
-            "order_configuration": {
-                "market_market_ioc": {
-                    "quote_size": f"{quote_size_usd:.2f}"
-                }
-            },
-            "product_id": product_id,
-            "side": side.lower(),
-            "client_order_id": client_order_id or str(uuid.uuid4()),
-        }
+        if order_type == "limit_post_only":
+            # Get current mid price for limit order
+            quote = self.get_quote(product_id)
+            
+            # Place limit 5bps better than mid (inside spread)
+            if side.lower() == "buy":
+                limit_price = quote.mid * 0.9995  # 5bps below mid
+                base_size = quote_size_usd / limit_price
+            else:
+                limit_price = quote.mid * 1.0005  # 5bps above mid
+                base_size = quote_size_usd / limit_price
+            
+            body = {
+                "order_configuration": {
+                    "limit_limit_gtc": {
+                        "base_size": f"{base_size:.8f}",
+                        "limit_price": f"{limit_price:.2f}",
+                        "post_only": True  # Critical: ensures maker-only
+                    }
+                },
+                "product_id": product_id,
+                "side": side.lower(),
+                "client_order_id": client_order_id or str(uuid.uuid4()),
+            }
+            
+            logger.warning(f"PLACING LIMIT POST-ONLY ORDER: {side} {base_size:.8f} of {product_id} @ ${limit_price:.2f}")
+        else:
+            # Market IOC order
+            body = {
+                "order_configuration": {
+                    "market_market_ioc": {
+                        "quote_size": f"{quote_size_usd:.2f}"
+                    }
+                },
+                "product_id": product_id,
+                "side": side.lower(),
+                "client_order_id": client_order_id or str(uuid.uuid4()),
+            }
+            
+            logger.warning(f"PLACING MARKET ORDER: {side} {quote_size_usd} USD of {product_id}")
         
-        logger.warning(f"PLACING REAL ORDER: {side} {quote_size_usd} USD of {product_id}")
         return self._req("POST", "/orders", body, authenticated=True)
 
 
