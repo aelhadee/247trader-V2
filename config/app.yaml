@@ -11,7 +11,7 @@ exchange:
   api_key: "${COINBASE_API_KEY}"
   api_secret: "${COINBASE_API_SECRET}"
   
-  # Read-only mode for safety (run_live.sh can override for LIVE mode)
+  # Read-only mode for safety (must explicitly set to false for LIVE trading)
   read_only: false
   
   # Rate limits (per second)

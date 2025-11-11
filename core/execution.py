@@ -78,7 +78,203 @@ class ExecutionEngine:
         self.default_order_type = execution_config.get("default_order_type", "limit")
         self.limit_post_only = (self.default_order_type == "limit_post_only")
         
-        logger.info(f"Initialized ExecutionEngine (mode={self.mode}, min_notional=${self.min_notional_usd})")
+        # Quote currency preferences
+        self.preferred_quotes = execution_config.get("preferred_quote_currencies", 
+                                                     ["USDC", "USD", "USDT", "BTC", "ETH"])
+        
+        logger.info(f"Initialized ExecutionEngine (mode={self.mode}, min_notional=${self.min_notional_usd}, quotes={self.preferred_quotes})")
+    
+    def adjust_proposals_to_capital(self, proposals: List, portfolio_value_usd: float) -> List[Tuple]:
+        """
+        Adjust trade sizes based on available capital.
+        
+        Strategy:
+        1. Get actual available balances (USDC, USD, etc.)
+        2. Scale down position sizes to fit available capital
+        3. Prioritize higher-conviction trades (by confidence score)
+        4. Skip trades below minimum notional
+        
+        Args:
+            proposals: List of TradeProposal objects
+            portfolio_value_usd: Total portfolio value (for reference)
+            
+        Returns:
+            List of (proposal, adjusted_size_usd) tuples
+        """
+        try:
+            # Get fresh balances
+            accounts = self.exchange.get_accounts()
+            balances = {
+                acc['currency']: float(acc.get('available_balance', {}).get('value', 0))
+                for acc in accounts
+            }
+            
+            # Sum available capital across preferred quote currencies
+            available_capital = sum(balances.get(q, 0) for q in self.preferred_quotes)
+            
+            logger.info(f"Available capital: ${available_capital:.2f} across {len([q for q in self.preferred_quotes if balances.get(q, 0) > 0])} currencies")
+            
+            if available_capital < self.min_notional_usd:
+                logger.warning(f"Insufficient capital: ${available_capital:.2f} < ${self.min_notional_usd} minimum")
+                return []
+            
+            # Calculate total requested size
+            total_requested = sum(portfolio_value_usd * (p.size_pct / 100.0) for p in proposals)
+            
+            # If we have enough capital, no adjustment needed
+            if total_requested <= available_capital:
+                logger.info(f"Sufficient capital: ${total_requested:.2f} requested, ${available_capital:.2f} available")
+                return [(p, portfolio_value_usd * (p.size_pct / 100.0)) for p in proposals]
+            
+            # Capital constrained - need to adjust
+            logger.warning(f"Capital constrained: ${total_requested:.2f} requested > ${available_capital:.2f} available")
+            
+            # Sort proposals by confidence (highest first)
+            sorted_proposals = sorted(proposals, key=lambda p: p.confidence, reverse=True)
+            
+            # Allocate capital proportionally, respecting minimums
+            adjusted = []
+            remaining_capital = available_capital
+            
+            for proposal in sorted_proposals:
+                if remaining_capital < self.min_notional_usd:
+                    logger.debug(f"Skipping {proposal.symbol}: insufficient remaining capital (${remaining_capital:.2f})")
+                    break
+                
+                # Calculate proportional size
+                requested_size = portfolio_value_usd * (proposal.size_pct / 100.0)
+                scale_factor = available_capital / total_requested
+                adjusted_size = min(requested_size * scale_factor, remaining_capital)
+                
+                # Respect minimum notional
+                if adjusted_size < self.min_notional_usd:
+                    logger.debug(f"Skipping {proposal.symbol}: adjusted size ${adjusted_size:.2f} < ${self.min_notional_usd} minimum")
+                    continue
+                
+                adjusted.append((proposal, adjusted_size))
+                remaining_capital -= adjusted_size
+                
+                logger.info(f"Adjusted {proposal.symbol}: ${requested_size:.2f} → ${adjusted_size:.2f} (confidence={proposal.confidence:.2f})")
+            
+            return adjusted
+            
+        except Exception as e:
+            logger.error(f"Error adjusting proposals to capital: {e}")
+            # Fallback: use original sizes
+            return [(p, portfolio_value_usd * (p.size_pct / 100.0)) for p in proposals]
+    
+    def get_liquidation_candidates(self, min_value_usd: float = 10.0) -> List[Dict]:
+        """
+        Identify low-value holdings that could be liquidated for capital.
+        
+        Args:
+            min_value_usd: Only consider holdings worth more than this
+            
+        Returns:
+            List of holdings with their current value, sorted by lowest value first
+        """
+        try:
+            accounts = self.exchange.get_accounts()
+            candidates = []
+            
+            for acc in accounts:
+                currency = acc['currency']
+                balance = float(acc.get('available_balance', {}).get('value', 0))
+                
+                # Skip if balance too low or is a quote currency we prefer
+                if balance == 0 or currency in self.preferred_quotes:
+                    continue
+                
+                # Try to get USD value
+                try:
+                    # Try direct USD pair first
+                    pair = f"{currency}-USD"
+                    quote = self.exchange.get_quote(pair)
+                    value_usd = balance * quote.mid
+                    
+                    if value_usd >= min_value_usd:
+                        candidates.append({
+                            'currency': currency,
+                            'balance': balance,
+                            'value_usd': value_usd,
+                            'price': quote.mid,
+                            'pair': pair
+                        })
+                except:
+                    # Try USDC pair as fallback
+                    try:
+                        pair = f"{currency}-USDC"
+                        quote = self.exchange.get_quote(pair)
+                        value_usd = balance * quote.mid
+                        
+                        if value_usd >= min_value_usd:
+                            candidates.append({
+                                'currency': currency,
+                                'balance': balance,
+                                'value_usd': value_usd,
+                                'price': quote.mid,
+                                'pair': pair
+                            })
+                    except:
+                        pass
+            
+            # Sort by value (lowest first - easiest to liquidate)
+            candidates.sort(key=lambda x: x['value_usd'])
+            
+            if candidates:
+                logger.info(f"Found {len(candidates)} liquidation candidates worth ${sum(c['value_usd'] for c in candidates):.2f}")
+            
+            return candidates
+            
+        except Exception as e:
+            logger.error(f"Error finding liquidation candidates: {e}")
+            return []
+    
+    def _find_best_trading_pair(self, base_symbol: str, size_usd: float) -> Optional[Tuple[str, str, float]]:
+        """
+        Find the best trading pair based on available balance.
+        
+        Args:
+            base_symbol: Base asset (e.g., "HBAR", "XRP")
+            size_usd: USD-equivalent size needed
+            
+        Returns:
+            Tuple of (trading_pair, quote_currency, available_balance) or None
+        """
+        try:
+            # Get FRESH account balances (critical - balance changes after each trade)
+            accounts = self.exchange.get_accounts()
+            balances = {
+                acc['currency']: float(acc.get('available_balance', {}).get('value', 0))
+                for acc in accounts
+            }
+            
+            logger.debug(f"Current balances: {', '.join([f'{k}={v:.2f}' for k, v in balances.items() if v > 0])}")
+            
+            # Try each preferred quote currency
+            for quote in self.preferred_quotes:
+                balance = balances.get(quote, 0)
+                if balance < size_usd:
+                    logger.debug(f"Insufficient {quote} balance: {balance:.2f} < {size_usd:.2f}")
+                    continue
+                
+                # Check if trading pair exists
+                pair = f"{base_symbol}-{quote}"
+                try:
+                    # Try to get a quote to verify pair exists
+                    self.exchange.get_quote(pair)
+                    logger.info(f"Selected trading pair: {pair} (balance: {balances[quote]:.2f} {quote})")
+                    return (pair, quote, balances[quote])
+                except Exception as e:
+                    logger.debug(f"Pair {pair} not available: {e}")
+                    continue
+            
+            logger.warning(f"No suitable trading pair found for {base_symbol} with size ${size_usd:.2f}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error finding trading pair: {e}")
+            return None
     
     def preview_order(self, symbol: str, side: str, size_usd: float) -> Dict:
         """
@@ -113,32 +309,24 @@ class ExecutionEngine:
             try:
                 orderbook = self.exchange.get_orderbook(symbol, depth_levels=20)
                 
-                # Calculate depth within 20bps of mid
-                mid = quote.mid
-                depth_20bps_usd = 0.0
-                
+                # Use estimated depth from orderbook snapshot
+                # Note: Coinbase REST API doesn't provide full orderbook, so we use estimates
                 if side.upper() == "BUY":
                     # For buys, check ask side depth
-                    max_price = mid * 1.002  # 20bps above mid
-                    for level in orderbook.asks:
-                        if level["price"] <= max_price:
-                            depth_20bps_usd += level["price"] * level["size"]
+                    depth_available_usd = orderbook.ask_depth_usd
                 else:
                     # For sells, check bid side depth
-                    min_price = mid * 0.998  # 20bps below mid
-                    for level in orderbook.bids:
-                        if level["price"] >= min_price:
-                            depth_20bps_usd += level["price"] * level["size"]
+                    depth_available_usd = orderbook.bid_depth_usd
                 
-                # Check if sufficient depth
-                min_depth_required = size_usd * 2.0  # Want 2x our size available
-                if depth_20bps_usd < min_depth_required:
+                # Check if sufficient depth (want 2x our size available)
+                min_depth_required = size_usd * self.min_depth_multiplier
+                if depth_available_usd < min_depth_required:
                     return {
                         "success": False,
-                        "error": f"Insufficient depth: ${depth_20bps_usd:.0f} < ${min_depth_required:.0f} required (20bps)"
+                        "error": f"Insufficient depth: ${depth_available_usd:.0f} < ${min_depth_required:.0f} required"
                     }
                 
-                logger.debug(f"Depth check passed: ${depth_20bps_usd:.0f} available for ${size_usd:.0f} order")
+                logger.debug(f"Depth check passed: ${depth_available_usd:.0f} available for ${size_usd:.0f} order")
                 
             except Exception as e:
                 logger.warning(f"Depth check failed (continuing): {e}")
@@ -193,15 +381,39 @@ class ExecutionEngine:
         Execute a trade.
         
         Args:
-            symbol: e.g. "BTC-USD"
+            symbol: Base asset symbol or trading pair (e.g., "HBAR", "BTC-USD")
             side: "BUY" or "SELL"
-            size_usd: USD amount to trade
+            size_usd: USD-equivalent amount to trade
             client_order_id: Optional idempotency key
             max_slippage_bps: Optional slippage limit (overrides default)
             
         Returns:
             ExecutionResult with fill details
         """
+        # Extract base symbol if full pair provided (e.g., "BTC-USD" -> "BTC")
+        base_symbol = symbol.split('-')[0] if '-' in symbol else symbol
+        
+        # For BUY orders, find best trading pair based on available balance
+        if side.upper() == "BUY" and self.mode in ("LIVE", "PAPER"):
+            pair_info = self._find_best_trading_pair(base_symbol, size_usd)
+            if pair_info:
+                symbol = pair_info[0]  # Use the found trading pair
+                logger.info(f"Using trading pair: {symbol}")
+            else:
+                return ExecutionResult(
+                    success=False,
+                    order_id=None,
+                    filled_size=0.0,
+                    filled_price=0.0,
+                    fees=0.0,
+                    slippage_bps=0.0,
+                    route="failed",
+                    error=f"No suitable trading pair found for {base_symbol} with sufficient balance"
+                )
+        elif '-' not in symbol:
+            # Default to USD if no pair specified and not buying
+            symbol = f"{symbol}-USD"
+        
         # Validate mode
         if self.mode == "DRY_RUN":
             logger.info(f"DRY_RUN: Would execute {side} ${size_usd:.2f} of {symbol}")
@@ -325,8 +537,15 @@ class ExecutionEngine:
             
             route = f"live_{order_type}"
             
+            # Log full response for debugging
+            logger.info(f"Order response: {result}")
+            
             # Parse result
             order_id = result.get("order_id") or result.get("success_response", {}).get("order_id")
+            
+            # Check if order actually succeeded
+            if not order_id and not result.get("success"):
+                raise ValueError(f"Order placement failed: {result.get('error', 'Unknown error')}")
             
             # Extract fill details
             filled_size = 0.0
@@ -402,9 +621,10 @@ class ExecutionEngine:
 _executor = None
 
 
-def get_executor(mode: str = "DRY_RUN", policy: Optional[Dict] = None) -> ExecutionEngine:
+def get_executor(mode: str = "DRY_RUN", policy: Optional[Dict] = None, 
+                 exchange: Optional[CoinbaseExchange] = None) -> ExecutionEngine:
     """Get singleton executor instance"""
     global _executor
     if _executor is None or _executor.mode != mode.upper():
-        _executor = ExecutionEngine(mode=mode, policy=policy)
+        _executor = ExecutionEngine(mode=mode, policy=policy, exchange=exchange)
     return _executor

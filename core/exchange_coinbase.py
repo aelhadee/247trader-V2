@@ -48,6 +48,7 @@ class Quote:
 
 
 @dataclass
+@dataclass
 class OrderbookSnapshot:
     """Orderbook depth snapshot"""
     symbol: str
@@ -593,7 +594,7 @@ class CoinbaseExchange:
                 }
             },
             "product_id": product_id,
-            "side": side.lower(),
+            "side": side.upper(),
             "client_order_id": str(uuid.uuid4()),
         }
         
@@ -626,7 +627,7 @@ class CoinbaseExchange:
             quote = self.get_quote(product_id)
             
             # Place limit 5bps better than mid (inside spread)
-            if side.lower() == "buy":
+            if side.upper() == "BUY":
                 limit_price = quote.mid * 0.9995  # 5bps below mid
                 base_size = quote_size_usd / limit_price
             else:
@@ -642,7 +643,7 @@ class CoinbaseExchange:
                     }
                 },
                 "product_id": product_id,
-                "side": side.lower(),
+                "side": side.upper(),
                 "client_order_id": client_order_id or str(uuid.uuid4()),
             }
             
@@ -656,7 +657,7 @@ class CoinbaseExchange:
                     }
                 },
                 "product_id": product_id,
-                "side": side.lower(),
+                "side": side.upper(),
                 "client_order_id": client_order_id or str(uuid.uuid4()),
             }
             
@@ -669,9 +670,14 @@ class CoinbaseExchange:
 _exchange = None
 
 
-def get_exchange() -> CoinbaseExchange:
-    """Get singleton exchange instance"""
+def get_exchange(read_only: bool = True) -> CoinbaseExchange:
+    """
+    Get singleton exchange instance.
+    
+    Args:
+        read_only: If True, prevents order placement (safe default)
+    """
     global _exchange
     if _exchange is None:
-        _exchange = CoinbaseExchange(read_only=True)
+        _exchange = CoinbaseExchange(read_only=read_only)
     return _exchange

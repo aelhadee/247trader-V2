@@ -29,7 +29,7 @@ risk:
   cooldown_minutes: 60
   
   # Minimum trade size
-  min_trade_notional_usd: 100  # Skip dust
+  min_trade_notional_usd: 10  # Skip dust (lowered for small account)
   
   # Hard stops per position
   stop_loss_pct: 8.0
@@ -86,6 +86,15 @@ regime:
 execution:
   # Order types
   default_order_type: "limit"  # limit | market
+  
+  # Quote currency preferences (in order of preference)
+  # System will use first available currency with sufficient balance
+  preferred_quote_currencies:
+    - "USDC"  # Stablecoin preferred
+    - "USD"   # Fiat
+    - "USDT"  # Alternative stablecoin
+    - "BTC"   # Major crypto
+    - "ETH"   # Major crypto
   
   # Limit order behavior
   limit_offset_bps: 5  # Post limit 5bps inside mid

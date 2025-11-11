@@ -105,9 +105,17 @@ class UniverseManager:
             exchange = get_exchange()
             symbols = exchange.get_symbols()
             
+            # CRITICAL: Treat empty symbols as failure
+            if not symbols:
+                raise RuntimeError("No symbols returned from Coinbase – triggering fallback")
+            
             # Filter to USD pairs only
             usd_pairs = [s for s in symbols if s.endswith('-USD')]
             logger.info(f"Found {len(usd_pairs)} USD trading pairs")
+            
+            # CRITICAL: Treat empty USD pairs as failure
+            if not usd_pairs:
+                raise RuntimeError("No USD pairs found – triggering fallback")
             
             # Get current config for thresholds
             universe_config = config.get('universe', {})
@@ -140,6 +148,10 @@ class UniverseManager:
                     continue
             
             logger.info(f"Dynamic universe: {len(tier1_symbols)} tier1, {len(tier2_symbols)} tier2, {len(tier3_symbols)} tier3")
+            
+            # CRITICAL: Treat empty tier 1 as failure
+            if not tier1_symbols:
+                raise RuntimeError("Dynamic discovery produced empty tier 1 – triggering fallback")
             
             # Update config with discovered symbols
             if 'tiers' not in config:

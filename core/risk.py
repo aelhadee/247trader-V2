@@ -35,9 +35,20 @@ class RiskCheckResult:
 
 @dataclass
 class PortfolioState:
-    """Snapshot of portfolio state for risk checks"""
+    """
+    Snapshot of portfolio state for risk checks.
+    
+    Position Schema (ENFORCED):
+    open_positions = {
+        "BTC-USD": {"units": 0.12, "usd": 8400.0},
+        "ETH-USD": {"units": 1.5, "usd": 4200.0}
+    }
+    
+    The "usd" field is used for all risk calculations (exposure, limits, etc).
+    The "units" field is for reference only.
+    """
     account_value_usd: float
-    open_positions: dict  # {symbol: size_usd}
+    open_positions: dict  # {symbol: {"units": float, "usd": float}}
     daily_pnl_pct: float
     max_drawdown_pct: float
     trades_today: int
@@ -45,6 +56,18 @@ class PortfolioState:
     consecutive_losses: int = 0
     last_loss_time: Optional[datetime] = None
     current_time: Optional[datetime] = None  # Current time (simulation or real)
+    
+    def get_position_usd(self, symbol: str) -> float:
+        """Get USD value of a position (enforces schema)"""
+        pos = self.open_positions.get(symbol, {})
+        return pos.get("usd", 0.0) if isinstance(pos, dict) else 0.0
+    
+    def get_total_exposure_usd(self) -> float:
+        """Get total USD exposure across all positions"""
+        return sum(
+            pos.get("usd", 0.0) if isinstance(pos, dict) else 0.0
+            for pos in self.open_positions.values()
+        )
 
 
 class RiskEngine:
@@ -90,6 +113,15 @@ class RiskEngine:
             RiskCheckResult with approved proposals or rejection reason
         """
         logger.info(f"Running risk checks on {len(proposals)} proposals (regime={regime})")
+        
+        # CRITICAL: Handle empty proposals correctly
+        if not proposals:
+            return RiskCheckResult(
+                approved=True,
+                reason="No proposals to evaluate",
+                approved_checks=[],
+                approved_proposals=[]
+            )
         
         # 1. Kill switch
         result = self._check_kill_switch()
@@ -226,8 +258,9 @@ class RiskEngine:
         """Check if total at-risk (existing + proposed) exceeds global limit"""
         max_total_at_risk_pct = self.risk_config.get("max_total_at_risk_pct", 15.0)
         
-        # Calculate current exposure from open positions
-        current_exposure_pct = sum(abs(v) for v in portfolio.open_positions.values()) / portfolio.account_value_usd * 100
+        # Calculate current exposure from open positions (using enforced schema)
+        current_exposure_usd = portfolio.get_total_exposure_usd()
+        current_exposure_pct = (current_exposure_usd / portfolio.account_value_usd) * 100
         
         # Calculate proposed exposure
         proposed_pct = sum(p.size_pct for p in proposals)

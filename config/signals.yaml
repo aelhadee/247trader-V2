@@ -1,0 +1,25 @@
+# 247trader-v2 Signal Configuration
+# Tunable parameters for trigger detection
+
+triggers:
+  # Volume spike detection
+  volume_spike_min_ratio: 1.5  # 50% above average
+  volume_lookback_periods: 24  # Compare to 24-period average
+  
+  # Breakout detection
+  breakout_lookback_bars: 24  # How many bars to look back
+  breakout_threshold_pct: 2.0  # 2% move required
+  
+  # Minimum trigger scoring
+  min_trigger_score: 0.2  # 0-1 scale, minimum to qualify
+  min_trigger_confidence: 0.5  # Minimum confidence to act
+  
+  # Rate limiting
+  max_triggers_per_cycle: 10  # Cap triggers to avoid overload
+  
+  # Regime adjustments
+  regime_multipliers:
+    bull: 1.2  # More sensitive in bull market
+    chop: 1.0  # Normal sensitivity
+    bear: 0.8  # Less sensitive in bear market
+    crash: 0.0  # No triggers in crash

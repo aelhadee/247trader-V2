@@ -23,7 +23,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import logging
 
-from core.exchange_coinbase import get_exchange
+from core.exchange_coinbase import get_exchange, CoinbaseExchange
 from core.universe import UniverseManager
 from core.triggers import TriggerEngine
 from strategy.rules_engine import RulesEngine, TradeProposal
@@ -64,12 +64,17 @@ class TradingLoop:
         self.mode = self.app_config.get("app", {}).get("mode", "DRY_RUN")
         
         # Initialize modules
-        self.exchange = get_exchange()
+        # Get read_only setting from config (default True for safety)
+        exchange_config = self.app_config.get("exchange", {})
+        read_only = exchange_config.get("read_only", True)
+        
+        # Create exchange with config-driven read_only flag
+        self.exchange = CoinbaseExchange(read_only=read_only)
         self.universe_mgr = UniverseManager(self.config_dir / "universe.yaml")
         self.trigger_engine = TriggerEngine()
         self.rules_engine = RulesEngine(config={})
         self.risk_engine = RiskEngine(self.policy_config, universe_manager=self.universe_mgr)
-        self.executor = get_executor(mode=self.mode, policy=self.policy_config)
+        self.executor = get_executor(mode=self.mode, policy=self.policy_config, exchange=self.exchange)
         self.state_store = get_state_store()
         
         # State
@@ -88,8 +93,47 @@ class TradingLoop:
         """Initialize portfolio state from state store"""
         state = self.state_store.load()
         
+        # Get real account value from Coinbase (fallback to 10k for DRY_RUN)
+        if self.mode == "DRY_RUN":
+            account_value_usd = 10_000.0
+        else:
+            try:
+                accounts = self.exchange.get_accounts()
+                account_value_usd = 0.0
+                
+                # Sum all balances (convert to USD)
+                for acc in accounts:
+                    currency = acc['currency']
+                    balance = float(acc.get('available_balance', {}).get('value', 0))
+                    
+                    if balance == 0:
+                        continue
+                    
+                    # USD/USDC/USDT are 1:1
+                    if currency in ['USD', 'USDC', 'USDT']:
+                        account_value_usd += balance
+                    else:
+                        # Get USD value for crypto holdings
+                        try:
+                            pair = f"{currency}-USD"
+                            quote = self.exchange.get_quote(pair)
+                            account_value_usd += balance * quote.mid
+                        except:
+                            # Try USDC if USD fails
+                            try:
+                                pair = f"{currency}-USDC"
+                                quote = self.exchange.get_quote(pair)
+                                account_value_usd += balance * quote.mid
+                            except:
+                                pass
+                
+                logger.info(f"Real account value: ${account_value_usd:.2f}")
+            except Exception as e:
+                logger.warning(f"Could not fetch account value: {e}, using fallback")
+                account_value_usd = 10_000.0
+        
         return PortfolioState(
-            account_value_usd=10_000.0,  # TODO: Get from Coinbase API
+            account_value_usd=account_value_usd,
             open_positions=state.get("positions", {}),
             daily_pnl_pct=state.get("pnl_today", 0.0),
             max_drawdown_pct=0.0,  # TODO: Calculate from history
@@ -170,28 +214,36 @@ class TradingLoop:
             if self.mode == "DRY_RUN":
                 logger.info("DRY_RUN mode - no execution")
             else:
-                # Execute each approved proposal
-                for proposal in approved_proposals:
-                    logger.info(f"Executing: {proposal.side} {proposal.symbol} (size={proposal.size_pct}%)")
+                # Get available capital and adjust position sizes
+                adjusted_proposals = self.executor.adjust_proposals_to_capital(
+                    approved_proposals, 
+                    self.portfolio.account_value_usd
+                )
+                
+                if len(adjusted_proposals) < len(approved_proposals):
+                    logger.warning(f"Capital constraints: executing {len(adjusted_proposals)}/{len(approved_proposals)} trades")
+                
+                # Execute each adjusted proposal
+                for proposal, size_usd in adjusted_proposals:
+                    logger.info(f"Executing: {proposal.side} {proposal.symbol} (${size_usd:.2f})")
                     
-                    result = self.executor.execute(proposal)
+                    # Call executor with proper arguments
+                    result = self.executor.execute(
+                        symbol=proposal.symbol,
+                        side=proposal.side,
+                        size_usd=size_usd
+                    )
                     
-                    if result["status"] == "EXECUTED":
-                        logger.info(f"✅ Trade executed: {proposal.symbol} - {result.get('message', 'Success')}")
-                        executed_trades.append({
-                            "proposal": proposal,
-                            "result": result
-                        })
-                    elif result["status"] == "SIMULATED":
-                        logger.info(f"📝 Trade simulated: {proposal.symbol} - {result.get('message', 'Paper trade')}")
+                    if result.success:
+                        logger.info(f"✅ Trade executed: {proposal.symbol} - Order ID: {result.order_id}")
                         executed_trades.append({
                             "proposal": proposal,
                             "result": result
                         })
                     else:
-                        logger.warning(f"⚠️ Trade failed: {proposal.symbol} - {result.get('error', 'Unknown error')}")
+                        logger.warning(f"⚠️ Trade failed: {proposal.symbol} - {result.error}")
                 
-                logger.info(f"Execution complete: {len(executed_trades)}/{len(approved_proposals)} trades successful")
+                logger.info(f"Execution complete: {len(executed_trades)}/{len(adjusted_proposals)} trades successful")
             
             # Build summary (use approved_proposals, not original proposals)
             summary = self._build_summary(

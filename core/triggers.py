@@ -51,9 +51,33 @@ class TriggerEngine:
     Output: Ranked list of assets with trigger signals
     """
     
-    def __init__(self):
+    def __init__(self, config_path: str = "config/signals.yaml"):
         self.exchange = get_exchange()
-        logger.info("Initialized TriggerEngine")
+        
+        # Load trigger configuration
+        try:
+            import yaml
+            from pathlib import Path
+            with open(Path(config_path)) as f:
+                self.config = yaml.safe_load(f).get("triggers", {})
+        except Exception as e:
+            logger.warning(f"Could not load signals config: {e}, using defaults")
+            self.config = {}
+        
+        # Extract tunable parameters (with defaults)
+        self.volume_spike_min_ratio = self.config.get("volume_spike_min_ratio", 1.5)
+        self.volume_lookback_periods = self.config.get("volume_lookback_periods", 24)
+        self.breakout_lookback_bars = self.config.get("breakout_lookback_bars", 24)
+        self.breakout_threshold_pct = self.config.get("breakout_threshold_pct", 2.0)
+        self.min_trigger_score = self.config.get("min_trigger_score", 0.2)
+        self.min_trigger_confidence = self.config.get("min_trigger_confidence", 0.5)
+        self.max_triggers_per_cycle = self.config.get("max_triggers_per_cycle", 10)
+        self.regime_multipliers = self.config.get("regime_multipliers", {
+            "bull": 1.2, "chop": 1.0, "bear": 0.8, "crash": 0.0
+        })
+        
+        logger.info(f"Initialized TriggerEngine (volume_ratio={self.volume_spike_min_ratio}, "
+                   f"breakout_bars={self.breakout_lookback_bars})")
     
     def scan(self, assets: List[UniverseAsset], 
              regime: str = "chop") -> List[TriggerSignal]:
@@ -128,14 +152,12 @@ class TriggerEngine:
         # Current volume (last candle)
         current_volume = candles[-1].volume
         
-        # Average volume (24 hours ago to up to 7 days ago, adapt to available data)
-        # Use actual number of candles instead of hardcoded 144
-        if len(candles) >= 168:
-            # Ideal case: full 7 days of history
-            historical_candles = candles[-168:-24]
+        # Average volume (using config-driven lookback)
+        lookback = self.volume_lookback_periods
+        if len(candles) >= lookback * 2:
+            historical_candles = candles[-(lookback*2):-lookback]
         else:
-            # Fallback: use what we have (excluding last 24h)
-            historical_candles = candles[:-24] if len(candles) > 24 else candles[:len(candles)//2]
+            historical_candles = candles[:-lookback] if len(candles) > lookback else candles[:len(candles)//2]
         
         if not historical_candles:
             return None
@@ -147,8 +169,8 @@ class TriggerEngine:
         
         volume_ratio = current_volume / avg_volume
         
-        # Lowered threshold: 1.3x spike (aggressive to ensure we get triggers)
-        if volume_ratio < 1.3:
+        # Use config-driven threshold
+        if volume_ratio < self.volume_spike_min_ratio:
             return None
         
         # Strength: 1.3x = 0.1, 2.0x = 0.4, 3.0x = 0.6, 4.0x+ = 1.0
