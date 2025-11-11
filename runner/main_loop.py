@@ -441,21 +441,72 @@ class TradingLoop:
                 to_account_uuid=to_account['uuid']
             )
             
-            if result.success:
+            # convert_asset returns a dict, not ExecutionResult
+            if isinstance(result, dict) and result.get('success'):
+                amount_converted = result.get('amount', worst['value_usd'])
                 logger.info(
                     f"✅ Liquidated {worst['currency']}: "
-                    f"freed up ${result.filled_size * result.filled_price:.2f}"
+                    f"freed up ~${amount_converted:.2f} USDC"
                 )
                 
                 # Update portfolio state with new balance
                 self.portfolio = self._init_portfolio_state()
                 return True
             else:
-                logger.warning(f"❌ Liquidation failed: {result.error}")
-                return False
+                error_msg = result.get('error', 'Unknown error') if isinstance(result, dict) else str(result)
+                logger.warning(f"❌ Liquidation failed: {error_msg}")
+                
+                # If conversion failed, try selling via market order instead
+                logger.info(f"Attempting to sell {worst['currency']} via market order...")
+                return self._sell_via_market_order(worst['currency'], worst['balance'])
                 
         except Exception as e:
             logger.error(f"Auto-rebalance failed: {e}")
+            return False
+    
+    def _sell_via_market_order(self, currency: str, balance: float) -> bool:
+        """
+        Fallback: Sell asset via market order (e.g., XRP-USD) instead of Convert API.
+        
+        Args:
+            currency: Asset to sell (e.g., "HBAR")
+            balance: Amount of asset to sell (in units, not USD)
+            
+        Returns:
+            True if sell succeeded, False otherwise
+        """
+        try:
+            # Try to find a trading pair for this asset
+            pair = f"{currency}-USD"
+            
+            logger.info(f"Trying to sell {balance:.2f} {currency} via {pair} market order...")
+            
+            # Get current price to convert units to USD value
+            try:
+                quote = self.exchange.get_quote(pair)
+                size_usd = balance * quote.mid
+            except Exception as e:
+                logger.error(f"Failed to get quote for {pair}: {e}")
+                return False
+            
+            logger.info(f"Estimated value: ${size_usd:.2f} USD")
+            
+            result = self.executor.execute(
+                symbol=pair,
+                side="SELL",
+                size_usd=size_usd
+            )
+            
+            if result.success:
+                logger.info(f"✅ Sold {currency} via {pair}: ${result.filled_size * result.filled_price:.2f}")
+                self.portfolio = self._init_portfolio_state()
+                return True
+            else:
+                logger.warning(f"❌ Market order failed for {pair}: {result.error}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Market order sell failed: {e}")
             return False
     
     def run_forever(self, interval_seconds: int = 300):

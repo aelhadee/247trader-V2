@@ -299,6 +299,10 @@ class CoinbaseExchange:
         price = float(product.get("price", 0))
         volume_24h = float(product.get("volume_24h", 0) or 0)
         
+        # Validate that asset has liquidity
+        if price == 0 or price < 0.000001:
+            raise ValueError(f"No liquidity for {symbol}: price={price}, volume_24h={volume_24h}")
+        
         # Estimate bid/ask from price (Coinbase doesn't provide bid/ask in product endpoint)
         # Use typical spread of 5-10 bps for liquid pairs
         spread_bps = 5.0
@@ -600,6 +604,33 @@ class CoinbaseExchange:
         logger.info(f"Previewing {side} {quote_size_usd} USD of {product_id}")
         return self._req("POST", "/orders/preview", body, authenticated=True)
     
+    def _round_to_precision(self, value: float, product_id: str) -> str:
+        """
+        Round value to appropriate precision for Coinbase.
+        
+        Most altcoins use 2 decimal places for quantity.
+        BTC/ETH use up to 8 decimals.
+        
+        Args:
+            value: Raw value to round
+            product_id: Trading pair (e.g., "BTC-USD")
+            
+        Returns:
+            Formatted string with appropriate precision
+        """
+        base_currency = product_id.split('-')[0]
+        
+        # High-value assets: 8 decimals
+        if base_currency in ['BTC', 'ETH']:
+            return f"{value:.8f}"
+        # Most altcoins: 2 decimals (HBAR, XRP, DOGE, etc.)
+        elif value < 10:
+            return f"{value:.8f}"
+        elif value < 100:
+            return f"{value:.4f}"
+        else:
+            return f"{value:.2f}"
+    
     def place_order(self, product_id: str, side: str, quote_size_usd: float, 
                    client_order_id: Optional[str] = None, 
                    order_type: str = "market") -> dict:
@@ -622,21 +653,34 @@ class CoinbaseExchange:
         self._rate_limit("place_order")
         
         if order_type == "limit_post_only":
-            # Get current mid price for limit order
+            # Get current quote for limit order
             quote = self.get_quote(product_id)
             
-            # Place limit 5bps better than mid (inside spread)
+            # Validate quote has liquidity
+            if quote.bid <= 0 or quote.ask <= 0:
+                raise ValueError(f"No liquidity for {product_id}: bid={quote.bid}, ask={quote.ask}")
+            
+            # For post-only orders (maker-only, no immediate execution):
+            # - BUY: price must be < current ask (at or below bid side)
+            # - SELL: price must be > current bid (at or above ask side)
+            # 
+            # Strategy: Join the top of book for quick fill while staying passive
             if side.upper() == "BUY":
-                limit_price = quote.mid * 0.9995  # 5bps below mid
+                # Place at current bid (join buyers) - won't cross spread
+                limit_price = quote.bid
                 base_size = quote_size_usd / limit_price
             else:
-                limit_price = quote.mid * 1.0005  # 5bps above mid
+                # Place at current ask (join sellers) - won't cross spread
+                limit_price = quote.ask
                 base_size = quote_size_usd / limit_price
+            
+            # Round base_size to appropriate precision
+            base_size_str = self._round_to_precision(base_size, product_id)
             
             body = {
                 "order_configuration": {
                     "limit_limit_gtc": {
-                        "base_size": f"{base_size:.8f}",
+                        "base_size": base_size_str,
                         "limit_price": f"{limit_price:.2f}",
                         "post_only": True  # Critical: ensures maker-only
                     }
@@ -646,7 +690,7 @@ class CoinbaseExchange:
                 "client_order_id": client_order_id or str(uuid.uuid4()),
             }
             
-            logger.warning(f"PLACING LIMIT POST-ONLY ORDER: {side} {base_size:.8f} of {product_id} @ ${limit_price:.2f}")
+            logger.warning(f"PLACING LIMIT POST-ONLY ORDER: {side} {base_size_str} of {product_id} @ ${limit_price:.2f} (bid={quote.bid:.2f}, ask={quote.ask:.2f})")
         else:
             # Market IOC order
             body = {

@@ -251,12 +251,16 @@ class UniverseManager:
         regime_mods = self.config.get("regime_modifiers", {}).get(regime, {})
         exclusions = self.config.get("exclusions", {})
         
+        # Get exclusions first
+        excluded = set(exclusions.get("never_trade", []))
+        
         # Build tier 1 (core)
         tier_1 = self._build_tier_1(
             tiers_config.get("tier_1_core", {}),
             liquidity_config,
             regime_mods,
-            exchange
+            exchange,
+            excluded
         )
         
         # Build tier 2 (rotational)
@@ -264,7 +268,8 @@ class UniverseManager:
             tiers_config.get("tier_2_rotational", {}),
             liquidity_config,
             regime_mods,
-            exchange
+            exchange,
+            excluded
         )
         
         # Build tier 3 (event-driven)
@@ -273,9 +278,6 @@ class UniverseManager:
             liquidity_config,
             regime_mods
         )
-        
-        # Get exclusions
-        excluded = set(exclusions.get("never_trade", []))
         
         snapshot = UniverseSnapshot(
             timestamp=datetime.utcnow(),
@@ -299,13 +301,18 @@ class UniverseManager:
         return snapshot
     
     def _build_tier_1(self, tier_config: dict, liquidity_config: dict,
-                      regime_mods: dict, exchange) -> List[UniverseAsset]:
+                      regime_mods: dict, exchange, excluded_symbols: set = None) -> List[UniverseAsset]:
         """Build tier 1 (core) assets"""
         symbols = tier_config.get("symbols", [])
         constraints = tier_config.get("constraints", {})
+        excluded_symbols = excluded_symbols or set()
         
         assets = []
         for symbol in symbols:
+            # Skip excluded assets
+            if symbol in excluded_symbols:
+                logger.info(f"Skipping excluded asset: {symbol}")
+                continue
             try:
                 # Get market data
                 quote = exchange.get_quote(symbol)
@@ -357,11 +364,12 @@ class UniverseManager:
         return assets
     
     def _build_tier_2(self, tier_config: dict, liquidity_config: dict,
-                      regime_mods: dict, exchange) -> List[UniverseAsset]:
+                      regime_mods: dict, exchange, excluded_symbols: set = None) -> List[UniverseAsset]:
         """Build tier 2 (rotational) assets"""
         symbols = tier_config.get("symbols", [])
         constraints = tier_config.get("constraints", {})
         filters = tier_config.get("filters", [])
+        excluded_symbols = excluded_symbols or set()
         
         # In offline mode, skip tier 2 to speed up tests
         if not symbols:
@@ -369,6 +377,11 @@ class UniverseManager:
         
         assets = []
         for symbol in symbols:
+            # Skip excluded assets
+            if symbol in excluded_symbols:
+                logger.info(f"Skipping excluded asset: {symbol}")
+                continue
+                
             try:
                 # Get market data
                 quote = exchange.get_quote(symbol)
