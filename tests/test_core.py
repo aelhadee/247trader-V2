@@ -147,8 +147,22 @@ def test_full_cycle():
     """Test complete trading cycle"""
     from runner.main_loop import TradingLoop
     
+    # Clean up any stale test lock file
+    import os
+    test_lock = "data/247trader-v2.pid"
+    if os.path.exists(test_lock):
+        try:
+            os.remove(test_lock)
+        except:
+            pass
+    
     loop = TradingLoop(config_dir="config")
-    loop.run_cycle()  # Now returns None, logs to audit trail
+    try:
+        loop.run_cycle()  # Now returns None, logs to audit trail
+    finally:
+        # Release lock after test
+        if hasattr(loop, 'instance_lock') and loop.instance_lock:
+            loop.instance_lock.release()
     
     # Check audit log was created
     assert loop.audit.audit_file.exists(), "Audit log file not created"

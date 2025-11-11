@@ -14,6 +14,7 @@ from collections import defaultdict
 import logging
 
 from strategy.rules_engine import TradeProposal
+from infra.alerting import AlertSeverity
 
 logger = logging.getLogger(__name__)
 
@@ -283,7 +284,14 @@ class RiskEngine:
         kill_switch_file = self.governance_config.get("kill_switch_file", "data/KILL_SWITCH")
         
         if os.path.exists(kill_switch_file):
-            logger.error("KILL SWITCH ACTIVATED - All trading halted")
+            logger.error("🚨 KILL SWITCH ACTIVATED - All trading halted")
+            # Alert on kill switch activation
+            if self.alert_service:
+                self.alert_service.send_alert(
+                    message="KILL SWITCH activated - all trading halted immediately",
+                    severity=AlertSeverity.CRITICAL,
+                    tags=["kill_switch", "emergency", "halt"]
+                )
             return RiskCheckResult(
                 approved=False,
                 reason="KILL_SWITCH file exists - trading halted",
@@ -293,45 +301,92 @@ class RiskEngine:
         return RiskCheckResult(approved=True)
     
     def _check_daily_stop(self, portfolio: PortfolioState) -> RiskCheckResult:
-        """Check if daily stop loss hit"""
+        """
+        Check if daily stop loss hit using REAL PnL from exchange fills.
+        
+        PnL is tracked in StateStore.record_fill() from actual execution prices/fees.
+        portfolio.daily_pnl_pct is computed from state['pnl_today'] in main_loop._init_portfolio_state().
+        """
         # Support both naming conventions: daily_stop_pnl_pct (policy.yaml) and daily_stop_loss_pct (legacy)
         max_daily_loss_pct = abs(self.risk_config.get("daily_stop_pnl_pct", 
                                                       self.risk_config.get("daily_stop_loss_pct", 3.0)))
         
+        # CRITICAL: portfolio.daily_pnl_pct is derived from REAL fills, not simulated
         if portfolio.daily_pnl_pct <= -max_daily_loss_pct:
-            logger.error(f"Daily stop loss hit: {portfolio.daily_pnl_pct:.2f}% (max: -{max_daily_loss_pct}%)")
+            logger.error(
+                f"🚨 DAILY STOP LOSS HIT: {portfolio.daily_pnl_pct:.2f}% loss "
+                f"(limit: -{max_daily_loss_pct}%) - NO NEW TRADES"
+            )
+            # Alert on stop loss hit
+            if self.alert_service:
+                self.alert_service.send_alert(
+                    message=f"Daily stop loss triggered: {portfolio.daily_pnl_pct:.2f}% loss",
+                    severity=AlertSeverity.CRITICAL,
+                    tags=["risk", "stop_loss", "daily"]
+                )
             return RiskCheckResult(
                 approved=False,
-                reason=f"Daily stop loss hit: {portfolio.daily_pnl_pct:.2f}% loss",
+                reason=f"Daily stop loss hit: {portfolio.daily_pnl_pct:.2f}% loss (real PnL)",
                 violated_checks=["daily_stop_loss"]
             )
         
         return RiskCheckResult(approved=True)
     
     def _check_weekly_stop(self, portfolio: PortfolioState) -> RiskCheckResult:
-        """Check if weekly stop loss hit"""
+        """
+        Check if weekly stop loss hit using REAL PnL from exchange fills.
+        
+        PnL is tracked in StateStore.record_fill() from actual execution prices/fees.
+        portfolio.weekly_pnl_pct is computed from state['pnl_week'] in main_loop._init_portfolio_state().
+        """
         # Support both naming conventions
         max_weekly_loss_pct = abs(self.risk_config.get("weekly_stop_pnl_pct",
                                                        self.risk_config.get("weekly_stop_loss_pct", 7.0)))
         
-        # Assume portfolio has weekly_pnl_pct attribute; if not, skip this check
+        # CRITICAL: portfolio.weekly_pnl_pct is derived from REAL fills, not simulated
         weekly_pnl = getattr(portfolio, 'weekly_pnl_pct', None)
         if weekly_pnl is not None and weekly_pnl <= -max_weekly_loss_pct:
-            logger.error(f"Weekly stop loss hit: {weekly_pnl:.2f}% (max: -{max_weekly_loss_pct}%)")
+            logger.error(
+                f"🚨 WEEKLY STOP LOSS HIT: {weekly_pnl:.2f}% loss "
+                f"(limit: -{max_weekly_loss_pct}%) - TIGHTEN RISK"
+            )
+            # Alert on stop loss hit
+            if self.alert_service:
+                self.alert_service.send_alert(
+                    message=f"Weekly stop loss triggered: {weekly_pnl:.2f}% loss",
+                    severity=AlertSeverity.CRITICAL,
+                    tags=["risk", "stop_loss", "weekly"]
+                )
             return RiskCheckResult(
                 approved=False,
-                reason=f"Weekly stop loss hit: {weekly_pnl:.2f}% loss",
+                reason=f"Weekly stop loss hit: {weekly_pnl:.2f}% loss (real PnL)",
                 violated_checks=["weekly_stop_loss"]
             )
         
         return RiskCheckResult(approved=True)
     
     def _check_max_drawdown(self, portfolio: PortfolioState) -> RiskCheckResult:
-        """Check if max drawdown exceeded"""
+        """
+        Check if max drawdown exceeded.
+        
+        NOTE: Currently portfolio.max_drawdown_pct is set to 0.0 in _init_portfolio_state().
+        TODO: Calculate from equity curve history once we track high-water mark in StateStore.
+        For now, this check is effectively disabled but structure is in place.
+        """
         max_dd_pct = self.risk_config.get("max_drawdown_pct", 10.0)
         
         if portfolio.max_drawdown_pct >= max_dd_pct:
-            logger.error(f"Max drawdown exceeded: {portfolio.max_drawdown_pct:.2f}% (max: {max_dd_pct}%)")
+            logger.error(
+                f"🚨 MAX DRAWDOWN EXCEEDED: {portfolio.max_drawdown_pct:.2f}% "
+                f"(limit: {max_dd_pct}%)"
+            )
+            # Alert on drawdown breach
+            if self.alert_service:
+                self.alert_service.send_alert(
+                    message=f"Max drawdown exceeded: {portfolio.max_drawdown_pct:.2f}%",
+                    severity=AlertSeverity.CRITICAL,
+                    tags=["risk", "drawdown"]
+                )
             return RiskCheckResult(
                 approved=False,
                 reason=f"Max drawdown {portfolio.max_drawdown_pct:.2f}% exceeds limit",

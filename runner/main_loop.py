@@ -95,6 +95,25 @@ class TradingLoop:
         
         logger.info(f"Starting 247trader-v2 in mode={self.mode}, read_only={self.read_only}")
         
+        # CRITICAL: Acquire single-instance lock to prevent double-trading
+        from infra.instance_lock import check_single_instance
+        self.instance_lock = check_single_instance("247trader-v2", lock_dir="data")
+        if not self.instance_lock:
+            logger.error("=" * 80)
+            logger.error("ANOTHER INSTANCE IS ALREADY RUNNING")
+            logger.error("=" * 80)
+            logger.error("Cannot start - only ONE instance allowed to prevent:")
+            logger.error("  • Double trading (exceeding risk limits)")
+            logger.error("  • State corruption (concurrent writes)")
+            logger.error("  • API rate limit exhaustion")
+            logger.error("")
+            logger.error("If you're sure no other instance is running, check for stale PID file:")
+            logger.error("  rm data/247trader-v2.pid")
+            logger.error("=" * 80)
+            raise RuntimeError("Another trading bot instance is already running")
+        
+        logger.info("✅ Single-instance lock acquired")
+        
         # Initialize core components
         self.exchange = CoinbaseExchange(read_only=self.read_only)
         self.state_store = StateStore()
@@ -261,6 +280,13 @@ class TradingLoop:
         except Exception as e:
             logger.error(f"Error during graceful shutdown: {e}", exc_info=True)
             logger.warning("Shutdown will continue despite cleanup errors")
+        
+        finally:
+            # CRITICAL: Release single-instance lock
+            if hasattr(self, 'instance_lock') and self.instance_lock:
+                logger.info("Releasing single-instance lock...")
+                self.instance_lock.release()
+                logger.info("✅ Lock released")
     
     def _load_yaml(self, filename: str) -> dict:
         """Load YAML config file"""
@@ -415,6 +441,20 @@ class TradingLoop:
         wait_seconds = max(0.0, min(wait_seconds, 5.0))
         if wait_seconds > 0:
             time.sleep(wait_seconds)
+
+        # CRITICAL: Reconcile fills from exchange to update positions/fees/PnL
+        try:
+            logger.info("Reconciling fills from exchange...")
+            reconcile_summary = self.executor.reconcile_fills(lookback_minutes=5)
+            logger.info(
+                f"Fill reconciliation complete: {reconcile_summary.get('fills_processed', 0)} fills, "
+                f"{reconcile_summary.get('orders_updated', 0)} orders updated, "
+                f"${reconcile_summary.get('total_fees', 0):.2f} fees, "
+                f"PnL: ${reconcile_summary.get('realized_pnl_usd', 0):.2f}"
+            )
+        except Exception as exc:
+            logger.error(f"Fill reconciliation failed: {exc}", exc_info=True)
+            # Continue - reconcile_exchange_state will still update positions
 
         try:
             self._reconcile_exchange_state()
