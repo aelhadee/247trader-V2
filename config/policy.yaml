@@ -26,9 +26,14 @@ risk:
   max_trades_per_hour: 4
   max_new_trades_per_hour: 4  # New trades per hour (spec requirement)
   
-  # Cooldown after losses
+  # Cooldown after losses (global)
   cooldown_after_loss_trades: 3  # 3 losing trades in row → pause
   cooldown_minutes: 60
+  
+  # Per-symbol cooldowns
+  per_symbol_cooldown_enabled: true
+  per_symbol_cooldown_minutes: 30  # Wait 30min after any loss on a symbol
+  per_symbol_cooldown_after_stop: 60  # Wait 60min after stop-loss hit
   
   # Minimum trade size
   min_trade_notional_usd: 5  # Skip dust (lowered for very small account)
@@ -98,6 +103,30 @@ microstructure:
   # Quote freshness
   max_quote_age_seconds: 30
 
+circuit_breakers:
+  # Data staleness limits
+  max_quote_age_seconds: 60          # Reject quotes older than 60s
+  max_ohlcv_age_seconds: 300         # Reject candles older than 5min
+  
+  # API health monitoring
+  max_consecutive_api_errors: 3      # Trip breaker after 3 consecutive API failures
+  api_error_window_seconds: 300      # Reset error counter after 5min of success
+  
+  # Exchange health checks
+  check_exchange_status: true        # Verify exchange is operational
+  halt_on_maintenance: true          # Stop trading during maintenance windows
+  
+  # Volatility circuit breaker
+  max_realized_volatility_pct: 150   # Halt if realized vol > 150% annualized
+  volatility_lookback_hours: 24      # Calculate vol over last 24h
+  
+  # Universe health
+  min_eligible_assets: 2             # Need at least 2 eligible assets to trade
+  
+  # Rate limit protection
+  pause_on_rate_limit: true          # Pause cycle if rate limited
+  rate_limit_cooldown_seconds: 60    # Wait 60s after rate limit before resuming
+
 regime:
   # Market regime adjustments
   enabled: true
@@ -117,6 +146,10 @@ regime:
     max_positions: 0
 
 execution:
+  # Fee structure (Coinbase Advanced Trade)
+  maker_fee_bps: 40   # 0.40% maker fee (post-only orders)
+  taker_fee_bps: 60   # 0.60% taker fee (market/IOC orders)
+  
   # Order types
   default_order_type: "limit_post_only"  # Phase 1: conservative
   # Auto-convert USD → USDC to honor preferred quote (when needed for BUYs)

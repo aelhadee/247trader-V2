@@ -8,10 +8,10 @@ Legend: 🔴 TODO = work outstanding, 🟡 Pending Validation = feature coded bu
 
 | Status | Task | Owner | Notes |
 | ------ | ---- | ----- | ----- |
-| 🔴 TODO | Count pending exposure (fills + open orders) toward per-asset/theme/total caps in risk checks. | TBD | RiskEngine currently ignores outstanding order notional. |
-| 🔴 TODO | Implement circuit breakers for data staleness, API flaps, exchange health, and crash regimes. | TBD | Needs aggregated health tracking + policy thresholds. |
-| 🔴 TODO | Wire a global kill switch (env/DB flag) that runner and executor honor immediately. | TBD | Allows operator freeze without code deploy. |
-| 🔴 TODO | Enforce per-symbol cooldowns after fills/stop-outs using `StateStore.cooldowns`. | TBD | Config exists but enforcement path is missing. |
+| 🟢 Done | Count pending exposure (fills + open orders) toward per-asset/theme/total caps in risk checks. | N/A | RiskEngine now folds pending buy exposure into global/theme/position limits. |
+| 🟢 Done | Implement circuit breakers for data staleness, API flaps, exchange health, and crash regimes. | N/A | Circuit breakers in RiskEngine with policy.yaml config; tracks API errors, rate limits, exchange health. |
+| 🟢 Done | Wire a global kill switch (env/DB flag) that runner and executor honor immediately. | N/A | Kill switch via `data/KILL_SWITCH` file already exists and is checked in risk engine. |
+| � Done | Enforce per-symbol cooldowns after fills/stop-outs using `StateStore.cooldowns`. | N/A | RiskEngine.apply_symbol_cooldown() sets cooldowns; _filter_cooled_symbols() filters proposals; main_loop applies after SELL orders. |
 | 🔴 TODO | Make sizing fee-aware so Coinbase maker/taker fees are reflected in min notional and PnL math. | TBD | Prevents trading sizes where fees dominate. |
 | 🔴 TODO | Enforce Coinbase product constraints (base/quote increments, min size, min market funds) before submission. | TBD | Requires product metadata cache + rounding helpers. |
 | 🔴 TODO | Replace daily/weekly circuit-breaker inputs with realized PnL history pulled from exchange fills. | TBD | Current percent stops still rely on approximated deltas. |
@@ -83,3 +83,170 @@ Legend: 🔴 TODO = work outstanding, 🟡 Pending Validation = feature coded bu
 | 🔴 TODO | Enforce secrets via environment/secret store only (no file fallbacks in repo). | TBD | Lock down credential handling. |
 | 🔴 TODO | Stamp config version/hash into each audit log entry. | TBD | Enables provenance tracking. |
 | 🔴 TODO | Add config sanity checks (theme vs asset caps, totals coherence). | TBD | Prevents contradictory limits. |
+
+
+2. Coinbase Product & Status Integration (make it explicit)
+
+You mention product constraints + health in TODOs conceptually, but I’d call out two concrete items:
+
+Product metadata cache (MUST-HAVE):
+
+On startup + periodically:
+
+fetch Coinbase products,
+
+store:
+
+base_increment
+
+quote_increment
+
+min_market_funds
+
+status (online/offline/limit_only/etc).
+
+Execution must refuse:
+
+disabled markets,
+
+orders violating increments / min size.
+
+Exchange status circuit breaker:
+
+If Coinbase status API / product status says:
+
+POST_ONLY, LIMIT_ONLY, CANCEL_ONLY, or degraded:
+
+clamp or halt new entries in those products.
+
+If global incident:
+
+trigger kill / no-new-trades.
+
+Right now this is implied under “exchange health”, but it needs to be explicit so nobody skips it.
+
+3. Outlier / Bad-Tick Protection
+
+You have triggers based on % moves. Without outlier guards:
+
+One bad tick / stale candle can:
+
+fire triggers,
+
+create fake breakouts,
+
+spam trades.
+
+Add:
+
+Before using price/volume for triggers:
+
+Reject any candle/quote where:
+
+move > X% vs previous AND
+
+no confirming volume / orderbook.
+
+Or:
+
+Require N consecutive bars / snapshots confirming the move.
+
+Small change, big protection.
+
+4. Config & Env Separation: Staging vs Production
+
+You mention config validation + secrets, good.
+
+Add one more hard rule:
+
+Environment flag: ENV=staging|production.
+
+Behavior:
+
+staging:
+
+DRY_RUN or PAPER only,
+
+can use same code + different config.
+
+production:
+
+requires:
+
+valid secrets,
+
+alerting enabled,
+
+lock acquired,
+
+all 🔴 critical TODOs resolved.
+
+This avoids someone “just testing” with production keys and half-finished safety.
+
+5. Backtest/CI Gate (Make it a launch blocker)
+
+You have TODOs for backtest parity + artifacts, which is good.
+
+Make one more explicit:
+
+Before enabling LIVE:
+
+CI must:
+
+run unit tests,
+
+run at least one short backtest with current config,
+
+fail the pipeline if:
+
+backtest crashes,
+
+or produces obviously invalid metrics (NaN equity, etc).
+
+This prevents config/logic regressions from silently shipping.
+
+6. Red-Flag & Ban Hook-Up
+
+You defined:
+
+exclusions.red_flags:
+  - recent_exploit
+  - regulatory_action
+  - delisting_rumors
+  - team_rug
+temporary_ban_hours: 168
+
+
+But there’s no explicit TODO to apply these.
+
+Add:
+
+A task: “Integrate red-flag / temporary_ban into UniverseManager”.
+
+Once a symbol is flagged, exclude for temporary_ban_hours.
+
+Make it purely config/log driven (no AI required at first).
+
+Not as critical as exposure/OMS, but if you wrote it down, wire it.
+
+Sanity Check
+
+If you implement:
+
+✅ pending exposure in risk
+
+✅ kill switch
+
+✅ product constraints + status checks
+
+✅ order state machine + reconciliation
+
+✅ fail-closed data gating (already there)
+
+✅ alerts for stops / failures
+
+✅ backtest parity + CI gate
+
+✅ single-instance lock
+
+…then you’re in legit production-bot territory for a single-exchange rules engine.

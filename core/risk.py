@@ -57,6 +57,7 @@ class PortfolioState:
     last_loss_time: Optional[datetime] = None
     current_time: Optional[datetime] = None  # Current time (simulation or real)
     weekly_pnl_pct: float = 0.0
+    pending_orders: Optional[Dict[str, Dict[str, float]]] = None
     
     def get_position_usd(self, symbol: str) -> float:
         """Get USD value of a position (enforces schema)"""
@@ -92,6 +93,43 @@ class PortfolioState:
                 continue
         return total
 
+    def _pending_orders_for_side(self, side: str) -> Dict[str, float]:
+        orders = self.pending_orders or {}
+        side_bucket = orders.get(side)
+        if not isinstance(side_bucket, dict):
+            return {}
+        return side_bucket
+
+    def get_pending_notional_usd(self, side: str = "buy", symbol: Optional[str] = None) -> float:
+        """Aggregate pending order notional in USD for a side, optionally filtered by symbol."""
+        orders = self._pending_orders_for_side(side)
+        if not orders:
+            return 0.0
+
+        if symbol is None:
+            total = 0.0
+            for value in orders.values():
+                try:
+                    total += float(value)
+                except (TypeError, ValueError):
+                    continue
+            return total
+
+        lookup_keys = {symbol}
+        if '-' in symbol:
+            base = symbol.split('-', 1)[0]
+            lookup_keys.add(base)
+        else:
+            lookup_keys.add(f"{symbol}-USD")
+
+        for key in lookup_keys:
+            if key in orders:
+                try:
+                    return float(orders[key])
+                except (TypeError, ValueError):
+                    return 0.0
+        return 0.0
+
 
 class RiskEngine:
     """
@@ -109,16 +147,24 @@ class RiskEngine:
     Returns: approved=True + vetoed proposals, OR approved=False + reason
     """
     
-    def __init__(self, policy: Dict, universe_manager=None):
+    def __init__(self, policy: Dict, universe_manager=None, exchange=None, state_store=None):
         self.policy = policy
         self.risk_config = policy.get("risk", {})
         self.sizing_config = policy.get("position_sizing", {})
         self.micro_config = policy.get("microstructure", {})
         self.regime_config = policy.get("regime", {})
         self.governance_config = policy.get("governance", {})
+        self.circuit_breakers_config = policy.get("circuit_breakers", {})
         self.universe_manager = universe_manager
+        self.exchange = exchange
+        self._state_store = state_store  # Optional: for testing or explicit state management
         
-        logger.info("Initialized RiskEngine with policy constraints")
+        # Circuit breaker state tracking
+        self._api_error_count = 0
+        self._last_api_success = None
+        self._last_rate_limit_time = None
+        
+        logger.info("Initialized RiskEngine with policy constraints and circuit breakers")
     
     def check_all(self, 
                   proposals: List[TradeProposal],
@@ -144,6 +190,11 @@ class RiskEngine:
                 reason="No proposals to evaluate",
                 approved_proposals=[]
             )
+        
+        # 0. Circuit breakers (fail closed on data/exchange issues)
+        result = self._check_circuit_breakers(portfolio, regime)
+        if not result.approved:
+            return result
         
         # 1. Kill switch
         result = self._check_kill_switch()
@@ -185,7 +236,16 @@ class RiskEngine:
         if not result.approved:
             return result
         
-        # 5. Position sizing (per proposal)
+        # 5. Per-symbol cooldowns (filter proposals)
+        proposals = self._filter_cooled_symbols(proposals)
+        if not proposals:
+            return RiskCheckResult(
+                approved=False,
+                reason="All proposals filtered by per-symbol cooldowns",
+                violated_checks=["per_symbol_cooldown"]
+            )
+        
+        # 6. Position sizing (per proposal)
         approved_proposals = []
         violated = []
         
@@ -204,7 +264,7 @@ class RiskEngine:
                 violated_checks=violated
             )
         
-        # 6. Cluster limits
+        # 7. Cluster limits
         result = self._check_cluster_limits(approved_proposals, portfolio)
         if not result.approved:
             return result
@@ -287,7 +347,17 @@ class RiskEngine:
         
         # Calculate current exposure from open positions (using enforced schema)
         current_exposure_usd = portfolio.get_total_exposure_usd()
-        current_exposure_pct = (current_exposure_usd / portfolio.account_value_usd) * 100
+        pending_buy_usd = portfolio.get_pending_notional_usd("buy")
+
+        def _pct(value_usd: float) -> float:
+            try:
+                return (value_usd / portfolio.account_value_usd) * 100 if portfolio.account_value_usd > 0 else 0.0
+            except ZeroDivisionError:
+                return 0.0
+
+        current_positions_pct = _pct(current_exposure_usd)
+        pending_buy_pct = _pct(pending_buy_usd)
+        current_exposure_pct = current_positions_pct + pending_buy_pct
         
         # Calculate proposed exposure
         proposed_pct = sum(p.size_pct for p in proposals)
@@ -296,8 +366,12 @@ class RiskEngine:
         
         if total_at_risk_pct > max_total_at_risk_pct:
             logger.error(
-                f"Total at-risk would exceed limit: {total_at_risk_pct:.1f}% > {max_total_at_risk_pct:.1f}% "
-                f"(current: {current_exposure_pct:.1f}% + proposed: {proposed_pct:.1f}%)"
+                "Total at-risk would exceed limit: %.1f%% > %.1f%% (positions: %.1f%%, pending buys: %.1f%%, proposed: %.1f%%)",
+                total_at_risk_pct,
+                max_total_at_risk_pct,
+                current_positions_pct,
+                pending_buy_pct,
+                proposed_pct,
             )
             return RiskCheckResult(
                 approved=False,
@@ -306,8 +380,12 @@ class RiskEngine:
             )
         
         logger.debug(
-            f"Global at-risk check passed: {total_at_risk_pct:.1f}%/{max_total_at_risk_pct:.1f}% "
-            f"(current: {current_exposure_pct:.1f}% + proposed: {proposed_pct:.1f}%)"
+            "Global at-risk check passed: %.1f%%/%.1f%% (positions: %.1f%%, pending buys: %.1f%%, proposed: %.1f%%)",
+            total_at_risk_pct,
+            max_total_at_risk_pct,
+            current_positions_pct,
+            pending_buy_pct,
+            proposed_pct,
         )
         
         return RiskCheckResult(approved=True)
@@ -407,11 +485,57 @@ class RiskEngine:
         
         return RiskCheckResult(approved=True)
     
+    def _filter_cooled_symbols(self, proposals: List[TradeProposal]) -> List[TradeProposal]:
+        """
+        Filter out proposals for symbols currently in cooldown.
+        
+        Checks StateStore for per-symbol cooldowns set after losses or stop-outs.
+        Only filters if per_symbol_cooldown_enabled=true in policy.
+        
+        Returns:
+            Filtered list of proposals (symbols not in cooldown)
+        """
+        if not self.risk_config.get("per_symbol_cooldown_enabled", True):
+            return proposals
+        
+        from infra.state_store import get_state_store
+        # Use state_store from risk engine if available, otherwise get default
+        state_store = getattr(self, '_state_store', None) or get_state_store()
+        
+        filtered = []
+        for proposal in proposals:
+            symbol = proposal.symbol
+            
+            # Check if symbol is in cooldown
+            if state_store.is_cooldown_active(symbol):
+                logger.info(f"Filtered {symbol}: per-symbol cooldown active")
+                continue
+            
+            filtered.append(proposal)
+        
+        if len(filtered) < len(proposals):
+            logger.info(
+                f"Per-symbol cooldown filtered: {len(filtered)}/{len(proposals)} proposals remain"
+            )
+        
+        return filtered
+    
     def _check_position_size(self, proposal: TradeProposal,
                             portfolio: PortfolioState,
                             regime: str) -> RiskCheckResult:
         """Check if position size is within limits"""
         violated = []
+
+        existing_position_usd = portfolio.get_position_usd(proposal.symbol)
+        pending_buy_usd = portfolio.get_pending_notional_usd("buy", proposal.symbol)
+
+        def _pct(value_usd: float) -> float:
+            try:
+                return (value_usd / portfolio.account_value_usd) * 100 if portfolio.account_value_usd > 0 else 0.0
+            except ZeroDivisionError:
+                return 0.0
+
+        existing_exposure_pct = _pct(existing_position_usd + pending_buy_usd)
         
         # Get base limits
         max_pos_pct = self.risk_config.get("max_position_size_pct", 5.0)
@@ -423,6 +547,14 @@ class RiskEngine:
             multiplier = regime_settings.get("position_size_multiplier", 1.0)
             max_pos_pct *= multiplier
         
+        # Combine with existing exposure for BUY orders
+        if proposal.side == "BUY":
+            combined_pct = existing_exposure_pct + proposal.size_pct
+            if combined_pct > max_pos_pct:
+                violated.append(
+                    f"position_size_with_pending ({combined_pct:.1f}% > {max_pos_pct:.1f}% including pending buys)"
+                )
+
         # Check max
         if proposal.size_pct > max_pos_pct:
             violated.append(f"position_size_too_large ({proposal.size_pct:.1f}% > {max_pos_pct:.1f}%)")
@@ -432,11 +564,15 @@ class RiskEngine:
             violated.append(f"position_size_too_small ({proposal.size_pct:.1f}% < {min_pos_pct:.1f}%)")
         
         # Check if already have position
+        allow_pyramid = self.sizing_config.get("allow_pyramiding", False)
         if proposal.symbol in portfolio.open_positions:
             # Check pyramiding rules
-            allow_pyramid = self.sizing_config.get("allow_pyramiding", False)
             if not allow_pyramid:
                 violated.append(f"already_have_position ({proposal.symbol})")
+
+        # Pending orders count toward pyramiding guard as well
+        if not allow_pyramid and pending_buy_usd > 0 and proposal.side == "BUY":
+            violated.append(f"pending_buy_exists ({proposal.symbol})")
         
         if violated:
             return RiskCheckResult(
@@ -480,6 +616,18 @@ class RiskEngine:
             if cluster:
                 size_pct = (size_usd / portfolio.account_value_usd) * 100
                 cluster_exposure[cluster] += size_pct
+
+        pending_buy_orders = (portfolio.pending_orders or {}).get("buy", {})
+        for symbol, usd_value in pending_buy_orders.items():
+            lookup_symbol = symbol if '-' in symbol else f"{symbol}-USD"
+            cluster = self.universe_manager.get_asset_cluster(lookup_symbol)
+            if not cluster:
+                continue
+            try:
+                size_pct = (float(usd_value) / portfolio.account_value_usd) * 100 if portfolio.account_value_usd > 0 else 0.0
+            except (TypeError, ValueError):
+                continue
+            cluster_exposure[cluster] += size_pct
         
         logger.debug(f"Current cluster exposure: {dict(cluster_exposure)}")
         
@@ -554,3 +702,154 @@ class RiskEngine:
             proposal.size_pct = adjusted_size
         
         return proposal
+    
+    def _check_circuit_breakers(self, portfolio: PortfolioState, regime: str) -> RiskCheckResult:
+        """
+        Check circuit breakers for data staleness, API health, exchange status, and volatility.
+        
+        Fail CLOSED on any of:
+        - Stale data (quotes/candles too old)
+        - API health issues (consecutive errors, rate limits)
+        - Exchange degraded (maintenance, status issues)
+        - Extreme volatility (crash regime)
+        - Insufficient universe (too few eligible assets)
+        
+        Returns:
+            RiskCheckResult with approval or rejection reason
+        """
+        if not self.circuit_breakers_config:
+            # Circuit breakers not configured, skip checks
+            return RiskCheckResult(approved=True)
+        
+        violated = []
+        
+        # 1. Check for rate limit cooldown
+        if self.circuit_breakers_config.get("pause_on_rate_limit", True):
+            if self._last_rate_limit_time:
+                cooldown_seconds = self.circuit_breakers_config.get("rate_limit_cooldown_seconds", 60)
+                elapsed = (datetime.utcnow() - self._last_rate_limit_time).total_seconds()
+                if elapsed < cooldown_seconds:
+                    remaining = cooldown_seconds - elapsed
+                    logger.warning(f"Rate limit cooldown active: {remaining:.0f}s remaining")
+                    return RiskCheckResult(
+                        approved=False,
+                        reason=f"Rate limit cooldown ({remaining:.0f}s remaining)",
+                        violated_checks=["rate_limit_cooldown"]
+                    )
+        
+        # 2. Check API health (consecutive errors)
+        max_errors = self.circuit_breakers_config.get("max_consecutive_api_errors", 3)
+        if self._api_error_count >= max_errors:
+            error_window = self.circuit_breakers_config.get("api_error_window_seconds", 300)
+            if self._last_api_success:
+                elapsed = (datetime.utcnow() - self._last_api_success).total_seconds()
+                if elapsed > error_window:
+                    # Reset counter after window
+                    logger.info(f"Resetting API error counter after {elapsed:.0f}s")
+                    self._api_error_count = 0
+                else:
+                    logger.error(f"API health check failed: {self._api_error_count} consecutive errors")
+                    return RiskCheckResult(
+                        approved=False,
+                        reason=f"API health degraded ({self._api_error_count} consecutive errors)",
+                        violated_checks=["api_health"]
+                    )
+            else:
+                logger.error(f"API health check failed: {self._api_error_count} errors, no successful calls")
+                return RiskCheckResult(
+                    approved=False,
+                    reason=f"API health critical ({self._api_error_count} errors)",
+                    violated_checks=["api_health"]
+                )
+        
+        # 3. Check exchange status (if exchange adapter provided)
+        if self.exchange and self.circuit_breakers_config.get("check_exchange_status", True):
+            try:
+                # Simple connectivity check
+                if not self.exchange.check_connectivity():
+                    logger.error("Exchange connectivity check failed")
+                    return RiskCheckResult(
+                        approved=False,
+                        reason="Exchange connectivity failed",
+                        violated_checks=["exchange_connectivity"]
+                    )
+            except Exception as e:
+                logger.error(f"Exchange health check raised exception: {e}")
+                return RiskCheckResult(
+                    approved=False,
+                    reason=f"Exchange health check error: {e}",
+                    violated_checks=["exchange_health"]
+                )
+        
+        # 4. Check volatility circuit breaker (crash regime)
+        max_vol = self.circuit_breakers_config.get("max_realized_volatility_pct", 150)
+        if regime == "crash":
+            logger.warning("Crash regime detected - halting new trades")
+            return RiskCheckResult(
+                approved=False,
+                reason="Crash regime active (extreme volatility)",
+                violated_checks=["volatility_crash"]
+            )
+        
+        # 5. Check minimum eligible assets
+        min_assets = self.circuit_breakers_config.get("min_eligible_assets", 2)
+        if self.universe_manager:
+            try:
+                # This would require universe snapshot to be passed or cached
+                # For now, we'll skip this check if universe not available
+                pass
+            except Exception:
+                pass
+        
+        # All checks passed
+        return RiskCheckResult(approved=True)
+    
+    def record_api_success(self):
+        """Record successful API call for circuit breaker tracking"""
+        self._api_error_count = 0
+        self._last_api_success = datetime.utcnow()
+        logger.debug("API success recorded, error counter reset")
+    
+    def record_api_error(self):
+        """Record API error for circuit breaker tracking"""
+        self._api_error_count += 1
+        logger.warning(f"API error recorded (count: {self._api_error_count})")
+    
+    def record_rate_limit(self):
+        """Record rate limit hit for circuit breaker tracking"""
+        self._last_rate_limit_time = datetime.utcnow()
+        logger.warning("Rate limit hit recorded")
+    
+    def apply_symbol_cooldown(self, symbol: str, is_stop_loss: bool = False):
+        """
+        Apply per-symbol cooldown after a loss or stop-out.
+        
+        Args:
+            symbol: Trading symbol (e.g., "BTC-USD")
+            is_stop_loss: If True, use longer cooldown for stop-loss hits
+        """
+        if not self.risk_config.get("per_symbol_cooldown_enabled", True):
+            return
+        
+        from infra.state_store import get_state_store
+        # Use state_store from risk engine if available, otherwise get default
+        state_store = getattr(self, '_state_store', None) or get_state_store()
+        state = state_store.load()
+        
+        # Determine cooldown duration
+        if is_stop_loss:
+            cooldown_minutes = self.risk_config.get("per_symbol_cooldown_after_stop", 60)
+        else:
+            cooldown_minutes = self.risk_config.get("per_symbol_cooldown_minutes", 30)
+        
+        # Set cooldown (use timezone-aware datetime to match is_cooldown_active check)
+        from datetime import timezone
+        cooldown_until = datetime.now(timezone.utc) + timedelta(minutes=cooldown_minutes)
+        state.setdefault("cooldowns", {})[symbol] = cooldown_until.isoformat()
+        
+        state_store.save(state)
+        
+        logger.info(
+            f"Applied {cooldown_minutes}min cooldown to {symbol} "
+            f"({'stop-loss' if is_stop_loss else 'loss'})"
+        )

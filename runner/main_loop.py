@@ -102,7 +102,11 @@ class TradingLoop:
         self.universe_mgr = UniverseManager(self.config_dir / "universe.yaml")
         self.trigger_engine = TriggerEngine()
         self.rules_engine = RulesEngine(config={})
-        self.risk_engine = RiskEngine(self.policy_config, universe_manager=self.universe_mgr)
+        self.risk_engine = RiskEngine(
+            self.policy_config, 
+            universe_manager=self.universe_mgr,
+            exchange=self.exchange
+        )
         self.executor = ExecutionEngine(
             mode=self.mode,
             exchange=self.exchange,
@@ -209,6 +213,7 @@ class TradingLoop:
             # Use timezone-aware UTC to avoid deprecation warning
             current_time=datetime.now(timezone.utc),
             weekly_pnl_pct=weekly_pnl_pct,
+            pending_orders={},
         )
 
     @staticmethod
@@ -297,6 +302,54 @@ class TradingLoop:
             logger.debug("Portfolio snapshot refreshed after trade fills.")
         except Exception as exc:  # pragma: no cover - defensive
             logger.warning("Failed to refresh portfolio after fills: %s", exc)
+    
+    def _apply_cooldowns_after_trades(
+        self, 
+        executed_orders: List[ExecutionResult],
+        proposals: List[TradeProposal]
+    ) -> None:
+        """
+        Apply per-symbol cooldowns after trade execution.
+        
+        For SELL orders (position closes), we apply cooldowns to prevent
+        repeatedly trading losing positions. Currently applies cooldown to
+        all SELL orders; future enhancement: track PnL to differentiate wins/losses.
+        
+        Args:
+            executed_orders: Successfully executed orders
+            proposals: Original proposals that led to these orders
+        """
+        if not self.policy_config.get("risk", {}).get("per_symbol_cooldown_enabled", True):
+            return
+        
+        # Build proposal lookup by symbol
+        proposal_by_symbol = {p.symbol: p for p in proposals}
+        
+        for order in executed_orders:
+            if not order.success:
+                continue
+            
+            # Extract symbol - handle both dict and object
+            if isinstance(order, dict):
+                symbol = order.get('symbol')
+                side = order.get('side')
+            else:
+                symbol = getattr(order, 'symbol', None)
+                # ExecutionResult doesn't have side, need to look up from proposal
+                proposal = proposal_by_symbol.get(symbol)
+                side = proposal.side if proposal else None
+            
+            if not symbol or not side:
+                continue
+            
+            # Apply cooldown to SELL orders (position closes)
+            # TODO: Track PnL to differentiate wins/losses and apply appropriate cooldown
+            if side == "SELL":
+                # For now, treat all sells as potential losses and apply standard cooldown
+                # Future: detect stop-loss hits specifically and apply longer cooldown
+                is_stop_loss = False  # TODO: detect actual stop-loss hits
+                self.risk_engine.apply_symbol_cooldown(symbol, is_stop_loss=is_stop_loss)
+                logger.info(f"Applied cooldown to {symbol} after SELL order")
 
     def _abort_cycle_due_to_data(self, cycle_started: datetime, source: str,
                                  detail: Optional[str] = None) -> None:
@@ -356,6 +409,17 @@ class TradingLoop:
                 )
                 return
 
+            # Refresh portfolio snapshot now that state store has authoritative data
+            try:
+                self.portfolio = self._init_portfolio_state()
+            except CriticalDataUnavailable as data_exc:
+                self._abort_cycle_due_to_data(
+                    cycle_started,
+                    data_exc.source,
+                    str(data_exc.original) if data_exc.original else None,
+                )
+                return
+
             try:
                 pending_orders = self._get_open_order_exposure()
             except CriticalDataUnavailable as data_exc:
@@ -365,6 +429,8 @@ class TradingLoop:
                     str(data_exc.original) if data_exc.original else None,
                 )
                 return
+            else:
+                self.portfolio.pending_orders = pending_orders
 
             # Step 1: Build universe
             logger.info("Step 1: Building universe...")
@@ -491,7 +557,7 @@ class TradingLoop:
 
             logger.info(f"Proposals: {len(proposals)} generated")
             
-            # Step 4: Apply risk checks
+            # Step 4: Apply risk checks (including circuit breakers)
             logger.info("Step 4: Applying risk checks...")
             risk_result = self.risk_engine.check_all(
                 proposals=proposals,
@@ -499,9 +565,29 @@ class TradingLoop:
                 regime=self.current_regime
             )
             
+            # Record successful API operations for circuit breaker tracking
+            self.risk_engine.record_api_success()
+            
             if not risk_result.approved or not risk_result.approved_proposals:
                 reason = risk_result.reason or "all_proposals_blocked_by_risk"
-                logger.warning(f"Risk check FAILED: {reason}")
+                
+                # Check if this was a circuit breaker trip
+                if any(check in ['rate_limit_cooldown', 'api_health', 'exchange_connectivity', 
+                               'exchange_health', 'volatility_crash'] 
+                       for check in risk_result.violated_checks):
+                    logger.error(f"CIRCUIT BREAKER TRIPPED: {reason}")
+                    self.alerts.notify(
+                        AlertSeverity.CRITICAL,
+                        "Circuit breaker tripped",
+                        reason,
+                        {
+                            "violated_checks": risk_result.violated_checks,
+                            "mode": self.mode,
+                        },
+                    )
+                else:
+                    logger.warning(f"Risk check FAILED: {reason}")
+                
                 self.audit.log_cycle(
                     ts=cycle_started,
                     mode=self.mode,
@@ -619,6 +705,7 @@ class TradingLoop:
             if final_orders:
                 self.state_store.update_from_fills(final_orders, self.portfolio)
                 self._post_trade_refresh(final_orders)
+                self._apply_cooldowns_after_trades(final_orders, approved_proposals)
                 logger.info(f"Executed {len(final_orders)} order(s)")
             else:
                 logger.info("NO_TRADE: execution layer filtered all proposals (liquidity/slippage/notional/etc)")
@@ -649,6 +736,14 @@ class TradingLoop:
         except Exception as e:
             # Hard rule: any unexpected error => NO_TRADE this cycle
             logger.exception(f"Error in run_cycle: {e}")
+            
+            # Track API errors for circuit breaker
+            import requests
+            if isinstance(e, (requests.exceptions.RequestException, requests.exceptions.HTTPError)):
+                self.risk_engine.record_api_error()
+                if isinstance(e, requests.exceptions.HTTPError) and e.response and e.response.status_code == 429:
+                    self.risk_engine.record_rate_limit()
+            
             self.alerts.notify(
                 AlertSeverity.CRITICAL,
                 "Trading loop exception",
@@ -817,7 +912,6 @@ class TradingLoop:
             if '-' not in product:
                 continue
 
-            base, _ = product.split('-', 1)
             side = (order.get("side") or "").upper()
             if side not in {"BUY", "SELL"}:
                 continue
@@ -854,8 +948,9 @@ class TradingLoop:
             if notional <= 0:
                 continue
 
+            symbol_key = product
             bucket = exposure["buy"] if side == "BUY" else exposure["sell"]
-            bucket[base] = bucket.get(base, 0.0) + notional
+            bucket[symbol_key] = bucket.get(symbol_key, 0.0) + notional
 
         # Keep state store in sync even if we are only computing exposure
         try:

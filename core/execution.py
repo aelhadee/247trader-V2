@@ -77,6 +77,10 @@ class ExecutionEngine:
         self.min_notional_usd = risk_config.get("min_trade_notional_usd", 100.0)  # From policy.yaml
         self.min_depth_multiplier = 2.0  # Want 2x order size in depth
         
+        # Fee structure (basis points)
+        self.maker_fee_bps = execution_config.get("maker_fee_bps", 40)  # 0.40% default
+        self.taker_fee_bps = execution_config.get("taker_fee_bps", 60)  # 0.60% default
+        
         # Order type preference
         self.default_order_type = execution_config.get("default_order_type", "limit")
         self.limit_post_only = (self.default_order_type == "limit_post_only")
@@ -106,8 +110,65 @@ class ExecutionEngine:
         logger.info(
             f"Initialized ExecutionEngine (mode={self.mode}, min_notional=${self.min_notional_usd}, "
             f"quotes={self.preferred_quotes}, auto_convert={self.auto_convert_preferred_quote}, "
-            f"clamp_small_trades={self.clamp_small_trades})"
+            f"clamp_small_trades={self.clamp_small_trades}, maker_fee={self.maker_fee_bps}bps, "
+            f"taker_fee={self.taker_fee_bps}bps)"
         )
+    
+    def estimate_fee(self, size_usd: float, is_maker: bool = True) -> float:
+        """
+        Estimate trading fee for a given order size.
+        
+        Args:
+            size_usd: Order size in USD
+            is_maker: True for maker orders (limit post-only), False for taker (market/IOC)
+            
+        Returns:
+            Estimated fee in USD
+        """
+        fee_bps = self.maker_fee_bps if is_maker else self.taker_fee_bps
+        return size_usd * (fee_bps / 10000.0)
+    
+    def size_after_fees(self, gross_size_usd: float, is_maker: bool = True) -> float:
+        """
+        Calculate net position size after deducting fees.
+        
+        Args:
+            gross_size_usd: Gross order size before fees
+            is_maker: True for maker orders, False for taker
+            
+        Returns:
+            Net size after fees in USD
+        """
+        fee = self.estimate_fee(gross_size_usd, is_maker)
+        return gross_size_usd - fee
+    
+    def size_to_achieve_net(self, target_net_usd: float, is_maker: bool = True) -> float:
+        """
+        Calculate gross order size needed to achieve target net position after fees.
+        
+        For BUY: gross_size = target_net / (1 - fee_rate)
+        For SELL: net_proceeds = gross_size * (1 - fee_rate)
+        
+        Args:
+            target_net_usd: Desired net position size after fees
+            is_maker: True for maker orders, False for taker
+            
+        Returns:
+            Gross order size needed (before fees)
+        """
+        fee_bps = self.maker_fee_bps if is_maker else self.taker_fee_bps
+        fee_rate = fee_bps / 10000.0
+        return target_net_usd / (1.0 - fee_rate)
+    
+    def get_min_gross_size(self, is_maker: bool = True) -> float:
+        """
+        Get minimum gross order size that results in acceptable net position after fees.
+        
+        Returns:
+            Minimum gross size in USD (accounts for fees)
+        """
+        # To achieve min_notional_usd net after fees, we need slightly more gross
+        return self.size_to_achieve_net(self.min_notional_usd, is_maker=is_maker)
     
     def _require_accounts(self, context: str) -> List[Dict]:
         try:
@@ -653,7 +714,10 @@ class ExecutionEngine:
                 estimated_price = quote.bid
             
             estimated_size = size_usd / estimated_price
-            estimated_fees = size_usd * 0.006  # Coinbase fee ~0.6%
+            
+            # Use configured fee structure (default to maker fees for limit post-only)
+            is_maker = self.limit_post_only
+            estimated_fees = self.estimate_fee(size_usd, is_maker=is_maker)
             estimated_slippage_bps = quote.spread_bps / 2
             
             # If not DRY_RUN and auth available, call real preview API
@@ -815,7 +879,8 @@ class ExecutionEngine:
                 fill_price = quote.bid
             
             filled_size = size_usd / fill_price
-            fees = size_usd * 0.006  # Estimate 0.6%
+            # Use configured fees (paper/dry-run uses maker fees)
+            fees = self.estimate_fee(size_usd, is_maker=self.limit_post_only)
             slippage_bps = quote.spread_bps / 2
             
             return ExecutionResult(
