@@ -53,6 +53,18 @@ class TradingLoop:
     def __init__(self, config_dir: str = "config"):
         self.config_dir = Path(config_dir)
         
+        # Validate configs before loading
+        from tools.config_validator import validate_all_configs
+        validation_errors = validate_all_configs(config_dir)
+        if validation_errors:
+            logger.error("=" * 80)
+            logger.error("CONFIGURATION VALIDATION FAILED")
+            logger.error("=" * 80)
+            for error in validation_errors:
+                logger.error(f"  • {error}")
+            logger.error("=" * 80)
+            raise ValueError(f"Invalid configuration: {len(validation_errors)} error(s) found")
+        
         # Load configs
         self.app_config = self._load_yaml("app.yaml")
         self.policy_config = self._load_yaml("policy.yaml")

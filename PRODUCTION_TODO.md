@@ -86,7 +86,7 @@ Legend: 🔴 TODO = work outstanding, 🟡 Pending Validation = feature coded bu
 
 | Status | Task | Owner | Notes |
 | ------ | ---- | ----- | ----- |
-| � TODO | Validate YAML configs against schemas (Pydantic/JSON Schema) on startup. | TBD | Fail fast on misconfiguration. |
+| 🟢 Done | Validate YAML configs against schemas (Pydantic/JSON Schema) on startup. | N/A | Implemented config_validator with Pydantic schemas for policy.yaml, universe.yaml, signals.yaml. Validates on TradingLoop init. Fails fast on misconfiguration. 12 comprehensive tests added (test_config_validation.py). All 132 tests passing. See tools/config_validator.py. |
 | 🔴 TODO | Enforce secrets via environment/secret store only (no file fallbacks in repo). | TBD | Lock down credential handling. |
 | 🔴 TODO | Stamp config version/hash into each audit log entry. | TBD | Enables provenance tracking. |
 | 🔴 TODO | Add config sanity checks (theme vs asset caps, totals coherence). | TBD | Prevents contradictory limits. |

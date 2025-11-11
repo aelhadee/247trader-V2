@@ -40,6 +40,7 @@ liquidity:
   max_spread_bps: 80           # align with policy (broadened)
   min_24h_volume_usd: 8000000  # align with policy (broadened)
   min_orderbook_depth_usd: 10000  # align with policy (broadened depth)
+  min_depth_20bps_usd: 10000  # Min depth within 20bps
   # min_exchanges_listed / required_exchanges omitted for now (Coinbase-only)
 regime_modifiers:
   bear:
@@ -96,6 +97,8 @@ tiers:
     # Keep defined for future AI/news layer, but effectively off in Phase 1
     constraints:
       max_allocation_pct: 10.0
+      max_spread_bps: 100
+      min_24h_volume_usd: 5000000
       max_drawdown_pct: 15.0
       max_hold_period_hours: 72
     event_types_allowed:

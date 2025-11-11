@@ -7,7 +7,7 @@
   "last_loss_time": null,
   "last_win_time": null,
   "cooldowns": {
-    "BTC-USD": "2025-11-11T22:41:34.911641+00:00"
+    "BTC-USD": "2025-11-11T22:50:13.091126+00:00"
   },
   "positions": {
     "BTC-USD": {
@@ -16,8 +16,8 @@
       "entry_price": 50000.0,
       "entry_value_usd": 500.0,
       "fees_paid": 10.0,
-      "entry_time": "2025-11-11T22:13:29.761482+00:00",
-      "last_updated": "2025-11-11T22:13:29.761482+00:00"
+      "entry_time": "2025-11-11T22:22:09.237459+00:00",
+      "last_updated": "2025-11-11T22:22:09.237459+00:00"
     }
   },
   "cash_balances": {},
@@ -28,7 +28,7 @@
   "last_reset_hour": 22,
   "events": [
     {
-      "at": "2025-11-11T22:13:29.761482+00:00",
+      "at": "2025-11-11T22:22:09.237459+00:00",
       "event": "fill",
       "symbol": "BTC-USD",
       "side": "BUY",

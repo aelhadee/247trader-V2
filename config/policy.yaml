@@ -158,6 +158,9 @@ execution:
   clamp_small_trades: true
   # Use market orders instead of post-only limits for very small trades (to avoid repeated $5 failures)
   small_order_market_threshold_usd: 6.0
+  
+  # Post-trade reconciliation
+  post_trade_reconcile_wait_seconds: 0.5  # Wait after trade before reconciling fills
   # Cooldown after a failed attempt (precision/limit reject) before retrying same symbol
   failed_order_cooldown_seconds: 180
   
@@ -256,3 +259,15 @@ governance:
   # Emergency contacts
   emergency_slack_webhook: "${SLACK_WEBHOOK_URL}"
   emergency_email: "${ALERT_EMAIL}"
+
+data:
+  # Data quality guardrails
+  max_age_s: 60  # Max age for OHLCV data (seconds)
+  max_quote_staleness_seconds: 30  # Max age for quotes (seconds)
+
+circuit_breaker:
+  # API health monitoring
+  api_error_threshold: 5  # Errors before circuit breaker
+  api_error_window_minutes: 5  # Window for error tracking
+  rate_limit_threshold: 3  # Rate limits before circuit breaker
+  rate_limit_window_minutes: 10  # Window for rate limit tracking
