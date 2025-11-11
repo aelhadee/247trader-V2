@@ -7,6 +7,7 @@ risk:
   
   # Per-asset limits
   max_position_size_pct: 5.0  # 5% of NLV per coin
+  max_per_asset_pct: 5.0      # Alias for spec compatibility
   min_position_size_pct: 0.5
   
   # Per-theme limits (cluster exposure)
@@ -23,13 +24,14 @@ risk:
   # Trade frequency
   max_trades_per_day: 10
   max_trades_per_hour: 4
+  max_new_trades_per_hour: 4  # New trades per hour (spec requirement)
   
   # Cooldown after losses
   cooldown_after_loss_trades: 3  # 3 losing trades in row → pause
   cooldown_minutes: 60
   
   # Minimum trade size
-  min_trade_notional_usd: 10  # Skip dust (lowered for small account)
+  min_trade_notional_usd: 5  # Skip dust (lowered for very small account)
   
   # Hard stops per position
   stop_loss_pct: 8.0
@@ -53,10 +55,45 @@ position_sizing:
   allow_pyramiding: false
   max_pyramid_positions: 2
 
+liquidity:
+  # Spec-compliant liquidity filters
+  min_24h_volume_usd: 20_000_000    # $20M minimum (spec default)
+  max_spread_bps: 60                # 0.60% max spread (spec default)
+  min_depth_20bps_usd: 50_000       # $50K depth within 20bps (spec requirement)
+
+triggers:
+  # Price-move based triggers
+  price_move:
+    pct_15m: 3.5                    # abs move >= 3.5% in 15m
+    pct_60m: 6.0                    # abs move >= 6.0% in 60m
+
+  # Volume spike trigger
+  volume_spike:
+    ratio_1h_vs_24h: 1.8            # last 1h >= 1.8x average hourly
+
+  # Breakout / breakdown trigger
+  breakout:
+    lookback_hours: 24              # new 24h high/low + volume confirmation
+
+  # Minimum combined trigger score (if you implement scoring)
+  min_score: 0.2
+
+strategy:
+  # Base target allocation per asset tier (fraction of NLV)
+  base_position_pct:
+    tier1: 0.02                     # 2% NLV per Tier1 (BTC, ETH, SOL, etc.)
+    tier2: 0.01                     # 1% NLV per Tier2
+    tier3: 0.005                    # 0.5% NLV per Tier3 (if/when used)
+
+  max_open_positions: 8             # cap simultaneous distinct holdings
+
+  # Require at least this conviction from rules to emit a proposal
+  min_conviction_to_propose: 0.5    # 0..1 (below this = no trade)
+
 microstructure:
-  # Liquidity filters (hard rejections)
-  min_24h_volume_usd: 5_000_000
-  max_spread_bps: 100  # 1.00%
+  # Liquidity filters (hard rejections) - legacy section, kept for compatibility
+  min_24h_volume_usd: 5_000_000     # Your original conservative setting
+  max_spread_bps: 100               # 1.00%
   min_orderbook_depth_usd: 10_000
   
   # Slippage protection
@@ -85,7 +122,7 @@ regime:
 
 execution:
   # Order types
-  default_order_type: "limit"  # limit | market
+  default_order_type: "limit_post_only"  # Phase 1: conservative
   
   # Quote currency preferences (in order of preference)
   # System will use first available currency with sufficient balance
@@ -96,8 +133,16 @@ execution:
     - "BTC"   # Major crypto
     - "ETH"   # Major crypto
   
+  # Hard guardrails
+  max_slippage_bps: 40              # 0.40% max allowed vs reference
+  hard_max_spread_bps: 60           # must align with liquidity.max_spread_bps
+  
+  # Order management
+  cancel_after_seconds: 60          # cancel resting orders if not filled
+  partial_fill_min_pct: 0.25        # ignore fills <25% when assessing success
+  
   # Limit order behavior
-  limit_offset_bps: 5  # Post limit 5bps inside mid
+  limit_offset_bps: 5               # Post limit 5bps inside mid
   limit_timeout_seconds: 30
   
   # Post-trade confirmation
@@ -107,6 +152,12 @@ execution:
   # Retry logic
   max_retries: 3
   retry_delay_seconds: 5
+  
+  # Volatility-aware sizing: cut risk in crazy tape
+  high_volatility:
+    lookback_minutes: 60
+    move_threshold_pct: 8.0         # if asset moves >8% in 1h
+    size_reduction_factor: 0.5      # halve proposed size
 
 ai:
   # AI module configuration

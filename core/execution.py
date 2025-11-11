@@ -365,6 +365,11 @@ class ExecutionEngine:
         """
         Find the best trading pair based on available balance.
         
+        Strategy:
+        1. First try preferred quote currencies (USDC, USD, USDT, BTC, ETH)
+        2. If none have sufficient balance, try ANY coin we hold
+        3. This allows trading portfolio holdings against each other
+        
         Args:
             base_symbol: Base asset (e.g., "HBAR", "XRP")
             size_usd: USD-equivalent size needed
@@ -380,27 +385,121 @@ class ExecutionEngine:
                 for acc in accounts
             }
             
-            logger.debug(f"Current balances: {', '.join([f'{k}={v:.2f}' for k, v in balances.items() if v > 0])}")
+            logger.info(f"Looking for trading pair: {base_symbol} with ${size_usd:.2f} needed")
+            logger.info(f"Current balances: {', '.join([f'{k}={v:.2f}' for k, v in balances.items() if v > 0])}")
             
-            # Try each preferred quote currency
-            for quote in self.preferred_quotes:
+            # Track best option even if insufficient
+            best_option = None
+            best_balance_usd = 0
+            
+            # Build list of quote currencies to try:
+            # 1. Preferred quotes first (USDC, USD, USDT, BTC, ETH)
+            # 2. Then any coin we hold (for cross-pair trading)
+            all_quote_candidates = list(self.preferred_quotes)
+            
+            # Add all holdings as potential quote currencies
+            for currency in balances.keys():
+                if currency not in all_quote_candidates and currency != base_symbol and balances[currency] > 0:
+                    all_quote_candidates.append(currency)
+            
+            logger.debug(f"Trying {len(all_quote_candidates)} quote candidates: {', '.join(all_quote_candidates[:10])}...")
+            
+            # Try each quote currency
+            for quote in all_quote_candidates:
                 balance = balances.get(quote, 0)
-                if balance < size_usd:
-                    logger.debug(f"Insufficient {quote} balance: {balance:.2f} < {size_usd:.2f}")
+                logger.debug(f"Trying quote {quote}: balance={balance:.6f}")
+                if balance == 0:
+                    logger.debug(f"  Skipping {quote}: zero balance")
                     continue
+                
+                # Convert balance to USD equivalent for comparison
+                balance_usd = balance
+                if quote in ['USD', 'USDC', 'USDT']:
+                    # Stablecoins are 1:1 with USD
+                    balance_usd = balance
+                    logger.debug(f"  {quote} balance: {balance:.2f} = ${balance_usd:.2f} USD (stablecoin)")
+                else:
+                    # Crypto holdings need USD conversion
+                    try:
+                        # Try direct USD pair first
+                        quote_pair = f"{quote}-USD"
+                        quote_obj = self.exchange.get_quote(quote_pair)
+                        balance_usd = balance * quote_obj.mid
+                        logger.debug(f"  {quote} balance: {balance:.6f} * ${quote_obj.mid:.2f} = ${balance_usd:.2f} USD")
+                    except:
+                        # Try USDC pair as fallback
+                        try:
+                            quote_pair = f"{quote}-USDC"
+                            quote_obj = self.exchange.get_quote(quote_pair)
+                            balance_usd = balance * quote_obj.mid
+                            logger.debug(f"  {quote} balance: {balance:.6f} * ${quote_obj.mid:.2f} = ${balance_usd:.2f} USDC (≈USD)")
+                        except Exception as e:
+                            logger.debug(f"  Could not get USD value for {quote}: {e}")
+                            continue
                 
                 # Check if trading pair exists
                 pair = f"{base_symbol}-{quote}"
                 try:
                     # Try to get a quote to verify pair exists
                     self.exchange.get_quote(pair)
-                    logger.info(f"Selected trading pair: {pair} (balance: {balances[quote]:.2f} {quote})")
-                    return (pair, quote, balances[quote])
+                    
+                    # Check if we have enough balance (prefer full balance, but track best option)
+                    if balance_usd >= size_usd:
+                        logger.info(f"✅ Selected trading pair: {pair} (balance: {balance:.6f} {quote} = ${balance_usd:.2f})")
+                        return (pair, quote, balance)
+                    elif balance_usd >= self.min_notional_usd and balance_usd > best_balance_usd:
+                        # Track best partial option (above minimum)
+                        best_option = (pair, quote, balance, balance_usd)
+                        best_balance_usd = balance_usd
+                        logger.debug(f"  {pair} is viable but insufficient (${balance_usd:.2f} < ${size_usd:.2f})")
+                    else:
+                        logger.debug(f"  {pair} balance ${balance_usd:.2f} below minimum ${self.min_notional_usd}")
                 except Exception as e:
-                    logger.debug(f"Pair {pair} not available: {e}")
+                    logger.warning(f"Pair {pair} not available or error: {type(e).__name__}: {str(e)[:100]}")
                     continue
             
+            # If no quote has sufficient balance, use the best available (if above minimum)
+            if best_option:
+                pair, quote, balance, balance_usd = best_option
+                logger.warning(f"Using best available: {pair} with ${balance_usd:.2f} (requested ${size_usd:.2f})")
+                return (pair, quote, balance)
+            
+            # Last resort: suggest using Convert API for cross-pair trades
+            # Find the largest holding that could be converted
+            largest_holding = None
+            largest_value = 0
+            for currency, balance in balances.items():
+                if currency == base_symbol or balance == 0:
+                    continue
+                # Try to get USD value
+                try:
+                    if currency in ['USD', 'USDC', 'USDT']:
+                        value_usd = balance
+                    else:
+                        try:
+                            pair = f"{currency}-USD"
+                            quote_obj = self.exchange.get_quote(pair)
+                            value_usd = balance * quote_obj.mid
+                        except:
+                            try:
+                                pair = f"{currency}-USDC"
+                                quote_obj = self.exchange.get_quote(pair)
+                                value_usd = balance * quote_obj.mid
+                            except:
+                                continue
+                    
+                    if value_usd > largest_value and value_usd >= size_usd:
+                        largest_holding = currency
+                        largest_value = value_usd
+                except:
+                    continue
+            
+            if largest_holding:
+                logger.info(f"💡 Suggestion: Convert {largest_holding} (${largest_value:.2f}) to USDC, then buy {base_symbol}")
+                logger.info(f"   This requires implementing two-step conversion flow (Convert API + Buy)")
+            
             logger.warning(f"No suitable trading pair found for {base_symbol} with size ${size_usd:.2f}")
+            logger.warning(f"Available balances: {', '.join([f'{k}={v:.2f}' for k, v in balances.items() if v > 0])}")
             return None
             
         except Exception as e:
@@ -529,8 +628,22 @@ class ExecutionEngine:
             pair_info = self._find_best_trading_pair(base_symbol, size_usd)
             if pair_info:
                 symbol = pair_info[0]  # Use the found trading pair
-                logger.info(f"Using trading pair: {symbol}")
+                quote_currency = pair_info[0].split('-')[1]  # Extract quote (USDC, USD, etc.)
+                available_balance = pair_info[2]  # Raw balance in quote currency
+                
+                # Adjust size if available balance is less than requested (for stablecoins)
+                if quote_currency in ['USD', 'USDC', 'USDT']:
+                    available_balance_usd = available_balance
+                    if available_balance_usd < size_usd:
+                        logger.warning(f"Adjusting trade size: ${size_usd:.2f} → ${available_balance_usd:.2f} (limited by {quote_currency} balance)")
+                        size_usd = max(self.min_notional_usd, available_balance_usd * 0.99)  # Use 99% to leave room for fees
+                
+                logger.info(f"Using trading pair: {symbol} with ${size_usd:.2f}")
             else:
+                # No direct pair found - try two-step conversion
+                logger.warning(f"No direct trading pair found for {base_symbol}")
+                logger.warning(f"Two-step conversion (holdings → USDC → {base_symbol}) not yet fully automated")
+                logger.warning(f"For now, please liquidate holdings manually using examples/liquidate_worst_performers.py")
                 return ExecutionResult(
                     success=False,
                     order_id=None,
@@ -539,7 +652,7 @@ class ExecutionEngine:
                     fees=0.0,
                     slippage_bps=0.0,
                     route="failed",
-                    error=f"No suitable trading pair found for {base_symbol} with sufficient balance"
+                    error=f"No suitable trading pair found. Need to liquidate holdings to USDC first."
                 )
         elif '-' not in symbol:
             # Default to USD if no pair specified and not buying

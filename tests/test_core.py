@@ -146,25 +146,25 @@ def test_full_cycle():
     from runner.main_loop import TradingLoop
     
     loop = TradingLoop(config_dir="config")
-    summary = loop.run_once()
+    loop.run_cycle()  # Now returns None, logs to audit trail
     
-    assert summary is not None, "Summary returned None"
-    assert "status" in summary, "Summary missing 'status' field"
-    assert summary["status"] in ["NO_TRADE", "EXECUTED", "APPROVED_DRY_RUN", "NO_OPPORTUNITIES", "ERROR"], \
-        f"Invalid status: {summary['status']}"
-    assert "universe_size" in summary, "Summary missing 'universe_size'"
-    assert "triggers_detected" in summary, "Summary missing 'triggers_detected'"
-    assert "proposals_generated" in summary, "Summary missing 'proposals_generated'"
-    assert "proposals_approved" in summary, "Summary missing 'proposals_approved'"
+    # Check audit log was created
+    assert loop.audit.audit_file.exists(), "Audit log file not created"
+    
+    # Check that we can read recent cycles
+    recent = loop.audit.get_recent_cycles(n=1)
+    assert len(recent) > 0, "No cycles in audit log"
+    
+    # Verify cycle structure
+    cycle = recent[0]
+    assert "status" in cycle, "Cycle missing 'status' field"
+    assert cycle["status"] in ["NO_TRADE", "EXECUTED", "NO_OPPORTUNITIES"], \
+        f"Invalid status: {cycle['status']}"
+    assert "proposals" in cycle, "Cycle missing 'proposals'"
     
     print("✅ Full cycle: PASS")
-    print(f"   Status: {summary['status']}")
-    print(f"   Universe: {summary['universe_size']} assets")
-    print(f"   Triggers: {summary['triggers_detected']}")
-    print(f"   Proposals: {summary['proposals_generated']} → {summary['proposals_approved']} approved")
-    
-    if summary.get("base_trades"):
-        print(f"   Top trade: {summary['base_trades'][0]}")
+    print(f"   Status: {cycle['status']}")
+    print(f"   Proposals: {cycle['proposals']}")
     
     return True
 

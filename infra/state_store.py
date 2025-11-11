@@ -228,6 +228,50 @@ class StateStore:
         
         return state
     
+    def update_from_fills(self, filled_orders: list, portfolio: Any) -> Dict[str, Any]:
+        """
+        Update state after order fills.
+        
+        Args:
+            filled_orders: List of successfully filled orders
+            portfolio: Current portfolio state
+            
+        Returns:
+            Updated state
+        """
+        state = self.load()
+        
+        for order in filled_orders:
+            # Extract order details (handle both dict and object)
+            if isinstance(order, dict):
+                symbol = order.get('symbol')
+                side = order.get('side')
+                success = order.get('success', False)
+            else:
+                symbol = getattr(order, 'symbol', None)
+                side = getattr(order, 'side', None)
+                success = getattr(order, 'success', False)
+            
+            if success and symbol:
+                # Increment trade counter
+                state["trades_today"] = state.get("trades_today", 0) + 1
+                state["trades_this_hour"] = state.get("trades_this_hour", 0) + 1
+                
+                # Log event
+                state.setdefault("events", []).append({
+                    "at": datetime.now(timezone.utc).isoformat(),
+                    "event": "fill",
+                    "symbol": symbol,
+                    "side": side
+                })
+        
+        # Trim events (keep last 100)
+        if len(state.get("events", [])) > 100:
+            state["events"] = state["events"][-100:]
+        
+        self.save(state)
+        return state
+    
     def is_cooldown_active(self, asset: str) -> bool:
         """
         Check if asset is in cooldown.
