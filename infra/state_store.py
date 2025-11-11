@@ -9,7 +9,7 @@ import json
 import os
 import tempfile
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple, List
 from pathlib import Path
 import logging
 
@@ -26,6 +26,10 @@ DEFAULT_STATE = {
     "last_win_time": None,
     "cooldowns": {},  # asset -> ISO time when eligible again
     "positions": {},  # asset -> position info
+    "cash_balances": {},  # quote currency -> available
+    "open_orders": {},  # client_order_id/order_id -> metadata
+    "recent_orders": [],  # bounded history of closed/canceled orders
+    "last_reconcile_at": None,
     "last_reset_date": None,
     "last_reset_hour": None,
     "events": [],  # Recent events log
@@ -178,6 +182,161 @@ class StateStore:
         
         self.save(state)
         return state
+
+    def reconcile_exchange_snapshot(
+        self,
+        *,
+        positions: Dict[str, Dict[str, float]],
+        cash_balances: Dict[str, float],
+        open_orders: Dict[str, Dict[str, Any]],
+        timestamp: datetime,
+    ) -> Dict[str, Any]:
+        """Replace portfolio snapshot with authoritative data from the exchange."""
+
+        state = self.load()
+        state["positions"] = positions
+        state["cash_balances"] = cash_balances
+        state["last_reconcile_at"] = timestamp.isoformat()
+
+        # Sync open orders against active set
+        closed, created = self.sync_open_orders(open_orders, timestamp)
+
+        state.setdefault("events", []).append(
+            {
+                "at": timestamp.isoformat(),
+                "event": "reconcile",
+                "positions": len(positions),
+                "open_orders": len(open_orders),
+                "orders_closed": closed,
+                "orders_seen": created,
+            }
+        )
+
+        if len(state["events"]) > 100:
+            state["events"] = state["events"][-100:]
+
+        self.save(state)
+        return state
+
+    def record_open_order(self, key: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Persist metadata for a newly submitted order."""
+
+        state = self.load()
+        now = datetime.now(timezone.utc).isoformat()
+        entry = {**payload}
+        entry.setdefault("status", "open")
+        entry.setdefault("first_seen", now)
+        entry["updated_at"] = now
+        state.setdefault("open_orders", {})[key] = entry
+        state.setdefault("events", []).append(
+            {
+                "at": now,
+                "event": "order_opened",
+                "order_key": key,
+                "product_id": entry.get("product_id"),
+                "side": entry.get("side"),
+                "quote_size_usd": entry.get("quote_size_usd"),
+            }
+        )
+        if len(state["events"]) > 100:
+            state["events"] = state["events"][-100:]
+        self.save(state)
+        return state
+
+    def close_order(
+        self,
+        key: str,
+        *,
+        status: str = "closed",
+        details: Optional[Dict[str, Any]] = None,
+        timestamp: Optional[datetime] = None,
+    ) -> Tuple[bool, Dict[str, Any]]:
+        """Mark an order as closed and archive it."""
+
+        state = self.load()
+        open_orders = state.setdefault("open_orders", {})
+        entry = open_orders.pop(key, None)
+        if entry is None:
+            return False, {}
+
+        ts = (timestamp or datetime.now(timezone.utc)).isoformat()
+        entry.update(details or {})
+        entry["status"] = status
+        entry["closed_at"] = ts
+        entry["updated_at"] = ts
+        state.setdefault("recent_orders", []).append(entry)
+        # Trim history to last 50 entries
+        if len(state["recent_orders"]) > 50:
+            state["recent_orders"] = state["recent_orders"][-50:]
+
+        state.setdefault("events", []).append(
+            {
+                "at": ts,
+                "event": "order_closed",
+                "order_key": key,
+                "status": status,
+            }
+        )
+        if len(state["events"]) > 100:
+            state["events"] = state["events"][-100:]
+        self.save(state)
+        return True, entry
+
+    def has_open_order(self, key: str) -> bool:
+        """Return True if an order key is currently tracked as open."""
+
+        state = self.load()
+        return key in state.get("open_orders", {})
+
+    def sync_open_orders(
+        self,
+        active_orders: Dict[str, Dict[str, Any]],
+        timestamp: Optional[datetime] = None,
+    ) -> Tuple[List[str], List[str]]:
+        """Synchronize the open-order cache with authoritative exchange data."""
+
+        state = self.load()
+        now = (timestamp or datetime.now(timezone.utc)).isoformat()
+        open_orders = state.setdefault("open_orders", {})
+
+        created = []
+        for key, order in active_orders.items():
+            existing = key in open_orders
+            entry = open_orders.get(key, {})
+            order.setdefault("status", "open")
+            order.setdefault("first_seen", entry.get("first_seen", now))
+            order["updated_at"] = now
+            open_orders[key] = {**entry, **order}
+            if not existing:
+                created.append(key)
+
+        closed = []
+        for key in list(open_orders.keys()):
+            if key not in active_orders:
+                entry = open_orders.pop(key)
+                entry["status"] = "closed"
+                entry["closed_at"] = now
+                state.setdefault("recent_orders", []).append(entry)
+                closed.append(key)
+
+        if len(state.get("recent_orders", [])) > 50:
+            state["recent_orders"] = state["recent_orders"][-50:]
+
+        state.setdefault("events", []).append(
+            {
+                "at": now,
+                "event": "open_orders_sync",
+                "open_orders": len(open_orders),
+                "closed": closed,
+                "created": created,
+            }
+        )
+        if len(state["events"]) > 100:
+            state["events"] = state["events"][-100:]
+
+        state["last_open_orders_sync"] = now
+        self.save(state)
+        return closed, created
     
     def _auto_reset(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """

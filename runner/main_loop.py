@@ -19,12 +19,13 @@ import json
 import time
 import signal
 import yaml
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import logging
 
 from core.exchange_coinbase import CoinbaseExchange
+from core.exceptions import CriticalDataUnavailable
 from core.universe import UniverseManager
 from core.triggers import TriggerEngine
 from strategy.rules_engine import RulesEngine, TradeProposal
@@ -90,7 +91,12 @@ class TradingLoop:
         self.trigger_engine = TriggerEngine()
         self.rules_engine = RulesEngine(config={})
         self.risk_engine = RiskEngine(self.policy_config, universe_manager=self.universe_mgr)
-        self.executor = ExecutionEngine(mode=self.mode, exchange=self.exchange, policy=self.policy_config)
+        self.executor = ExecutionEngine(
+            mode=self.mode,
+            exchange=self.exchange,
+            policy=self.policy_config,
+            state_store=self.state_store,
+        )
         
         # State
         self.portfolio = self._init_portfolio_state()
@@ -123,17 +129,25 @@ class TradingLoop:
             account_value_usd = 10_000.0
         else:
             try:
-                accounts = self.exchange.get_accounts()
+                accounts = self._require_accounts("portfolio_init")
+            except CriticalDataUnavailable as data_exc:
+                logger.warning("Account lookup failed (%s); using last stored cash balance", data_exc.source)
+                stored_balances = state.get("cash_balances", {})
+                account_value_usd = sum(float(v) for v in stored_balances.values())
+                if account_value_usd <= 0:
+                    account_value_usd = 10_000.0
+                accounts = []
+            else:
                 account_value_usd = 0.0
-                
+
                 # Sum all balances (convert to USD)
                 for acc in accounts:
                     currency = acc['currency']
                     balance = float(acc.get('available_balance', {}).get('value', 0))
-                    
+
                     if balance == 0:
                         continue
-                    
+
                     # USD/USDC/USDT are 1:1
                     if currency in ['USD', 'USDC', 'USDT']:
                         account_value_usd += balance
@@ -143,19 +157,16 @@ class TradingLoop:
                             pair = f"{currency}-USD"
                             quote = self.exchange.get_quote(pair)
                             account_value_usd += balance * quote.mid
-                        except:
+                        except Exception:
                             # Try USDC if USD fails
                             try:
                                 pair = f"{currency}-USDC"
                                 quote = self.exchange.get_quote(pair)
                                 account_value_usd += balance * quote.mid
-                            except:
-                                pass
-                
+                            except Exception:
+                                continue
+
                 logger.info(f"Real account value: ${account_value_usd:.2f}")
-            except Exception as e:
-                logger.warning(f"Could not fetch account value: {e}, using fallback")
-                account_value_usd = 10_000.0
         
         return PortfolioState(
             account_value_usd=account_value_usd,
@@ -169,6 +180,32 @@ class TradingLoop:
             # Use timezone-aware UTC to avoid deprecation warning
             current_time=datetime.now(timezone.utc)
         )
+
+    def _abort_cycle_due_to_data(self, cycle_started: datetime, source: str,
+                                 detail: Optional[str] = None) -> None:
+        reason = f"data_unavailable:{source}"
+        msg = f"NO_TRADE: {reason}"
+        if detail:
+            msg += f" ({detail})"
+        logger.warning(msg)
+        self.audit.log_cycle(
+            ts=cycle_started,
+            mode=self.mode,
+            universe=None,
+            triggers=None,
+            base_proposals=[],
+            risk_approved=[],
+            final_orders=[],
+            no_trade_reason=reason,
+        )
+
+    def _require_accounts(self, context: str) -> List[dict]:
+        try:
+            return self.exchange.get_accounts()
+        except CriticalDataUnavailable:
+            raise
+        except Exception as exc:
+            raise CriticalDataUnavailable(f"accounts:{context}", exc) from exc
     
     def run_cycle(self):
         """
@@ -182,7 +219,25 @@ class TradingLoop:
         logger.info("=" * 80)
         
         try:
-            pending_orders = self._get_open_order_exposure()
+            try:
+                self._reconcile_exchange_state()
+            except CriticalDataUnavailable as data_exc:
+                self._abort_cycle_due_to_data(
+                    cycle_started,
+                    data_exc.source,
+                    str(data_exc.original) if data_exc.original else None,
+                )
+                return
+
+            try:
+                pending_orders = self._get_open_order_exposure()
+            except CriticalDataUnavailable as data_exc:
+                self._abort_cycle_due_to_data(
+                    cycle_started,
+                    data_exc.source,
+                    str(data_exc.original) if data_exc.original else None,
+                )
+                return
 
             # Step 1: Build universe
             logger.info("Step 1: Building universe...")
@@ -191,8 +246,15 @@ class TradingLoop:
             # Optional purge: liquidate excluded/ineligible holdings proactively
             try:
                 pm_cfg = self.policy_config.get("portfolio_management", {})
-                if pm_cfg.get("auto_liquidate_ineligible", False):
+                if self.mode != "DRY_RUN" and pm_cfg.get("auto_liquidate_ineligible", False):
                     self._purge_ineligible_holdings(universe)
+            except CriticalDataUnavailable as data_exc:
+                self._abort_cycle_due_to_data(
+                    cycle_started,
+                    data_exc.source,
+                    str(data_exc.original) if data_exc.original else None,
+                )
+                return
             except Exception as e:
                 logger.warning(f"Purge step skipped: {e}")
             
@@ -341,7 +403,15 @@ class TradingLoop:
                         pass
                     else:
                         # Compute available stable buying power (USD + USDC + USDT)
-                        accounts = self.exchange.get_accounts()
+                        try:
+                            accounts = self._require_accounts("rebalance_check")
+                        except CriticalDataUnavailable as data_exc:
+                            self._abort_cycle_due_to_data(
+                                cycle_started,
+                                data_exc.source,
+                                str(data_exc.original) if data_exc.original else None,
+                            )
+                            return
                         stable_currencies = {"USD", "USDC", "USDT"}
                         stable_available = sum(
                             float(acc.get('available_balance', {}).get('value', 0))
@@ -373,10 +443,18 @@ class TradingLoop:
                     logger.error(f"Failed to evaluate rebalancing need: {e}")
             
             # Get available capital and adjust position sizes
-            adjusted_proposals = self.executor.adjust_proposals_to_capital(
-                approved_proposals, 
-                self.portfolio.account_value_usd
-            )
+            try:
+                adjusted_proposals = self.executor.adjust_proposals_to_capital(
+                    approved_proposals,
+                    self.portfolio.account_value_usd,
+                )
+            except CriticalDataUnavailable as data_exc:
+                self._abort_cycle_due_to_data(
+                    cycle_started,
+                    data_exc.source,
+                    str(data_exc.original) if data_exc.original else None,
+                )
+                return
             
             if len(adjusted_proposals) < len(approved_proposals):
                 logger.warning(f"Capital constraints: executing {len(adjusted_proposals)}/{len(approved_proposals)} trades")
@@ -390,11 +468,19 @@ class TradingLoop:
                 for proposal, size_usd in adjusted_proposals:
                     logger.info(f"Executing: {proposal.side} {proposal.symbol} (${size_usd:.2f})")
                     
-                    result = self.executor.execute(
-                        symbol=proposal.symbol,
-                        side=proposal.side,
-                        size_usd=size_usd
-                    )
+                    try:
+                        result = self.executor.execute(
+                            symbol=proposal.symbol,
+                            side=proposal.side,
+                            size_usd=size_usd,
+                        )
+                    except CriticalDataUnavailable as data_exc:
+                        self._abort_cycle_due_to_data(
+                            cycle_started,
+                            data_exc.source,
+                            str(data_exc.original) if data_exc.original else None,
+                        )
+                        return
                     
                     if result.success:
                         logger.info(f"✅ Trade executed: {proposal.symbol} - Order ID: {result.order_id}")
@@ -461,11 +547,7 @@ class TradingLoop:
         excluded = set(universe.excluded_assets or [])
         eligible_symbols = {a.symbol for a in universe.get_all_eligible()}
 
-        try:
-            accounts = self.exchange.get_accounts()
-        except Exception as e:
-            logger.warning(f"Cannot fetch accounts for purge: {e}")
-            return
+        accounts = self._require_accounts("purge_ineligible")
 
         liquidations = 0
         for acc in accounts:
@@ -508,15 +590,90 @@ class TradingLoop:
             else:
                 logger.warning(f"Purge sell failed for {symbol}")
     
+    def _reconcile_exchange_state(self) -> None:
+        """Refresh the persistent state store with the latest exchange snapshot."""
+        if self.mode == "DRY_RUN":
+            return
+
+        timestamp = datetime.now(timezone.utc)
+
+        accounts = self._require_accounts("reconcile_state")
+
+        cash_balances: Dict[str, float] = {}
+        positions: Dict[str, Dict[str, float]] = {}
+
+        for acc in accounts:
+            currency = acc.get("currency")
+            if not currency:
+                continue
+
+            available = float(acc.get("available_balance", {}).get("value", 0))
+            hold = float(acc.get("hold", {}).get("value", 0))
+            total = available + hold
+
+            if currency in {"USD", "USDC", "USDT"}:
+                cash_balances[currency] = available
+                continue
+
+            if total <= 0:
+                continue
+
+            position = {
+                "available": available,
+                "hold": hold,
+                "total": total,
+            }
+
+            try:
+                quote = self.exchange.get_quote(f"{currency}-USD")
+                position["usd_value"] = total * quote.mid
+            except Exception:
+                try:
+                    quote = self.exchange.get_quote(f"{currency}-USDC")
+                    position["usd_value"] = total * quote.mid
+                except Exception:
+                    position["usd_value"] = 0.0
+
+            positions[currency] = position
+
+        try:
+            open_orders_raw = self.exchange.list_open_orders()
+        except CriticalDataUnavailable:
+            raise
+        except Exception as exc:
+            raise CriticalDataUnavailable("open_orders", exc) from exc
+
+        open_orders_snapshot: Dict[str, Dict[str, Any]] = {}
+        for order in open_orders_raw or []:
+            built = ExecutionEngine.build_state_store_order_payload(order)
+            if not built:
+                continue
+            key, payload = built
+            open_orders_snapshot[key] = payload
+
+        self.state_store.reconcile_exchange_snapshot(
+            positions=positions,
+            cash_balances=cash_balances,
+            open_orders=open_orders_snapshot,
+            timestamp=timestamp,
+        )
+
+        logger.debug(
+            "Reconciled state snapshot (positions=%d, open_orders=%d)",
+            len(positions),
+            len(open_orders_snapshot),
+        )
+
     def _get_open_order_exposure(self) -> Dict[str, Dict[str, float]]:
         """Aggregate outstanding open-order notional grouped by side/base."""
         exposure = {"buy": {}, "sell": {}}
 
         try:
             orders = self.exchange.list_open_orders()
+        except CriticalDataUnavailable:
+            raise
         except Exception as exc:
-            logger.warning(f"open order snapshot failed: {exc}")
-            return exposure
+            raise CriticalDataUnavailable("open_orders", exc) from exc
 
         for order in orders:
             product = order.get("product_id") or ""
@@ -563,6 +720,12 @@ class TradingLoop:
             bucket = exposure["buy"] if side == "BUY" else exposure["sell"]
             bucket[base] = bucket.get(base, 0.0) + notional
 
+        # Keep state store in sync even if we are only computing exposure
+        try:
+            self.executor.sync_open_orders_snapshot(orders)
+        except Exception as exc:
+            logger.debug("Open order sync skipped: %s", exc)
+
         return exposure
 
     def _auto_rebalance_for_trade(self, proposals: List[TradeProposal], deficit_usd: float) -> bool:
@@ -608,7 +771,7 @@ class TradingLoop:
                 return False
             
             # Get account UUIDs for conversion
-            accounts = self.exchange.get_accounts()
+            accounts = self._require_accounts("auto_rebalance")
             from_account = next((a for a in accounts if a['currency'] == worst['currency']), None)
             to_account = next((a for a in accounts if a['currency'] == 'USDC'), None)
             
@@ -656,6 +819,8 @@ class TradingLoop:
                     usd_target=usd_needed * 1.05
                 )
                 
+        except CriticalDataUnavailable:
+            raise
         except Exception as e:
             logger.error(f"Auto-rebalance failed: {e}")
             return False

@@ -6,12 +6,14 @@ Ported from v1 with simplified logic for rules-first strategy.
 """
 
 import uuid
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 from core.exchange_coinbase import CoinbaseExchange, get_exchange
+from core.exceptions import CriticalDataUnavailable
+from infra.state_store import StateStore
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +53,7 @@ class ExecutionEngine:
     """
     
     def __init__(self, mode: str = "DRY_RUN", exchange: Optional[CoinbaseExchange] = None,
-                 policy: Optional[Dict] = None):
+                 policy: Optional[Dict] = None, state_store: Optional[StateStore] = None):
         """
         Initialize execution engine.
         
@@ -63,6 +65,7 @@ class ExecutionEngine:
         self.mode = mode.upper()
         self.exchange = exchange or get_exchange()
         self.policy = policy or {}
+        self.state_store = state_store
         
         # Load limits from policy or use defaults
         execution_config = self.policy.get("execution", {})
@@ -106,6 +109,14 @@ class ExecutionEngine:
             f"clamp_small_trades={self.clamp_small_trades})"
         )
     
+    def _require_accounts(self, context: str) -> List[Dict]:
+        try:
+            return self.exchange.get_accounts()
+        except CriticalDataUnavailable:
+            raise
+        except Exception as exc:
+            raise CriticalDataUnavailable(f"accounts:{context}", exc) from exc
+
     def adjust_proposals_to_capital(self, proposals: List, portfolio_value_usd: float) -> List[Tuple]:
         """
         Adjust trade sizes based on available capital.
@@ -125,7 +136,7 @@ class ExecutionEngine:
         """
         try:
             # Get fresh balances
-            accounts = self.exchange.get_accounts()
+            accounts = self._require_accounts("adjust_proposals")
             balances = {
                 acc['currency']: float(acc.get('available_balance', {}).get('value', 0))
                 for acc in accounts
@@ -217,10 +228,11 @@ class ExecutionEngine:
             
             return adjusted
             
+        except CriticalDataUnavailable:
+            raise
         except Exception as e:
             logger.error(f"Error adjusting proposals to capital: {e}")
-            # Fallback: use original sizes
-            return [(p, portfolio_value_usd * (p.size_pct / 100.0)) for p in proposals]
+            raise CriticalDataUnavailable("capital_adjustment", e) from e
     
     def get_liquidation_candidates(self, min_value_usd: float = 10.0, 
                                   sort_by: str = "performance") -> List[Dict]:
@@ -239,7 +251,7 @@ class ExecutionEngine:
             List of holdings with value and performance, sorted accordingly
         """
         try:
-            accounts = self.exchange.get_accounts()
+            accounts = self._require_accounts("liquidation_candidates")
             candidates = []
             
             for acc in accounts:
@@ -321,9 +333,11 @@ class ExecutionEngine:
             
             return candidates
             
+        except CriticalDataUnavailable:
+            raise
         except Exception as e:
             logger.error(f"Error finding liquidation candidates: {e}")
-            return []
+            raise CriticalDataUnavailable("accounts:liquidation_candidates", e) from e
     
     def convert_asset(self, from_currency: str, to_currency: str, amount: str,
                      from_account_uuid: str, to_account_uuid: str) -> Dict:
@@ -418,7 +432,7 @@ class ExecutionEngine:
         """
         try:
             # Get FRESH account balances (critical - balance changes after each trade)
-            accounts = self.exchange.get_accounts()
+            accounts = self._require_accounts("find_best_pair")
             balances = {
                 acc['currency']: float(acc.get('available_balance', {}).get('value', 0))
                 for acc in accounts
@@ -471,7 +485,7 @@ class ExecutionEngine:
                             f"Attempting to top up {quote}: need ${size_usd:.2f}, have ${balance_usd:.2f}"
                         )
                         if self._top_up_stable_quote(quote, size_usd):
-                            accounts = self.exchange.get_accounts()
+                            accounts = self._require_accounts("find_best_pair_refresh")
                             balances = {
                                 acc['currency']: float(acc.get('available_balance', {}).get('value', 0))
                                 for acc in accounts
@@ -570,9 +584,11 @@ class ExecutionEngine:
             logger.warning(f"Available balances: {', '.join([f'{k}={v:.2f}' for k, v in balances.items() if v > 0])}")
             return None
             
+        except CriticalDataUnavailable:
+            raise
         except Exception as e:
             logger.error(f"Error finding trading pair: {e}")
-            return None
+            raise CriticalDataUnavailable("accounts:find_best_pair", e) from e
     
     def preview_order(self, symbol: str, side: str, size_usd: float, skip_liquidity_checks: bool = False) -> Dict:
         """
@@ -837,11 +853,35 @@ class ExecutionEngine:
             raise ValueError("Cannot execute LIVE orders with read_only exchange")
         
         logger.warning(f"LIVE: Executing {side} ${size_usd:.2f} of {symbol}")
-        
+        generated_client_order_id = False
+
         # Generate client order ID for idempotency
         if not client_order_id:
             client_order_id = str(uuid.uuid4())
-        
+            generated_client_order_id = True
+
+        # Abort duplicate submissions when we already track an open order
+        if (
+            self.state_store
+            and not generated_client_order_id
+            and client_order_id
+            and self.state_store.has_open_order(client_order_id)
+        ):
+            logger.warning(
+                "Duplicate submission detected for client_order_id=%s; skipping execution",
+                client_order_id,
+            )
+            return ExecutionResult(
+                success=False,
+                order_id=None,
+                filled_size=0.0,
+                filled_price=0.0,
+                fees=0.0,
+                slippage_bps=0.0,
+                route="skipped_duplicate",
+                error="duplicate_client_order",
+            )
+
         try:
             # Preview first
             preview = self.preview_order(symbol, side, size_usd, skip_liquidity_checks=skip_liquidity_checks)
@@ -895,6 +935,11 @@ class ExecutionEngine:
             
             # Parse result
             order_id = result.get("order_id") or result.get("success_response", {}).get("order_id")
+            status = (
+                result.get("status")
+                or result.get("success_response", {}).get("status")
+                or "open"
+            )
             
             # Check if order actually succeeded
             if not order_id and not result.get("success"):
@@ -916,6 +961,21 @@ class ExecutionEngine:
                     filled_price /= filled_size
             
             actual_slippage = preview.get("estimated_slippage_bps", 0)
+
+            self._update_state_store_after_execution(
+                symbol=symbol,
+                side=side,
+                size_usd=size_usd,
+                client_order_id=client_order_id,
+                order_id=order_id,
+                status=status,
+                route=route,
+                result_payload=result,
+                fills=fills,
+                filled_size=filled_size,
+                filled_price=filled_price,
+                fees=fees,
+            )
             
             return ExecutionResult(
                 success=True,
@@ -961,18 +1021,20 @@ class ExecutionEngine:
                 return False
 
             return self._top_up_stable_quote(preferred_quote, required_usd)
+        except CriticalDataUnavailable:
+            raise
         except Exception as e:
             logger.warning(f"Auto-convert to {preferred_quote} failed: {e}")
             return False
 
     def _top_up_stable_quote(self, target_quote: str, required_usd: float) -> bool:
-        """Ensure a single stable-coin balance meets the required USD size."""
+        """Attempt to ensure target stable balance meets the required USD size."""
         stable_currencies = {"USD", "USDC", "USDT"}
-        if target_quote not in stable_currencies:
+        if target_quote not in stable_currencies or required_usd <= 0:
             return False
 
         try:
-            accounts = self.exchange.get_accounts()
+            accounts = self._require_accounts(f"top_up:{target_quote}")
             balances = {
                 acc['currency']: float(acc.get('available_balance', {}).get('value', 0))
                 for acc in accounts
@@ -987,92 +1049,221 @@ class ExecutionEngine:
             donors.sort(key=lambda cur: balances.get(cur, 0.0), reverse=True)
 
             for donor in donors:
-                if deficit <= self.min_notional_usd * 0.2:
-                    break
-
                 available = balances.get(donor, 0.0)
                 if available <= 0:
                     continue
 
-                transfer = min(available, deficit * 1.05)
+                transfer = min(available, max(deficit * 1.05, self.min_notional_usd))
                 if transfer < self.min_notional_usd:
                     continue
 
                 logger.info(
-                    f"Top-up: moving ~${transfer:.2f} from {donor} into {target_quote}"
+                    f"Top-up: attempting convert {donor} → {target_quote} (~${transfer:.2f})"
                 )
 
-                try:
-                    if donor == "USD" and target_quote == "USDC":
-                        self.exchange.place_order(
-                            product_id="USDC-USD",
-                            side="buy",
-                            quote_size_usd=transfer,
-                            client_order_id=str(uuid.uuid4()),
-                            order_type="market",
-                        )
-                    elif donor == "USDC" and target_quote == "USD":
-                        self.exchange.place_order(
-                            product_id="USDC-USD",
-                            side="sell",
-                            quote_size_usd=transfer,
-                            client_order_id=str(uuid.uuid4()),
-                            order_type="market",
-                        )
-                    elif donor == "USDT" and target_quote == "USD":
-                        self.exchange.place_order(
-                            product_id="USDT-USD",
-                            side="sell",
-                            quote_size_usd=transfer,
-                            client_order_id=str(uuid.uuid4()),
-                            order_type="market",
-                        )
-                    elif donor == "USD" and target_quote == "USDT":
-                        self.exchange.place_order(
-                            product_id="USDT-USD",
-                            side="buy",
-                            quote_size_usd=transfer,
-                            client_order_id=str(uuid.uuid4()),
-                            order_type="market",
-                        )
-                    elif donor == "USDT" and target_quote == "USDC":
-                        self.exchange.place_order(
-                            product_id="USDT-USD",
-                            side="sell",
-                            quote_size_usd=transfer,
-                            client_order_id=str(uuid.uuid4()),
-                            order_type="market",
-                        )
-                        return self._top_up_stable_quote(target_quote, required_usd)
-                    elif donor == "USDC" and target_quote == "USDT":
-                        self.exchange.place_order(
-                            product_id="USDC-USD",
-                            side="sell",
-                            quote_size_usd=transfer,
-                            client_order_id=str(uuid.uuid4()),
-                            order_type="market",
-                        )
-                        return self._top_up_stable_quote(target_quote, required_usd)
-                    else:
-                        continue
-                except Exception as e:
-                    logger.warning(f"Stable conversion {donor}->{target_quote} failed: {e}")
+                if not self.exchange.convert_currency(donor, target_quote, transfer):
+                    logger.debug("Convert %s → %s skipped or failed", donor, target_quote)
                     continue
 
-                accounts = self.exchange.get_accounts()
-                balances = {
-                    acc['currency']: float(acc.get('available_balance', {}).get('value', 0))
-                    for acc in accounts
-                }
+                try:
+                    accounts = self._require_accounts(f"top_up_refresh:{target_quote}")
+                    balances = {
+                        acc['currency']: float(acc.get('available_balance', {}).get('value', 0))
+                        for acc in accounts
+                    }
+                except Exception as refresh_exc:
+                    logger.warning("Failed to refresh balances after convert: %s", refresh_exc)
+                    return True
+
                 current = balances.get(target_quote, 0.0)
                 deficit = required_usd - current
                 if current >= required_usd:
                     return True
 
-            return balances.get(target_quote, 0.0) >= required_usd * 0.99
+            return balances.get(target_quote, 0.0) >= required_usd
+        except CriticalDataUnavailable:
+            raise
         except Exception as exc:
             logger.warning(f"Top-up for {target_quote} failed: {exc}")
-            return False
+            raise CriticalDataUnavailable(f"accounts:top_up:{target_quote}", exc) from exc
+
+    # ===== State store integration =====
+
+    @staticmethod
+    def _safe_float(value: Any) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return 0.0
+
+    @staticmethod
+    def _order_key(client_order_id: Optional[str], order_id: Optional[str]) -> Optional[str]:
+        if client_order_id:
+            return client_order_id
+        if order_id:
+            return order_id
+        return None
+
+    @classmethod
+    def build_state_store_order_payload(cls, order: Dict[str, Any]) -> Optional[Tuple[str, Dict[str, Any]]]:
+        order_id = order.get("order_id") or order.get("id")
+        client_id = order.get("client_order_id") or order.get("client_order_id_v2")
+        key = cls._order_key(client_id, order_id)
+        if not key:
+            return None
+
+        status = (order.get("status") or "open").lower()
+        product_id = order.get("product_id") or order.get("symbol")
+
+        quote_size = cls._safe_float(
+            order.get("quote_size")
+            or order.get("quote_value")
+            or order.get("notional")
+            or order.get("filled_value")
+        )
+        base_size = cls._safe_float(order.get("base_size") or order.get("size") or order.get("filled_size"))
+
+        config = order.get("order_configuration") or {}
+        if config:
+            limit_conf = (
+                config.get("limit_limit_gtc")
+                or config.get("limit_limit_gtc_post_only")
+                or config.get("limit_limit_gtd")
+            )
+            market_conf = config.get("market_market_ioc")
+            if limit_conf:
+                base_conf = cls._safe_float(limit_conf.get("base_size"))
+                price_conf = cls._safe_float(limit_conf.get("limit_price"))
+                if base_conf:
+                    base_size = max(base_size, base_conf)
+                if base_conf and price_conf:
+                    quote_size = max(quote_size, base_conf * price_conf)
+            elif market_conf:
+                quote_conf = cls._safe_float(market_conf.get("quote_size"))
+                base_conf = cls._safe_float(market_conf.get("base_size"))
+                if quote_conf:
+                    quote_size = max(quote_size, quote_conf)
+                if base_conf:
+                    base_size = max(base_size, base_conf)
+
+        payload: Dict[str, Any] = {
+            "order_id": order_id,
+            "client_order_id": client_id,
+            "product_id": product_id,
+            "side": (order.get("side") or "").lower(),
+            "status": status,
+            "quote_size_usd": quote_size,
+            "base_size": base_size,
+            "filled_size": cls._safe_float(order.get("filled_size")),
+            "filled_value": cls._safe_float(order.get("filled_value")),
+        }
+
+        created_time = order.get("created_time") or order.get("submitted_at")
+        if created_time:
+            payload["created_time"] = created_time
+
+        return key, payload
+
+    def sync_open_orders_snapshot(self, orders: List[Dict[str, Any]]) -> None:
+        if not self.state_store:
+            return
+        try:
+            snapshot: Dict[str, Dict[str, Any]] = {}
+            for order in orders:
+                built = self.build_state_store_order_payload(order)
+                if not built:
+                    continue
+                key, data = built
+                snapshot[key] = data
+            timestamp = datetime.now(timezone.utc)
+            self.state_store.sync_open_orders(snapshot, timestamp)
+        except Exception as exc:
+            logger.warning("Failed to sync open orders into state store: %s", exc)
+
+    def _close_order_in_state_store(
+        self,
+        key: Optional[str],
+        status: str,
+        details: Dict[str, Any],
+    ) -> None:
+        if not self.state_store:
+            return
+
+        candidates = []
+        if details.get("client_order_id"):
+            candidates.append(details["client_order_id"])
+        if key and key not in candidates:
+            candidates.append(key)
+        if details.get("order_id"):
+            oid = details["order_id"]
+            if oid not in candidates:
+                candidates.append(oid)
+
+        for candidate in candidates:
+            try:
+                closed, _ = self.state_store.close_order(candidate, status=status, details=details)
+                if closed:
+                    return
+            except Exception as exc:
+                logger.warning("State store close_order failed for %s: %s", candidate, exc)
+
+    def _update_state_store_after_execution(
+        self,
+        *,
+        symbol: str,
+        side: str,
+        size_usd: float,
+        client_order_id: Optional[str],
+        order_id: Optional[str],
+        status: str,
+        route: str,
+        result_payload: Dict[str, Any],
+        fills: List[Dict[str, Any]],
+        filled_size: float,
+        filled_price: float,
+        fees: float,
+    ) -> None:
+        if not self.state_store:
+            return
+
+        try:
+            key = self._order_key(client_order_id, order_id)
+            if not key:
+                return
+
+            status_lower = (status or "open").lower()
+            payload: Dict[str, Any] = {
+                "order_id": order_id,
+                "client_order_id": client_order_id,
+                "product_id": symbol,
+                "side": side.lower(),
+                "quote_size_usd": size_usd,
+                "status": status_lower,
+                "route": route,
+                "filled_size": filled_size,
+                "filled_price": filled_price,
+                "fees": fees,
+                "fills": fills,
+                "result_snapshot": result_payload,
+            }
+
+            terminal_statuses = {
+                "done",
+                "filled",
+                "canceled",
+                "cancelled",
+                "expired",
+                "rejected",
+                "failed",
+                "error",
+            }
+
+            if status_lower in terminal_statuses:
+                self._close_order_in_state_store(key, status_lower, payload)
+            else:
+                self.state_store.record_open_order(key, payload)
+        except Exception as exc:
+            logger.warning("State store update failed after execution: %s", exc)
     
     def execute_batch(self, orders: List[Dict]) -> List[ExecutionResult]:
         """
@@ -1115,6 +1306,7 @@ class ExecutionEngine:
                 return
 
             open_orders = self.exchange.list_open_orders()
+            self.sync_open_orders_snapshot(open_orders)
             if not open_orders:
                 return
 
@@ -1154,6 +1346,13 @@ class ExecutionEngine:
                     for oid in to_cancel:
                         self.exchange.cancel_order(oid)
                     logger.info(f"Canceled {len(to_cancel)} stale orders (single)")
+                finally:
+                    try:
+                        remaining = self.exchange.list_open_orders()
+                    except Exception as refresh_exc:
+                        logger.warning("Failed to refresh open orders after cancel: %s", refresh_exc)
+                    else:
+                        self.sync_open_orders_snapshot(remaining)
         except Exception as e:
             logger.warning(f"manage_open_orders failed: {e}")
 
@@ -1162,10 +1361,26 @@ class ExecutionEngine:
 _executor = None
 
 
-def get_executor(mode: str = "DRY_RUN", policy: Optional[Dict] = None, 
-                 exchange: Optional[CoinbaseExchange] = None) -> ExecutionEngine:
+def get_executor(
+    mode: str = "DRY_RUN",
+    policy: Optional[Dict] = None,
+    exchange: Optional[CoinbaseExchange] = None,
+    state_store: Optional[StateStore] = None,
+) -> ExecutionEngine:
     """Get singleton executor instance"""
     global _executor
     if _executor is None or _executor.mode != mode.upper():
-        _executor = ExecutionEngine(mode=mode, policy=policy, exchange=exchange)
+        _executor = ExecutionEngine(
+            mode=mode,
+            policy=policy,
+            exchange=exchange,
+            state_store=state_store,
+        )
+    else:
+        if exchange and _executor.exchange is not exchange:
+            _executor.exchange = exchange
+        if policy is not None:
+            _executor.policy = policy
+        if state_store and _executor.state_store is not state_store:
+            _executor.state_store = state_store
     return _executor

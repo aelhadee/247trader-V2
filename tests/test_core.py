@@ -7,8 +7,10 @@ Test that Phase 1 core skeleton works end-to-end.
 import sys
 from pathlib import Path
 
-# Add parent directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Ensure project root is importable when running via pytest
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 def test_config_loading():
     """Test that configs load"""

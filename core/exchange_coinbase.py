@@ -17,6 +17,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import logging
 import requests
+from requests import exceptions as requests_exceptions
+from urllib.parse import urlencode
 
 try:
     import jwt
@@ -117,6 +119,9 @@ class CoinbaseExchange:
         # Cache for products
         self._products_cache = None
         self._products_cache_time = None
+
+        # Track convert compatibility per currency pair to avoid repeated failures
+        self._convert_support_cache: Dict[Tuple[str, str], bool] = {}
         
         logger.info(f"Initialized CoinbaseExchange (read_only={read_only}, mode={self._mode})")
     
@@ -199,8 +204,9 @@ class CoinbaseExchange:
         else:
             raise NotImplementedError(f"Unknown authentication mode: {self._mode}")
     
-    def _req(self, method: str, endpoint: str, body: Optional[dict] = None, 
-             authenticated: bool = True, max_retries: int = 3) -> dict:
+    def _req(self, method: str, endpoint: str, body: Optional[dict] = None,
+             authenticated: bool = True, max_retries: int = 3,
+             query: Optional[Dict[str, object]] = None) -> dict:
         """
         Make HTTP request to Coinbase API with exponential backoff.
         
@@ -212,17 +218,28 @@ class CoinbaseExchange:
         Does NOT retry on:
         - 4xx (except 429) - client errors like 400, 401, 403
         """
-        path = f"/api/v3/brokerage{endpoint}"
-        url = CB_BASE + endpoint
+        endpoint_with_query = endpoint
+
+        if query:
+            query_str = urlencode(query, doseq=True)
+            base_endpoint, sep, existing_query = endpoint.partition('?')
+            if existing_query:
+                if existing_query.endswith('&'):
+                    endpoint_with_query = f"{base_endpoint}?{existing_query}{query_str}"
+                else:
+                    endpoint_with_query = f"{base_endpoint}?{existing_query}&{query_str}"
+            else:
+                endpoint_with_query = f"{base_endpoint}?{query_str}"
+
+        path = f"/api/v3/brokerage{endpoint_with_query}"
+        url = CB_BASE + endpoint_with_query
         
         last_exception = None
         
         for attempt in range(max_retries):
             try:
                 if authenticated:
-                    # For JWT, strip query params from path (they're not included in the signature)
-                    path_for_auth = path.split('?')[0] if '?' in path else path
-                    headers = self._headers(method, path_for_auth, body)
+                    headers = self._headers(method, path, body)
                 else:
                     headers = {"Content-Type": "application/json"}
                 
@@ -672,6 +689,11 @@ class CoinbaseExchange:
             if p.get("product_id") == product_id:
                 return p
         return {}
+
+    def has_product(self, product_id: str) -> bool:
+        """Return True if the given product_id is currently tradeable."""
+        metadata = self.get_product_metadata(product_id)
+        return bool(metadata and metadata.get("status", "").lower() != "offline")
     
     def preview_order(self, product_id: str, side: str, quote_size_usd: float) -> dict:
         """
@@ -936,6 +958,12 @@ class CoinbaseExchange:
     
     # ========== Convert API (Crypto-to-Crypto) ==========
     
+    def _find_account(self, accounts: List[dict], currency: str) -> Optional[dict]:
+        for account in accounts:
+            if account.get("currency") == currency:
+                return account
+        return None
+
     def create_convert_quote(self, from_account: str, to_account: str, amount: str) -> dict:
         """
         Create a convert quote for crypto-to-crypto conversion.
@@ -981,8 +1009,8 @@ class CoinbaseExchange:
             "from_account": from_account,
             "to_account": to_account
         }
-        
-        return self._req("GET", f"/convert/trade/{trade_id}", params=params, authenticated=True)
+
+        return self._req("GET", f"/convert/trade/{trade_id}", query=params, authenticated=True)
     
     def commit_convert_trade(self, trade_id: str, from_account: str, to_account: str) -> dict:
         """
@@ -1009,6 +1037,86 @@ class CoinbaseExchange:
         
         logger.warning(f"COMMITTING CONVERT TRADE: {trade_id}")
         return self._req("POST", f"/convert/trade/{trade_id}", body, authenticated=True)
+
+    def convert_currency(self, from_currency: str, to_currency: str, amount: float) -> bool:
+        """Attempt to convert between two currencies via Coinbase Convert API."""
+        pair = (from_currency.upper(), to_currency.upper())
+
+        if self.read_only:
+            logger.info("READ_ONLY: would convert %s -> %s", from_currency, to_currency)
+            return False
+
+        if self._convert_support_cache.get(pair) is False:
+            logger.debug("Skipping convert %s→%s: previously marked unsupported", *pair)
+            return False
+
+        if amount <= 0:
+            return False
+
+        try:
+            accounts = self.get_accounts()
+        except Exception as exc:
+            logger.warning("Cannot load accounts for convert %s→%s: %s", *pair, exc)
+            return False
+
+        from_account = self._find_account(accounts, pair[0])
+        to_account = self._find_account(accounts, pair[1])
+
+        from_uuid = from_account.get("uuid") if from_account else None
+        to_uuid = to_account.get("uuid") if to_account else None
+
+        if not from_uuid or not to_uuid:
+            logger.debug("Missing accounts for convert %s→%s", *pair)
+            return False
+
+        amount_str = f"{amount:.16f}".rstrip("0").rstrip(".") or "0"
+
+        try:
+            quote = self.create_convert_quote(
+                from_account=from_uuid,
+                to_account=to_uuid,
+                amount=amount_str,
+            )
+        except requests_exceptions.HTTPError as exc:
+            error_text = exc.response.text if exc.response is not None else str(exc)
+            if "Unsupported account" in error_text:
+                logger.info("Convert %s→%s unsupported: %s", *pair, error_text.strip())
+                self._convert_support_cache[pair] = False
+                return False
+            logger.warning("Convert quote failed for %s→%s: %s", *pair, error_text.strip())
+            return False
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning("Convert quote raised for %s→%s: %s", *pair, exc)
+            return False
+
+        trade = quote.get("trade", {})
+        trade_id = trade.get("id")
+        if not trade_id:
+            logger.warning("Convert quote missing trade id for %s→%s", *pair)
+            return False
+
+        try:
+            result = self.commit_convert_trade(
+                trade_id=trade_id,
+                from_account=from_uuid,
+                to_account=to_uuid,
+            )
+        except requests_exceptions.HTTPError as exc:
+            error_text = exc.response.text if exc.response is not None else str(exc)
+            logger.warning("Convert commit failed for %s→%s: %s", *pair, error_text.strip())
+            return False
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning("Convert commit raised for %s→%s: %s", *pair, exc)
+            return False
+
+        status = result.get("trade", {}).get("status", "").upper()
+        if status in {"SETTLED", "COMPLETED", "FILLED", "FILLED_FULLY"}:
+            self._convert_support_cache[pair] = True
+            logger.info("Convert %s→%s success (status=%s)", *pair, status)
+            return True
+
+        logger.warning("Convert %s→%s returned status=%s", *pair, status or "UNKNOWN")
+        return False
 
 
 # Singleton instance
