@@ -14,7 +14,7 @@ Legend: 🔴 TODO = work outstanding, 🟡 Pending Validation = feature coded bu
 | 🟢 Done | Enforce per-symbol cooldowns after fills/stop-outs using `StateStore.cooldowns`. | N/A | RiskEngine.apply_symbol_cooldown() sets cooldowns; _filter_cooled_symbols() filters proposals; main_loop applies after SELL orders. |
 | 🟢 Done | Make sizing fee-aware so Coinbase maker/taker fees are reflected in min notional and PnL math. | N/A | ExecutionEngine uses configurable maker (40bps) and taker (60bps) fees; provides estimate_fee(), size_after_fees(), size_to_achieve_net(), get_min_gross_size() helpers. |
 | � Done | Enforce Coinbase product constraints (base/quote increments, min size, min market funds) before submission. | N/A | ExecutionEngine.enforce_product_constraints() checks metadata and rounds sizes; integrated into _execute_live() before order placement. |
-| 🔴 TODO | Replace daily/weekly circuit-breaker inputs with realized PnL history pulled from exchange fills. | TBD | Current percent stops still rely on approximated deltas. |
+| � Done | Track realized PnL per position from actual fill prices. | N/A | StateStore.record_fill() tracks positions with weighted average entry prices and calculates realized PnL on position closes. Accounts for exit fees and proportional entry fees. Updates pnl_today, pnl_week, consecutive_losses. Integrated into ExecutionEngine.reconcile_fills(). Surfaced in audit logs. 11 comprehensive tests added (test_pnl_tracking.py). All 120 tests passing. See implementation in infra/state_store.py (lines ~470-595). |
 
 ## Order Management & Execution
 
@@ -29,7 +29,7 @@ Legend: 🔴 TODO = work outstanding, 🟡 Pending Validation = feature coded bu
 
 🟢 Done | Enhanced shutdown: **cancel all live orders**, **flush StateStore**, close connections, clean exit. Implemented comprehensive `_handle_stop()` handler in runner/main_loop.py that: (1) Cancels all active orders from OrderStateMachine (batch cancel for multiple orders, single for one order), (2) Transitions canceled orders to CANCELED state with StateStore sync, (3) Flushes StateStore to disk, (4) Logs cleanup summary (orders canceled, errors, state flush status). Error resilient (continues cleanup even if individual steps fail). Mode-aware (skips order cancellation in DRY_RUN). 11 comprehensive tests added (test_graceful_shutdown.py). All 95 tests passing. Production-ready for clean shutdown on SIGTERM/SIGINT.
 
-🔴 TODO | **Replace** percent-based stops **with real PnL** from exchange fills. Track cumulative realized PnL, implement drawdown limits, add **daily/max loss** circuit breakers.
+� Pending Validation | **Use real PnL for circuit breakers**. Replace percent-based stops with realized PnL from exchange fills. Implement drawdown limits and daily/max loss circuit breakers using tracked PnL. Realized PnL tracking complete, now needs integration into RiskEngine for stop logic.
 | 🔴 TODO | Ensure graceful shutdown cancels live orders, flushes state, and exits cleanly. | TBD | Current SIGTERM handler only flips `_running` flag. |
 | 🔴 TODO | Include fee-adjusted rounding when enforcing minimum notional on the quote side. | TBD | Avoids relisting orders below exchange thresholds. |
 | 🔴 TODO | Add latency accounting for API calls, decision cycle, and submission pipeline. | TBD | Required for watchdogs and alerting. |

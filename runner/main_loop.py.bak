@@ -584,7 +584,6 @@ class TradingLoop:
                     risk_approved=[],
                     final_orders=[],
                     no_trade_reason=reason,
-            state_store=self.state_store,
                 )
                 return
             
@@ -612,7 +611,6 @@ class TradingLoop:
                     risk_approved=[],
                     final_orders=[],
                     no_trade_reason=reason,
-            state_store=self.state_store,
                 )
                 return
             
@@ -638,7 +636,6 @@ class TradingLoop:
                     risk_approved=[],
                     final_orders=[],
                     no_trade_reason=reason,
-            state_store=self.state_store,
                 )
                 return
             
@@ -669,7 +666,6 @@ class TradingLoop:
                     risk_approved=[],
                     final_orders=[],
                     no_trade_reason=reason,
-            state_store=self.state_store,
                 )
                 return
 
@@ -722,7 +718,6 @@ class TradingLoop:
                     risk_approved=[],
                     final_orders=[],
                     no_trade_reason=reason,
-            state_store=self.state_store,
                     risk_violations=risk_result.violated_checks,
                 )
                 return
@@ -846,7 +841,6 @@ class TradingLoop:
                 risk_approved=approved_proposals,
                 final_orders=final_orders,
                 no_trade_reason=None if final_orders else "no_orders_after_execution_filter",
-                state_store=self.state_store,
             )
 
             # Post-cycle maintenance: cancel stale open orders (LIVE/PAPER)
@@ -889,7 +883,6 @@ class TradingLoop:
                 risk_approved=[],
                 final_orders=[],
                 no_trade_reason=f"exception:{type(e).__name__}",
-                state_store=self.state_store,
             )
 
     def _purge_ineligible_holdings(self, universe) -> None:

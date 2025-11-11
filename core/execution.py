@@ -1758,6 +1758,33 @@ class ExecutionEngine:
                 # Track fills by symbol
                 fills_by_symbol[product_id] = fills_by_symbol.get(product_id, 0) + 1
                 
+                # Track position and calculate PnL
+                if (self.state_store and 
+                    hasattr(self.state_store, 'record_fill') and 
+                    callable(self.state_store.record_fill) and 
+                    product_id and side):
+                    try:
+                        # Parse timestamp
+                        fill_timestamp = datetime.now(timezone.utc)
+                        if trade_time:
+                            try:
+                                fill_timestamp = datetime.fromisoformat(trade_time.replace('Z', '+00:00'))
+                            except (ValueError, AttributeError):
+                                pass
+                        
+                        self.state_store.record_fill(
+                            symbol=product_id,
+                            side=side,
+                            filled_size=size,
+                            fill_price=price,
+                            fees=commission,
+                            timestamp=fill_timestamp
+                        )
+                        logger.debug(f"Recorded fill for PnL: {product_id} {side} {size} @ {price}")
+                    except Exception as e:
+                        logger.debug(f"Could not record fill for PnL tracking: {e}")
+                        # Continue processing other fills
+                
                 # Find matching order in state machine
                 # We need to search by order_id since fills use exchange order_id
                 matching_order = None
@@ -1837,18 +1864,32 @@ class ExecutionEngine:
                                 }
                             )
             
+            # Get PnL metrics
+            realized_pnl_usd = 0.0
+            open_positions = 0
+            if self.state_store and hasattr(self.state_store, 'load') and callable(self.state_store.load):
+                try:
+                    state = self.state_store.load()
+                    realized_pnl_usd = float(state.get("pnl_today", 0.0))
+                    open_positions = len(state.get("positions", {}))
+                except Exception as e:
+                    logger.debug(f"Could not read PnL from state: {e}")
+            
             summary = {
                 "fills_processed": fills_processed,
                 "orders_updated": len(orders_updated),
                 "total_fees": total_fees,
                 "fills_by_symbol": fills_by_symbol,
-                "unmatched_fills": len(unmatched_fills)
+                "unmatched_fills": len(unmatched_fills),
+                "realized_pnl_usd": realized_pnl_usd,
+                "open_positions": open_positions
             }
             
             if fills_processed > 0:
                 logger.info(
                     f"Fill reconciliation complete: {fills_processed} fills processed, "
-                    f"{len(orders_updated)} orders updated, ${total_fees:.4f} total fees"
+                    f"{len(orders_updated)} orders updated, ${total_fees:.4f} total fees, "
+                    f"${realized_pnl_usd:.2f} daily PnL, {open_positions} open positions"
                 )
             
             return summary

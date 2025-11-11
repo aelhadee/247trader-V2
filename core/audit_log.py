@@ -54,7 +54,8 @@ class AuditLogger:
                   risk_approved: List[Any],
                   final_orders: List[Any],
                   no_trade_reason: Optional[str] = None,
-                  risk_violations: Optional[List[str]] = None) -> None:
+                  risk_violations: Optional[List[str]] = None,
+                  state_store: Optional[Any] = None) -> None:
         """
         Log a complete trading cycle.
         
@@ -77,6 +78,22 @@ class AuditLogger:
                 "status": self._determine_status(final_orders, no_trade_reason),
                 "no_trade_reason": no_trade_reason,
             }
+            
+            # PnL summary from state_store
+            if state_store:
+                try:
+                    state = state_store.load()
+                    entry["pnl"] = {
+                        "daily_usd": round(state.get("pnl_today", 0.0), 2),
+                        "weekly_usd": round(state.get("pnl_week", 0.0), 2),
+                        "open_positions": len(state.get("positions", {})),
+                        "consecutive_losses": state.get("consecutive_losses", 0)
+                    }
+                except Exception as e:
+                    logger.warning(f"Failed to read PnL from state: {e}")
+                    entry["pnl"] = None
+            else:
+                entry["pnl"] = None
             
             # Universe summary
             if universe:
