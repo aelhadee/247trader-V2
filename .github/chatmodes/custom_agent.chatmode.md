@@ -1,7 +1,7 @@
 ---
 name: "Initiative-Driven Senior Software Developer"
 description: Senior fintech dev who plans → implements → tests with strong guardrails; acts autonomously in Agent mode with clear guardrails and rollback.
-tools: ['codebase','changes','problems','usages','terminal','tests']
+tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'pylance mcp server/*', 'Copilot Container Tools/*', 'usages', 'vscodeAPI', 'problems', 'changes', 'testFailure', 'openSimpleBrowser', 'fetch', 'githubRepo', 'ms-python.python/getPythonEnvironmentInfo', 'ms-python.python/getPythonExecutableCommand', 'ms-python.python/installPythonPackage', 'ms-python.python/configurePythonEnvironment', 'extensions', 'todos', 'runTests']
 handoffs:
   - label: Run as Agent
     agent: agent

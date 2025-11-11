@@ -18,6 +18,7 @@ import logging
 from core.exchange_coinbase import CoinbaseExchange, get_exchange
 from core.exceptions import CriticalDataUnavailable
 from infra.state_store import StateStore
+from core.order_state import get_order_state_machine, OrderStatus
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,7 @@ class ExecutionEngine:
         self.exchange = exchange or get_exchange()
         self.policy = policy or {}
         self.state_store = state_store
+        self.order_state_machine = get_order_state_machine()
         
         # Load limits from policy or use defaults
         execution_config = self.policy.get("execution", {})
@@ -982,6 +984,18 @@ class ExecutionEngine:
             # Generate deterministic ID for dry run tracking
             if not client_order_id:
                 client_order_id = self.generate_client_order_id(symbol, side, size_usd)
+            
+            # Track order state even in DRY_RUN for monitoring
+            self.order_state_machine.create_order(
+                client_order_id=client_order_id,
+                symbol=symbol,
+                side=side,
+                size_usd=size_usd,
+                route="dry_run"
+            )
+            # Immediately transition to terminal state (not actually submitted)
+            self.order_state_machine.transition(client_order_id, OrderStatus.FILLED)
+            
             return ExecutionResult(
                 success=True,
                 order_id=f"dry_run_{client_order_id}",
@@ -1013,9 +1027,25 @@ class ExecutionEngine:
         if not client_order_id:
             client_order_id = self.generate_client_order_id(symbol, side, size_usd)
         
+        # Create order state
+        self.order_state_machine.create_order(
+            client_order_id=client_order_id,
+            symbol=symbol,
+            side=side,
+            size_usd=size_usd,
+            route="paper"
+        )
+        
         try:
             # Get live quote
             quote = self.exchange.get_quote(symbol)
+            
+            # Transition to OPEN (simulated submission)
+            self.order_state_machine.transition(
+                client_order_id,
+                OrderStatus.OPEN,
+                order_id=f"paper_{client_order_id}"
+            )
             
             # Simulate fill at ask (buy) or bid (sell)
             if side.upper() == "BUY":
@@ -1027,6 +1057,14 @@ class ExecutionEngine:
             # Use configured fees (paper/dry-run uses maker fees)
             fees = self.estimate_fee(size_usd, is_maker=self.limit_post_only)
             slippage_bps = quote.spread_bps / 2
+            
+            # Update fill details and transition to FILLED
+            self.order_state_machine.update_fill(
+                client_order_id=client_order_id,
+                filled_size=filled_size,
+                filled_value=size_usd,
+                fees=fees
+            )
             
             return ExecutionResult(
                 success=True,
@@ -1040,6 +1078,12 @@ class ExecutionEngine:
             
         except Exception as e:
             logger.error(f"Paper execution failed: {e}")
+            # Transition to FAILED
+            self.order_state_machine.transition(
+                client_order_id,
+                OrderStatus.FAILED,
+                error=str(e)
+            )
             return ExecutionResult(
                 success=False,
                 order_id=None,
@@ -1091,6 +1135,15 @@ class ExecutionEngine:
                 route="skipped_duplicate",
                 error="duplicate_client_order",
             )
+        
+        # Create order state
+        self.order_state_machine.create_order(
+            client_order_id=client_order_id,
+            symbol=symbol,
+            side=side,
+            size_usd=size_usd,
+            route="live"
+        )
 
         try:
             # Get current price for constraint enforcement
@@ -1183,7 +1236,21 @@ class ExecutionEngine:
             
             # Check if order actually succeeded
             if not order_id and not result.get("success"):
-                raise ValueError(f"Order placement failed: {result.get('error', 'Unknown error')}")
+                error_msg = f"Order placement failed: {result.get('error', 'Unknown error')}"
+                # Transition to REJECTED or FAILED
+                self.order_state_machine.transition(
+                    client_order_id,
+                    OrderStatus.REJECTED,
+                    rejection_reason=error_msg
+                )
+                raise ValueError(error_msg)
+            
+            # Transition to OPEN
+            self.order_state_machine.transition(
+                client_order_id,
+                OrderStatus.OPEN,
+                order_id=order_id
+            )
             
             # Extract fill details
             filled_size = 0.0
@@ -1199,6 +1266,17 @@ class ExecutionEngine:
                     fees += float(fill.get("fee", 0))
                 if filled_size > 0:
                     filled_price /= filled_size
+            
+            # Update order state with fill details
+            if filled_size > 0:
+                filled_value = filled_size * filled_price if filled_price > 0 else size_usd
+                self.order_state_machine.update_fill(
+                    client_order_id=client_order_id,
+                    filled_size=filled_size,
+                    filled_value=filled_value,
+                    fees=fees,
+                    fills=fills
+                )
             
             actual_slippage = preview.get("estimated_slippage_bps", 0)
 
@@ -1229,6 +1307,12 @@ class ExecutionEngine:
             
         except Exception as e:
             logger.error(f"Live execution failed: {e}")
+            # Transition to FAILED
+            self.order_state_machine.transition(
+                client_order_id,
+                OrderStatus.FAILED,
+                error=str(e)
+            )
             # Record failure for cooldown
             try:
                 base_sym = symbol.split('-')[0] if '-' in symbol else symbol
@@ -1535,66 +1619,164 @@ class ExecutionEngine:
 
     # ===== Open order management =====
     def manage_open_orders(self) -> None:
-        """Cancel stale open limit orders based on policy timings.
-
-        Uses execution.cancel_after_seconds to decide when to cancel.
+        """
+        Cancel stale open limit orders based on policy timings.
+        
+        Uses OrderStateMachine to track order age and transitions canceled
+        orders to CANCELED state for proper lifecycle tracking.
+        
+        Strategy:
+        1. Get stale orders from OrderStateMachine (reliable age tracking)
+        2. Cancel via exchange API
+        3. Transition to CANCELED state
+        4. Update StateStore
         """
         try:
             execution_config = self.policy.get("execution", {})
             cancel_after = int(execution_config.get("cancel_after_seconds", 60))
+            
             if self.mode == "DRY_RUN":
                 return
-
-            open_orders = self.exchange.list_open_orders()
-            self.sync_open_orders_snapshot(open_orders)
-            if not open_orders:
+            
+            if cancel_after <= 0:
+                logger.debug("Order cancellation disabled (cancel_after_seconds <= 0)")
                 return
-
-            now = datetime.utcnow().timestamp()
+            
+            # Use OrderStateMachine for reliable stale order detection
+            stale_orders = self.order_state_machine.get_stale_orders(max_age_seconds=cancel_after)
+            
+            if not stale_orders:
+                logger.debug("No stale orders to cancel")
+                return
+            
+            logger.info(f"Found {len(stale_orders)} stale orders (age >= {cancel_after}s)")
+            
+            # Group by exchange order ID for cancellation
             to_cancel = []
-            for o in open_orders:
-                # Best-effort parse created_time; if unknown, skip cancel
-                created = o.get("created_time") or o.get("time_in_force", {}).get("start_time")
-                age = None
-                if created:
-                    try:
-                        # Coinbase returns RFC3339; try stdlib then dateutil
-                        ts = None
-                        try:
-                            iso = created.replace("Z", "+00:00")
-                            ts = datetime.fromisoformat(iso).timestamp()
-                        except Exception:
-                            try:
-                                from dateutil import parser as dtp  # type: ignore
-                                ts = dtp.parse(created).timestamp()
-                            except Exception:
-                                ts = None
-                        if ts is not None:
-                            age = now - ts
-                    except Exception:
-                        age = None
-                if age is not None and age >= cancel_after:
-                    to_cancel.append(o.get("order_id") or o.get("id"))
-
-            to_cancel = [oid for oid in to_cancel if oid]
+            order_id_to_client_id = {}
+            
+            for order in stale_orders:
+                # Skip if already in terminal state (edge case)
+                if order.is_terminal():
+                    continue
+                
+                order_id = order.order_id
+                client_order_id = order.client_order_id
+                
+                if order_id:
+                    to_cancel.append(order_id)
+                    order_id_to_client_id[order_id] = client_order_id
+                    logger.info(
+                        f"Marking for cancellation: {order.symbol} {order.side} "
+                        f"(age: {order.age_seconds():.1f}s, client_id: {client_order_id})"
+                    )
+                else:
+                    logger.warning(
+                        f"Stale order {client_order_id} has no exchange order_id, "
+                        "transitioning to CANCELED anyway"
+                    )
+                    # Transition to CANCELED even without exchange order_id
+                    self.order_state_machine.transition(
+                        client_order_id,
+                        OrderStatus.CANCELED,
+                        error="No exchange order_id available"
+                    )
+                    # Close in state store
+                    if self.state_store and client_order_id:
+                        self._close_order_in_state_store(
+                            client_order_id,
+                            "canceled",
+                            {"reason": "stale_no_order_id"}
+                        )
+            
+            # Execute cancellations
             if to_cancel:
-                # Prefer batch cancel, fallback to single
-                try:
-                    self.exchange.cancel_orders(to_cancel)
-                    logger.info(f"Canceled {len(to_cancel)} stale orders (batch)")
-                except Exception:
-                    for oid in to_cancel:
-                        self.exchange.cancel_order(oid)
-                    logger.info(f"Canceled {len(to_cancel)} stale orders (single)")
-                finally:
+                canceled_count = 0
+                failed_count = 0
+                
+                # Try batch cancel first (more efficient)
+                if len(to_cancel) > 1:
                     try:
-                        remaining = self.exchange.list_open_orders()
-                    except Exception as refresh_exc:
-                        logger.warning("Failed to refresh open orders after cancel: %s", refresh_exc)
-                    else:
-                        self.sync_open_orders_snapshot(remaining)
+                        result = self.exchange.cancel_orders(to_cancel)
+                        if result.get("success", False) or "results" in result:
+                            logger.info(f"Batch canceled {len(to_cancel)} stale orders")
+                            canceled_count = len(to_cancel)
+                        else:
+                            # Batch failed, fall back to individual
+                            logger.warning(f"Batch cancel failed: {result.get('error')}, trying individual")
+                            raise Exception("Batch cancel failed")
+                    except Exception as batch_exc:
+                        logger.debug(f"Batch cancel exception: {batch_exc}, falling back to individual")
+                        # Fall through to individual cancellation
+                        for order_id in to_cancel:
+                            try:
+                                self.exchange.cancel_order(order_id)
+                                canceled_count += 1
+                                logger.debug(f"Canceled order {order_id}")
+                            except Exception as cancel_exc:
+                                failed_count += 1
+                                logger.warning(f"Failed to cancel order {order_id}: {cancel_exc}")
+                                # Transition to CANCELED anyway (order may already be gone)
+                                client_id = order_id_to_client_id.get(order_id)
+                                if client_id:
+                                    self.order_state_machine.transition(
+                                        client_id,
+                                        OrderStatus.CANCELED,
+                                        error=f"Cancel failed: {cancel_exc}"
+                                    )
+                else:
+                    # Single order cancellation
+                    order_id = to_cancel[0]
+                    try:
+                        self.exchange.cancel_order(order_id)
+                        canceled_count = 1
+                        logger.info(f"Canceled stale order {order_id}")
+                    except Exception as cancel_exc:
+                        failed_count = 1
+                        logger.warning(f"Failed to cancel order {order_id}: {cancel_exc}")
+                        # Transition to CANCELED anyway
+                        client_id = order_id_to_client_id.get(order_id)
+                        if client_id:
+                            self.order_state_machine.transition(
+                                client_id,
+                                OrderStatus.CANCELED,
+                                error=f"Cancel failed: {cancel_exc}"
+                            )
+                
+                # Transition successfully canceled orders to CANCELED state
+                for order_id, client_id in order_id_to_client_id.items():
+                    if client_id:
+                        # Check if already transitioned due to failure
+                        order_state = self.order_state_machine.get_order(client_id)
+                        if order_state and order_state.status != OrderStatus.CANCELED.value:
+                            self.order_state_machine.transition(
+                                client_id,
+                                OrderStatus.CANCELED
+                            )
+                        
+                        # Close in state store
+                        if self.state_store:
+                            self._close_order_in_state_store(
+                                client_id,
+                                "canceled",
+                                {"reason": "stale_order_timeout", "age_seconds": cancel_after}
+                            )
+                
+                logger.info(
+                    f"Stale order cancellation complete: "
+                    f"{canceled_count} canceled, {failed_count} failed"
+                )
+                
+                # Refresh open orders from exchange to sync state
+                try:
+                    remaining = self.exchange.list_open_orders()
+                    self.sync_open_orders_snapshot(remaining)
+                    logger.debug(f"Synced {len(remaining)} remaining open orders")
+                except Exception as refresh_exc:
+                    logger.warning(f"Failed to refresh open orders after cancel: {refresh_exc}")
+            
         except Exception as e:
-            logger.warning(f"manage_open_orders failed: {e}")
+            logger.warning(f"manage_open_orders failed: {e}", exc_info=True)
 
 
 # Singleton instance
