@@ -455,6 +455,153 @@ class StateStore:
         except Exception:
             return False
     
+    def record_fill(
+        self,
+        symbol: str,
+        side: str,
+        filled_size: float,
+        fill_price: float,
+        fees: float,
+        timestamp: datetime
+    ) -> Dict[str, Any]:
+        """
+        Record a fill and update positions/PnL.
+        
+        Strategy:
+        - BUY: Create/add to position with weighted average entry price
+        - SELL: Close/reduce position and calculate realized PnL
+        
+        Args:
+            symbol: Trading pair (e.g., "BTC-USD")
+            side: "BUY" or "SELL"
+            filled_size: Filled quantity in base currency
+            fill_price: Fill price
+            fees: Trading fees paid
+            timestamp: Fill timestamp
+            
+        Returns:
+            Updated state with positions and PnL
+        """
+        state = self.load()
+        positions = state.setdefault("positions", {})
+        
+        side_upper = side.upper()
+        total_pnl = 0.0  # Initialize for event logging
+        
+        if side_upper == "BUY":
+            # BUY: Create or add to position
+            if symbol in positions:
+                # Add to existing position - weighted average entry price
+                pos = positions[symbol]
+                old_qty = pos["quantity"]
+                old_price = pos["entry_price"]
+                old_fees = pos.get("fees_paid", 0.0)
+                
+                # Weighted average entry price
+                total_value = (old_qty * old_price) + (filled_size * fill_price)
+                new_qty = old_qty + filled_size
+                new_entry_price = total_value / new_qty if new_qty > 0 else fill_price
+                
+                pos["quantity"] = new_qty
+                pos["entry_price"] = new_entry_price
+                pos["entry_value_usd"] = new_qty * new_entry_price
+                pos["fees_paid"] = old_fees + fees
+                pos["last_updated"] = timestamp.isoformat()
+                
+                logger.debug(f"Added to {symbol} position: {filled_size} @ ${fill_price:.2f}, "
+                           f"new avg entry: ${new_entry_price:.2f}, total qty: {new_qty}")
+            else:
+                # Create new position
+                positions[symbol] = {
+                    "side": "BUY",
+                    "quantity": filled_size,
+                    "entry_price": fill_price,
+                    "entry_value_usd": filled_size * fill_price,
+                    "fees_paid": fees,
+                    "entry_time": timestamp.isoformat(),
+                    "last_updated": timestamp.isoformat()
+                }
+                
+                logger.info(f"Opened {symbol} position: {filled_size} @ ${fill_price:.2f}")
+        
+        elif side_upper == "SELL":
+            # SELL: Close or reduce position and calculate realized PnL
+            if symbol not in positions:
+                logger.warning(f"SELL without open position for {symbol} - possible short or tracking gap")
+                # Could be a short position or we missed the BUY
+                # For now, just log and skip PnL calculation
+                return state
+            
+            pos = positions[symbol]
+            entry_price = pos["entry_price"]
+            current_qty = pos["quantity"]
+            
+            if filled_size > current_qty + 0.0001:  # Allow tiny rounding
+                logger.warning(f"SELL size {filled_size} > position size {current_qty} for {symbol}")
+                # Sell what we have
+                filled_size = current_qty
+            
+            # Calculate realized PnL for the sold portion
+            # PnL = (exit_price - entry_price) * quantity_sold - fees
+            price_diff = fill_price - entry_price
+            realized_pnl = (price_diff * filled_size) - fees
+            
+            # Proportion of position sold
+            proportion_sold = filled_size / current_qty if current_qty > 0 else 1.0
+            proportion_fees = pos.get("fees_paid", 0.0) * proportion_sold
+            
+            # Total PnL includes proportional entry fees
+            total_pnl = realized_pnl - proportion_fees
+            
+            logger.info(f"Closed {filled_size}/{current_qty} of {symbol}: "
+                       f"entry=${entry_price:.2f}, exit=${fill_price:.2f}, "
+                       f"PnL=${total_pnl:.2f}")
+            
+            # Update PnL accumulators
+            state["pnl_today"] = state.get("pnl_today", 0.0) + total_pnl
+            state["pnl_week"] = state.get("pnl_week", 0.0) + total_pnl
+            
+            # Update win/loss streaks
+            if total_pnl > 0:
+                state["consecutive_losses"] = 0
+                state["last_win_time"] = timestamp.isoformat()
+            elif total_pnl < 0:
+                state["consecutive_losses"] = state.get("consecutive_losses", 0) + 1
+                state["last_loss_time"] = timestamp.isoformat()
+            
+            # Update or remove position
+            remaining_qty = current_qty - filled_size
+            if remaining_qty < 0.0001:  # Essentially zero
+                # Position fully closed
+                del positions[symbol]
+                logger.info(f"Fully closed {symbol} position")
+            else:
+                # Partial close - reduce quantity and fees proportionally
+                pos["quantity"] = remaining_qty
+                pos["entry_value_usd"] = remaining_qty * entry_price
+                pos["fees_paid"] = pos.get("fees_paid", 0.0) * (1 - proportion_sold)
+                pos["last_updated"] = timestamp.isoformat()
+                logger.debug(f"Reduced {symbol} position to {remaining_qty}")
+        
+        # Add event
+        state.setdefault("events", []).append({
+            "at": timestamp.isoformat(),
+            "event": "fill",
+            "symbol": symbol,
+            "side": side_upper,
+            "quantity": filled_size,
+            "price": fill_price,
+            "fees": fees,
+            "pnl": total_pnl if side_upper == "SELL" and symbol in positions or side_upper == "SELL" else None
+        })
+        
+        # Trim events
+        if len(state["events"]) > 100:
+            state["events"] = state["events"][-100:]
+        
+        self.save(state)
+        return state
+    
     def reset(self, full: bool = False) -> Dict[str, Any]:
         """
         Reset state counters.

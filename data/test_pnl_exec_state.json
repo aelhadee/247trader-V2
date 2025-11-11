@@ -1,0 +1,18 @@
+{
+  "pnl_today": 0.0,
+  "pnl_week": 0.0,
+  "trades_today": 0,
+  "trades_this_hour": 0,
+  "consecutive_losses": 0,
+  "last_loss_time": null,
+  "last_win_time": null,
+  "cooldowns": {},
+  "positions": {},
+  "cash_balances": {},
+  "open_orders": {},
+  "recent_orders": [],
+  "last_reconcile_at": null,
+  "last_reset_date": null,
+  "last_reset_hour": null,
+  "events": []
+}
