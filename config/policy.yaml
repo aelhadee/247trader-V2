@@ -114,6 +114,7 @@ circuit_breakers:
   
   # Exchange health checks
   check_exchange_status: true        # Verify exchange is operational
+  check_product_status: true         # Block trading on POST_ONLY/LIMIT_ONLY/CANCEL_ONLY products
   halt_on_maintenance: true          # Stop trading during maintenance windows
   
   # Volatility circuit breaker

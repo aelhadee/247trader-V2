@@ -197,6 +197,15 @@ class RiskEngine:
         if not result.approved:
             return result
         
+        # 0b. Exchange product status (block degraded markets)
+        proposals = self._filter_degraded_products(proposals)
+        if not proposals:
+            return RiskCheckResult(
+                approved=False,
+                reason="All proposals filtered by exchange product status restrictions",
+                violated_checks=["exchange_product_status"]
+            )
+        
         # 1. Kill switch
         result = self._check_kill_switch()
         if not result.approved:
@@ -757,6 +766,65 @@ class RiskEngine:
             proposal.size_pct = adjusted_size
         
         return proposal
+    
+    def _filter_degraded_products(self, proposals: List[TradeProposal]) -> List[TradeProposal]:
+        """
+        Filter out proposals for products with degraded exchange status.
+        
+        Blocks trading on products flagged as:
+        - POST_ONLY (can only add liquidity, no market orders)
+        - LIMIT_ONLY (no market orders allowed)
+        - CANCEL_ONLY (can only cancel, no new orders)
+        - offline (not tradeable)
+        
+        Args:
+            proposals: List of trade proposals
+            
+        Returns:
+            Filtered list of proposals (only products with normal status)
+        """
+        if not self.exchange:
+            # No exchange adapter, can't check status
+            return proposals
+        
+        if not self.circuit_breakers_config.get("check_product_status", True):
+            # Product status checks disabled
+            return proposals
+        
+        filtered = []
+        blocked = []
+        
+        for proposal in proposals:
+            product_id = proposal.symbol
+            try:
+                metadata = self.exchange.get_product_metadata(product_id)
+                if not metadata:
+                    logger.warning(f"No metadata found for {product_id}, blocking trade")
+                    blocked.append((product_id, "no_metadata"))
+                    continue
+                
+                status = metadata.get("status", "").upper()
+                
+                # Block degraded or restricted statuses
+                restricted_statuses = ["POST_ONLY", "LIMIT_ONLY", "CANCEL_ONLY", "OFFLINE"]
+                if status in restricted_statuses:
+                    logger.warning(f"Blocking {product_id}: exchange status={status}")
+                    blocked.append((product_id, status))
+                    continue
+                
+                # Product is tradeable
+                filtered.append(proposal)
+                
+            except Exception as e:
+                logger.error(f"Error checking product status for {product_id}: {e}")
+                # Fail closed: block trade on error
+                blocked.append((product_id, f"error: {e}"))
+                continue
+        
+        if blocked:
+            logger.warning(f"Filtered {len(blocked)} proposals due to exchange product status: {blocked}")
+        
+        return filtered
     
     def _check_circuit_breakers(self, portfolio: PortfolioState, regime: str) -> RiskCheckResult:
         """

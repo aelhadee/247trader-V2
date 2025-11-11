@@ -260,36 +260,46 @@ class ExecutionEngine:
         # To achieve min_notional_usd net after fees, we need slightly more gross
         return self.size_to_achieve_net(self.min_notional_usd, is_maker=is_maker)
     
-    def round_to_increment(self, value: float, increment: float) -> float:
+    def round_to_increment(self, value: float, increment: float, round_up: bool = False) -> float:
         """
-        Round value down to nearest multiple of increment.
+        Round value to nearest multiple of increment.
         
         Args:
             value: Value to round
             increment: Increment size (e.g., 0.00000001 for BTC)
+            round_up: If True, round up; if False, round down (default)
             
         Returns:
             Rounded value
         """
         if increment <= 0:
             return value
+        if round_up:
+            import math
+            return float(math.ceil(value / increment) * increment)
         return float(int(value / increment) * increment)
     
-    def enforce_product_constraints(self, symbol: str, size_usd: float, price: float) -> dict:
+    def enforce_product_constraints(self, symbol: str, size_usd: float, price: float, 
+                                   is_maker: bool = True) -> dict:
         """
         Enforce Coinbase product constraints (increments, min size, min market funds).
         
+        CRITICAL: After rounding, ensures net amount (post-fee) still exceeds minimums.
+        This prevents orders from being rejected due to falling below thresholds after fees.
+        
         Args:
             symbol: Trading pair (e.g., "BTC-USD")
-            size_usd: Desired order size in USD
+            size_usd: Desired order size in USD (gross, before fees)
             price: Current price for size conversion
+            is_maker: Whether order will be maker (for fee calculation)
             
         Returns:
             Dict with:
                 - success: bool
-                - adjusted_size_usd: float (rounded size)
+                - adjusted_size_usd: float (rounded size, fee-adjusted if needed)
                 - adjusted_size_base: float (rounded base quantity)
                 - error: Optional[str]
+                - fee_adjusted: bool (whether size was bumped for fee compliance)
         """
         # Get product metadata from exchange
         try:
@@ -301,6 +311,7 @@ class ExecutionEngine:
                 "success": True,
                 "adjusted_size_usd": size_usd,
                 "adjusted_size_base": size_usd / price if price > 0 else 0,
+                "fee_adjusted": False,
                 "warning": f"Product metadata unavailable: {e}"
             }
         
@@ -310,6 +321,7 @@ class ExecutionEngine:
                 "success": True,
                 "adjusted_size_usd": size_usd,
                 "adjusted_size_base": size_usd / price if price > 0 else 0,
+                "fee_adjusted": False,
                 "warning": "No product metadata found"
             }
         
@@ -318,7 +330,7 @@ class ExecutionEngine:
         quote_increment = float(metadata.get("quote_increment") or 0)
         min_market_funds = float(metadata.get("min_market_funds") or 0)
         
-        # Check minimum market funds
+        # Check minimum market funds (initial check)
         if min_market_funds > 0 and size_usd < min_market_funds:
             return {
                 "success": False,
@@ -345,10 +357,47 @@ class ExecutionEngine:
         if quote_increment > 0:
             adjusted_size_usd = self.round_to_increment(adjusted_size_usd, quote_increment)
         
+        # ===== FEE-ADJUSTED MINIMUM NOTIONAL CHECK =====
+        # After rounding, verify net amount (post-fee) still exceeds minimums
+        fee_adjusted = False
+        fee_bps = self.maker_fee_bps if is_maker else self.taker_fee_bps
+        fee_rate = fee_bps / 10000.0
+        net_after_fees = adjusted_size_usd * (1.0 - fee_rate)
+        
+        # Determine effective minimum (higher of exchange min and our policy min)
+        effective_min = max(min_market_funds, self.min_notional_usd)
+        
+        # If net amount falls below minimum after fees, bump up the gross size
+        if effective_min > 0 and net_after_fees < effective_min:
+            # Calculate required gross size to achieve effective minimum net
+            required_gross = effective_min / (1.0 - fee_rate)
+            
+            # Re-round to ensure compliance with increments
+            if base_increment > 0:
+                required_base = required_gross / price if price > 0 else 0
+                rounded_base = self.round_to_increment(required_base, base_increment, round_up=True)
+                adjusted_size_usd = rounded_base * price
+            else:
+                adjusted_size_usd = required_gross
+            
+            # Re-apply quote increment rounding (round up to maintain minimum)
+            if quote_increment > 0:
+                adjusted_size_usd = self.round_to_increment(adjusted_size_usd, quote_increment, round_up=True)
+            
+            # Recalculate base size for return
+            base_size = adjusted_size_usd / price if price > 0 else 0
+            fee_adjusted = True
+            
+            logger.debug(
+                f"{symbol}: Fee-adjusted rounding bumped size ${net_after_fees:.2f} net "
+                f"→ ${adjusted_size_usd:.2f} gross (min=${effective_min:.2f}, fee={fee_bps}bps)"
+            )
+        
         return {
             "success": True,
             "adjusted_size_usd": adjusted_size_usd,
             "adjusted_size_base": base_size,
+            "fee_adjusted": fee_adjusted,
             "metadata": metadata
         }
     
