@@ -182,6 +182,8 @@ class TradingLoop:
         logger.info("=" * 80)
         
         try:
+            pending_orders = self._get_open_order_exposure()
+
             # Step 1: Build universe
             logger.info("Step 1: Building universe...")
             universe = self.universe_mgr.get_universe(regime=self.current_regime)
@@ -261,6 +263,43 @@ class TradingLoop:
                 )
                 return
             
+            # Avoid stacking buys while there are outstanding orders for the same base asset
+            pending_buy_notional = (pending_orders or {}).get("buy", {})
+            filtered = []
+            for proposal in proposals:
+                base = proposal.symbol.split('-')[0]
+                if (
+                    proposal.side.upper() == "BUY"
+                    and pending_buy_notional.get(base, 0.0) >= self.executor.min_notional_usd
+                ):
+                    logger.info(
+                        f"Skipping proposal for {proposal.symbol}: ${pending_buy_notional.get(base, 0.0):.2f} already pending"
+                    )
+                    continue
+                filtered.append(proposal)
+
+            if not filtered:
+                reason = "open_orders_pending"
+                logger.info(f"NO_TRADE: {reason}")
+                self.audit.log_cycle(
+                    ts=cycle_started,
+                    mode=self.mode,
+                    universe=universe,
+                    triggers=triggers,
+                    base_proposals=proposals,
+                    risk_approved=[],
+                    final_orders=[],
+                    no_trade_reason=reason,
+                )
+                return
+
+            if len(filtered) < len(proposals):
+                logger.info(
+                    f"Filtered proposals due to pending orders: {len(filtered)}/{len(proposals)} remain"
+                )
+
+            proposals = filtered
+
             logger.info(f"Proposals: {len(proposals)} generated")
             
             # Step 4: Apply risk checks
@@ -296,30 +335,42 @@ class TradingLoop:
             
             # Step 5a: Check if we need to rebalance BEFORE attempting execution (LIVE/PAPER only)
             if self.mode != "DRY_RUN" and approved_proposals:
-                # Check actual USDC balance
                 try:
-                    accounts = self.exchange.get_accounts()
-                    usdc_balance = 0.0
-                    for acc in accounts:
-                        if acc['currency'] in ['USDC', 'USD']:
-                            usdc_balance += float(acc.get('available_balance', {}).get('value', 0))
-                    
-                    # Calculate required USDC (rough estimate)
-                    total_needed = sum(p.size_pct * self.portfolio.account_value_usd / 100 for p in approved_proposals)
-                    
-                    if usdc_balance < total_needed * 0.5:  # If less than 50% of needed capital in USDC
-                        logger.warning(
-                            f"Low USDC balance: ${usdc_balance:.2f} available, "
-                            f"${total_needed:.2f} needed for trades"
+                    pm_cfg = self.policy_config.get("portfolio_management", {})
+                    if not pm_cfg.get("auto_rebalance_worst_performer", True):
+                        pass
+                    else:
+                        # Compute available stable buying power (USD + USDC + USDT)
+                        accounts = self.exchange.get_accounts()
+                        stable_currencies = {"USD", "USDC", "USDT"}
+                        stable_available = sum(
+                            float(acc.get('available_balance', {}).get('value', 0))
+                            for acc in accounts if acc.get('currency') in stable_currencies
                         )
-                        logger.info("💡 Auto-rebalancing to raise USDC capital...")
-                        
-                        if self._auto_rebalance_for_trade(approved_proposals):
-                            logger.info("✅ Rebalancing successful, retrying execution...")
-                        else:
-                            logger.warning("⚠️ Rebalancing failed or declined")
+
+                        # Total required notional for this batch
+                        total_needed = sum(p.size_pct * self.portfolio.account_value_usd / 100 for p in approved_proposals)
+
+                        logger.info(
+                            f"Stable buying power: ${stable_available:.2f} across USD/USDC/USDT; "
+                            f"needed: ${total_needed:.2f}"
+                        )
+
+                        # If we don't have enough stable to fund the plan, liquidate worst performer
+                        if stable_available + 1e-6 < total_needed:
+                            logger.warning(
+                                f"Insufficient stable capital: have ${stable_available:.2f}, "
+                                f"need ${total_needed:.2f}. Attempting worst-performer liquidation."
+                            )
+                            deficit_usd = total_needed - stable_available
+                            if self._auto_rebalance_for_trade(approved_proposals, deficit_usd):
+                                logger.info("✅ Rebalancing successful, continuing to execution...")
+                                # Refresh portfolio after rebalancing
+                                self.portfolio = self._init_portfolio_state()
+                            else:
+                                logger.warning("⚠️ Rebalancing failed or declined")
                 except Exception as e:
-                    logger.error(f"Failed to check USDC balance for rebalancing: {e}")
+                    logger.error(f"Failed to evaluate rebalancing need: {e}")
             
             # Get available capital and adjust position sizes
             adjusted_proposals = self.executor.adjust_proposals_to_capital(
@@ -369,6 +420,13 @@ class TradingLoop:
                 final_orders=final_orders,
                 no_trade_reason=None if final_orders else "no_orders_after_execution_filter",
             )
+
+            # Post-cycle maintenance: cancel stale open orders (LIVE/PAPER)
+            try:
+                if self.mode in ("LIVE", "PAPER"):
+                    self.executor.manage_open_orders()
+            except Exception as e:
+                logger.warning(f"Open order maintenance skipped: {e}")
             
             cycle_end = datetime.now(timezone.utc)
             cycle_duration = (cycle_end - cycle_started).total_seconds()
@@ -450,7 +508,64 @@ class TradingLoop:
             else:
                 logger.warning(f"Purge sell failed for {symbol}")
     
-    def _auto_rebalance_for_trade(self, proposals: List[TradeProposal]) -> bool:
+    def _get_open_order_exposure(self) -> Dict[str, Dict[str, float]]:
+        """Aggregate outstanding open-order notional grouped by side/base."""
+        exposure = {"buy": {}, "sell": {}}
+
+        try:
+            orders = self.exchange.list_open_orders()
+        except Exception as exc:
+            logger.warning(f"open order snapshot failed: {exc}")
+            return exposure
+
+        for order in orders:
+            product = order.get("product_id") or ""
+            if '-' not in product:
+                continue
+
+            base, _ = product.split('-', 1)
+            side = (order.get("side") or "").upper()
+            if side not in {"BUY", "SELL"}:
+                continue
+
+            config = order.get("order_configuration") or {}
+            notional = 0.0
+
+            limit_conf = config.get("limit_limit_gtc")
+            market_conf = config.get("market_market_ioc")
+
+            if limit_conf:
+                base_units = float(limit_conf.get("base_size") or 0.0)
+                px_raw = limit_conf.get("limit_price")
+                price = float(px_raw) if px_raw else None
+                if price is None and base_units > 0:
+                    try:
+                        quote = self.exchange.get_quote(product)
+                        price = quote.mid
+                    except Exception:
+                        price = 0.0
+                notional = base_units * price if price else 0.0
+            elif market_conf:
+                if side == "BUY":
+                    notional = float(market_conf.get("quote_size") or 0.0)
+                else:
+                    base_units = float(market_conf.get("base_size") or 0.0)
+                    if base_units > 0:
+                        try:
+                            quote = self.exchange.get_quote(product)
+                            notional = base_units * quote.mid
+                        except Exception:
+                            notional = 0.0
+
+            if notional <= 0:
+                continue
+
+            bucket = exposure["buy"] if side == "BUY" else exposure["sell"]
+            bucket[base] = bucket.get(base, 0.0) + notional
+
+        return exposure
+
+    def _auto_rebalance_for_trade(self, proposals: List[TradeProposal], deficit_usd: float) -> bool:
         """
         Automatically liquidate worst-performing position to raise capital.
         
@@ -501,47 +616,58 @@ class TradingLoop:
                 logger.error(f"Cannot find account UUIDs for {worst['currency']} or USDC")
                 return False
             
-            # Liquidate worst performer to USDC
-            logger.info(f"Converting {worst['currency']} → USDC to raise capital...")
-            
+            price = max(worst.get('price', 0.0), 1e-8)
+            usd_needed = max(deficit_usd, self.executor.min_notional_usd)
+            units_needed = min(worst['balance'], (usd_needed * 1.05) / price)
+            if units_needed * price < self.executor.min_notional_usd:
+                units_needed = min(worst['balance'], self.executor.min_notional_usd / price)
+
+            logger.info(
+                "Converting %.6f %s (~$%.2f) → USDC to raise capital...",
+                units_needed,
+                worst['currency'],
+                units_needed * price,
+            )
+
             result = self.executor.convert_asset(
                 from_currency=worst['currency'],
                 to_currency='USDC',
-                amount=str(worst['balance']),
+                amount=str(units_needed),
                 from_account_uuid=from_account['uuid'],
                 to_account_uuid=to_account['uuid']
             )
-            
-            # convert_asset returns a dict, not ExecutionResult
+
             if isinstance(result, dict) and result.get('success'):
-                amount_converted = result.get('amount', worst['value_usd'])
+                amount_converted = units_needed * price
                 logger.info(
-                    f"✅ Liquidated {worst['currency']}: "
-                    f"freed up ~${amount_converted:.2f} USDC"
+                    f"✅ Liquidated {worst['currency']}: freed up ~${amount_converted:.2f} USDC"
                 )
-                
-                # Update portfolio state with new balance
+
                 self.portfolio = self._init_portfolio_state()
                 return True
             else:
                 error_msg = result.get('error', 'Unknown error') if isinstance(result, dict) else str(result)
                 logger.warning(f"❌ Liquidation failed: {error_msg}")
-                
-                # If conversion failed, try selling via market order instead
+
                 logger.info(f"Attempting to sell {worst['currency']} via market order...")
-                return self._sell_via_market_order(worst['currency'], worst['balance'])
+                return self._sell_via_market_order(
+                    worst['currency'],
+                    worst['balance'],
+                    usd_target=usd_needed * 1.05
+                )
                 
         except Exception as e:
             logger.error(f"Auto-rebalance failed: {e}")
             return False
     
-    def _sell_via_market_order(self, currency: str, balance: float) -> bool:
+    def _sell_via_market_order(self, currency: str, balance: float, usd_target: Optional[float] = None) -> bool:
         """
         Fallback: Sell asset via market order (e.g., XRP-USD) instead of Convert API.
         
         Args:
             currency: Asset to sell (e.g., "HBAR")
             balance: Amount of asset to sell (in units, not USD)
+            usd_target: Optional USD amount to raise
             
         Returns:
             True if sell succeeded, False otherwise
@@ -556,6 +682,8 @@ class TradingLoop:
             try:
                 quote = self.exchange.get_quote(pair)
                 size_usd = balance * quote.mid
+                if usd_target:
+                    size_usd = min(size_usd, usd_target)
             except Exception as e:
                 logger.error(f"Failed to get quote for {pair}: {e}")
                 return False

@@ -90,6 +90,15 @@ class ExecutionEngine:
         self.clamp_small_trades = execution_config.get(
             "clamp_small_trades", True
         )
+        self.small_order_market_threshold_usd = float(execution_config.get(
+            "small_order_market_threshold_usd", 0.0
+        ))
+        self.failed_order_cooldown_seconds = int(execution_config.get(
+            "failed_order_cooldown_seconds", 0
+        ))
+
+        # Track last failure by symbol to avoid retry spam
+        self._last_fail = {}
 
         logger.info(
             f"Initialized ExecutionEngine (mode={self.mode}, min_notional=${self.min_notional_usd}, "
@@ -417,6 +426,9 @@ class ExecutionEngine:
             
             logger.info(f"Looking for trading pair: {base_symbol} with ${size_usd:.2f} needed")
             logger.info(f"Current balances: {', '.join([f'{k}={v:.2f}' for k, v in balances.items() if v > 0])}")
+
+            stable_currencies = {"USD", "USDC", "USDT"}
+            total_stable = sum(balances.get(cur, 0.0) for cur in stable_currencies)
             
             # Track best option even if insufficient
             best_option = None
@@ -448,6 +460,32 @@ class ExecutionEngine:
                     # Stablecoins are 1:1 with USD
                     balance_usd = balance
                     logger.debug(f"  {quote} balance: {balance:.2f} = ${balance_usd:.2f} USD (stablecoin)")
+
+                    if (
+                        balance_usd + 1e-6 < size_usd
+                        and total_stable >= size_usd
+                        and self.mode == "LIVE"
+                        and self.auto_convert_preferred_quote
+                    ):
+                        logger.info(
+                            f"Attempting to top up {quote}: need ${size_usd:.2f}, have ${balance_usd:.2f}"
+                        )
+                        if self._top_up_stable_quote(quote, size_usd):
+                            accounts = self.exchange.get_accounts()
+                            balances = {
+                                acc['currency']: float(acc.get('available_balance', {}).get('value', 0))
+                                for acc in accounts
+                            }
+                            balance = balances.get(quote, 0.0)
+                            balance_usd = balance
+                            total_stable = sum(balances.get(cur, 0.0) for cur in stable_currencies)
+                            logger.info(
+                                f"Top-up complete: {quote} balance now ${balance_usd:.2f}"
+                            )
+                        else:
+                            logger.info(
+                                f"Top-up for {quote} unavailable; proceeding with ${balance_usd:.2f}"
+                            )
                 else:
                     # Crypto holdings need USD conversion
                     try:
@@ -650,6 +688,22 @@ class ExecutionEngine:
         # Extract base symbol if full pair provided (e.g., "BTC-USD" -> "BTC")
         base_symbol = symbol.split('-')[0] if '-' in symbol else symbol
         
+        # Cooldown: skip if this symbol recently failed
+        if self.failed_order_cooldown_seconds > 0:
+            now = datetime.utcnow().timestamp()
+            last = self._last_fail.get(symbol.split('-')[0], 0)
+            if last and (now - last) < self.failed_order_cooldown_seconds:
+                return ExecutionResult(
+                    success=False,
+                    order_id=None,
+                    filled_size=0.0,
+                    filled_price=0.0,
+                    fees=0.0,
+                    slippage_bps=0.0,
+                    route="skipped_cooldown",
+                    error=f"Cooldown active for {symbol}"
+                )
+
         # For BUY orders, find best trading pair based on available balance
         if side.upper() == "BUY" and self.mode in ("LIVE", "PAPER"):
             pair_info = self._find_best_trading_pair(base_symbol, size_usd)
@@ -818,7 +872,14 @@ class ExecutionEngine:
                 )
             
             # Place order (use post-only if configured), but allow explicit override
-            order_type = force_order_type or ("limit_post_only" if self.limit_post_only else "market")
+            # Route very small orders via market to avoid precision-limit failures
+            if force_order_type:
+                order_type = force_order_type
+            else:
+                if self.small_order_market_threshold_usd and size_usd <= self.small_order_market_threshold_usd:
+                    order_type = "market"
+                else:
+                    order_type = "limit_post_only" if self.limit_post_only else "market"
             result = self.exchange.place_order(
                 product_id=symbol,
                 side=side.lower(),
@@ -868,6 +929,12 @@ class ExecutionEngine:
             
         except Exception as e:
             logger.error(f"Live execution failed: {e}")
+            # Record failure for cooldown
+            try:
+                base_sym = symbol.split('-')[0] if '-' in symbol else symbol
+                self._last_fail[base_sym] = datetime.utcnow().timestamp()
+            except Exception:
+                pass
             order_type = force_order_type or ("limit_post_only" if self.limit_post_only else "market")
             return ExecutionResult(
                 success=False,
@@ -890,46 +957,121 @@ class ExecutionEngine:
         Returns True if preferred liquidity is available or was acquired; False otherwise.
         """
         try:
-            if preferred_quote != "USDC":
-                # For now, only support USDC as preferred auto-convert target
+            if self.mode != "LIVE":
                 return False
 
-            accounts = self.exchange.get_accounts()
-            balances = {acc['currency']: float(acc.get('available_balance', {}).get('value', 0)) for acc in accounts}
-
-            pref_bal = balances.get(preferred_quote, 0.0)
-            if pref_bal >= required_usd:
-                return True
-
-            usd_bal = balances.get("USD", 0.0)
-            if usd_bal <= 0:
-                return False
-
-            # Calculate how much USD to convert (add 1% buffer for fees/slippage)
-            convert_usd = min(usd_bal, required_usd * 1.01)
-            if convert_usd < self.min_notional_usd:
-                return False
-
-            logger.info(f"Auto-convert: buying ${convert_usd:.2f} of USDC via USDC-USD to fund {preferred_quote}")
-            # Place market BUY of USDC with USD
-            resp = self.exchange.place_order(
-                product_id="USDC-USD",
-                side="buy",
-                quote_size_usd=convert_usd,
-                client_order_id=str(uuid.uuid4()),
-                order_type="market",
-            )
-
-            if not resp or not resp.get("success", True):
-                logger.warning(f"Auto-convert order response indicates failure: {resp}")
-                return False
-
-            # Quick recheck balances
-            accounts = self.exchange.get_accounts()
-            balances = {acc['currency']: float(acc.get('available_balance', {}).get('value', 0)) for acc in accounts}
-            return balances.get(preferred_quote, 0.0) >= required_usd * 0.99
+            return self._top_up_stable_quote(preferred_quote, required_usd)
         except Exception as e:
             logger.warning(f"Auto-convert to {preferred_quote} failed: {e}")
+            return False
+
+    def _top_up_stable_quote(self, target_quote: str, required_usd: float) -> bool:
+        """Ensure a single stable-coin balance meets the required USD size."""
+        stable_currencies = {"USD", "USDC", "USDT"}
+        if target_quote not in stable_currencies:
+            return False
+
+        try:
+            accounts = self.exchange.get_accounts()
+            balances = {
+                acc['currency']: float(acc.get('available_balance', {}).get('value', 0))
+                for acc in accounts
+            }
+
+            current = balances.get(target_quote, 0.0)
+            if current >= required_usd:
+                return True
+
+            deficit = required_usd - current
+            donors = [c for c in stable_currencies if c != target_quote and balances.get(c, 0.0) > 0]
+            donors.sort(key=lambda cur: balances.get(cur, 0.0), reverse=True)
+
+            for donor in donors:
+                if deficit <= self.min_notional_usd * 0.2:
+                    break
+
+                available = balances.get(donor, 0.0)
+                if available <= 0:
+                    continue
+
+                transfer = min(available, deficit * 1.05)
+                if transfer < self.min_notional_usd:
+                    continue
+
+                logger.info(
+                    f"Top-up: moving ~${transfer:.2f} from {donor} into {target_quote}"
+                )
+
+                try:
+                    if donor == "USD" and target_quote == "USDC":
+                        self.exchange.place_order(
+                            product_id="USDC-USD",
+                            side="buy",
+                            quote_size_usd=transfer,
+                            client_order_id=str(uuid.uuid4()),
+                            order_type="market",
+                        )
+                    elif donor == "USDC" and target_quote == "USD":
+                        self.exchange.place_order(
+                            product_id="USDC-USD",
+                            side="sell",
+                            quote_size_usd=transfer,
+                            client_order_id=str(uuid.uuid4()),
+                            order_type="market",
+                        )
+                    elif donor == "USDT" and target_quote == "USD":
+                        self.exchange.place_order(
+                            product_id="USDT-USD",
+                            side="sell",
+                            quote_size_usd=transfer,
+                            client_order_id=str(uuid.uuid4()),
+                            order_type="market",
+                        )
+                    elif donor == "USD" and target_quote == "USDT":
+                        self.exchange.place_order(
+                            product_id="USDT-USD",
+                            side="buy",
+                            quote_size_usd=transfer,
+                            client_order_id=str(uuid.uuid4()),
+                            order_type="market",
+                        )
+                    elif donor == "USDT" and target_quote == "USDC":
+                        self.exchange.place_order(
+                            product_id="USDT-USD",
+                            side="sell",
+                            quote_size_usd=transfer,
+                            client_order_id=str(uuid.uuid4()),
+                            order_type="market",
+                        )
+                        return self._top_up_stable_quote(target_quote, required_usd)
+                    elif donor == "USDC" and target_quote == "USDT":
+                        self.exchange.place_order(
+                            product_id="USDC-USD",
+                            side="sell",
+                            quote_size_usd=transfer,
+                            client_order_id=str(uuid.uuid4()),
+                            order_type="market",
+                        )
+                        return self._top_up_stable_quote(target_quote, required_usd)
+                    else:
+                        continue
+                except Exception as e:
+                    logger.warning(f"Stable conversion {donor}->{target_quote} failed: {e}")
+                    continue
+
+                accounts = self.exchange.get_accounts()
+                balances = {
+                    acc['currency']: float(acc.get('available_balance', {}).get('value', 0))
+                    for acc in accounts
+                }
+                current = balances.get(target_quote, 0.0)
+                deficit = required_usd - current
+                if current >= required_usd:
+                    return True
+
+            return balances.get(target_quote, 0.0) >= required_usd * 0.99
+        except Exception as exc:
+            logger.warning(f"Top-up for {target_quote} failed: {exc}")
             return False
     
     def execute_batch(self, orders: List[Dict]) -> List[ExecutionResult]:
@@ -959,6 +1101,61 @@ class ExecutionEngine:
                 break
         
         return results
+
+    # ===== Open order management =====
+    def manage_open_orders(self) -> None:
+        """Cancel stale open limit orders based on policy timings.
+
+        Uses execution.cancel_after_seconds to decide when to cancel.
+        """
+        try:
+            execution_config = self.policy.get("execution", {})
+            cancel_after = int(execution_config.get("cancel_after_seconds", 60))
+            if self.mode == "DRY_RUN":
+                return
+
+            open_orders = self.exchange.list_open_orders()
+            if not open_orders:
+                return
+
+            now = datetime.utcnow().timestamp()
+            to_cancel = []
+            for o in open_orders:
+                # Best-effort parse created_time; if unknown, skip cancel
+                created = o.get("created_time") or o.get("time_in_force", {}).get("start_time")
+                age = None
+                if created:
+                    try:
+                        # Coinbase returns RFC3339; try stdlib then dateutil
+                        ts = None
+                        try:
+                            iso = created.replace("Z", "+00:00")
+                            ts = datetime.fromisoformat(iso).timestamp()
+                        except Exception:
+                            try:
+                                from dateutil import parser as dtp  # type: ignore
+                                ts = dtp.parse(created).timestamp()
+                            except Exception:
+                                ts = None
+                        if ts is not None:
+                            age = now - ts
+                    except Exception:
+                        age = None
+                if age is not None and age >= cancel_after:
+                    to_cancel.append(o.get("order_id") or o.get("id"))
+
+            to_cancel = [oid for oid in to_cancel if oid]
+            if to_cancel:
+                # Prefer batch cancel, fallback to single
+                try:
+                    self.exchange.cancel_orders(to_cancel)
+                    logger.info(f"Canceled {len(to_cancel)} stale orders (batch)")
+                except Exception:
+                    for oid in to_cancel:
+                        self.exchange.cancel_order(oid)
+                    logger.info(f"Canceled {len(to_cancel)} stale orders (single)")
+        except Exception as e:
+            logger.warning(f"manage_open_orders failed: {e}")
 
 
 # Singleton instance

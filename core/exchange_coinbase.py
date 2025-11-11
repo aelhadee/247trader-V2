@@ -643,7 +643,7 @@ class CoinbaseExchange:
                 pid = it.get("product_id") or it.get("id")
                 if not pid:
                     continue
-                    
+                # Capture increment metadata if available
                 out.append({
                     "product_id": pid,
                     "base_currency": it.get("base_currency_id") or it.get("base_currency"),
@@ -651,12 +651,27 @@ class CoinbaseExchange:
                     "status": it.get("status", ""),
                     "price": it.get("price"),
                     "volume_24h": it.get("volume_24h") or it.get("quote_volume_24h") or 0,
+                    "base_increment": it.get("base_increment") or it.get("base_min_size"),
+                    "quote_increment": it.get("quote_increment"),
+                    "price_increment": it.get("price_increment"),
+                    "min_market_funds": it.get("min_market_funds") or it.get("min_market_funds"),
                 })
             
             return out
         except Exception as e:
             logger.warning(f"list_public_products failed: {e}")
             return []
+
+    def get_product_metadata(self, product_id: str) -> dict:
+        """Return cached product metadata (increments, status, etc.)."""
+        # Refresh cache if empty or >5 minutes old
+        if not self._products_cache or not self._products_cache_time or (time.time() - self._products_cache_time) > 300:
+            self._products_cache = self.list_public_products(limit=250)
+            self._products_cache_time = time.time()
+        for p in self._products_cache:
+            if p.get("product_id") == product_id:
+                return p
+        return {}
     
     def preview_order(self, product_id: str, side: str, quote_size_usd: float) -> dict:
         """
@@ -679,13 +694,21 @@ class CoinbaseExchange:
         side_up = side.upper()
 
         # Per Coinbase, market SELLs must be parameterized with base_size
+        metadata = self.get_product_metadata(product_id)
+        base_inc = metadata.get("base_increment")
+        price_inc = metadata.get("price_increment")
+
+        def _round_qty(qty: float) -> str:
+            return self._round_to_increment(qty, base_inc, product_id)
+        def _round_price(px: float) -> str:
+            return self._round_price(px, price_inc)
+
         if side_up == "SELL":
-            # Compute base size from quote_size using current price
             quote = self.get_quote(product_id)
             if quote.mid <= 0:
                 raise ValueError(f"Invalid price for {product_id} in preview")
-            base_size = quote_size_usd / quote.mid
-            base_size_str = self._round_to_precision(base_size, product_id)
+            raw_base_size = quote_size_usd / quote.mid
+            base_size_str = _round_qty(raw_base_size)
             body = {
                 "order_configuration": {
                     "market_market_ioc": {
@@ -709,33 +732,99 @@ class CoinbaseExchange:
         
         logger.info(f"Previewing {side} {quote_size_usd} USD of {product_id}")
         return self._req("POST", "/orders/preview", body, authenticated=True)
+
+    # ===== Open Orders Management =====
+    def list_open_orders(self, product_id: Optional[str] = None, limit: int = 100) -> List[dict]:
+        """List open orders (best-effort).
+
+        Uses historical orders endpoint filtered by status OPEN (Advanced Trade API).
+        If endpoint schema differs, logs warning and returns empty list.
+        """
+        if self.read_only and not self.api_key:
+            logger.info("READ_ONLY: would list open orders")
+            return []
+        try:
+            self._rate_limit("open_orders")
+            # Advanced Trade API: /orders/historical?order_status=OPEN&product_id=XXX
+            qs = f"order_status=OPEN&limit={max(1,min(limit,100))}"
+            if product_id:
+                qs += f"&product_id={product_id}"
+            resp = self._req("GET", f"/orders/historical?{qs}", authenticated=True)
+            orders = resp.get("orders", [])
+            open_orders = [o for o in orders if o.get("status") in ("OPEN","PENDING","ACTIVE")]
+            return open_orders
+        except Exception as e:
+            logger.warning(f"list_open_orders failed: {e}")
+            return []
+
+    def cancel_order(self, order_id: str) -> dict:
+        """Cancel a single order by ID."""
+        if self.read_only:
+            logger.info(f"READ_ONLY: would cancel order {order_id}")
+            return {"success": False, "read_only": True}
+        try:
+            self._rate_limit("cancel_order")
+            body = {"order_id": order_id}
+            resp = self._req("POST", "/orders/cancel", body, authenticated=True)
+            return resp
+        except Exception as e:
+            logger.error(f"Cancel order failed {order_id}: {e}")
+            return {"success": False, "error": str(e), "order_id": order_id}
+
+    def cancel_orders(self, order_ids: List[str]) -> dict:
+        """Batch cancel multiple orders (if supported)."""
+        if self.read_only:
+            logger.info(f"READ_ONLY: would batch cancel {len(order_ids)} orders")
+            return {"success": False, "read_only": True}
+        try:
+            self._rate_limit("cancel_orders")
+            body = {"order_ids": order_ids}
+            resp = self._req("POST", "/orders/batch_cancel", body, authenticated=True)
+            return resp
+        except Exception as e:
+            logger.error(f"Batch cancel failed: {e}")
+            return {"success": False, "error": str(e), "order_ids": order_ids}
     
-    def _round_to_precision(self, value: float, product_id: str) -> str:
-        """
-        Round value to appropriate precision for Coinbase.
-        
-        Most altcoins use 2 decimal places for quantity.
-        BTC/ETH use up to 8 decimals.
-        
-        Args:
-            value: Raw value to round
-            product_id: Trading pair (e.g., "BTC-USD")
-            
-        Returns:
-            Formatted string with appropriate precision
-        """
-        base_currency = product_id.split('-')[0]
-        
-        # High-value assets: 8 decimals
-        if base_currency in ['BTC', 'ETH']:
-            return f"{value:.8f}"
-        # Most altcoins: 2 decimals (HBAR, XRP, DOGE, etc.)
-        elif value < 10:
-            return f"{value:.8f}"
-        elif value < 100:
-            return f"{value:.4f}"
+    def _round_to_increment(self, qty: float, increment: Optional[str], product_id: str) -> str:
+        """Round quantity down to exchange-defined base increment."""
+        try:
+            if increment:
+                inc = float(increment)
+                if inc > 0:
+                    # Floor to nearest increment
+                    steps = int(qty / inc)
+                    adj = steps * inc
+                    # Determine decimal places from increment string
+                    dec_places = len(increment.split('.')[-1]) if '.' in increment else 0
+                    fmt = f"{{:.{dec_places}f}}"
+                    return fmt.format(adj)
+        except Exception as e:
+            logger.debug(f"Increment rounding failed for {product_id}: {e}")
+        # Fallback: 8 decimals
+        return f"{qty:.8f}"
+
+    def _round_price(self, price: float, increment: Optional[str]) -> str:
+        """Round price to valid tick increment (limit orders)."""
+        try:
+            if increment:
+                inc = float(increment)
+                if inc > 0:
+                    steps = int(price / inc)
+                    adj = steps * inc
+                    dec_places = len(increment.split('.')[-1]) if '.' in increment else 0
+                    fmt = f"{{:.{dec_places}f}}"
+                    return fmt.format(adj)
+        except Exception:
+            pass
+        # Adaptive fallback similar to previous logic
+        if price >= 1:
+            return f"{price:.2f}"
+        elif price >= 0.1:
+            return f"{price:.4f}"
+        elif price >= 0.01:
+            return f"{price:.5f}"
         else:
-            return f"{value:.2f}"
+            return f"{price:.8f}"
     
     def place_order(self, product_id: str, side: str, quote_size_usd: float, 
                    client_order_id: Optional[str] = None, 
@@ -759,39 +848,33 @@ class CoinbaseExchange:
         self._rate_limit("place_order")
         
         if order_type == "limit_post_only":
-            # Get current quote for limit order
             quote = self.get_quote(product_id)
-            
-            # Validate quote has liquidity
             if quote.bid <= 0 or quote.ask <= 0:
                 raise ValueError(f"No liquidity for {product_id}: bid={quote.bid}, ask={quote.ask}")
-            
-            # For post-only orders (maker-only, no immediate execution):
-            # - BUY: price must be < current ask (at or below bid side)
-            # - SELL: price must be > current bid (at or above ask side)
-            # 
-            # Strategy: Join the top of book for quick fill while staying passive
+
+            metadata = self.get_product_metadata(product_id)
+            base_inc = metadata.get("base_increment")
+            price_inc = metadata.get("price_increment")
+
             if side.upper() == "BUY":
-                # Place at current bid (join buyers) - won't cross spread
-                limit_price = quote.bid
-                base_size = quote_size_usd / limit_price
+                limit_price_raw = quote.bid
+                base_size_raw = quote_size_usd / limit_price_raw
             else:
-                # Place at current ask (join sellers) - won't cross spread
-                limit_price = quote.ask
-                base_size = quote_size_usd / limit_price
-            
-            # Round base_size to appropriate precision
-            base_size_str = self._round_to_precision(base_size, product_id)
-            
-            # Dynamic price precision: tiny-priced assets need more decimals.
-            if limit_price >= 1:
-                price_fmt = f"{limit_price:.2f}"
-            elif limit_price >= 0.1:
-                price_fmt = f"{limit_price:.4f}"
-            elif limit_price >= 0.01:
-                price_fmt = f"{limit_price:.5f}"
-            else:
-                price_fmt = f"{limit_price:.8f}"
+                limit_price_raw = quote.ask
+                base_size_raw = quote_size_usd / limit_price_raw
+
+            base_size_str = self._round_to_increment(base_size_raw, base_inc, product_id)
+            price_fmt = self._round_price(limit_price_raw, price_inc)
+
+            # Ensure rounded base size isn't zero or below increment
+            try:
+                if base_inc:
+                    if float(base_size_str) < float(base_inc):
+                        raise ValueError("Order size below base increment")
+            except ValueError:
+                raise
+            except Exception as e:
+                logger.debug(f"Increment validation skipped for {product_id}: {e}")
 
             body = {
                 "order_configuration": {
@@ -817,8 +900,13 @@ class CoinbaseExchange:
                 quote = self.get_quote(product_id)
                 if quote.mid <= 0:
                     raise ValueError(f"Invalid price for {product_id}")
-                base_size = quote_size_usd / quote.mid
-                base_size_str = self._round_to_precision(base_size, product_id)
+                metadata = self.get_product_metadata(product_id)
+                base_inc = metadata.get("base_increment")
+                raw_base_size = quote_size_usd / quote.mid
+                base_size_str = self._round_to_increment(raw_base_size, base_inc, product_id)
+                # Prevent zero-sized sells
+                if float(base_size_str) == 0:
+                    raise ValueError("Rounded base size is zero; increase notional")
                 body = {
                     "order_configuration": {
                         "market_market_ioc": {

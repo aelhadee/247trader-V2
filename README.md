@@ -4,6 +4,8 @@ Clean architecture trading bot for Coinbase Advanced Trade.
 
 **Status**: Production-Ready (Rules-Only Trading) | Architecture: 85-90% Complete | Live Data: ✅ Working
 
+> **Phase 0 Update:** A formal roadmap and architecture baseline now live under `docs/`. Start with `ROADMAP.md`, `docs/architecture/ARCHITECTURE_SPEC.md`, and `docs/operations/BASELINE_CHECKLIST.md` for current priorities and operational guardrails.
+
 ## Philosophy
 
 - **Rules-first, AI-optional**: System must trade profitably without AI
@@ -130,7 +132,21 @@ export COINBASE_API_SECRET="your_legacy_secret"
 
 **Note**: System auto-detects authentication method. Cloud API (JWT) is recommended for new projects.
 
-### 3. Run Tests
+### 3. Validate Configuration
+
+```bash
+python -m tools.config_check
+```
+
+Expected output:
+
+```
+✓ config/app.yaml valid
+✓ config/policy.yaml valid
+✓ config/universe.yaml valid
+```
+
+### 4. Run Tests
 
 ```bash
 python tests/test_core.py
@@ -146,7 +162,7 @@ Expected output:
 ✅ Full Cycle: PASS
 ```
 
-### 4. Run Once (DRY_RUN)
+### 5. Run Once (DRY_RUN)
 
 ```bash
 python runner/main_loop.py --once
@@ -180,7 +196,7 @@ Expected JSON output with live Coinbase data:
 }
 ```
 
-### 5. Production Launcher (Recommended)
+### 6. Production Launcher (Recommended)
 
 ```bash
 # DRY_RUN mode (logs only, no execution)
