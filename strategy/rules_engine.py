@@ -143,7 +143,9 @@ class RulesEngine:
                 continue
             
             # Apply rules based on trigger type
-            if trigger.trigger_type == "volume_spike":
+            if trigger.trigger_type == "price_move":
+                proposal = self._rule_price_move(trigger, asset, regime)
+            elif trigger.trigger_type == "volume_spike":
                 proposal = self._rule_volume_spike(trigger, asset, regime)
             elif trigger.trigger_type == "breakout":
                 proposal = self._rule_breakout(trigger, asset, regime)
@@ -174,6 +176,62 @@ class RulesEngine:
             f"(filtered by min_conviction={self.min_conviction_to_propose})"
         )
         return proposals
+    
+    def _rule_price_move(self, trigger: TriggerSignal, asset: UniverseAsset,
+                        regime: str) -> Optional[TradeProposal]:
+        """
+        Rule: Sharp price move → Momentum/reversal trade
+        
+        Logic: Rapid price changes (15m ≥ 3.5% or 60m ≥ 6.0%) signal opportunity.
+        - Large upward move → momentum continuation
+        - Large downward move → potential reversal/bounce
+        """
+        if trigger.price_change_pct is None:
+            return None
+        
+        price_change = trigger.price_change_pct
+        
+        # Determine direction and strategy
+        if price_change > 3.0:
+            # Upward price move → momentum play
+            side = "BUY"
+            reason = f"Price move: +{price_change:.1f}% ({trigger.reason})"
+            stop_loss = 6.0  # Tighter stop for momentum
+            take_profit = 12.0  # Quick profit target
+            max_hold = 48  # 2 days
+            boost = 1.0  # Standard sizing
+        elif price_change < -5.0:
+            # Downward price move → reversal/bounce play
+            side = "BUY"
+            reason = f"Price move reversal: {price_change:.1f}% ({trigger.reason})"
+            stop_loss = 10.0  # Wider stop (catching falling knife)
+            take_profit = 20.0  # Big bounce target
+            max_hold = 24  # 1 day (quick bounce or exit)
+            boost = 0.7  # Conservative sizing for reversals
+        else:
+            # Move too small or ambiguous
+            return None
+        
+        # Volatility-adjusted position sizing
+        base_size = self._tier_base_size(asset.tier)
+        size_pct = self.calculate_volatility_adjusted_size(
+            trigger, base_size * boost, stop_loss, target_risk_pct=1.0
+        )
+        # Scale by confidence
+        size_pct *= trigger.confidence
+        
+        return TradeProposal(
+            symbol=trigger.symbol,
+            side=side,
+            size_pct=size_pct,
+            reason=reason,
+            confidence=trigger.confidence,
+            trigger=trigger,
+            asset=asset,
+            stop_loss_pct=stop_loss,
+            take_profit_pct=take_profit,
+            max_hold_hours=max_hold
+        )
     
     def _rule_volume_spike(self, trigger: TriggerSignal, asset: UniverseAsset,
                           regime: str) -> Optional[TradeProposal]:
