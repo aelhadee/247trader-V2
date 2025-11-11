@@ -285,24 +285,38 @@ class TradingLoop:
             # Step 5: Execute trades (respects mode: DRY_RUN/PAPER/LIVE)
             logger.info(f"Step 5: Executing {len(approved_proposals)} approved trades...")
             
+            # Step 5a: Check if we need to rebalance BEFORE attempting execution (LIVE/PAPER only)
+            if self.mode != "DRY_RUN" and approved_proposals:
+                # Check actual USDC balance
+                try:
+                    accounts = self.exchange.get_accounts()
+                    usdc_balance = 0.0
+                    for acc in accounts:
+                        if acc['currency'] in ['USDC', 'USD']:
+                            usdc_balance += float(acc.get('available_balance', {}).get('value', 0))
+                    
+                    # Calculate required USDC (rough estimate)
+                    total_needed = sum(p.size_pct * self.portfolio.account_value_usd / 100 for p in approved_proposals)
+                    
+                    if usdc_balance < total_needed * 0.5:  # If less than 50% of needed capital in USDC
+                        logger.warning(
+                            f"Low USDC balance: ${usdc_balance:.2f} available, "
+                            f"${total_needed:.2f} needed for trades"
+                        )
+                        logger.info("💡 Auto-rebalancing to raise USDC capital...")
+                        
+                        if self._auto_rebalance_for_trade(approved_proposals):
+                            logger.info("✅ Rebalancing successful, retrying execution...")
+                        else:
+                            logger.warning("⚠️ Rebalancing failed or declined")
+                except Exception as e:
+                    logger.error(f"Failed to check USDC balance for rebalancing: {e}")
+            
             # Get available capital and adjust position sizes
             adjusted_proposals = self.executor.adjust_proposals_to_capital(
                 approved_proposals, 
                 self.portfolio.account_value_usd
             )
-            
-            # Step 5a: Auto-rebalance if insufficient capital (LIVE/PAPER only)
-            if len(adjusted_proposals) < len(approved_proposals) and self.mode != "DRY_RUN":
-                logger.warning(f"Insufficient capital: {len(adjusted_proposals)}/{len(approved_proposals)} trades possible")
-                
-                # Try to liquidate worst performer to raise capital
-                if self._auto_rebalance_for_trade(approved_proposals):
-                    # Retry capital adjustment after rebalancing
-                    adjusted_proposals = self.executor.adjust_proposals_to_capital(
-                        approved_proposals, 
-                        self.portfolio.account_value_usd
-                    )
-                    logger.info(f"After rebalancing: {len(adjusted_proposals)}/{len(approved_proposals)} trades possible")
             
             if len(adjusted_proposals) < len(approved_proposals):
                 logger.warning(f"Capital constraints: executing {len(adjusted_proposals)}/{len(approved_proposals)} trades")
