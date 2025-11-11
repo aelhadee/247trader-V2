@@ -378,7 +378,7 @@ def main():
     
     parser = argparse.ArgumentParser(description="247trader-v2 Trading Bot")
     parser.add_argument("--once", action="store_true", help="Run once and exit")
-    parser.add_argument("--interval", type=int, default=300, help="Seconds between cycles (default: 300)")
+    parser.add_argument("--interval", type=float, default=300, help="Seconds between cycles (default: 300)")
     parser.add_argument("--config-dir", default="config", help="Config directory")
     
     args = parser.parse_args()

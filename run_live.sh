@@ -194,14 +194,18 @@ fi
 
 # Determine command
 if [ "$RUN_MODE" = "loop" ]; then
-    # Read interval from config/app.yaml
-    INTERVAL=$(grep "interval_minutes:" config/app.yaml | awk '{print $2}')
-    if [ -z "$INTERVAL" ]; then
-        INTERVAL=15
+    # Read interval from config/app.yaml (in minutes)
+    INTERVAL_MIN=$(grep "interval_minutes:" config/app.yaml | awk '{print $2}')
+    if [ -z "$INTERVAL_MIN" ]; then
+        INTERVAL_MIN=15
         log_warning "Could not read interval from config, using default: 15 minutes"
     fi
-    CMD="python -m runner.main_loop --interval $INTERVAL"
-    log "Starting continuous loop ($INTERVAL minute intervals)..."
+    
+    # Convert minutes to seconds (support fractional minutes like 0.5)
+    INTERVAL_SEC=$(python3 -c "print(int(float('$INTERVAL_MIN') * 60))")
+    
+    CMD="python -m runner.main_loop --interval $INTERVAL_SEC"
+    log "Starting continuous loop ($INTERVAL_MIN minute intervals = $INTERVAL_SEC seconds)..."
 else
     CMD="python -m runner.main_loop --once"
     log "Running single cycle..."
