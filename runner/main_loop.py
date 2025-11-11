@@ -90,7 +90,7 @@ class TradingLoop:
         self.trigger_engine = TriggerEngine()
         self.rules_engine = RulesEngine(config={})
         self.risk_engine = RiskEngine(self.policy_config, universe_manager=self.universe_mgr)
-        self.executor = ExecutionEngine(exchange=self.exchange, policy=self.policy_config)
+        self.executor = ExecutionEngine(mode=self.mode, exchange=self.exchange, policy=self.policy_config)
         
         # State
         self.portfolio = self._init_portfolio_state()
@@ -291,6 +291,19 @@ class TradingLoop:
                 self.portfolio.account_value_usd
             )
             
+            # Step 5a: Auto-rebalance if insufficient capital (LIVE/PAPER only)
+            if len(adjusted_proposals) < len(approved_proposals) and self.mode != "DRY_RUN":
+                logger.warning(f"Insufficient capital: {len(adjusted_proposals)}/{len(approved_proposals)} trades possible")
+                
+                # Try to liquidate worst performer to raise capital
+                if self._auto_rebalance_for_trade(approved_proposals):
+                    # Retry capital adjustment after rebalancing
+                    adjusted_proposals = self.executor.adjust_proposals_to_capital(
+                        approved_proposals, 
+                        self.portfolio.account_value_usd
+                    )
+                    logger.info(f"After rebalancing: {len(adjusted_proposals)}/{len(approved_proposals)} trades possible")
+            
             if len(adjusted_proposals) < len(approved_proposals):
                 logger.warning(f"Capital constraints: executing {len(adjusted_proposals)}/{len(approved_proposals)} trades")
             
@@ -351,6 +364,74 @@ class TradingLoop:
                 final_orders=[],
                 no_trade_reason=f"exception:{type(e).__name__}",
             )
+    
+    def _auto_rebalance_for_trade(self, proposals: List[TradeProposal]) -> bool:
+        """
+        Automatically liquidate worst-performing position to raise capital.
+        
+        Strategy:
+        1. Find worst-performing holdings (by 24h change)
+        2. Liquidate enough to cover the new trade
+        3. Skip if new opportunity is worse than current holdings
+        
+        Returns:
+            True if rebalancing succeeded, False otherwise
+        """
+        logger.info("💡 Auto-rebalancing: liquidating worst performer to raise capital...")
+        
+        try:
+            # Get liquidation candidates (worst performers first)
+            candidates = self.executor.get_liquidation_candidates(
+                min_value_usd=5.0,  # Only consider holdings > $5
+                sort_by="performance"
+            )
+            
+            if not candidates:
+                logger.warning("No liquidation candidates found")
+                return False
+            
+            worst = candidates[0]
+            logger.info(
+                f"Worst performer: {worst['currency']} "
+                f"({worst['change_24h_pct']:+.2f}% 24h, ${worst['value_usd']:.2f})"
+            )
+            
+            # Check if new opportunity is better than worst holding
+            # (Don't sell something that's only down -2% to buy something with low conviction)
+            best_proposal = max(proposals, key=lambda p: p.confidence)
+            
+            if worst['change_24h_pct'] > -5.0 and best_proposal.confidence < 0.7:
+                logger.info(
+                    f"Skipping rebalance: worst holding only {worst['change_24h_pct']:.1f}% down, "
+                    f"new opportunity confidence {best_proposal.confidence:.2f} not high enough"
+                )
+                return False
+            
+            # Liquidate worst performer to USDC
+            logger.info(f"Converting {worst['currency']} → USDC to raise capital...")
+            
+            result = self.executor.convert_asset(
+                from_currency=worst['currency'],
+                to_currency='USDC',
+                amount=worst['balance']
+            )
+            
+            if result.success:
+                logger.info(
+                    f"✅ Liquidated {worst['currency']}: "
+                    f"freed up ${result.filled_size * result.filled_price:.2f}"
+                )
+                
+                # Update portfolio state with new balance
+                self.portfolio = self._init_portfolio_state()
+                return True
+            else:
+                logger.warning(f"❌ Liquidation failed: {result.error}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Auto-rebalance failed: {e}")
+            return False
     
     def run_forever(self, interval_seconds: int = 300):
         """

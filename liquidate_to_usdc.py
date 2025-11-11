@@ -71,17 +71,26 @@ def main():
         
         # If converting to stablecoin, skip other stablecoins too
         if target_currency in ['USDC', 'USD', 'USDT'] and currency in ['USDC', 'USD', 'USDT']:
-            continue    if not holdings_to_sell:
+            continue
+        
+        holdings.append({
+            'currency': currency,
+            'balance': balance,
+            'account_uuid': acc['uuid'],
+            'value_usd': balance  # Will be updated with real price below
+        })
+    
+    if not holdings:
         print("✅ No holdings to liquidate (or all below $1)")
         return
     
     # Display holdings
-    total_value = sum(h['value_usd'] for h in holdings_to_sell)
-    print(f"Found {len(holdings_to_sell)} holdings worth ${total_value:.2f}:\n")
+    total_value = sum(h['value_usd'] for h in holdings)
+    print(f"Found {len(holdings)} holdings worth ${total_value:.2f}:\n")
     print(f"{'Currency':<10} {'Balance':<20} {'USD Value':<12}")
     print("-" * 50)
     
-    for h in holdings_to_sell:
+    for h in holdings:
         print(f"{h['currency']:<10} {h['balance']:<20.8f} ${h['value_usd']:<11.2f}")
     
     print("\n" + "="*70)
@@ -92,7 +101,7 @@ def main():
         return
     
     # Confirm
-    print(f"\n⚠️  About to convert {len(holdings_to_sell)} holdings to USDC")
+    print(f"\n⚠️  About to convert {len(holdings)} holdings to USDC")
     confirm = input("Type 'YES' to proceed: ").strip()
     
     if confirm != 'YES':
@@ -100,12 +109,12 @@ def main():
         return
     
     # Execute conversions
-    print(f"\n🔄 Converting {len(holdings_to_sell)} holdings to USDC...\n")
+    print(f"\n🔄 Converting {len(holdings)} holdings to USDC...\n")
     
     successful = 0
     failed = 0
     
-    for h in holdings_to_sell:
+    for h in holdings:
         print(f"Converting {h['currency']} (${h['value_usd']:.2f})...")
         
         result = executor.convert_asset(

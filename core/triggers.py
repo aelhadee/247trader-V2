@@ -33,6 +33,7 @@ class TriggerSignal:
     volume_ratio: Optional[float] = None
     price_change_pct: Optional[float] = None
     technical_score: Optional[float] = None
+    volatility: Optional[float] = None  # Annualized volatility for sizing
 
 
 class TriggerEngine:
@@ -167,6 +168,37 @@ class TriggerEngine:
         logger.info(f"Found {len(signals)} triggers")
         return signals
     
+    def _calculate_volatility(self, candles: List[OHLCV]) -> float:
+        """
+        Calculate annualized volatility from hourly returns.
+        
+        Returns volatility as percentage (e.g., 50.0 for 50% annualized).
+        """
+        if len(candles) < 24:
+            return 50.0  # Default moderate volatility
+        
+        # Calculate hourly returns for last 7 days (168 hours)
+        returns = []
+        lookback = min(168, len(candles) - 1)
+        for i in range(len(candles) - lookback, len(candles)):
+            if candles[i-1].close > 0:
+                ret = (candles[i].close - candles[i-1].close) / candles[i-1].close
+                returns.append(ret)
+        
+        if not returns:
+            return 50.0
+        
+        # Standard deviation of returns
+        import math
+        mean_ret = sum(returns) / len(returns)
+        variance = sum((r - mean_ret) ** 2 for r in returns) / len(returns)
+        hourly_vol = math.sqrt(variance)
+        
+        # Annualize: hourly vol × sqrt(24 × 365)
+        annualized_vol = hourly_vol * math.sqrt(24 * 365) * 100  # Convert to percentage
+        
+        return min(annualized_vol, 200.0)  # Cap at 200% to avoid extreme outliers
+    
     def _check_price_move(self, asset: UniverseAsset, 
                           candles: List[OHLCV]) -> Optional[TriggerSignal]:
         """
@@ -226,6 +258,9 @@ class TriggerEngine:
             confidence = 0.75
             move_pct = move_60m
         
+        # Calculate volatility for sizing
+        volatility = self._calculate_volatility(candles)
+        
         return TriggerSignal(
             symbol=asset.symbol,
             trigger_type="price_move",
@@ -234,7 +269,8 @@ class TriggerEngine:
             reason=reason,
             timestamp=datetime.utcnow(),
             current_price=current_price,
-            price_change_pct=move_pct
+            price_change_pct=move_pct,
+            volatility=volatility
         )
     
     def _check_volume_spike(self, asset: UniverseAsset, 
@@ -243,6 +279,8 @@ class TriggerEngine:
         Check for volume spike (spec: 1h volume vs 24h average).
         
         Uses policy.yaml triggers.volume_spike.ratio_1h_vs_24h (default 1.8x)
+        
+        Also calculates volatility for downstream sizing.
         """
         if len(candles) < 24:
             return None
@@ -275,6 +313,9 @@ class TriggerEngine:
         # Confidence: Higher for bigger spikes
         confidence = min(volume_ratio / 4.0, 1.0)
         
+        # Calculate volatility for sizing
+        volatility = self._calculate_volatility(candles)
+        
         return TriggerSignal(
             symbol=asset.symbol,
             trigger_type="volume_spike",
@@ -283,7 +324,8 @@ class TriggerEngine:
             reason=f"Volume {volume_ratio:.2f}x avg hourly (1h: ${current_volume:,.0f} vs 24h avg: ${avg_hourly:,.0f})",
             timestamp=datetime.utcnow(),
             current_price=candles[-1].close,
-            volume_ratio=volume_ratio
+            volume_ratio=volume_ratio,
+            volatility=volatility
         )
     
     def _check_breakout(self, asset: UniverseAsset, 
@@ -308,6 +350,9 @@ class TriggerEngine:
         if range_lookback == 0:
             return None
         
+        # Calculate volatility for sizing
+        volatility = self._calculate_volatility(candles)
+        
         # Check if breaking to new high
         if current_price >= high_lookback * 0.995:  # Within 0.5% of high
             strength = 0.7
@@ -322,7 +367,8 @@ class TriggerEngine:
                 reason=reason,
                 timestamp=datetime.utcnow(),
                 current_price=current_price,
-                price_change_pct=(current_price - low_lookback) / low_lookback * 100
+                price_change_pct=(current_price - low_lookback) / low_lookback * 100,
+                volatility=volatility
             )
         
         # Check if recovering from low (V-shape)
@@ -342,7 +388,8 @@ class TriggerEngine:
                     reason=reason,
                     timestamp=datetime.utcnow(),
                     current_price=current_price,
-                    price_change_pct=recovery_pct * 100
+                    price_change_pct=recovery_pct * 100,
+                    volatility=volatility
                 )
         
         return None
@@ -383,6 +430,9 @@ class TriggerEngine:
         
         direction = "up" if return_24h > 0 else "down"
         
+        # Calculate volatility for sizing
+        volatility = self._calculate_volatility(candles)
+        
         return TriggerSignal(
             symbol=asset.symbol,
             trigger_type="momentum",
@@ -392,7 +442,8 @@ class TriggerEngine:
             timestamp=datetime.utcnow(),
             current_price=current_price,
             price_change_pct=return_24h * 100,
-            technical_score=strength * confidence
+            technical_score=strength * confidence,
+            volatility=volatility
         )
     
     def filter_by_threshold(self, signals: List[TriggerSignal],
