@@ -79,10 +79,23 @@ class ExecutionEngine:
         self.limit_post_only = (self.default_order_type == "limit_post_only")
         
         # Quote currency preferences
-        self.preferred_quotes = execution_config.get("preferred_quote_currencies", 
-                                                     ["USDC", "USD", "USDT", "BTC", "ETH"])
-        
-        logger.info(f"Initialized ExecutionEngine (mode={self.mode}, min_notional=${self.min_notional_usd}, quotes={self.preferred_quotes})")
+        self.preferred_quotes = execution_config.get(
+            "preferred_quote_currencies",
+            ["USDC", "USD", "USDT", "BTC", "ETH"]
+        )
+        # Optional behavior flags
+        self.auto_convert_preferred_quote = execution_config.get(
+            "auto_convert_preferred_quote", False
+        )
+        self.clamp_small_trades = execution_config.get(
+            "clamp_small_trades", True
+        )
+
+        logger.info(
+            f"Initialized ExecutionEngine (mode={self.mode}, min_notional=${self.min_notional_usd}, "
+            f"quotes={self.preferred_quotes}, auto_convert={self.auto_convert_preferred_quote}, "
+            f"clamp_small_trades={self.clamp_small_trades})"
+        )
     
     def adjust_proposals_to_capital(self, proposals: List, portfolio_value_usd: float) -> List[Tuple]:
         """
@@ -144,7 +157,19 @@ class ExecutionEngine:
             # If we have enough capital, no adjustment needed
             if total_requested <= available_capital:
                 logger.info(f"Sufficient capital: ${total_requested:.2f} requested, ${available_capital:.2f} available")
-                return [(p, portfolio_value_usd * (p.size_pct / 100.0)) for p in proposals]
+                sized = []
+                for p in proposals:
+                    raw_size = portfolio_value_usd * (p.size_pct / 100.0)
+                    if self.clamp_small_trades and raw_size < self.min_notional_usd:
+                        logger.debug(
+                            f"Clamping {p.symbol} raw size ${raw_size:.2f} → ${self.min_notional_usd:.2f} (min_notional)"
+                        )
+                        raw_size = self.min_notional_usd
+                    if raw_size < self.min_notional_usd:
+                        logger.debug(f"Skipping {p.symbol}: size ${raw_size:.2f} below minimum after clamp")
+                        continue
+                    sized.append((p, raw_size))
+                return sized
             
             # Capital constrained - need to adjust
             logger.warning(f"Capital constrained: ${total_requested:.2f} requested > ${available_capital:.2f} available")
@@ -163,6 +188,11 @@ class ExecutionEngine:
                 
                 # Calculate proportional size
                 requested_size = portfolio_value_usd * (proposal.size_pct / 100.0)
+                if self.clamp_small_trades and requested_size < self.min_notional_usd:
+                    logger.debug(
+                        f"Clamping {proposal.symbol} requested size ${requested_size:.2f} → ${self.min_notional_usd:.2f}"
+                    )
+                    requested_size = self.min_notional_usd
                 scale_factor = available_capital / total_requested
                 adjusted_size = min(requested_size * scale_factor, remaining_capital)
                 
@@ -635,6 +665,25 @@ class ExecutionEngine:
                         logger.warning(f"Adjusting trade size: ${size_usd:.2f} → ${available_balance_usd:.2f} (limited by {quote_currency} balance)")
                         size_usd = max(self.min_notional_usd, available_balance_usd * 0.99)  # Use 99% to leave room for fees
                 
+                # If we ended up using a non-top preferred quote and auto-convert is enabled, 
+                # try to acquire the preferred quote (e.g., convert USD → USDC) and re-select pair
+                top_pref = self.preferred_quotes[0] if self.preferred_quotes else quote_currency
+                if (
+                    self.auto_convert_preferred_quote 
+                    and quote_currency != top_pref 
+                    and self.mode == "LIVE"
+                ):
+                    try:
+                        if self._ensure_preferred_quote_liquidity(required_usd=size_usd, preferred_quote=top_pref):
+                            logger.info(f"Acquired {top_pref} liquidity; re-selecting pair for {base_symbol}")
+                            reselect = self._find_best_trading_pair(base_symbol, size_usd)
+                            if reselect and reselect[0].split('-')[1] == top_pref:
+                                symbol = reselect[0]
+                                quote_currency = top_pref
+                                available_balance = reselect[2]
+                    except Exception as e:
+                        logger.warning(f"Auto-convert to {top_pref} skipped/failed: {e}")
+
                 logger.info(f"Using trading pair: {symbol} with ${size_usd:.2f}")
             else:
                 # No direct pair found - try two-step conversion
@@ -830,6 +879,58 @@ class ExecutionEngine:
                 route=f"live_{order_type}",
                 error=str(e)
             )
+
+    def _ensure_preferred_quote_liquidity(self, required_usd: float, preferred_quote: str = "USDC") -> bool:
+        """
+        Ensure we have at least required_usd in the preferred quote currency by doing a quick
+        market conversion from USD if available.
+
+        Currently supports USD → USDC via buying USDC-USD.
+
+        Returns True if preferred liquidity is available or was acquired; False otherwise.
+        """
+        try:
+            if preferred_quote != "USDC":
+                # For now, only support USDC as preferred auto-convert target
+                return False
+
+            accounts = self.exchange.get_accounts()
+            balances = {acc['currency']: float(acc.get('available_balance', {}).get('value', 0)) for acc in accounts}
+
+            pref_bal = balances.get(preferred_quote, 0.0)
+            if pref_bal >= required_usd:
+                return True
+
+            usd_bal = balances.get("USD", 0.0)
+            if usd_bal <= 0:
+                return False
+
+            # Calculate how much USD to convert (add 1% buffer for fees/slippage)
+            convert_usd = min(usd_bal, required_usd * 1.01)
+            if convert_usd < self.min_notional_usd:
+                return False
+
+            logger.info(f"Auto-convert: buying ${convert_usd:.2f} of USDC via USDC-USD to fund {preferred_quote}")
+            # Place market BUY of USDC with USD
+            resp = self.exchange.place_order(
+                product_id="USDC-USD",
+                side="buy",
+                quote_size_usd=convert_usd,
+                client_order_id=str(uuid.uuid4()),
+                order_type="market",
+            )
+
+            if not resp or not resp.get("success", True):
+                logger.warning(f"Auto-convert order response indicates failure: {resp}")
+                return False
+
+            # Quick recheck balances
+            accounts = self.exchange.get_accounts()
+            balances = {acc['currency']: float(acc.get('available_balance', {}).get('value', 0)) for acc in accounts}
+            return balances.get(preferred_quote, 0.0) >= required_usd * 0.99
+        except Exception as e:
+            logger.warning(f"Auto-convert to {preferred_quote} failed: {e}")
+            return False
     
     def execute_batch(self, orders: List[Dict]) -> List[ExecutionResult]:
         """

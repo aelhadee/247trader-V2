@@ -45,7 +45,7 @@ env/
 # Logs
 *.log
 *.txt
-
+*.jsonl
 # Coverage/pytest
 .pytest_cache/
 .coverage*

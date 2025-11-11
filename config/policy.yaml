@@ -119,6 +119,10 @@ regime:
 execution:
   # Order types
   default_order_type: "limit_post_only"  # Phase 1: conservative
+  # Auto-convert USD → USDC to honor preferred quote (when needed for BUYs)
+  auto_convert_preferred_quote: true
+  # Clamp tiny trades up to the minimum notional to avoid rejects
+  clamp_small_trades: true
   
   # Quote currency preferences (in order of preference)
   # System will use first available currency with sufficient balance
