@@ -260,7 +260,11 @@ class CoinbaseExchange:
                 
                 # Don't retry on client errors (except 429)
                 if 400 <= status_code < 500 and status_code != 429:
-                    logger.error(f"Coinbase API client error: {status_code} - {e.response.text}")
+                    # 404 is often expected (empty orders, missing data) - log as debug
+                    if status_code == 404:
+                        logger.debug(f"Coinbase API 404: {endpoint} - {e.response.text}")
+                    else:
+                        logger.error(f"Coinbase API client error: {status_code} - {e.response.text}")
                     raise
                 
                 # Retry on 429 (rate limit) or 5xx (server errors)
@@ -761,7 +765,7 @@ class CoinbaseExchange:
     def list_open_orders(self, product_id: Optional[str] = None, limit: int = 100) -> List[dict]:
         """List open orders (best-effort).
 
-        Uses historical orders endpoint filtered by status OPEN (Advanced Trade API).
+        Uses batch orders endpoint filtered by status OPEN (Advanced Trade API).
         If endpoint schema differs, logs warning and returns empty list.
         """
         if self.read_only and not self.api_key:
@@ -769,16 +773,35 @@ class CoinbaseExchange:
             return []
         try:
             self._rate_limit("open_orders")
-            # Advanced Trade API: /orders/historical?order_status=OPEN&product_id=XXX
-            qs = f"order_status=OPEN&limit={max(1,min(limit,100))}"
+            # Try primary endpoint: /orders/historical/batch with OPEN status
+            query_params = {
+                "order_status": "OPEN",
+                "limit": max(1, min(limit, 100))
+            }
             if product_id:
-                qs += f"&product_id={product_id}"
-            resp = self._req("GET", f"/orders/historical?{qs}", authenticated=True)
+                query_params["product_id"] = product_id
+            
+            resp = self._req("GET", "/orders/historical/batch", query=query_params, authenticated=True)
             orders = resp.get("orders", [])
-            open_orders = [o for o in orders if o.get("status") in ("OPEN","PENDING","ACTIVE")]
+            open_orders = [o for o in orders if o.get("status") in ("OPEN", "PENDING", "ACTIVE")]
             return open_orders
         except Exception as e:
-            logger.warning(f"list_open_orders failed: {e}")
+            # 404 might mean endpoint changed - try fallback
+            if "404" in str(e):
+                logger.debug(f"list_open_orders: primary endpoint 404, trying fallback...")
+                try:
+                    # Fallback: list all recent orders and filter client-side
+                    resp = self._req("GET", "/orders/historical/batch", query={"limit": limit}, authenticated=True)
+                    orders = resp.get("orders", [])
+                    open_orders = [o for o in orders if o.get("status") in ("OPEN", "PENDING", "ACTIVE")]
+                    if open_orders:
+                        logger.info(f"Found {len(open_orders)} open orders via fallback")
+                    return open_orders
+                except Exception as e2:
+                    logger.debug(f"list_open_orders fallback also failed: {e2}")
+                    return []
+            else:
+                logger.warning(f"list_open_orders failed: {e}")
             return []
 
     def cancel_order(self, order_id: str) -> dict:

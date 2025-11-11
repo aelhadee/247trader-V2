@@ -46,6 +46,13 @@ env/
 *.log
 *.txt
 *.jsonl
+logs/
+
+# State and runtime files
+data/.state.json
+data/247trader.lock
+data/KILL_SWITCH
+
 # Coverage/pytest
 .pytest_cache/
 .coverage*
