@@ -106,11 +106,11 @@ class CoinbaseExchange:
         self._mode = "hmac"
         self._pem = None
         
-        # Detect PEM key (for org/cloud keys - not yet supported)
+        # Detect PEM key (for org/cloud keys using JWT/ES256 authentication)
         if secret_raw.startswith("-----BEGIN"):
             self._pem = secret_raw
             self._mode = "pem"
-            logger.warning("PEM key detected but not supported. Use HMAC keys for now.")
+            logger.info("Using Cloud API authentication (JWT/ES256) with PEM key")
         
         # Rate limiting
         self._last_call = {}
@@ -231,6 +231,8 @@ class CoinbaseExchange:
             else:
                 endpoint_with_query = f"{base_endpoint}?{query_str}"
 
+        # For JWT auth, path must NOT include query params
+        path_for_auth = f"/api/v3/brokerage{endpoint.split('?')[0]}"
         path = f"/api/v3/brokerage{endpoint_with_query}"
         url = CB_BASE + endpoint_with_query
         
@@ -239,7 +241,7 @@ class CoinbaseExchange:
         for attempt in range(max_retries):
             try:
                 if authenticated:
-                    headers = self._headers(method, path, body)
+                    headers = self._headers(method, path_for_auth, body)
                 else:
                     headers = {"Content-Type": "application/json"}
                 
