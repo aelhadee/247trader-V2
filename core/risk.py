@@ -157,6 +157,11 @@ class RiskEngine:
         if not result.approved:
             return result
         
+        # 4c. Max open positions (spec requirement)
+        result = self._check_max_open_positions(proposals, portfolio)
+        if not result.approved:
+            return result
+        
         # 5. Position sizing (per proposal)
         approved_proposals = []
         violated = []
@@ -286,9 +291,15 @@ class RiskEngine:
     
     def _check_trade_frequency(self, proposals: List[TradeProposal],
                               portfolio: PortfolioState) -> RiskCheckResult:
-        """Check trade frequency limits"""
+        """
+        Check trade frequency limits (spec requirement).
+        
+        Uses max_new_trades_per_hour from policy.yaml (default 2/hour).
+        """
         max_per_day = self.risk_config.get("max_trades_per_day", 10)
-        max_per_hour = self.risk_config.get("max_trades_per_hour", 3)
+        # Spec uses "max_new_trades_per_hour" (default 2)
+        max_per_hour = self.risk_config.get("max_new_trades_per_hour", 
+                                            self.risk_config.get("max_trades_per_hour", 2))
         
         if portfolio.trades_today >= max_per_day:
             return RiskCheckResult(
@@ -330,6 +341,46 @@ class RiskEngine:
                     )
                 else:
                     logger.info(f"Cooldown period expired at {cooldown_expires}, resuming trading")
+        
+        return RiskCheckResult(approved=True)
+    
+    def _check_max_open_positions(self, proposals: List[TradeProposal],
+                                  portfolio: PortfolioState) -> RiskCheckResult:
+        """
+        Check max open positions limit (spec requirement).
+        
+        Only applies to BUY proposals that would create NEW positions.
+        Reads strategy.max_open_positions from policy.yaml (default 8).
+        """
+        # Get max_open_positions from strategy section in policy.yaml
+        strategy_cfg = self.policy.get("strategy", {})
+        max_open = strategy_cfg.get("max_open_positions", 8)
+        
+        current_open = len(portfolio.open_positions)
+        
+        # Count how many NEW positions would be created (only BUY proposals for symbols we don't have)
+        new_positions = sum(
+            1 for p in proposals 
+            if p.side == "BUY" and p.symbol not in portfolio.open_positions
+        )
+        
+        total_would_be = current_open + new_positions
+        
+        if total_would_be > max_open:
+            logger.warning(
+                f"Max open positions would be exceeded: {total_would_be} > {max_open} "
+                f"(current: {current_open} + new: {new_positions})"
+            )
+            return RiskCheckResult(
+                approved=False,
+                reason=f"Max open positions limit: {total_would_be} would exceed {max_open}",
+                violated_checks=["max_open_positions"]
+            )
+        
+        logger.debug(
+            f"Max open positions check passed: {total_would_be}/{max_open} "
+            f"(current: {current_open} + new: {new_positions})"
+        )
         
         return RiskCheckResult(approved=True)
     
@@ -376,28 +427,38 @@ class RiskEngine:
     def _check_cluster_limits(self, proposals: List[TradeProposal],
                              portfolio: PortfolioState) -> RiskCheckResult:
         """
-        Check cluster exposure limits.
+        Check cluster/theme exposure limits (spec requirement).
         
-        Enforces max_per_theme_pct from policy.yaml:
+        Enforces max_per_theme_pct from policy.yaml risk section:
         - MEME: 5%
         - L2: 10%
         - DEFI: 10%
+        
+        Calculates existing + proposed exposure per theme.
         """
         if not self.universe_manager:
             # No universe manager, can't check clusters
+            logger.debug("No universe manager, skipping cluster limits check")
             return RiskCheckResult(approved=True)
         
-        # Get policy limits for each theme/cluster
+        # Get policy limits for each theme/cluster from risk.max_per_theme_pct
         max_per_theme = self.risk_config.get("max_per_theme_pct", {})
         
-        # Calculate current cluster exposure from open positions
+        if not max_per_theme:
+            logger.debug("No max_per_theme_pct configured, skipping cluster limits")
+            return RiskCheckResult(approved=True)
+        
+        # Calculate current cluster exposure from open positions (using schema)
         cluster_exposure = defaultdict(float)  # {cluster_name: total_size_pct}
         
-        for symbol, size_usd in portfolio.open_positions.items():
+        for symbol in portfolio.open_positions.keys():
+            size_usd = portfolio.get_position_usd(symbol)
             cluster = self.universe_manager.get_asset_cluster(symbol)
             if cluster:
                 size_pct = (size_usd / portfolio.account_value_usd) * 100
                 cluster_exposure[cluster] += size_pct
+        
+        logger.debug(f"Current cluster exposure: {dict(cluster_exposure)}")
         
         # Add proposed trades to cluster exposure
         approved_proposals = []
@@ -415,7 +476,7 @@ class RiskEngine:
                     
                     if new_exposure > max_cluster_pct:
                         reason = (
-                            f"{cluster} limit would be violated: "
+                            f"{cluster} theme limit violated: "
                             f"{new_exposure:.1f}% > {max_cluster_pct:.1f}% "
                             f"(current: {cluster_exposure[cluster]:.1f}% + proposed: {proposal.size_pct:.1f}%)"
                         )
@@ -431,13 +492,15 @@ class RiskEngine:
         if not approved_proposals and proposals:
             return RiskCheckResult(
                 approved=False,
-                reason="All proposals would violate cluster limits",
+                reason="All proposals would violate theme/cluster limits",
                 violated_checks=violated
             )
         
         # Update proposals list to only include approved ones
         proposals.clear()
         proposals.extend(approved_proposals)
+        
+        logger.debug(f"Cluster limits passed: {len(approved_proposals)}/{len(proposals) + len(violated)} approved")
         
         return RiskCheckResult(approved=True, violated_checks=violated)
     

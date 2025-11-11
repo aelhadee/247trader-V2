@@ -12,6 +12,8 @@ from typing import List, Optional, Dict
 from dataclasses import dataclass
 from datetime import datetime
 import logging
+import yaml
+from pathlib import Path
 
 from core.universe import UniverseAsset, UniverseSnapshot
 from core.triggers import TriggerSignal
@@ -61,7 +63,34 @@ class RulesEngine:
     
     def __init__(self, config: Dict):
         self.config = config
-        logger.info("Initialized RulesEngine")
+        
+        # Load policy.yaml for production trading parameters
+        policy_path = Path(__file__).parent.parent / "config" / "policy.yaml"
+        if policy_path.exists():
+            with open(policy_path, 'r') as f:
+                self.policy = yaml.safe_load(f)
+                logger.info(f"Loaded policy.yaml from {policy_path}")
+        else:
+            logger.warning(f"policy.yaml not found at {policy_path}, using defaults")
+            self.policy = {}
+        
+        # Extract strategy parameters from policy.yaml
+        strategy_cfg = self.policy.get("strategy", {})
+        
+        # Tier-based position sizing (spec requirement)
+        base_position_pct = strategy_cfg.get("base_position_pct", {})
+        self.tier1_base_size = base_position_pct.get("tier1", 0.02) * 100  # Convert to %
+        self.tier2_base_size = base_position_pct.get("tier2", 0.01) * 100
+        self.tier3_base_size = base_position_pct.get("tier3", 0.005) * 100
+        
+        # Minimum conviction threshold (spec requirement)
+        self.min_conviction_to_propose = strategy_cfg.get("min_conviction_to_propose", 0.5)
+        
+        logger.info(
+            f"Initialized RulesEngine with tier sizing: "
+            f"T1={self.tier1_base_size:.1f}%, T2={self.tier2_base_size:.1f}%, T3={self.tier3_base_size:.1f}% | "
+            f"min_conviction={self.min_conviction_to_propose}"
+        )
     
     def propose_trades(self, 
                       universe: UniverseSnapshot,
@@ -85,14 +114,17 @@ class RulesEngine:
         
         proposals = []
         
-        # Filter triggers by threshold (lowered to ensure we get trades)
-        min_score = 0.1  # Very low for phase 2 tuning
+        # Use minimum score from policy.yaml triggers section (spec requirement)
+        # NOTE: This is trigger qualification, different from proposal conviction filter
+        policy_triggers = self.policy.get("triggers", {})
+        min_trigger_score = policy_triggers.get("min_score", 0.2)
+        
         qualified_triggers = [
             t for t in triggers
-            if (t.strength * t.confidence) >= min_score
+            if (t.strength * t.confidence) >= min_trigger_score
         ]
         
-        logger.debug(f"Qualified triggers: {len(qualified_triggers)} (min_score={min_score})")
+        logger.debug(f"Qualified triggers: {len(qualified_triggers)} (min_score={min_trigger_score})")
         
         # Debug: log all triggers
         for t in triggers:
@@ -100,7 +132,7 @@ class RulesEngine:
             logger.debug(
                 f"  Trigger: {t.symbol} type={t.trigger_type} "
                 f"str={t.strength:.2f} conf={t.confidence:.2f} score={score:.2f} "
-                f"qualified={score >= min_score}"
+                f"qualified={score >= min_trigger_score}"
             )
         
         for trigger in qualified_triggers:
@@ -124,13 +156,23 @@ class RulesEngine:
                 continue
             
             if proposal:
-                proposals.append(proposal)
-                logger.debug(
-                    f"Proposal: {proposal.side} {proposal.symbol} "
-                    f"size={proposal.size_pct:.1f}% conf={proposal.confidence:.2f}"
-                )
+                # Apply minimum conviction threshold (spec requirement)
+                if proposal.confidence >= self.min_conviction_to_propose:
+                    proposals.append(proposal)
+                    logger.debug(
+                        f"Proposal: {proposal.side} {proposal.symbol} "
+                        f"size={proposal.size_pct:.1f}% conf={proposal.confidence:.2f}"
+                    )
+                else:
+                    logger.debug(
+                        f"Rejected proposal: {proposal.symbol} conf={proposal.confidence:.2f} "
+                        f"< min_conviction={self.min_conviction_to_propose}"
+                    )
         
-        logger.info(f"Generated {len(proposals)} trade proposals")
+        logger.info(
+            f"Generated {len(proposals)} trade proposals "
+            f"(filtered by min_conviction={self.min_conviction_to_propose})"
+        )
         return proposals
     
     def _rule_volume_spike(self, trigger: TriggerSignal, asset: UniverseAsset,
@@ -302,15 +344,23 @@ class RulesEngine:
         )
     
     def _tier_base_size(self, tier: int) -> float:
-        """Get base position size for tier"""
+        """
+        Get base position size for tier (spec requirement).
+        
+        Reads from policy.yaml strategy.base_position_pct:
+        - tier1 (BTC, ETH): 2.0% (core/liquid)
+        - tier2 (SOL, AVAX, etc): 1.0% (rotational)
+        - tier3 (small cap/event): 0.5% (speculative)
+        """
         if tier == 1:
-            return 5.0  # 5% for core
+            return self.tier1_base_size
         elif tier == 2:
-            return 3.0  # 3% for rotational
+            return self.tier2_base_size
         elif tier == 3:
-            return 1.0  # 1% for event-driven
+            return self.tier3_base_size
         else:
-            return 2.0  # Default
+            # Default to tier 2 sizing for unknown tiers
+            return self.tier2_base_size
     
     def calculate_volatility_adjusted_size(self, trigger: TriggerSignal, base_size_pct: float,
                                           stop_loss_pct: float, target_risk_pct: float = 1.0) -> float:

@@ -51,20 +51,43 @@ class TriggerEngine:
     Output: Ranked list of assets with trigger signals
     """
     
-    def __init__(self, config_path: str = "config/signals.yaml"):
+    def __init__(self, config_path: str = "config/signals.yaml", policy_path: str = "config/policy.yaml"):
         self.exchange = get_exchange()
         
-        # Load trigger configuration
+        import yaml
+        from pathlib import Path
+        
+        # Load legacy signals.yaml configuration
         try:
-            import yaml
-            from pathlib import Path
             with open(Path(config_path)) as f:
                 self.config = yaml.safe_load(f).get("triggers", {})
         except Exception as e:
             logger.warning(f"Could not load signals config: {e}, using defaults")
             self.config = {}
         
-        # Extract tunable parameters (with defaults)
+        # Load policy.yaml triggers section (spec-compliant)
+        try:
+            with open(Path(policy_path)) as f:
+                policy_config = yaml.safe_load(f)
+                self.policy_triggers = policy_config.get("triggers", {})
+        except Exception as e:
+            logger.warning(f"Could not load policy triggers: {e}, using defaults")
+            self.policy_triggers = {}
+        
+        # Extract spec-compliant parameters (from policy.yaml)
+        price_move_config = self.policy_triggers.get("price_move", {})
+        self.pct_15m = price_move_config.get("pct_15m", 3.5)
+        self.pct_60m = price_move_config.get("pct_60m", 6.0)
+        
+        volume_spike_config = self.policy_triggers.get("volume_spike", {})
+        self.ratio_1h_vs_24h = volume_spike_config.get("ratio_1h_vs_24h", 1.8)
+        
+        breakout_config = self.policy_triggers.get("breakout", {})
+        self.lookback_hours = breakout_config.get("lookback_hours", 24)
+        
+        self.min_score = self.policy_triggers.get("min_score", 0.2)
+        
+        # Legacy parameters (backward compatibility with signals.yaml)
         self.volume_spike_min_ratio = self.config.get("volume_spike_min_ratio", 1.5)
         self.volume_lookback_periods = self.config.get("volume_lookback_periods", 24)
         self.breakout_lookback_bars = self.config.get("breakout_lookback_bars", 24)
@@ -76,8 +99,8 @@ class TriggerEngine:
             "bull": 1.2, "chop": 1.0, "bear": 0.8, "crash": 0.0
         })
         
-        logger.info(f"Initialized TriggerEngine (volume_ratio={self.volume_spike_min_ratio}, "
-                   f"breakout_bars={self.breakout_lookback_bars})")
+        logger.info(f"Initialized TriggerEngine (pct_15m={self.pct_15m}%, pct_60m={self.pct_60m}%, "
+                   f"vol_ratio_1h={self.ratio_1h_vs_24h}x, lookback={self.lookback_hours}h)")
     
     def scan(self, assets: List[UniverseAsset], 
              regime: str = "chop") -> List[TriggerSignal]:
@@ -105,6 +128,11 @@ class TriggerEngine:
                 
                 # Check various trigger types
                 triggers = []
+                
+                # Price move (spec-compliant: 15m/60m thresholds)
+                price_move_trigger = self._check_price_move(asset, candles)
+                if price_move_trigger:
+                    triggers.append(price_move_trigger)
                 
                 # Volume spike
                 vol_trigger = self._check_volume_spike(asset, candles)
@@ -139,41 +167,109 @@ class TriggerEngine:
         logger.info(f"Found {len(signals)} triggers")
         return signals
     
+    def _check_price_move(self, asset: UniverseAsset, 
+                          candles: List[OHLCV]) -> Optional[TriggerSignal]:
+        """
+        Check for significant price moves (spec-compliant: 15m/60m thresholds).
+        
+        Triggers on:
+        - |Δprice_15m| >= pct_15m (default 3.5%)
+        - |Δprice_60m| >= pct_60m (default 6.0%)
+        """
+        if len(candles) < 60:
+            return None
+        
+        current_price = candles[-1].close
+        
+        # 15-minute move (15 bars ago with 1h candles)
+        # Note: With 1h candles, we can't get true 15m moves, so we use closest approximation
+        # For now, use 1h candle as proxy for short-term move
+        price_1h_ago = candles[-2].close if len(candles) >= 2 else current_price
+        move_1h = abs((current_price - price_1h_ago) / price_1h_ago * 100)
+        
+        # 60-minute move is just the 1h candle move
+        price_60m_ago = candles[-2].close if len(candles) >= 2 else current_price
+        move_60m = abs((current_price - price_60m_ago) / price_60m_ago * 100)
+        
+        # For better 15m detection, check last 4h for any large single-hour move
+        max_1h_move = 0.0
+        if len(candles) >= 5:
+            for i in range(1, 5):  # Check last 4 hours
+                prev_price = candles[-(i+1)].close
+                curr_price = candles[-i].close
+                move = abs((curr_price - prev_price) / prev_price * 100)
+                max_1h_move = max(max_1h_move, move)
+        
+        # Check 15m threshold (using max 1h move as proxy)
+        triggered_15m = max_1h_move >= self.pct_15m
+        
+        # Check 60m threshold  
+        triggered_60m = move_60m >= self.pct_60m
+        
+        if not (triggered_15m or triggered_60m):
+            return None
+        
+        # Determine which triggered and build reason
+        if triggered_15m and triggered_60m:
+            reason = f"Price move {max_1h_move:.1f}% (1h) - exceeds both thresholds"
+            strength = 0.8
+            confidence = 0.85
+            move_pct = max_1h_move
+        elif triggered_15m:
+            reason = f"Sharp price move {max_1h_move:.1f}% (1h) - exceeds {self.pct_15m}% threshold"
+            strength = 0.6
+            confidence = 0.7
+            move_pct = max_1h_move
+        else:  # triggered_60m
+            reason = f"Sustained price move {move_60m:.1f}% (60m) - exceeds {self.pct_60m}% threshold"
+            strength = 0.7
+            confidence = 0.75
+            move_pct = move_60m
+        
+        return TriggerSignal(
+            symbol=asset.symbol,
+            trigger_type="price_move",
+            strength=strength,
+            confidence=confidence,
+            reason=reason,
+            timestamp=datetime.utcnow(),
+            current_price=current_price,
+            price_change_pct=move_pct
+        )
+    
     def _check_volume_spike(self, asset: UniverseAsset, 
                            candles: List[OHLCV]) -> Optional[TriggerSignal]:
         """
-        Check for volume spike (current volume vs average).
+        Check for volume spike (spec: 1h volume vs 24h average).
         
-        Signal strength = volume ratio - 1.0
+        Uses policy.yaml triggers.volume_spike.ratio_1h_vs_24h (default 1.8x)
         """
         if len(candles) < 24:
             return None
         
-        # Current volume (last candle)
+        # Current 1h volume (last candle)
         current_volume = candles[-1].volume
         
-        # Average volume (using config-driven lookback)
-        lookback = self.volume_lookback_periods
-        if len(candles) >= lookback * 2:
-            historical_candles = candles[-(lookback*2):-lookback]
+        # Calculate 24h average hourly volume (spec-compliant)
+        if len(candles) >= 24:
+            # Use last 24 hours for average
+            volume_24h = sum(c.volume for c in candles[-24:])
+            avg_hourly = volume_24h / 24
         else:
-            historical_candles = candles[:-lookback] if len(candles) > lookback else candles[:len(candles)//2]
+            # Fallback for insufficient data
+            avg_hourly = sum(c.volume for c in candles) / len(candles)
         
-        if not historical_candles:
+        if avg_hourly == 0:
             return None
         
-        avg_volume = sum(c.volume for c in historical_candles) / len(historical_candles)
+        # Calculate ratio: 1h / avg_hourly (spec: ratio_1h_vs_24h)
+        volume_ratio = current_volume / avg_hourly
         
-        if avg_volume == 0:
+        # Use spec-compliant threshold from policy.yaml (default 1.8x)
+        if volume_ratio < self.ratio_1h_vs_24h:
             return None
         
-        volume_ratio = current_volume / avg_volume
-        
-        # Use config-driven threshold
-        if volume_ratio < self.volume_spike_min_ratio:
-            return None
-        
-        # Strength: 1.3x = 0.1, 2.0x = 0.4, 3.0x = 0.6, 4.0x+ = 1.0
+        # Strength: 1.8x = 0.27, 2.0x = 0.33, 3.0x = 0.67, 4.0x+ = 1.0
         strength = min((volume_ratio - 1.0) / 3.0, 1.0)
         
         # Confidence: Higher for bigger spikes
@@ -184,7 +280,7 @@ class TriggerEngine:
             trigger_type="volume_spike",
             strength=strength,
             confidence=confidence,
-            reason=f"Volume {volume_ratio:.2f}x average (${current_volume:,.0f} vs ${avg_volume:,.0f})",
+            reason=f"Volume {volume_ratio:.2f}x avg hourly (1h: ${current_volume:,.0f} vs 24h avg: ${avg_hourly:,.0f})",
             timestamp=datetime.utcnow(),
             current_price=candles[-1].close,
             volume_ratio=volume_ratio
@@ -193,27 +289,30 @@ class TriggerEngine:
     def _check_breakout(self, asset: UniverseAsset, 
                        candles: List[OHLCV]) -> Optional[TriggerSignal]:
         """
-        Check for price breakout (new high or recovering from low).
+        Check for price breakout (spec: new high/low within lookback period).
+        
+        Uses policy.yaml triggers.breakout.lookback_hours (default 24)
         """
-        # Changed to 24h lookback (was 7d - align with trading_parameters.md)
-        if len(candles) < 24:
+        # Use spec-compliant lookback from policy.yaml
+        lookback = self.lookback_hours
+        if len(candles) < lookback:
             return None
         
         current_price = candles[-1].close
         
-        # Get 24-hour range (was 7-day)
-        high_24h = max(c.high for c in candles[-24:])
-        low_24h = min(c.low for c in candles[-24:])
-        range_24h = high_24h - low_24h
+        # Get high/low over lookback period
+        high_lookback = max(c.high for c in candles[-lookback:])
+        low_lookback = min(c.low for c in candles[-lookback:])
+        range_lookback = high_lookback - low_lookback
         
-        if range_24h == 0:
+        if range_lookback == 0:
             return None
         
         # Check if breaking to new high
-        if current_price >= high_24h * 0.995:  # Within 0.5% of high
+        if current_price >= high_lookback * 0.995:  # Within 0.5% of high
             strength = 0.7
             confidence = 0.8
-            reason = f"Breaking 24h high (${current_price:,.2f} near ${high_24h:,.2f})"
+            reason = f"Breaking {lookback}h high (${current_price:,.2f} near ${high_lookback:,.2f})"
             
             return TriggerSignal(
                 symbol=asset.symbol,
@@ -223,17 +322,17 @@ class TriggerEngine:
                 reason=reason,
                 timestamp=datetime.utcnow(),
                 current_price=current_price,
-                price_change_pct=(current_price - low_24h) / low_24h * 100
+                price_change_pct=(current_price - low_lookback) / low_lookback * 100
             )
         
         # Check if recovering from low (V-shape)
-        if current_price <= low_24h * 1.10:  # Within 10% of low
+        if current_price <= low_lookback * 1.10:  # Within 10% of low
             # Check if we bounced at least 5% from the low
-            recovery_pct = (current_price - low_24h) / low_24h
+            recovery_pct = (current_price - low_lookback) / low_lookback
             if recovery_pct > 0.05:
                 strength = min(recovery_pct / 0.20, 1.0)  # 20% recovery = max strength
                 confidence = 0.6
-                reason = f"Recovering from 24h low (+{recovery_pct*100:.1f}% from ${low_24h:,.2f})"
+                reason = f"Recovering from {lookback}h low (+{recovery_pct*100:.1f}% from ${low_lookback:,.2f})"
                 
                 return TriggerSignal(
                     symbol=asset.symbol,
