@@ -807,6 +807,64 @@ class CoinbaseExchange:
             logger.error(f"Batch cancel failed: {e}")
             return {"success": False, "error": str(e), "order_ids": order_ids}
     
+    def list_fills(self, order_id: Optional[str] = None, product_id: Optional[str] = None,
+                  limit: int = 100, start_time: Optional[datetime] = None) -> List[dict]:
+        """
+        List order fills (completed trades).
+        
+        Args:
+            order_id: Filter by specific order ID
+            product_id: Filter by trading pair (e.g., "BTC-USD")
+            limit: Max fills to return (1-1000, default 100)
+            start_time: Only return fills after this time
+            
+        Returns:
+            List of fill dicts with:
+                - entry_id: Fill ID
+                - trade_id: Trade ID
+                - order_id: Order ID
+                - trade_time: ISO8601 timestamp
+                - trade_type: "FILL"
+                - price: Fill price
+                - size: Fill size (base currency)
+                - commission: Fee paid
+                - product_id: Trading pair
+                - sequence_timestamp: Order sequence time
+                - liquidity_indicator: "MAKER" or "TAKER"
+                - size_in_quote: Fill size in quote currency
+                - user_id: User ID
+                - side: "BUY" or "SELL"
+        """
+        if self.read_only and not self.api_key:
+            logger.info("READ_ONLY: would list fills")
+            return []
+        
+        try:
+            self._rate_limit("fills")
+            
+            # Build query parameters
+            query_params = {}
+            if order_id:
+                query_params["order_id"] = order_id
+            if product_id:
+                query_params["product_id"] = product_id
+            if limit:
+                query_params["limit"] = min(max(1, limit), 1000)
+            if start_time:
+                # Coinbase expects RFC3339 format
+                query_params["start_sequence_timestamp"] = start_time.isoformat()
+            
+            # Use list_fills endpoint
+            resp = self._req("GET", "/orders/fills", query=query_params, authenticated=True)
+            
+            fills = resp.get("fills", [])
+            logger.debug(f"Retrieved {len(fills)} fills" + (f" for order {order_id}" if order_id else ""))
+            return fills
+            
+        except Exception as e:
+            logger.warning(f"list_fills failed: {e}")
+            return []
+    
     def _round_to_increment(self, qty: float, increment: Optional[str], product_id: str) -> str:
         """Round quantity down to exchange-defined base increment."""
         try:

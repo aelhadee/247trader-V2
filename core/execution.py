@@ -12,7 +12,7 @@ import uuid
 import hashlib
 from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import logging
 
 from core.exchange_coinbase import CoinbaseExchange, get_exchange
@@ -1616,6 +1616,179 @@ class ExecutionEngine:
                 break
         
         return results
+
+    # ===== Fill reconciliation =====
+    def reconcile_fills(self, lookback_minutes: int = 60) -> Dict[str, Any]:
+        """
+        Poll fills from exchange and reconcile with order states and positions.
+        
+        Strategy:
+        1. Fetch recent fills from exchange (lookback window)
+        2. Match fills to tracked orders in OrderStateMachine
+        3. Update fill details (filled_size, fees, prices)
+        4. Transition orders to appropriate states (PARTIAL_FILL, FILLED)
+        5. Update StateStore with fill details
+        6. Return reconciliation summary
+        
+        Args:
+            lookback_minutes: How far back to query fills (default: 60 minutes)
+            
+        Returns:
+            Dict with:
+                - fills_processed: int
+                - orders_updated: int
+                - total_fees: float
+                - fills_by_symbol: Dict[str, int]
+                - unmatched_fills: List[dict] (fills with no tracked order)
+        """
+        if self.mode == "DRY_RUN":
+            return {"fills_processed": 0, "orders_updated": 0, "total_fees": 0.0}
+        
+        try:
+            # Calculate lookback time
+            start_time = datetime.now(timezone.utc) - timedelta(minutes=lookback_minutes)
+            
+            # Fetch fills from exchange
+            fills = self.exchange.list_fills(limit=1000, start_time=start_time)
+            
+            if not fills:
+                logger.debug("No fills to reconcile")
+                return {"fills_processed": 0, "orders_updated": 0, "total_fees": 0.0}
+            
+            logger.info(f"Reconciling {len(fills)} fills from last {lookback_minutes} minutes")
+            
+            # Track reconciliation stats
+            fills_processed = 0
+            orders_updated = set()
+            total_fees = 0.0
+            fills_by_symbol = {}
+            unmatched_fills = []
+            
+            for fill in fills:
+                fills_processed += 1
+                
+                # Extract fill details
+                order_id = fill.get("order_id")
+                product_id = fill.get("product_id", "")
+                price = float(fill.get("price", 0))
+                size = float(fill.get("size", 0))
+                commission = float(fill.get("commission", 0))
+                side = fill.get("side", "").upper()
+                trade_time = fill.get("trade_time", "")
+                
+                # Track fees
+                total_fees += commission
+                
+                # Track fills by symbol
+                fills_by_symbol[product_id] = fills_by_symbol.get(product_id, 0) + 1
+                
+                # Find matching order in state machine
+                # We need to search by order_id since fills use exchange order_id
+                matching_order = None
+                for client_id, order_state in self.order_state_machine.orders.items():
+                    if order_state.order_id == order_id:
+                        matching_order = (client_id, order_state)
+                        break
+                
+                if not matching_order:
+                    logger.debug(f"No tracked order for fill: {order_id} ({product_id})")
+                    unmatched_fills.append(fill)
+                    continue
+                
+                client_id, order_state = matching_order
+                orders_updated.add(client_id)
+                
+                # Calculate fill value
+                fill_value = size * price
+                
+                # Update order state with fill details
+                current_filled = order_state.filled_size or 0.0
+                current_filled_value = order_state.filled_value or 0.0
+                current_fees = order_state.fees or 0.0
+                
+                new_filled_size = current_filled + size
+                new_filled_value = current_filled_value + fill_value
+                new_fees = current_fees + commission
+                
+                # Store fill in order state
+                if not hasattr(order_state, 'fills') or order_state.fills is None:
+                    order_state.fills = []
+                order_state.fills.append(fill)
+                
+                # Update fill totals
+                self.order_state_machine.update_fill(
+                    client_order_id=client_id,
+                    filled_size=new_filled_size,
+                    filled_value=new_filled_value,
+                    fees=new_fees,
+                    fills=order_state.fills
+                )
+                
+                # Determine if order is fully filled
+                # For now, we'll transition to FILLED when we see a fill (most are instant fills)
+                # In a more sophisticated system, we'd check order_state.size_usd vs filled_value
+                if order_state.status not in [OrderStatus.FILLED.value, OrderStatus.PARTIAL_FILL.value]:
+                    # Check if this is a partial or complete fill
+                    if order_state.size_usd and new_filled_value < order_state.size_usd * 0.95:
+                        # Less than 95% filled = partial
+                        self.order_state_machine.transition(
+                            client_id,
+                            OrderStatus.PARTIAL_FILL,
+                            filled_size=new_filled_size,
+                            filled_value=new_filled_value
+                        )
+                        logger.debug(f"Order {client_id} partially filled: ${new_filled_value:.2f}/${order_state.size_usd:.2f}")
+                    else:
+                        # 95%+ filled = complete
+                        self.order_state_machine.transition(
+                            client_id,
+                            OrderStatus.FILLED,
+                            filled_size=new_filled_size,
+                            filled_value=new_filled_value
+                        )
+                        logger.info(f"Order {client_id} fully filled: ${new_filled_value:.2f}")
+                        
+                        # Close in state store
+                        if self.state_store:
+                            self._close_order_in_state_store(
+                                client_id,
+                                "filled",
+                                {
+                                    "order_id": order_id,
+                                    "client_order_id": client_id,
+                                    "product_id": product_id,
+                                    "filled_size": new_filled_size,
+                                    "filled_value": new_filled_value,
+                                    "fees": new_fees,
+                                    "fills": order_state.fills,
+                                    "trade_time": trade_time
+                                }
+                            )
+            
+            summary = {
+                "fills_processed": fills_processed,
+                "orders_updated": len(orders_updated),
+                "total_fees": total_fees,
+                "fills_by_symbol": fills_by_symbol,
+                "unmatched_fills": len(unmatched_fills)
+            }
+            
+            if fills_processed > 0:
+                logger.info(
+                    f"Fill reconciliation complete: {fills_processed} fills processed, "
+                    f"{len(orders_updated)} orders updated, ${total_fees:.4f} total fees"
+                )
+            
+            return summary
+            
+        except Exception as e:
+            logger.error(f"Fill reconciliation failed: {e}", exc_info=True)
+            return {
+                "fills_processed": 0,
+                "orders_updated": 0,
+                "total_fees": 0.0,
+                "error": str(e)
+            }
 
     # ===== Open order management =====
     def manage_open_orders(self) -> None:
