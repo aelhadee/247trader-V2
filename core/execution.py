@@ -3,9 +3,13 @@
 
 Order placement with preview, route selection, and idempotency.
 Ported from v1 with simplified logic for rules-first strategy.
+
+Includes deterministic client order ID generation to prevent duplicate
+submissions on network retries.
 """
 
 import uuid
+import hashlib
 from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -114,6 +118,48 @@ class ExecutionEngine:
             f"taker_fee={self.taker_fee_bps}bps)"
         )
     
+    def generate_client_order_id(self, symbol: str, side: str, size_usd: float, 
+                                  timestamp: Optional[datetime] = None) -> str:
+        """
+        Generate deterministic client order ID from trade proposal attributes.
+        
+        This ensures that retries of the same trade proposal generate the same ID,
+        enabling idempotent order submission and preventing duplicate orders on
+        network failures.
+        
+        Args:
+            symbol: Trading pair (e.g., "BTC-USD")
+            side: "BUY" or "SELL"
+            size_usd: Order size in USD
+            timestamp: Optional timestamp (defaults to now, truncated to minute)
+            
+        Returns:
+            Deterministic client order ID string
+            
+        Notes:
+            - Timestamp is truncated to minute granularity to allow brief retries
+            - Uses SHA256 hash for collision resistance
+            - Format: "coid_" prefix + 16 hex chars
+        """
+        if timestamp is None:
+            timestamp = datetime.now(timezone.utc)
+        
+        # Truncate timestamp to minute for brief retry window
+        ts_minute = timestamp.replace(second=0, microsecond=0)
+        ts_str = ts_minute.isoformat()
+        
+        # Round size to avoid floating point noise
+        size_rounded = round(size_usd, 2)
+        
+        # Build deterministic input string
+        input_str = f"{symbol}|{side.upper()}|{size_rounded}|{ts_str}"
+        
+        # Hash to deterministic ID
+        hash_obj = hashlib.sha256(input_str.encode('utf-8'))
+        hash_hex = hash_obj.hexdigest()[:16]  # First 16 chars for brevity
+        
+        return f"coid_{hash_hex}"
+    
     def estimate_fee(self, size_usd: float, is_maker: bool = True) -> float:
         """
         Estimate trading fee for a given order size.
@@ -169,6 +215,98 @@ class ExecutionEngine:
         """
         # To achieve min_notional_usd net after fees, we need slightly more gross
         return self.size_to_achieve_net(self.min_notional_usd, is_maker=is_maker)
+    
+    def round_to_increment(self, value: float, increment: float) -> float:
+        """
+        Round value down to nearest multiple of increment.
+        
+        Args:
+            value: Value to round
+            increment: Increment size (e.g., 0.00000001 for BTC)
+            
+        Returns:
+            Rounded value
+        """
+        if increment <= 0:
+            return value
+        return float(int(value / increment) * increment)
+    
+    def enforce_product_constraints(self, symbol: str, size_usd: float, price: float) -> dict:
+        """
+        Enforce Coinbase product constraints (increments, min size, min market funds).
+        
+        Args:
+            symbol: Trading pair (e.g., "BTC-USD")
+            size_usd: Desired order size in USD
+            price: Current price for size conversion
+            
+        Returns:
+            Dict with:
+                - success: bool
+                - adjusted_size_usd: float (rounded size)
+                - adjusted_size_base: float (rounded base quantity)
+                - error: Optional[str]
+        """
+        # Get product metadata from exchange
+        try:
+            metadata = self.exchange.get_product_metadata(symbol)
+        except Exception as e:
+            logger.warning(f"Failed to fetch product metadata for {symbol}: {e}")
+            # Fail open: return original size if metadata unavailable
+            return {
+                "success": True,
+                "adjusted_size_usd": size_usd,
+                "adjusted_size_base": size_usd / price if price > 0 else 0,
+                "warning": f"Product metadata unavailable: {e}"
+            }
+        
+        if not metadata:
+            logger.warning(f"No product metadata found for {symbol}")
+            return {
+                "success": True,
+                "adjusted_size_usd": size_usd,
+                "adjusted_size_base": size_usd / price if price > 0 else 0,
+                "warning": "No product metadata found"
+            }
+        
+        # Extract constraints
+        base_increment = float(metadata.get("base_increment") or 0)
+        quote_increment = float(metadata.get("quote_increment") or 0)
+        min_market_funds = float(metadata.get("min_market_funds") or 0)
+        
+        # Check minimum market funds
+        if min_market_funds > 0 and size_usd < min_market_funds:
+            return {
+                "success": False,
+                "error": f"Size ${size_usd:.2f} below exchange minimum ${min_market_funds:.2f}"
+            }
+        
+        # Calculate base size
+        base_size = size_usd / price if price > 0 else 0
+        
+        # Round to base increment if specified
+        if base_increment > 0:
+            rounded_base = self.round_to_increment(base_size, base_increment)
+            if rounded_base <= 0:
+                return {
+                    "success": False,
+                    "error": f"Rounded base size {rounded_base} too small (increment: {base_increment})"
+                }
+            base_size = rounded_base
+        
+        # Recalculate USD size from rounded base
+        adjusted_size_usd = base_size * price
+        
+        # Round to quote increment if specified
+        if quote_increment > 0:
+            adjusted_size_usd = self.round_to_increment(adjusted_size_usd, quote_increment)
+        
+        return {
+            "success": True,
+            "adjusted_size_usd": adjusted_size_usd,
+            "adjusted_size_base": base_size,
+            "metadata": metadata
+        }
     
     def _require_accounts(self, context: str) -> List[Dict]:
         try:
@@ -841,9 +979,12 @@ class ExecutionEngine:
         # Validate mode
         if self.mode == "DRY_RUN":
             logger.info(f"DRY_RUN: Would execute {side} ${size_usd:.2f} of {symbol}")
+            # Generate deterministic ID for dry run tracking
+            if not client_order_id:
+                client_order_id = self.generate_client_order_id(symbol, side, size_usd)
             return ExecutionResult(
                 success=True,
-                order_id=f"dry_run_{uuid.uuid4().hex[:8]}",
+                order_id=f"dry_run_{client_order_id}",
                 filled_size=0.0,
                 filled_price=0.0,
                 fees=0.0,
@@ -868,6 +1009,10 @@ class ExecutionEngine:
         """
         logger.info(f"PAPER: Simulating {side} ${size_usd:.2f} of {symbol}")
         
+        # Generate deterministic ID if not provided
+        if not client_order_id:
+            client_order_id = self.generate_client_order_id(symbol, side, size_usd)
+        
         try:
             # Get live quote
             quote = self.exchange.get_quote(symbol)
@@ -885,7 +1030,7 @@ class ExecutionEngine:
             
             return ExecutionResult(
                 success=True,
-                order_id=f"paper_{uuid.uuid4().hex[:8]}",
+                order_id=f"paper_{client_order_id}",
                 filled_size=filled_size,
                 filled_price=fill_price,
                 fees=fees,
@@ -920,9 +1065,9 @@ class ExecutionEngine:
         logger.warning(f"LIVE: Executing {side} ${size_usd:.2f} of {symbol}")
         generated_client_order_id = False
 
-        # Generate client order ID for idempotency
+        # Generate deterministic client order ID for idempotency
         if not client_order_id:
-            client_order_id = str(uuid.uuid4())
+            client_order_id = self.generate_client_order_id(symbol, side, size_usd)
             generated_client_order_id = True
 
         # Abort duplicate submissions when we already track an open order
@@ -948,6 +1093,36 @@ class ExecutionEngine:
             )
 
         try:
+            # Get current price for constraint enforcement
+            try:
+                quote = self.exchange.get_quote(symbol)
+                current_price = quote.mid
+            except Exception as e:
+                logger.warning(f"Failed to get quote for {symbol}: {e}")
+                current_price = 0
+            
+            # Enforce product constraints (increments, min size)
+            if current_price > 0:
+                constraints = self.enforce_product_constraints(symbol, size_usd, current_price)
+                if not constraints.get("success"):
+                    logger.warning(f"Product constraints failed for {symbol}: {constraints.get('error')}")
+                    return ExecutionResult(
+                        success=False,
+                        order_id=None,
+                        filled_size=0.0,
+                        filled_price=0.0,
+                        fees=0.0,
+                        slippage_bps=0.0,
+                        route="live_rejected",
+                        error=constraints.get("error", "Product constraints failed")
+                    )
+                
+                # Use adjusted size if constraints modified it
+                adjusted_size = constraints.get("adjusted_size_usd", size_usd)
+                if adjusted_size != size_usd:
+                    logger.info(f"Adjusted order size ${size_usd:.4f} → ${adjusted_size:.4f} for {symbol} (constraints)")
+                    size_usd = adjusted_size
+            
             # Preview first
             preview = self.preview_order(symbol, side, size_usd, skip_liquidity_checks=skip_liquidity_checks)
             if not preview.get("success"):

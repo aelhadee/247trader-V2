@@ -11,16 +11,16 @@ Legend: 🔴 TODO = work outstanding, 🟡 Pending Validation = feature coded bu
 | 🟢 Done | Count pending exposure (fills + open orders) toward per-asset/theme/total caps in risk checks. | N/A | RiskEngine now folds pending buy exposure into global/theme/position limits. |
 | 🟢 Done | Implement circuit breakers for data staleness, API flaps, exchange health, and crash regimes. | N/A | Circuit breakers in RiskEngine with policy.yaml config; tracks API errors, rate limits, exchange health. |
 | 🟢 Done | Wire a global kill switch (env/DB flag) that runner and executor honor immediately. | N/A | Kill switch via `data/KILL_SWITCH` file already exists and is checked in risk engine. |
-| � Done | Enforce per-symbol cooldowns after fills/stop-outs using `StateStore.cooldowns`. | N/A | RiskEngine.apply_symbol_cooldown() sets cooldowns; _filter_cooled_symbols() filters proposals; main_loop applies after SELL orders. |
-| 🔴 TODO | Make sizing fee-aware so Coinbase maker/taker fees are reflected in min notional and PnL math. | TBD | Prevents trading sizes where fees dominate. |
-| 🔴 TODO | Enforce Coinbase product constraints (base/quote increments, min size, min market funds) before submission. | TBD | Requires product metadata cache + rounding helpers. |
+| 🟢 Done | Enforce per-symbol cooldowns after fills/stop-outs using `StateStore.cooldowns`. | N/A | RiskEngine.apply_symbol_cooldown() sets cooldowns; _filter_cooled_symbols() filters proposals; main_loop applies after SELL orders. |
+| 🟢 Done | Make sizing fee-aware so Coinbase maker/taker fees are reflected in min notional and PnL math. | N/A | ExecutionEngine uses configurable maker (40bps) and taker (60bps) fees; provides estimate_fee(), size_after_fees(), size_to_achieve_net(), get_min_gross_size() helpers. |
+| � Done | Enforce Coinbase product constraints (base/quote increments, min size, min market funds) before submission. | N/A | ExecutionEngine.enforce_product_constraints() checks metadata and rounds sizes; integrated into _execute_live() before order placement. |
 | 🔴 TODO | Replace daily/weekly circuit-breaker inputs with realized PnL history pulled from exchange fills. | TBD | Current percent stops still rely on approximated deltas. |
 
 ## Order Management & Execution
 
 | Status | Task | Owner | Notes |
 | ------ | ---- | ----- | ----- |
-| 🔴 TODO | Generate deterministic client order IDs per proposal and dedupe retries. | TBD | Prevents duplicate submissions on network retries. |
+| � Done | Generate deterministic client order IDs per proposal and dedupe retries. | N/A | ExecutionEngine.generate_client_order_id() creates SHA256-based IDs from symbol/side/size/timestamp (minute granularity); prevents duplicate orders on retries; StateStore deduplication working. |
 | 🔴 TODO | Implement explicit order state machine (`NEW → PARTIAL → FILLED | CANCELED | EXPIRED`) with timers. | TBD | Needed for telemetry and reconciliation. |
 | 🔴 TODO | Auto-cancel stale post-only orders and re-quote at most *K* times per policy. | TBD | `manage_open_orders` cancels but does not re-quote today. |
 | 🔴 TODO | Poll fills each cycle and reconcile positions/fees before updating risk exposure. | TBD | Post-trade refresh exists but still assumes fill snapshots. |
