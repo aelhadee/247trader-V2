@@ -48,7 +48,6 @@ class Quote:
 
 
 @dataclass
-@dataclass
 class OrderbookSnapshot:
     """Orderbook depth snapshot"""
     symbol: str
@@ -664,6 +663,82 @@ class CoinbaseExchange:
             logger.warning(f"PLACING MARKET ORDER: {side} {quote_size_usd} USD of {product_id}")
         
         return self._req("POST", "/orders", body, authenticated=True)
+    
+    # ========== Convert API (Crypto-to-Crypto) ==========
+    
+    def create_convert_quote(self, from_account: str, to_account: str, amount: str) -> dict:
+        """
+        Create a convert quote for crypto-to-crypto conversion.
+        
+        Args:
+            from_account: Source account UUID
+            to_account: Target account UUID
+            amount: Amount in source currency
+            
+        Returns:
+            Quote response with trade_id, exchange_rate, fees
+        """
+        if self.read_only:
+            logger.warning("Read-only mode - would request convert quote")
+            return {"trade": {"id": "dry-run", "status": "PREVIEW"}}
+        
+        self._rate_limit("convert_quote")
+        
+        body = {
+            "from_account": from_account,
+            "to_account": to_account,
+            "amount": amount
+        }
+        
+        logger.info(f"Creating convert quote: {amount} from {from_account[:8]}... to {to_account[:8]}...")
+        return self._req("POST", "/convert/quote", body, authenticated=True)
+    
+    def get_convert_trade(self, trade_id: str, from_account: str, to_account: str) -> dict:
+        """
+        Get status of a convert trade.
+        
+        Args:
+            trade_id: Trade ID from quote
+            from_account: Source account UUID
+            to_account: Target account UUID
+            
+        Returns:
+            Trade status response
+        """
+        self._rate_limit("convert_status")
+        
+        params = {
+            "from_account": from_account,
+            "to_account": to_account
+        }
+        
+        return self._req("GET", f"/convert/trade/{trade_id}", params=params, authenticated=True)
+    
+    def commit_convert_trade(self, trade_id: str, from_account: str, to_account: str) -> dict:
+        """
+        Execute a convert trade.
+        
+        Args:
+            trade_id: Trade ID from quote
+            from_account: Source account UUID
+            to_account: Target account UUID
+            
+        Returns:
+            Execution result
+        """
+        if self.read_only:
+            logger.warning("Read-only mode - would commit convert trade")
+            return {"trade": {"id": trade_id, "status": "DRY_RUN"}}
+        
+        self._rate_limit("convert_commit")
+        
+        body = {
+            "from_account": from_account,
+            "to_account": to_account
+        }
+        
+        logger.warning(f"COMMITTING CONVERT TRADE: {trade_id}")
+        return self._req("POST", f"/convert/trade/{trade_id}", body, authenticated=True)
 
 
 # Singleton instance

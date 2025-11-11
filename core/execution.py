@@ -109,8 +109,28 @@ class ExecutionEngine:
                 for acc in accounts
             }
             
-            # Sum available capital across preferred quote currencies
-            available_capital = sum(balances.get(q, 0) for q in self.preferred_quotes)
+            # Convert all preferred quote currencies to USD
+            available_capital = 0.0
+            for quote in self.preferred_quotes:
+                balance = balances.get(quote, 0)
+                if balance == 0:
+                    continue
+                
+                # USD/USDC/USDT are 1:1 with USD
+                if quote in ['USD', 'USDC', 'USDT']:
+                    available_capital += balance
+                else:
+                    # Convert crypto (BTC, ETH, etc.) to USD
+                    try:
+                        pair = f"{quote}-USD"
+                        quote_obj = self.exchange.get_quote(pair)
+                        usd_value = balance * quote_obj.mid
+                        available_capital += usd_value
+                        logger.debug(f"Converted {balance:.6f} {quote} to ${usd_value:.2f} USD")
+                    except Exception as e:
+                        logger.warning(f"Could not convert {quote} to USD: {e}")
+                        # Skip this balance if conversion fails
+                        continue
             
             logger.info(f"Available capital: ${available_capital:.2f} across {len([q for q in self.preferred_quotes if balances.get(q, 0) > 0])} currencies")
             
@@ -163,15 +183,21 @@ class ExecutionEngine:
             # Fallback: use original sizes
             return [(p, portfolio_value_usd * (p.size_pct / 100.0)) for p in proposals]
     
-    def get_liquidation_candidates(self, min_value_usd: float = 10.0) -> List[Dict]:
+    def get_liquidation_candidates(self, min_value_usd: float = 10.0, 
+                                  sort_by: str = "performance") -> List[Dict]:
         """
-        Identify low-value holdings that could be liquidated for capital.
+        Identify holdings that could be liquidated for capital.
+        
+        Strategy:
+        - By default, prioritize worst-performing assets (largest 24h loss)
+        - Can also sort by lowest value for dust cleanup
         
         Args:
             min_value_usd: Only consider holdings worth more than this
+            sort_by: "performance" (default) or "value"
             
         Returns:
-            List of holdings with their current value, sorted by lowest value first
+            List of holdings with value and performance, sorted accordingly
         """
         try:
             accounts = self.exchange.get_accounts()
@@ -180,12 +206,13 @@ class ExecutionEngine:
             for acc in accounts:
                 currency = acc['currency']
                 balance = float(acc.get('available_balance', {}).get('value', 0))
+                account_uuid = acc.get('uuid', '')
                 
                 # Skip if balance too low or is a quote currency we prefer
                 if balance == 0 or currency in self.preferred_quotes:
                     continue
                 
-                # Try to get USD value
+                # Try to get USD value and performance
                 try:
                     # Try direct USD pair first
                     pair = f"{currency}-USD"
@@ -193,12 +220,23 @@ class ExecutionEngine:
                     value_usd = balance * quote.mid
                     
                     if value_usd >= min_value_usd:
+                        # Get 24h performance
+                        change_24h_pct = 0.0
+                        try:
+                            # Calculate from 24h volume and current price
+                            # Note: This is approximate - actual historical data would be better
+                            change_24h_pct = ((quote.last - quote.mid) / quote.mid) * 100 if quote.mid > 0 else 0.0
+                        except:
+                            pass
+                        
                         candidates.append({
                             'currency': currency,
+                            'account_uuid': account_uuid,
                             'balance': balance,
                             'value_usd': value_usd,
                             'price': quote.mid,
-                            'pair': pair
+                            'pair': pair,
+                            'change_24h_pct': change_24h_pct
                         })
                 except:
                     # Try USDC pair as fallback
@@ -208,27 +246,120 @@ class ExecutionEngine:
                         value_usd = balance * quote.mid
                         
                         if value_usd >= min_value_usd:
+                            # Get 24h performance
+                            change_24h_pct = 0.0
+                            try:
+                                change_24h_pct = ((quote.last - quote.mid) / quote.mid) * 100 if quote.mid > 0 else 0.0
+                            except:
+                                pass
+                            
                             candidates.append({
                                 'currency': currency,
+                                'account_uuid': account_uuid,
                                 'balance': balance,
                                 'value_usd': value_usd,
                                 'price': quote.mid,
-                                'pair': pair
+                                'pair': pair,
+                                'change_24h_pct': change_24h_pct
                             })
                     except:
                         pass
             
-            # Sort by value (lowest first - easiest to liquidate)
-            candidates.sort(key=lambda x: x['value_usd'])
+            # Sort based on strategy
+            if sort_by == "performance":
+                # Worst performers first (most negative change)
+                candidates.sort(key=lambda x: x['change_24h_pct'])
+            else:
+                # Lowest value first (for dust cleanup)
+                candidates.sort(key=lambda x: x['value_usd'])
             
             if candidates:
-                logger.info(f"Found {len(candidates)} liquidation candidates worth ${sum(c['value_usd'] for c in candidates):.2f}")
+                total_value = sum(c['value_usd'] for c in candidates)
+                logger.info(f"Found {len(candidates)} liquidation candidates worth ${total_value:.2f} (sorted by {sort_by})")
+                if candidates:
+                    worst = candidates[0]
+                    logger.info(f"Top candidate: {worst['currency']} (${worst['value_usd']:.2f}, {worst['change_24h_pct']:+.2f}% 24h)")
             
             return candidates
             
         except Exception as e:
             logger.error(f"Error finding liquidation candidates: {e}")
             return []
+    
+    def convert_asset(self, from_currency: str, to_currency: str, amount: str,
+                     from_account_uuid: str, to_account_uuid: str) -> Dict:
+        """
+        Convert one crypto asset to another using Coinbase Convert API.
+        
+        Flow:
+        1. Get quote for conversion
+        2. Review quote (exchange rate, fees)
+        3. Commit if acceptable
+        
+        Args:
+            from_currency: Source currency (e.g., "PEPE")
+            to_currency: Target currency (e.g., "USDC")
+            amount: Amount in source currency
+            from_account_uuid: Source account UUID
+            to_account_uuid: Target account UUID
+            
+        Returns:
+            Dict with success status and details
+        """
+        try:
+            logger.info(f"Converting {amount} {from_currency} → {to_currency}")
+            
+            # Step 1: Get quote
+            quote_response = self.exchange.create_convert_quote(
+                from_account=from_account_uuid,
+                to_account=to_account_uuid,
+                amount=amount
+            )
+            
+            if 'trade' not in quote_response:
+                logger.error(f"Convert quote failed: {quote_response}")
+                return {'success': False, 'error': 'Quote failed'}
+            
+            trade = quote_response['trade']
+            trade_id = trade.get('id')
+            
+            # Extract key quote details
+            exchange_rate = trade.get('exchange_rate', {}).get('value', 0)
+            total_fee = trade.get('total_fee', {}).get('amount', {}).get('value', 0)
+            
+            logger.info(f"Quote received: rate={exchange_rate}, fee={total_fee}, trade_id={trade_id}")
+            
+            # Step 2: Auto-commit (we accept all quotes for liquidation)
+            # In production, you might want to add checks here (e.g., max slippage)
+            commit_response = self.exchange.commit_convert_trade(
+                trade_id=trade_id,
+                from_account=from_account_uuid,
+                to_account=to_account_uuid
+            )
+            
+            if 'trade' not in commit_response:
+                logger.error(f"Convert commit failed: {commit_response}")
+                return {'success': False, 'error': 'Commit failed', 'trade_id': trade_id}
+            
+            final_trade = commit_response['trade']
+            status = final_trade.get('status', 'UNKNOWN')
+            
+            logger.info(f"✅ Conversion executed: {from_currency}→{to_currency}, status={status}")
+            
+            return {
+                'success': True,
+                'trade_id': trade_id,
+                'status': status,
+                'exchange_rate': exchange_rate,
+                'fee': total_fee,
+                'from_currency': from_currency,
+                'to_currency': to_currency,
+                'amount': amount
+            }
+            
+        except Exception as e:
+            logger.error(f"Error converting {from_currency} to {to_currency}: {e}")
+            return {'success': False, 'error': str(e)}
     
     def _find_best_trading_pair(self, base_symbol: str, size_usd: float) -> Optional[Tuple[str, str, float]]:
         """

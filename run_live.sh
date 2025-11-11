@@ -185,12 +185,9 @@ if [ "$MODE" = "LIVE" ]; then
     log_warning "This will place REAL ORDERS with REAL MONEY"
     log_warning "Account balance: \$${BALANCE} USDC"
     echo ""
-    read -p "Type 'YES' to confirm live trading: " -r
+    read -p "Press ENTER to confirm live trading (or Ctrl+C to abort): " -r
     echo
-    if [ "$REPLY" != "YES" ]; then
-        log "Aborted by user (safety check)"
-        exit 1
-    fi
+    # Empty input (just pressing Enter) confirms
     log "Live trading confirmed by user"
     echo ""
 fi

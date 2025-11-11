@@ -119,7 +119,6 @@ class RiskEngine:
             return RiskCheckResult(
                 approved=True,
                 reason="No proposals to evaluate",
-                approved_checks=[],
                 approved_proposals=[]
             )
         
