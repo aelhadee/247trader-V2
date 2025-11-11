@@ -194,9 +194,18 @@ class TestClientOrderIdIntegration:
     @patch('core.execution.get_exchange')
     def test_live_uses_deterministic_id(self, mock_get_exchange):
         """LIVE mode should use deterministic IDs"""
+        from datetime import datetime, timezone
+        
         mock_exchange = Mock()
         mock_exchange.read_only = False
-        mock_exchange.get_quote.return_value = Mock(mid=50000, ask=50010, bid=49990, spread_bps=20)
+        mock_quote = Mock(
+            mid=50000,
+            ask=50010,
+            bid=49990,
+            spread_bps=20,
+            timestamp=datetime.now(timezone.utc)
+        )
+        mock_exchange.get_quote.return_value = mock_quote
         mock_exchange.list_accounts.return_value = []
         mock_exchange.get_product_metadata.return_value = {
             "base_increment": "0.00000001",
