@@ -633,32 +633,47 @@ class RiskEngine:
         Reads strategy.max_open_positions from policy.yaml (default 8).
         """
         strategy_cfg = self.policy.get("strategy", {})
-        max_open = int(strategy_cfg.get("max_open_positions", 8) or 0)
-        max_new_cycle_raw = strategy_cfg.get("max_new_positions_per_cycle")
-        prefer_adds = bool(strategy_cfg.get("prefer_add_to_existing", True))
-
         risk_cfg = self.risk_config
+
+        def _to_int(value, default: int) -> int:
+            try:
+                parsed = int(value)
+            except (TypeError, ValueError):
+                return default
+            return parsed
+
+        max_open = _to_int(
+            risk_cfg.get("max_open_positions", strategy_cfg.get("max_open_positions", 8)),
+            8,
+        )
+
+        max_new_cycle = risk_cfg.get("max_new_symbols_per_cycle", strategy_cfg.get("max_new_positions_per_cycle"))
+        max_new_cycle = _to_int(max_new_cycle, max_open) if max_new_cycle is not None else None
+
+        prefer_adds = bool(strategy_cfg.get("prefer_add_to_existing", True))
+        include_pending_orders = bool(risk_cfg.get("count_open_orders_in_cap", True))
+        allow_adds_when_over_cap = bool(risk_cfg.get("allow_adds_when_over_cap", True))
+
         min_trade_usd = float(risk_cfg.get("min_trade_notional_usd", 0.0) or 0.0)
         dust_threshold = float(risk_cfg.get("dust_threshold_usd", 0.0) or 0.0)
-        allow_adds_when_over_cap = bool(risk_cfg.get("allow_adds_when_over_cap", True))
-        include_pending_orders = bool(risk_cfg.get("count_open_orders_in_cap", True))
+        count_threshold = max(dust_threshold, min_trade_usd * 0.25, 1e-6)
 
-        # Threshold used to decide whether a holding materially consumes a slot
-        count_threshold = max(min_trade_usd * 0.25, dust_threshold, 1e-6)
+        def _normalize_symbol(symbol: str) -> str:
+            if not symbol:
+                return symbol
+            return symbol if "-" in symbol else f"{symbol}-USD"
 
-        meaningful_symbols: set[str] = set()
-        dust_symbols: set[str] = set()
+        # Identify symbols already held (dust excluded from occupancy) and all existing holdings
+        held_symbols: set[str] = set()
+        existing_symbols: set[str] = set()
+        for symbol in portfolio.open_positions.keys():
+            normalized = _normalize_symbol(symbol)
+            existing_symbols.add(normalized)
+            usd_value = portfolio.get_position_usd(symbol)
+            if usd_value + 1e-9 >= count_threshold:
+                held_symbols.add(normalized)
 
-        for symbol in portfolio.open_positions:
-            value = portfolio.get_position_usd(symbol)
-            if value <= 0:
-                continue
-            if value + 1e-9 >= count_threshold:
-                meaningful_symbols.add(symbol)
-            else:
-                dust_symbols.add(symbol)
-
-        pending_symbols: set[str] = set()
+        pending_buy_symbols: set[str] = set()
         if include_pending_orders:
             pending_buy_orders = (portfolio.pending_orders or {}).get("buy", {})
             for pending_symbol, pending_value in pending_buy_orders.items():
@@ -666,29 +681,23 @@ class RiskEngine:
                     pending_notional = float(pending_value)
                 except (TypeError, ValueError):
                     continue
-                if pending_notional < count_threshold:
+                if pending_notional + 1e-9 < count_threshold:
                     continue
+                pending_buy_symbols.add(_normalize_symbol(pending_symbol))
 
-                normalized = pending_symbol if '-' in pending_symbol else f"{pending_symbol}-USD"
-                pending_symbols.add(normalized)
-
-        occupied_symbols = meaningful_symbols | pending_symbols
-        pending_new_count = len(pending_symbols - meaningful_symbols)
+        occupied_symbols = held_symbols | pending_buy_symbols
         current_open = len(occupied_symbols)
-        capacity = max_open - current_open
+        pending_new_count = len(pending_buy_symbols - held_symbols)
 
-        max_new_allowed = max(capacity, 0)
-        if max_new_cycle_raw is not None:
-            try:
-                max_new_allowed = min(max_new_allowed, int(max_new_cycle_raw))
-            except (TypeError, ValueError):
-                logger.warning("Invalid max_new_positions_per_cycle value: %s", max_new_cycle_raw)
+        available_slots = max(max_open - current_open, 0)
+        if max_new_cycle is not None:
+            available_slots = min(available_slots, max_new_cycle)
 
         approval_indices: set[int] = set()
         rejection_reasons: Dict[int, List[str]] = {}
-        candidate_new: List[Tuple[int, TradeProposal, float, int]] = []
-        existing_additions: List[Tuple[int, TradeProposal]] = []
-        existing_for_adds = meaningful_symbols | dust_symbols | pending_symbols
+
+        adds: List[Tuple[int, TradeProposal]] = []
+        new_candidates: List[Tuple[int, TradeProposal, float, int]] = []
 
         for idx, proposal in enumerate(proposals):
             side = (proposal.side or "BUY").upper()
@@ -696,44 +705,48 @@ class RiskEngine:
                 approval_indices.add(idx)
                 continue
 
-            symbol = proposal.symbol
-            if symbol in existing_for_adds:
-                existing_additions.append((idx, proposal))
-                continue
+            symbol = _normalize_symbol(proposal.symbol)
+            if symbol in existing_symbols:
+                adds.append((idx, proposal))
+            else:
+                confidence = float(getattr(proposal, "confidence", 0.0) or 0.0)
+                tier = getattr(proposal, "tier", 99) or 99
+                new_candidates.append((idx, proposal, confidence, tier))
 
-            candidate_new.append(
-                (
-                    idx,
-                    proposal,
-                    float(getattr(proposal, "confidence", 0.0) or 0.0),
-                    getattr(proposal, "tier", 99) or 99,
-                )
-            )
-
-        # Always allow adds when configured, otherwise require free slots
-        if existing_additions:
-            if allow_adds_when_over_cap or max_new_allowed > 0:
-                for idx, _ in existing_additions:
+        if adds:
+            if allow_adds_when_over_cap:
+                for idx, _ in adds:
                     approval_indices.add(idx)
             else:
-                for idx, _ in existing_additions:
-                    rejection_reasons.setdefault(idx, []).append("adds_blocked_when_over_cap")
+                slots_for_adds = available_slots
+                for idx, _ in adds:
+                    if slots_for_adds > 0:
+                        approval_indices.add(idx)
+                        slots_for_adds -= 1
+                    else:
+                        rejection_reasons.setdefault(idx, []).append("adds_blocked_when_over_cap")
 
-        if candidate_new:
-            if max_new_allowed <= 0:
-                for idx, proposal, _, _ in candidate_new:
+        slots_remaining = available_slots
+        if allow_adds_when_over_cap:
+            slots_remaining = available_slots  # adds do not consume slots when override enabled
+        else:
+            # Adds may have consumed slots_for_adds above; recompute to deduct approved adds
+            slots_remaining = available_slots - sum(1 for idx, _ in adds if idx in approval_indices)
+            slots_remaining = max(slots_remaining, 0)
+
+        if new_candidates:
+            if slots_remaining <= 0:
+                for idx, _, _, _ in new_candidates:
                     rejection_reasons.setdefault(idx, []).append("max_open_positions")
             else:
                 if prefer_adds:
-                    ranked_new = sorted(candidate_new, key=lambda item: (-item[2], item[3], item[0]))
+                    ranked = sorted(new_candidates, key=lambda item: (-item[2], item[3], item[0]))
                 else:
-                    ranked_new = sorted(candidate_new, key=lambda item: item[0])
+                    ranked = sorted(new_candidates, key=lambda item: item[0])
 
-                slots_remaining = max_new_allowed
                 active_snapshot = set(occupied_symbols)
-
-                for idx, proposal, _, _ in ranked_new:
-                    symbol = proposal.symbol
+                for idx, proposal, _, _ in ranked:
+                    symbol = _normalize_symbol(proposal.symbol)
                     if slots_remaining > 0 and symbol not in active_snapshot:
                         approval_indices.add(idx)
                         slots_remaining -= 1
@@ -741,9 +754,7 @@ class RiskEngine:
                     else:
                         rejection_reasons.setdefault(idx, []).append("max_open_positions")
 
-        filtered: List[TradeProposal] = [
-            proposal for idx, proposal in enumerate(proposals) if idx in approval_indices
-        ]
+        filtered: List[TradeProposal] = [proposal for idx, proposal in enumerate(proposals) if idx in approval_indices]
 
         proposal_rejections: Dict[str, List[str]] = {}
         for idx, reasons in rejection_reasons.items():
@@ -772,7 +783,7 @@ class RiskEngine:
                 current_open,
                 max_open,
                 pending_new_count,
-                max_new_allowed,
+                available_slots,
             )
 
         return RiskCheckResult(
