@@ -126,4 +126,3 @@ def test_external_exposure_counts_beyond_buffer(base_policy):
     result = risk._check_global_at_risk([proposal], portfolio)
     assert not result.approved
     assert "max_total_at_risk_pct" in result.violated_checks
-*** End of File
