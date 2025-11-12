@@ -332,10 +332,16 @@ class RiskEngine:
             )
             # Alert on stop loss hit
             if self.alert_service:
-                self.alert_service.send_alert(
-                    message=f"Daily stop loss triggered: {portfolio.daily_pnl_pct:.2f}% loss",
+                from infra.alerting import AlertSeverity
+                self.alert_service.notify(
                     severity=AlertSeverity.CRITICAL,
-                    tags=["risk", "stop_loss", "daily"]
+                    title="🛑 Daily Stop Loss Triggered",
+                    message=f"Daily PnL breached -{max_daily_loss_pct}% threshold, new trades blocked",
+                    context={
+                        "daily_pnl_pct": round(portfolio.daily_pnl_pct, 2),
+                        "threshold": -max_daily_loss_pct,
+                        "nav": round(portfolio.nav, 2)
+                    }
                 )
             return RiskCheckResult(
                 approved=False,
