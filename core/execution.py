@@ -130,6 +130,7 @@ class ExecutionEngine:
             or "247trader"
         )
         self.client_order_prefix = self._sanitize_client_prefix(str(raw_prefix))
+        self._convert_denylist: Set[Tuple[str, str]] = set()
 
         logger.info(
             f"Initialized ExecutionEngine (mode={self.mode}, min_notional=${self.min_notional_usd}, "
@@ -255,6 +256,12 @@ class ExecutionEngine:
         if self.client_order_prefix:
             return f"{self.client_order_prefix}_{base_id}"
         return base_id
+
+    def can_convert(self, from_currency: str, to_currency: str) -> bool:
+        """Return True if convert API should be attempted for the pair."""
+
+        pair = (from_currency.upper(), to_currency.upper())
+        return pair not in self._convert_denylist
     
     def estimate_fee(self, size_usd: float, is_maker: bool = True) -> float:
         """
