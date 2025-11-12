@@ -2601,10 +2601,13 @@ class ExecutionEngine:
                 fills_by_symbol[product_id] = fills_by_symbol.get(product_id, 0) + 1
                 
                 # Track position and calculate PnL
-                if (self.state_store and 
-                    hasattr(self.state_store, 'record_fill') and 
-                    callable(self.state_store.record_fill) and 
-                    product_id and side):
+                if (
+                    self.state_store
+                    and hasattr(self.state_store, "record_fill")
+                    and callable(self.state_store.record_fill)
+                    and product_id
+                    and side
+                ):
                     try:
                         # Parse timestamp
                         fill_timestamp = datetime.now(timezone.utc)
@@ -2613,24 +2616,32 @@ class ExecutionEngine:
                                 fill_timestamp = datetime.fromisoformat(trade_time.replace('Z', '+00:00'))
                             except (ValueError, AttributeError):
                                 pass
-                        
-                        self.state_store.record_fill(
-                            symbol=product_id,
-                            side=side,
-                            filled_size=base_size,
-                            fill_price=avg_price,
-                            fees=fees_value,
-                            timestamp=fill_timestamp,
-                            notional_usd=quote_value,
-                        )
-                        logger.debug(
-                            "Recorded fill for PnL: %s %s base=%.8f price=%.8f notional=%.8f",
-                            product_id,
-                            side,
-                            base_size,
-                            avg_price,
-                            quote_value,
-                        )
+
+                        if base_size > 0 and avg_price > 0:
+                            self.state_store.record_fill(
+                                symbol=product_id,
+                                side=side,
+                                filled_size=base_size,
+                                fill_price=avg_price,
+                                fees=fees_value,
+                                timestamp=fill_timestamp,
+                                notional_usd=quote_value,
+                            )
+                            logger.debug(
+                                "Recorded fill for PnL: %s %s base=%.8f price=%.8f notional=%.8f",
+                                product_id,
+                                side,
+                                base_size,
+                                avg_price,
+                                quote_value,
+                            )
+                        else:
+                            logger.debug(
+                                "Skipping fill record for %s due to non-positive base/price (base=%.8f, price=%.8f)",
+                                product_id,
+                                base_size,
+                                avg_price,
+                            )
                     except Exception as e:
                         logger.debug(f"Could not record fill for PnL tracking: {e}")
                         # Continue processing other fills
