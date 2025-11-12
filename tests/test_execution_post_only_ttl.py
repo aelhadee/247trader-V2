@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, Mock
 import pytest
 
 from core.execution import ExecutionEngine
-from core.order_state import get_order_state_machine
+from core.order_state import OrderStatus, get_order_state_machine
 
 
 @pytest.fixture(autouse=True)
@@ -118,8 +118,9 @@ def test_post_only_ttl_cancels_unfilled_order(monkeypatch: pytest.MonkeyPatch):
     assert "TTL" in (result.error or "")
     exchange.cancel_order.assert_called_once_with("ttl-test-1")
 
-    order_state = engine.order_state_machine.get_order(result.order_id or "")
-    assert order_state is None or order_state.is_terminal()
+    assert any(
+        order.status == OrderStatus.CANCELED.value for order in engine.order_state_machine.orders.values()
+    )
 
 
 def test_post_only_ttl_skips_when_filled(monkeypatch: pytest.MonkeyPatch):
