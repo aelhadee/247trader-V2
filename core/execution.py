@@ -761,7 +761,8 @@ class ExecutionEngine:
         """
         pair = (from_currency.upper(), to_currency.upper())
 
-        if self._convert_api_disabled:
+        available, retry_after = self._convert_api_available()
+        if not available:
             logger.debug(
                 "Convert API disabled; skipping convert %s→%s and falling back to spot routing",
                 pair[0],
@@ -772,6 +773,7 @@ class ExecutionEngine:
                 'error': 'convert_api_disabled',
                 'from_currency': from_currency,
                 'to_currency': to_currency,
+                'retry_after_seconds': retry_after,
             }
 
         if pair in self._convert_denylist:
