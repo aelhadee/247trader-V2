@@ -1251,9 +1251,9 @@ class TradingLoop:
                     risk_approved=[],
                     final_orders=[],
                     no_trade_reason=reason,
-            state_store=self.state_store,
-            risk_violations=risk_result.violated_checks,
-            proposal_rejections=risk_result.proposal_rejections,
+                    state_store=self.state_store,
+                    risk_violations=risk_result.violated_checks,
+                    proposal_rejections=risk_result.proposal_rejections,
                 )
                 return
             
