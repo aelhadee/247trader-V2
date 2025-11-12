@@ -46,8 +46,10 @@ def test_pending_orders_consume_capacity(base_policy):
 
     result = risk_engine._check_max_open_positions(proposals, portfolio)
 
-    assert not result.approved
-    assert any("max_open_positions" in check for check in result.violated_checks)
+    assert result.approved
+    assert result.filtered_proposals is not None
+    kept_symbols = {proposal.symbol for proposal in result.filtered_proposals}
+    assert kept_symbols == {"SOL-USD"}
 
 
 def test_capacity_respects_pending_new_slots(base_policy):
