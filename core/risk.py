@@ -641,16 +641,16 @@ class RiskEngine:
             multiplier = regime_settings.get("position_size_multiplier", 1.0)
             max_pos_pct *= multiplier
         
-        # Combine with existing exposure for BUY orders
+        # CRITICAL FIX: Check combined exposure (existing + pending + proposed) for BUY orders
+        # This ensures pending orders count toward per-symbol cap
         if proposal.side == "BUY":
             combined_pct = existing_exposure_pct + proposal.size_pct
             if combined_pct > max_pos_pct:
                 violated.append(
                     f"position_size_with_pending ({combined_pct:.1f}% > {max_pos_pct:.1f}% including pending buys)"
                 )
-
-        # Check max
-        if proposal.size_pct > max_pos_pct:
+        # For SELL orders, just check the proposal size alone
+        elif proposal.size_pct > max_pos_pct:
             violated.append(f"position_size_too_large ({proposal.size_pct:.1f}% > {max_pos_pct:.1f}%)")
         
         # Check min
