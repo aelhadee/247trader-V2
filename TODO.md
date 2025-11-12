@@ -1,0 +1,9 @@
+- [ ] Inspect current execution and risk code paths for logging, fill reconciliation, cancel handling, and open-position counting.
+- [ ] Write failing regression tests capturing base/quote fill mismatch, canceled→filled reconciliation, and risk cap counting of open orders.
+- [ ] Update execution engine logging to distinguish order placement from fills, and make cancel races tolerant.
+- [ ] Fix fill aggregation math and state persistence using base units and average price.
+- [ ] Extend risk engine to count open orders toward max position caps and add post-trade guard.
+- [ ] Adjust configuration defaults (TTL, min notional, new flags) and keep schema/tests/docs in sync.
+- [ ] Implement taker promotion gating and cancel retry/backoff scaffolding per new policy toggles.
+- [ ] Run full relevant test suite (pytest) to confirm fixes.
+- [ ] Prepare rollback guidance and update TODO checklist.
