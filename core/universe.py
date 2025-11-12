@@ -478,12 +478,21 @@ class UniverseManager:
         if quote.volume_24h < min_volume:
             # Check near-threshold override (only for T2)
             if override_enabled and tier == 2 and quote.volume_24h >= override_floor:
+                logger.info(
+                    f"OVERRIDE CHECK: {quote.symbol} in zone - "
+                    f"volume=${quote.volume_24h:,.0f} (${override_floor:,.0f}-${min_volume:,.0f}), "
+                    f"spread={quote.spread_bps:.1f}bps"
+                )
+                
                 # Asset is in override zone ($28.5M–$30M for T2)
                 # Check ALL strict rules:
                 
                 # 1) Spread tighter than normal
                 override_max_spread = override_config.get("max_spread_bps", 30)
                 if quote.spread_bps > override_max_spread:
+                    logger.warning(
+                        f"OVERRIDE REJECT: {quote.symbol} spread {quote.spread_bps:.1f}bps > {override_max_spread}bps"
+                    )
                     return False, f"Volume ${quote.volume_24h:,.0f} in override zone but spread {quote.spread_bps:.1f}bps > {override_max_spread}bps"
                 
                 # 2) Size-aware depth (12× order notional within ±0.5%)
