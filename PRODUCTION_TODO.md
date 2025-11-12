@@ -107,8 +107,8 @@ All 4 critical safety features implemented, tested, and production-ready:
 
 | Status | Task | Owner | Notes |
 | ------ | ---- | ----- | ----- |
-| 🔴 TODO | Load production alert webhook secrets, fire staging alert, and verify on-call routing. | TBD | Alert service exists but secrets and smoke test pending. |
-| 🔴 TODO | Build alert matrix (stop hits, reconcile mismatch, API failures, empty universe, order rejection, exception bursts). | TBD | Configure thresholds and integrate with `AlertService`. |
+| � Done | Load production alert webhook secrets, fire staging alert, and verify on-call routing. | N/A | Alert test script created (`scripts/test_alerts.py`). RiskEngine wired to AlertService (kill switch, stops, drawdown). See `docs/ALERT_SYSTEM_SETUP.md` for configuration and testing. |
+| � Pending Validation | Build alert matrix (stop hits, reconcile mismatch, API failures, empty universe, order rejection, exception bursts). | TBD | Critical alerts wired (kill switch, daily/weekly stop, max DD). Need to add: API errors, reconcile mismatch, order rejections. |
 | 🔴 TODO | Expose metrics for no_trade_reason, exposure, fill ratio, error rates, and latency. | TBD | Needed for dashboards and SLOs. |
 
 ## Config & Governance
