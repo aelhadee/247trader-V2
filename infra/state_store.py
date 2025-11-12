@@ -33,6 +33,7 @@ DEFAULT_STATE = {
     "last_reset_date": None,
     "last_reset_hour": None,
     "events": [],  # Recent events log
+    "high_water_mark": 0.0,  # Peak NAV for drawdown calculation
 }
 
 
