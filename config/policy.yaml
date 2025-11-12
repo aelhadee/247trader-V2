@@ -93,7 +93,8 @@ strategy:
   max_open_positions: 8             # cap simultaneous distinct holdings
 
   # Require at least this conviction from rules to emit a proposal
-  min_conviction_to_propose: 0.45    # 0..1 (below this = no trade)
+  # TUNED: Was 0.45 causing 15 triggers → 0 proposals. Lowered to 0.38 to target 1-4 proposals/cycle
+  min_conviction_to_propose: 0.38    # 0..1 (below this = no trade)
 
 microstructure:
   # Liquidity filters moved to top-level 'liquidity'; avoid duplication.
