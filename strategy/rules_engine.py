@@ -143,6 +143,7 @@ class RulesEngine:
         )
         
         proposals = []
+        min_conviction = self._min_conviction_threshold(regime)
         
         # Use minimum score from policy.yaml triggers section (spec requirement)
         # NOTE: This is trigger qualification, different from proposal conviction filter
@@ -188,18 +189,36 @@ class RulesEngine:
                 continue
             
             if proposal:
-                # Apply minimum conviction threshold (spec requirement)
-                if proposal.confidence >= self.min_conviction_to_propose:
+                conviction, breakdown = self._calculate_conviction(trigger, asset, proposal)
+                proposal.confidence = conviction
+                proposal.conviction_breakdown = breakdown
+                proposal.metadata["conviction_threshold"] = min_conviction
+                proposal.metadata["conviction_trigger_strength"] = trigger.strength
+                proposal.metadata["conviction_trigger_confidence"] = trigger.confidence
+                self._log_conviction(proposal, breakdown, min_conviction)
+
+                if conviction >= min_conviction:
                     proposals.append(proposal)
                     logger.info(
                         f"✓ Proposal: {proposal.side} {proposal.symbol} "
                         f"size={proposal.size_pct:.1f}% conf={proposal.confidence:.2f} reason='{proposal.reason}'"
                     )
                 else:
-                    logger.info(
-                        f"✗ Rejected: {proposal.symbol} conf={proposal.confidence:.2f} "
-                        f"< min_conviction={self.min_conviction_to_propose} reason='{proposal.reason}'"
+                    canary_proposal = self._try_canary(
+                        proposal=proposal,
+                        asset=asset,
+                        conviction=conviction,
+                        threshold=min_conviction,
+                        breakdown=breakdown,
+                        total_triggers=len(qualified_triggers)
                     )
+                    if canary_proposal:
+                        proposals.append(canary_proposal)
+                    else:
+                        logger.info(
+                            f"✗ Rejected: {proposal.symbol} conf={conviction:.2f} "
+                            f"< min_conviction={min_conviction:.2f} reason='min_conviction'"
+                        )
             else:
                 # Log why no proposal was created
                 logger.debug(
@@ -209,7 +228,7 @@ class RulesEngine:
         
         logger.info(
             f"Generated {len(proposals)} trade proposals "
-            f"(filtered by min_conviction={self.min_conviction_to_propose})"
+            f"(filtered by min_conviction={min_conviction:.2f})"
         )
         return proposals
     
