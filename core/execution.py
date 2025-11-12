@@ -1187,7 +1187,9 @@ class ExecutionEngine:
                 max_slippage_bps: Optional[str] = None,
                 force_order_type: Optional[str] = None,
                 skip_liquidity_checks: bool = False,
-                tier: Optional[int] = None) -> ExecutionResult:
+                tier: Optional[int] = None,
+                bypass_slippage_budget: bool = False,
+                bypass_failed_order_cooldown: bool = False) -> ExecutionResult:
         """
         Execute a trade.
         
@@ -1213,7 +1215,7 @@ class ExecutionEngine:
         base_symbol = symbol.split('-')[0] if '-' in symbol else symbol
         
         # Cooldown: skip if this symbol recently failed
-        if self.failed_order_cooldown_seconds > 0:
+        if not bypass_failed_order_cooldown and self.failed_order_cooldown_seconds > 0:
             now = datetime.utcnow().timestamp()
             last = self._last_fail.get(symbol.split('-')[0], 0)
             if last and (now - last) < self.failed_order_cooldown_seconds:
@@ -1316,7 +1318,17 @@ class ExecutionEngine:
         
         if self.mode == "LIVE":
             # Real execution
-            return self._execute_live(symbol, side, size_usd, client_order_id, max_slippage_bps, force_order_type, skip_liquidity_checks, tier)
+            return self._execute_live(
+                symbol,
+                side,
+                size_usd,
+                client_order_id,
+                max_slippage_bps,
+                force_order_type,
+                skip_liquidity_checks,
+                tier,
+                bypass_slippage_budget,
+            )
         
         raise ValueError(f"Invalid mode: {self.mode}")
     
