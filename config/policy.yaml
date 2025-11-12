@@ -84,9 +84,9 @@ liquidity:
     T3: 10_000                      # $10K floor for T3
   
   slippage_budget_bps:
-    T1: 20                          # Max 20bps total cost (slippage + fees) for T1
-    T2: 35                          # Max 35bps total cost for T2
-    T3: 60                          # Max 60bps total cost for T3
+    T1: 60                          # Maker fee 40bps + 20bps slippage buffer
+    T2: 95                          # Taker fee 60bps + 35bps buffer for moderate assets
+    T3: 120                         # Illiquid tails: 60bps fee + 60bps slippage allowance
   
   # Eligibility persistence (avoid thrashing)
   eligibility_persistence:
