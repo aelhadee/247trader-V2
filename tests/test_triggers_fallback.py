@@ -2,6 +2,8 @@
 
 from datetime import datetime, timedelta, timezone
 
+from typing import List
+
 from core.triggers import TriggerEngine
 from core.exchange_coinbase import OHLCV
 from core.universe import UniverseAsset
@@ -15,9 +17,9 @@ class _DummyExchange:
         return list(self._candles)
 
 
-def _build_candles(base_price: float = 100.0, move_pct: float = 1.2) -> list[OHLCV]:
+def _build_candles(base_price: float = 100.0, move_pct: float = 1.2) -> List[OHLCV]:
     """Generate hourly candles with a controlled last-hour move."""
-    candles: list[OHLCV] = []
+    candles: List[OHLCV] = []
     now = datetime.now(timezone.utc)
     for i in range(70):
         timestamp = now - timedelta(hours=69 - i)
