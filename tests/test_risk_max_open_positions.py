@@ -136,4 +136,4 @@ def test_rejection_reasons_surface_when_trimmed(base_policy):
     assert len(result.filtered_proposals) == 1
     assert hasattr(result, "proposal_rejections")
     assert "ADA-USD" in result.proposal_rejections
-    assert result.proposal_rejections["ADA-USD"]
+    assert "max_open_positions" in result.proposal_rejections["ADA-USD"]
