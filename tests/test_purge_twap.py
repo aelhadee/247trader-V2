@@ -1,0 +1,107 @@
+import datetime
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from core.execution import ExecutionResult
+from runner.main_loop import TradingLoop
+
+
+def _make_quote(price: float = 1.0):
+    """Helper to build a simple quote namespace."""
+    now = datetime.datetime.now(datetime.timezone.utc)
+    return SimpleNamespace(mid=price, bid=price, ask=price, timestamp=now)
+
+
+@pytest.mark.usefixtures("tmp_path")
+def test_purge_liquidation_uses_maker_limit_orders():
+    """Purge liquidation should route via maker TWAP with slippage guardrails."""
+    loop = TradingLoop.__new__(TradingLoop)
+
+    loop.mode = "LIVE"
+    loop.policy_config = {
+        "portfolio_management": {
+            "min_liquidation_value_usd": 0,
+            "max_liquidations_per_cycle": 1,
+            "purge_execution": {
+                "slice_usd": 15,
+                "replace_seconds": 1,
+                "max_duration_seconds": 5,
+                "poll_interval_seconds": 0.1,
+            },
+        },
+        "risk": {"min_trade_notional_usd": 5},
+        "execution": {},
+    }
+    loop.universe_config = {
+        "tiers": {
+            "tier_1_core": {"symbols": ["BAD-USD"]},
+            "tier_2_rotational": {"symbols": []},
+            "tier_3_event_driven": {"symbols": []},
+        }
+    }
+
+    loop._require_accounts = MagicMock(
+        return_value=[
+            {
+                "currency": "BAD",
+                "available_balance": {"value": "3"},
+                "hold": {"value": "0"},
+            }
+        ]
+    )
+
+    exchange = MagicMock()
+    exchange.get_quote.return_value = _make_quote(1.0)
+    exchange.get_order_status.return_value = {
+        "status": "FILLED",
+        "filled_size": "1.0",
+        "average_filled_price": "1.0",
+        "filled_value": "1.0",
+    }
+    exchange.list_fills.return_value = [
+        {
+            "size": "1.0",
+            "price": "1.0",
+            "commission": "0.0",
+            "size_in_quote": "1.0",
+            "side": "SELL",
+            "product_id": "BAD-USD",
+        }
+    ]
+    loop.exchange = exchange
+
+    order_state_machine = MagicMock()
+    loop.executor = MagicMock()
+    loop.executor.min_notional_usd = 5
+    loop.executor.generate_client_order_id = MagicMock(return_value="coid_test")
+    loop.executor.order_state_machine = order_state_machine
+    loop.executor._close_order_in_state_store = MagicMock()
+    loop.executor.exchange = exchange
+
+    execution_result = ExecutionResult(
+        success=True,
+        order_id="order-123",
+        filled_size=0.0,
+        filled_price=0.0,
+        fees=0.0,
+        slippage_bps=0.0,
+        route="live_limit_post_only",
+    )
+    loop.executor.execute.return_value = execution_result
+
+    universe = SimpleNamespace(
+        excluded_assets=["BAD-USD"],
+        get_all_eligible=lambda: [],
+    )
+
+    with patch("runner.main_loop.time.sleep", return_value=None):
+        loop._purge_ineligible_holdings(universe)
+
+    assert loop.executor.execute.call_count >= 1
+    for call in loop.executor.execute.call_args_list:
+        kwargs = call.kwargs
+        assert kwargs.get("force_order_type") == "limit_post_only"
+        assert kwargs.get("skip_liquidity_checks", False) is False
+        assert kwargs.get("tier") == 1
