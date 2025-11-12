@@ -121,6 +121,8 @@ strategy:
     tier3: 0.005                    # 0.5% NLV per Tier3 (if/when used)
 
   max_open_positions: 12            # cap simultaneous distinct holdings (raised from 8)
+  max_new_positions_per_cycle: 3    # limit new tickers per cycle to stay within capacity buffers
+  prefer_add_to_existing: true      # prioritize adds to existing holdings before opening fresh names
 
   # Require at least this conviction from rules to emit a proposal
   # TUNED: Loosened to 0.34 for chop regime (was 0.38). Allows slightly weaker signals to convert.
