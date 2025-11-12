@@ -546,8 +546,18 @@ class UniverseManager:
             min_depth_tier = global_config.get("min_orderbook_depth_usd", 10_000)
         
         if orderbook.total_depth_usd < min_depth_tier:
+            logger.debug(
+                f"{quote.symbol}: depth check FAIL - "
+                f"${orderbook.total_depth_usd:,.0f} < ${min_depth_tier:,.0f} (T{tier})"
+            )
             return False, f"Depth ${orderbook.total_depth_usd:,.0f} < ${min_depth_tier:,.0f} (T{tier})"
         
+        logger.debug(
+            f"{quote.symbol}: depth check PASS - "
+            f"${orderbook.total_depth_usd:,.0f} ≥ ${min_depth_tier:,.0f} (T{tier})"
+        )
+        
+        logger.info(f"✅ ELIGIBLE: {quote.symbol} passed all T{tier} liquidity checks")
         return True, None
     
     def _is_cache_valid(self, regime: str) -> bool:
