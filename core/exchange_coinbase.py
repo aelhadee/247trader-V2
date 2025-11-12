@@ -221,7 +221,8 @@ class CoinbaseExchange:
         endpoint_with_query = endpoint
 
         if query:
-            query_str = urlencode(query, doseq=True)
+            # Sort query params for stable ordering (deterministic signatures)
+            query_str = urlencode(sorted(query.items()), doseq=True)
             base_endpoint, sep, existing_query = endpoint.partition('?')
             if existing_query:
                 if existing_query.endswith('&'):
@@ -231,9 +232,15 @@ class CoinbaseExchange:
             else:
                 endpoint_with_query = f"{base_endpoint}?{query_str}"
 
-        # For JWT auth, path must NOT include query params
-        path_for_auth = f"/api/v3/brokerage{endpoint.split('?')[0]}"
-        path = f"/api/v3/brokerage{endpoint_with_query}"
+        # CRITICAL: For JWT auth, path must NOT include query params
+        # For HMAC auth, path MUST include query params
+        if self._mode == "pem":
+            # JWT/ES256: sign without query params
+            path_for_auth = f"/api/v3/brokerage{endpoint.split('?')[0]}"
+        else:
+            # HMAC: sign with full query string
+            path_for_auth = f"/api/v3/brokerage{endpoint_with_query}"
+        
         url = CB_BASE + endpoint_with_query
         
         last_exception = None
