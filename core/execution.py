@@ -1351,6 +1351,8 @@ class ExecutionEngine:
             return ExecutionResult(
                 success=True,
                 order_id=f"dry_run_{client_order_id}",
+                symbol=symbol,
+                side=side,
                 filled_size=0.0,
                 filled_price=0.0,
                 fees=0.0,
