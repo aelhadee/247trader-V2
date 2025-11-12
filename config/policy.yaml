@@ -67,6 +67,9 @@ liquidity:
   min_depth_20bps_usd: 10_000       # $10K depth within 20bps (broader universe, monitor slippage)
 
 triggers:
+  # Direction filter (long-only strategy)
+  only_upside: true                 # Ignore downward momentum (long-only)
+  
   # Price-move based triggers
   price_move:
     pct_15m: 3.0                    # abs move >= 3.0% in 15m
