@@ -9,7 +9,7 @@ No AI - just math on BTC-USD.
 
 from typing import List, Literal
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 
 logger = logging.getLogger(__name__)
@@ -62,7 +62,7 @@ class RegimeDetector:
                 confidence=0.5,
                 btc_trend_pct=0.0,
                 volatility_pct=0.0,
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(timezone.utc),
                 reason="Insufficient data - defaulting to chop"
             )
         
@@ -100,7 +100,7 @@ class RegimeDetector:
             confidence=confidence,
             btc_trend_pct=trend_pct,
             volatility_pct=vol_annual_pct,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             reason=reason
         )
     
