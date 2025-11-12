@@ -253,7 +253,7 @@ class UniverseManager:
         logger.info(f"Building universe snapshot for regime={regime}")
         
         exchange = get_exchange()
-    self._near_threshold_usage = {"tier1": 0, "tier2": 0, "tier3": 0}
+        self._near_threshold_usage = {"tier1": 0, "tier2": 0, "tier3": 0}
         
         # Get tier definitions
         tiers_config = self.config.get("tiers", {})
