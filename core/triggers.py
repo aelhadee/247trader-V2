@@ -469,17 +469,17 @@ class TriggerEngine:
         
         # Determine which triggered and build reason
         if triggered_15m and triggered_60m:
-            reason = f"Price move {max_1h_move:.1f}% (1h) - exceeds both thresholds"
+            reason = f"Price move {max_1h_move:.1f}% (1h) - exceeds both {regime} thresholds"
             strength = 0.8
             confidence = 0.85
             move_pct = max_1h_move
         elif triggered_15m:
-            reason = f"Sharp price move {max_1h_move:.1f}% (1h) - exceeds {self.pct_15m}% threshold"
+            reason = f"Sharp price move {max_1h_move:.1f}% (1h) - exceeds {pct_15m}% ({regime})"
             strength = 0.6
             confidence = 0.7
             move_pct = max_1h_move
         else:  # triggered_60m
-            reason = f"Sustained price move {move_60m:.1f}% (60m) - exceeds {self.pct_60m}% threshold"
+            reason = f"Sustained price move {move_60m:.1f}% (60m) - exceeds {pct_60m}% ({regime})"
             strength = 0.7
             confidence = 0.75
             move_pct = move_60m
