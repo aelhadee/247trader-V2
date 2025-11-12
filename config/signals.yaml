@@ -32,6 +32,13 @@ triggers:
     higher_low_vs_prev: true           # last swing low > previous swing low
     rsi_cross_up_50: true              # RSI(14) crossed above 50
     min_bounce_from_low_pct: 0.6       # minimum % bounce off local low
+
+  # Trend guard: require upward-sloping hourly EMA before reversals
+  trend_filter:
+    enabled: true
+    ema_period_hours: 21              # Smooth local trend on 21h basis
+    slope_lookback_hours: 3           # Evaluate slope over last 3 hours
+    min_slope_pct_per_hour: 0.05      # Require +0.05% per hour drift
   
   # Legacy parameters (backward compatibility)
   volume_spike_min_ratio: 1.5
