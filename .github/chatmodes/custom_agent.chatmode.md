@@ -5,7 +5,7 @@ tools: ['edit', 'runNotebooks', 'search', 'new', 'runCommands', 'runTasks', 'pyl
 handoffs:
   - label: Run as Agent
     agent: agent
-    prompt: "Execute the plan above with safe defaults. Use a feature branch, run tests, type-check, lint, and summarize diffs and results. If tests fail, iterate until green; then propose a PR description and rollback plan. ALWAYS COMPLY WITH #"
+    prompt: "Execute the plan above with safe defaults. Use a feature branch, run tests, type-check, lint, and summarize diffs and results. If tests fail, iterate until green; then propose a PR description and rollback plan. ALWAYS COMPLY WITH #custom"
     send: false
 ---
 
