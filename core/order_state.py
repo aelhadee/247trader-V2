@@ -244,6 +244,13 @@ class OrderStateMachine:
         valid_next_states = self.VALID_TRANSITIONS.get(current_status, set())
         override_allowed = allow_override or self._should_allow_override(current_status, new_status)
 
+        if current_status == OrderStatus.CANCELED and new_status == OrderStatus.FILLED and not override_allowed:
+            logger.warning(
+                "Late fill detected after cancel for %s; forcing idempotent upgrade to FILLED",
+                client_order_id,
+            )
+            override_allowed = True
+
         if new_status not in valid_next_states:
             if not override_allowed:
                 logger.warning(
