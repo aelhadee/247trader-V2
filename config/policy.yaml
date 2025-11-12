@@ -305,6 +305,18 @@ portfolio_management:
     max_residual_usd: 5.0         # Allowable leftover notional before flagging failure
     max_consecutive_no_fill: 3    # Retry cancelled slices up to this many times before aborting
 
+twap:
+  replace_seconds: 45
+
+cooldowns:
+  bypass_tags:
+    - "purge"
+    - "trim"
+
+loop:
+  interval_seconds: 60
+  universe_cache_seconds: 300
+
 ai:
   # AI module configuration
   enabled: false  # Start with rules-only
