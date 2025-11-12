@@ -92,7 +92,7 @@ def test_canary_trade_emits_for_single_low_conviction_trigger():
     asset = _make_asset("BTC-USD", tier=1)
     snapshot = _make_snapshot(asset)
 
-    trigger = _make_trigger(symbol=asset.symbol, strength=0.30, confidence=0.60)
+    trigger = _make_trigger(symbol=asset.symbol, strength=0.26, confidence=0.60)
 
     engine = RulesEngine(config={})
     engine.policy.setdefault("triggers", {})["min_score"] = 0.1
