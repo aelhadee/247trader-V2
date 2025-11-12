@@ -21,7 +21,7 @@ exchange:
 
 loop:
   # Main execution loop
-  interval_minutes: 0.5
+  interval_minutes: 1.0
   
   # Skip weekends/holidays
   skip_weekends: false
@@ -31,11 +31,12 @@ loop:
   
   # Jitter and auto-backoff (prevents synchronized bursts and overload)
   interval:
-    seconds: 30              # Base interval
+    seconds: 60              # Base interval
     jitter_pct: 10          # ±10% randomization
   utilization_autobackoff:
     target_util_pct: 70     # Trigger backoff at 70% utilization
     backoff_seconds: 15     # Add 15s when over target
+  universe_cache_seconds: 300
 
 auto_tune:
   # Bounded auto-loosening for prolonged zero-trigger periods
