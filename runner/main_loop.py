@@ -689,7 +689,9 @@ class TradingLoop:
 
             entry = dict(value)
 
-            units = entry.get("units")
+            units = entry.get("base_qty")
+            if units is None:
+                units = entry.get("units")
             if units is None:
                 units = entry.get("total") or entry.get("quantity")
             try:
