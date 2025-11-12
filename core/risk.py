@@ -786,6 +786,9 @@ class RiskEngine:
         adds: List[Tuple[int, TradeProposal]] = []
         new_candidates: List[Tuple[int, TradeProposal, float, int]] = []
 
+        # Treat proposals targeting symbols we already hold or have pending orders for as adds
+        add_eligible_symbols = existing_symbols | pending_buy_symbols
+
         for idx, proposal in enumerate(proposals):
             side = (proposal.side or "BUY").upper()
             if side != "BUY":
@@ -793,7 +796,7 @@ class RiskEngine:
                 continue
 
             symbol = _normalize_symbol(proposal.symbol)
-            if symbol in existing_symbols:
+            if symbol in add_eligible_symbols:
                 adds.append((idx, proposal))
             else:
                 confidence = float(getattr(proposal, "confidence", 0.0) or 0.0)
