@@ -727,6 +727,18 @@ class ExecutionEngine:
             logger.error(f"Error finding liquidation candidates: {e}")
             raise CriticalDataUnavailable("accounts:liquidation_candidates", e) from e
     
+    def _disable_convert_api(self, reason: str, status_code: Optional[int], pair: Tuple[str, str]) -> None:
+        self._convert_api_disabled = True
+        self._convert_api_disabled_at = datetime.now(timezone.utc)
+        self._convert_api_last_error = reason
+        logger.warning(
+            "Convert API disabled%s for %s→%s: %s",
+            f" (status={status_code})" if status_code is not None else "",
+            pair[0],
+            pair[1],
+            reason,
+        )
+
     def convert_asset(self, from_currency: str, to_currency: str, amount: str,
                      from_account_uuid: str, to_account_uuid: str) -> Dict:
         """
