@@ -605,6 +605,40 @@ class StateStore:
         self.save(state)
         return state
     
+    def increment_zero_proposal_cycles(self) -> int:
+        """
+        Increment zero-proposal cycle counter.
+        
+        Returns:
+            Current count after increment
+        """
+        state = self.load()
+        state["zero_proposal_cycles"] = state.get("zero_proposal_cycles", 0) + 1
+        count = state["zero_proposal_cycles"]
+        self.save(state)
+        logger.debug(f"Zero-proposal cycles: {count}")
+        return count
+    
+    def reset_zero_proposal_cycles(self) -> None:
+        """Reset zero-proposal cycle counter (proposals generated)"""
+        state = self.load()
+        state["zero_proposal_cycles"] = 0
+        state["auto_loosen_applied"] = False  # Reset flag when proposals resume
+        self.save(state)
+        logger.debug("Reset zero-proposal cycle counter")
+    
+    def mark_auto_loosen_applied(self) -> None:
+        """Mark that auto-loosening has been applied (prevent repeated adjustments)"""
+        state = self.load()
+        state["auto_loosen_applied"] = True
+        self.save(state)
+        logger.info("Marked auto-loosen as applied")
+    
+    def has_auto_loosen_applied(self) -> bool:
+        """Check if auto-loosening has already been applied"""
+        state = self.load()
+        return state.get("auto_loosen_applied", False)
+    
     def reset(self, full: bool = False) -> Dict[str, Any]:
         """
         Reset state counters.
