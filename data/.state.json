@@ -12,19 +12,19 @@
       "available": 1.093593,
       "hold": 0.0,
       "total": 1.093593,
-      "usd_value": 9.483091699500001
+      "usd_value": 9.4885596645
     },
     "AERO": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.113787
+      "usd_value": 0.1137475
     },
     "FET": {
       "available": 88.2,
       "hold": 0.0,
       "total": 88.2,
-      "usd_value": 28.85463
+      "usd_value": 28.836990000000004
     },
     "HBAR": {
       "available": 1682.9,
@@ -36,19 +36,19 @@
       "available": 0.21905562,
       "hold": 873.1,
       "total": 873.31905562,
-      "usd_value": 45.128762199163496
+      "usd_value": 45.163694961388295
     },
     "XRP": {
       "available": 0.00812,
       "hold": 0.0,
       "total": 0.00812,
-      "usd_value": 0.019438468000000004
+      "usd_value": 0.019431565999999997
     },
     "BTC": {
       "available": 0.00068841,
       "hold": 0.0,
       "total": 0.00068841,
-      "usd_value": 71.04965678145
+      "usd_value": 71.04482414325001
     }
   },
   "cash_balances": {
@@ -69,7 +69,7 @@
       "filled_value": 0.0,
       "created_time": "2025-11-11T06:05:42.206556Z",
       "first_seen": "2025-11-11T23:00:55.901263+00:00",
-      "updated_at": "2025-11-12T04:32:22.754763+00:00"
+      "updated_at": "2025-11-12T04:32:50.095699+00:00"
     }
   },
   "recent_orders": [
@@ -108,25 +108,10 @@
       "closed_at": "2025-11-12T03:39:46.631019+00:00"
     }
   ],
-  "last_reconcile_at": "2025-11-12T04:32:17.604908+00:00",
+  "last_reconcile_at": "2025-11-12T04:32:44.919140+00:00",
   "last_reset_date": "2025-11-12",
   "last_reset_hour": 4,
   "events": [
-    {
-      "at": "2025-11-12T03:19:52.174426+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 1,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-12T03:20:16.927464+00:00",
-      "event": "reconcile",
-      "positions": 7,
-      "open_orders": 1,
-      "orders_closed": [],
-      "orders_seen": []
-    },
     {
       "at": "2025-11-12T03:20:21.817480+00:00",
       "event": "open_orders_sync",
@@ -865,10 +850,25 @@
       "open_orders": 1,
       "closed": [],
       "created": []
+    },
+    {
+      "at": "2025-11-12T04:32:44.919140+00:00",
+      "event": "reconcile",
+      "positions": 7,
+      "open_orders": 1,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-12T04:32:50.095699+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 1,
+      "closed": [],
+      "created": []
     }
   ],
   "high_water_mark": 494.03608340685287,
   "zero_proposal_cycles": 0,
   "auto_loosen_applied": false,
-  "last_open_orders_sync": "2025-11-12T04:32:22.754763+00:00"
+  "last_open_orders_sync": "2025-11-12T04:32:50.095699+00:00"
 }

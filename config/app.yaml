@@ -28,6 +28,26 @@ loop:
   
   # Timezone
   timezone: "UTC"
+  
+  # Jitter and auto-backoff (prevents synchronized bursts and overload)
+  interval:
+    seconds: 30              # Base interval
+    jitter_pct: 10          # ±10% randomization
+  utilization_autobackoff:
+    target_util_pct: 70     # Trigger backoff at 70% utilization
+    backoff_seconds: 15     # Add 15s when over target
+
+auto_tune:
+  # Bounded auto-loosening for prolonged zero-trigger periods
+  zero_trigger_cycles: 12   # If 12 consecutive cycles have 0 triggers...
+  loosen:
+    pct_change_15m_delta: -0.2    # Reduce 15m threshold by 0.2%
+    pct_change_60m_delta: -0.3    # Reduce 60m threshold by 0.3%
+    min_conviction_delta: -0.02   # Reduce conviction by 0.02
+  floors:
+    pct_change_15m: 1.2     # Do not go below 1.2% for 15m
+    pct_change_60m: 2.5     # Do not go below 2.5% for 60m
+    min_conviction: 0.30    # Do not go below 0.30 conviction
 
 logging:
   level: "INFO"  # DEBUG | INFO | WARNING | ERROR
