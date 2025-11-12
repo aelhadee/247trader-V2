@@ -171,3 +171,35 @@ def test_allow_adds_when_cap_saturated(base_policy):
     kept_symbols = {p.symbol for p in result.filtered_proposals}
     assert kept_symbols == {"XLM-USD"}
     assert result.proposal_rejections.get("BONK-USD") == ["max_open_positions"]
+
+
+def test_check_all_surfaces_proposal_rejections(base_policy):
+    policy = {
+        "risk": {
+            **base_policy["risk"],
+            "min_trade_notional_usd": 10.0,
+            "max_open_positions": 1,
+            "allow_adds_when_over_cap": True,
+        },
+        "strategy": {
+            **base_policy["strategy"],
+            "max_open_positions": 1,
+            "prefer_add_to_existing": True,
+        },
+    }
+
+    risk_engine = RiskEngine(policy=policy)
+    portfolio = _portfolio({}, {"SOL-USD": {"usd": 500.0}})
+
+    proposals = [
+        TradeProposal(symbol="SOL-USD", side="buy", size_pct=2.0, reason="", confidence=0.6),
+        TradeProposal(symbol="ADA-USD", side="buy", size_pct=2.0, reason="", confidence=0.7),
+    ]
+
+    result = risk_engine.check_all(proposals=proposals, portfolio=portfolio, regime="chop")
+
+    assert result.approved
+    assert len(result.approved_proposals) == 1
+    assert result.proposal_rejections
+    assert "ADA-USD" in result.proposal_rejections
+    assert "max_open_positions" in result.proposal_rejections["ADA-USD"]
