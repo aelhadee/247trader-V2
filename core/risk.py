@@ -640,7 +640,8 @@ class RiskEngine:
         risk_cfg = self.risk_config
         min_trade_usd = float(risk_cfg.get("min_trade_notional_usd", 0.0) or 0.0)
         dust_threshold = float(risk_cfg.get("dust_threshold_usd", 0.0) or 0.0)
-        allow_adds_when_over_cap = bool(risk_cfg.get("allow_adds_when_over_cap", True))
+    allow_adds_when_over_cap = bool(risk_cfg.get("allow_adds_when_over_cap", True))
+    include_pending_orders = bool(risk_cfg.get("count_open_orders_in_cap", True))
 
         # Threshold used to decide whether a holding materially consumes a slot
         count_threshold = max(min_trade_usd * 0.25, dust_threshold, 1e-6)
@@ -657,18 +658,19 @@ class RiskEngine:
             else:
                 dust_symbols.add(symbol)
 
-        pending_buy_orders = (portfolio.pending_orders or {}).get("buy", {})
         pending_symbols: set[str] = set()
-        for pending_symbol, pending_value in pending_buy_orders.items():
-            try:
-                pending_notional = float(pending_value)
-            except (TypeError, ValueError):
-                continue
-            if pending_notional < count_threshold:
-                continue
+        if include_pending_orders:
+            pending_buy_orders = (portfolio.pending_orders or {}).get("buy", {})
+            for pending_symbol, pending_value in pending_buy_orders.items():
+                try:
+                    pending_notional = float(pending_value)
+                except (TypeError, ValueError):
+                    continue
+                if pending_notional < count_threshold:
+                    continue
 
-            normalized = pending_symbol if '-' in pending_symbol else f"{pending_symbol}-USD"
-            pending_symbols.add(normalized)
+                normalized = pending_symbol if '-' in pending_symbol else f"{pending_symbol}-USD"
+                pending_symbols.add(normalized)
 
         occupied_symbols = meaningful_symbols | pending_symbols
         pending_new_count = len(pending_symbols - meaningful_symbols)
