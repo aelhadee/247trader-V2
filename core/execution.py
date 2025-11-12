@@ -1006,7 +1006,8 @@ class ExecutionEngine:
                 client_order_id: Optional[str] = None,
                 max_slippage_bps: Optional[str] = None,
                 force_order_type: Optional[str] = None,
-                skip_liquidity_checks: bool = False) -> ExecutionResult:
+                skip_liquidity_checks: bool = False,
+                tier: Optional[int] = None) -> ExecutionResult:
         """
         Execute a trade.
         
