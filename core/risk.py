@@ -8,7 +8,7 @@ NO component (rules, AI, or human) can violate these.
 """
 
 from typing import List, Dict, Optional, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from collections import defaultdict
 import logging
@@ -59,6 +59,13 @@ class PortfolioState:
     current_time: Optional[datetime] = None  # Current time (simulation or real)
     weekly_pnl_pct: float = 0.0
     pending_orders: Optional[Dict[str, Dict[str, float]]] = None
+    managed_positions: Optional[Dict[str, bool]] = None
+
+    def __post_init__(self):
+        if self.pending_orders is None:
+            self.pending_orders = {}
+        if self.managed_positions is None:
+            self.managed_positions = {}
     
     @property
     def nav(self) -> float:
@@ -101,6 +108,24 @@ class PortfolioState:
             except (TypeError, ValueError):
                 continue
         return total
+
+    def get_managed_exposure_usd(self) -> float:
+        """Return exposure attributable to bot-managed positions."""
+        if not self.managed_positions:
+            return 0.0
+
+        exposure = 0.0
+        for symbol, is_managed in self.managed_positions.items():
+            if not is_managed:
+                continue
+            exposure += self.get_position_usd(symbol)
+        return exposure
+
+    def get_external_exposure_usd(self) -> float:
+        """Return exposure for positions not tagged as managed."""
+        total = self.get_total_exposure_usd()
+        managed = self.get_managed_exposure_usd()
+        return max(total - managed, 0.0)
 
     def _pending_orders_for_side(self, side: str) -> Dict[str, float]:
         orders = self.pending_orders or {}
@@ -168,6 +193,12 @@ class RiskEngine:
         self.exchange = exchange
         self._state_store = state_store  # Optional: for testing or explicit state management
         self.alert_service = alert_service  # Optional: AlertService for critical notifications (kill switch, stops, etc.)
+
+        self._count_external_positions = bool(self.risk_config.get("count_external_positions", True))
+        self._external_exposure_buffer_pct = max(
+            0.0, float(self.risk_config.get("external_exposure_buffer_pct", 0.0) or 0.0)
+        )
+        self._managed_position_tag = self.risk_config.get("managed_position_tag", "247trader")
         
         # Circuit breaker state tracking
         self._api_error_count = 0
@@ -440,7 +471,9 @@ class RiskEngine:
         max_total_at_risk_pct = self.risk_config.get("max_total_at_risk_pct", 15.0)
         
         # Calculate current exposure from open positions (using enforced schema)
-        current_exposure_usd = portfolio.get_total_exposure_usd()
+        total_exposure_usd = portfolio.get_total_exposure_usd()
+        managed_exposure_usd = portfolio.get_managed_exposure_usd()
+        external_exposure_usd = portfolio.get_external_exposure_usd()
         pending_buy_usd = portfolio.get_pending_notional_usd("buy")
 
         def _pct(value_usd: float) -> float:
@@ -449,23 +482,59 @@ class RiskEngine:
             except ZeroDivisionError:
                 return 0.0
 
-        current_positions_pct = _pct(current_exposure_usd)
+        managed_positions_pct = _pct(managed_exposure_usd)
+        external_positions_pct = _pct(external_exposure_usd)
+        counted_external_pct = 0.0
+
+        if self._count_external_positions:
+            counted_external_pct = max(external_positions_pct - self._external_exposure_buffer_pct, 0.0)
+        elif external_positions_pct > 0:
+            logger.debug(
+                "Ignoring %.2f%% external exposure because count_external_positions=false",
+                external_positions_pct,
+            )
+
+        current_positions_pct = managed_positions_pct + counted_external_pct
         pending_buy_pct = _pct(pending_buy_usd)
         current_exposure_pct = current_positions_pct + pending_buy_pct
         
-        # Calculate proposed exposure
-        proposed_pct = sum(p.size_pct for p in proposals)
+        nav = portfolio.account_value_usd if portfolio.account_value_usd > 0 else 0.0
+        min_trade_notional = max(
+            0.0, float(self.risk_config.get("min_trade_notional_usd", 0.0) or 0.0)
+        )
+
+        proposed_buy_pct = 0.0
+        for proposal in proposals:
+            if proposal.side.upper() != "BUY" or nav <= 0:
+                continue
+
+            requested_pct = max(proposal.size_pct, 0.0)
+            requested_usd = (requested_pct / 100.0) * nav
+            effective_usd = max(requested_usd, min_trade_notional) if min_trade_notional > 0 else requested_usd
+            proposed_buy_pct += _pct(effective_usd)
         
-        total_at_risk_pct = current_exposure_pct + proposed_pct
+        total_at_risk_pct = current_exposure_pct + proposed_buy_pct
         
         if total_at_risk_pct > max_total_at_risk_pct:
+            exposures_detail: List[Tuple[str, float]] = []
+            for symbol in portfolio.open_positions.keys():
+                value_pct = _pct(portfolio.get_position_usd(symbol))
+                if value_pct > 0:
+                    exposures_detail.append((symbol, value_pct))
+            exposures_detail.sort(key=lambda item: item[1], reverse=True)
+            top_positions = ", ".join(
+                f"{sym}:{pct:.1f}%" for sym, pct in exposures_detail[:5]
+            )
+
             logger.error(
-                "Total at-risk would exceed limit: %.1f%% > %.1f%% (positions: %.1f%%, pending buys: %.1f%%, proposed: %.1f%%)",
+                "Total at-risk would exceed limit: %.1f%% > %.1f%% (managed: %.1f%%, external_counted: %.1f%%, pending buys: %.1f%%, proposed buys: %.1f%%)%s",
                 total_at_risk_pct,
                 max_total_at_risk_pct,
-                current_positions_pct,
+                managed_positions_pct,
+                counted_external_pct,
                 pending_buy_pct,
-                proposed_pct,
+                proposed_buy_pct,
+                f" | exposure mix: {top_positions}" if top_positions else "",
             )
             return RiskCheckResult(
                 approved=False,
@@ -474,12 +543,13 @@ class RiskEngine:
             )
         
         logger.debug(
-            "Global at-risk check passed: %.1f%%/%.1f%% (positions: %.1f%%, pending buys: %.1f%%, proposed: %.1f%%)",
+            "Global at-risk check passed: %.1f%%/%.1f%% (managed: %.1f%%, external_counted: %.1f%%, pending buys: %.1f%%, proposed buys: %.1f%%)",
             total_at_risk_pct,
             max_total_at_risk_pct,
-            current_positions_pct,
+            managed_positions_pct,
+            counted_external_pct,
             pending_buy_pct,
-            proposed_pct,
+            proposed_buy_pct,
         )
         
         return RiskCheckResult(approved=True)
