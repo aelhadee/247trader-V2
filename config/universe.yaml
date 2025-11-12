@@ -63,7 +63,7 @@ tiers:
   tier_1_core:
     constraints:
       max_allocation_pct: 40.0
-      max_spread_bps: 30
+      max_spread_bps: 20  # Tightened from 30 → 20 bps for blue chips
       min_24h_volume_usd: 50000000
     refresh: weekly
     symbols:
