@@ -30,6 +30,8 @@ class ExecutionResult:
     """Result of order execution"""
     success: bool
     order_id: Optional[str]
+    symbol: Optional[str]
+    side: Optional[str]
     filled_size: float
     filled_price: float
     fees: float
@@ -37,10 +39,12 @@ class ExecutionResult:
     route: str  # "market_ioc" | "limit_post" | "dry_run"
     error: Optional[str] = None
     timestamp: datetime = None
-    
+
     def __post_init__(self):
         if self.timestamp is None:
             self.timestamp = datetime.now(timezone.utc)
+        if self.side:
+            self.side = self.side.upper()
 
 
 class ExecutionEngine:
