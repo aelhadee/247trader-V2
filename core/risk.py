@@ -852,8 +852,12 @@ class RiskEngine:
         
         return RiskCheckResult(approved=True)
     
-    def _check_max_open_positions(self, proposals: List[TradeProposal],
-                                  portfolio: PortfolioState) -> RiskCheckResult:
+    def _check_max_open_positions(
+        self,
+        proposals: List[TradeProposal],
+        portfolio: PortfolioState,
+        pending_notional_map: Optional[Dict[str, float]] = None,
+    ) -> RiskCheckResult:
         """
         Check max open positions limit (spec requirement).
         
@@ -903,15 +907,33 @@ class RiskEngine:
 
         pending_buy_symbols: set[str] = set()
         if include_pending_orders:
-            pending_buy_orders = (portfolio.pending_orders or {}).get("buy", {})
-            for pending_symbol, pending_value in pending_buy_orders.items():
+            effective_pending_orders: Dict[str, float] = {}
+
+            raw_pending = (portfolio.pending_orders or {}).get("buy", {})
+            for pending_symbol, pending_value in raw_pending.items():
+                normalized = _normalize_symbol(pending_symbol)
                 try:
                     pending_notional = float(pending_value)
                 except (TypeError, ValueError):
                     continue
+                if pending_notional <= 0:
+                    continue
+                effective_pending_orders[normalized] = max(
+                    effective_pending_orders.get(normalized, 0.0),
+                    pending_notional,
+                )
+
+            if pending_notional_map:
+                for normalized, usd_value in pending_notional_map.items():
+                    effective_pending_orders[normalized] = max(
+                        effective_pending_orders.get(normalized, 0.0),
+                        usd_value,
+                    )
+
+            for normalized_symbol, pending_notional in effective_pending_orders.items():
                 if pending_notional + 1e-9 < count_threshold:
                     continue
-                pending_buy_symbols.add(_normalize_symbol(pending_symbol))
+                pending_buy_symbols.add(normalized_symbol)
 
         occupied_symbols = held_symbols | pending_buy_symbols
         current_open = len(occupied_symbols)
