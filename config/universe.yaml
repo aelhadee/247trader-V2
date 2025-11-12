@@ -142,6 +142,10 @@ universe:
   method: dynamic_discovery
   max_universe_size: 30
   refresh_interval_hours: 24
+  near_threshold:
+    override_enabled: true
+    tolerance_pct: 0.10
+    max_overrides_per_tier: 2
   dynamic_config:
     max_spread_bps: 80
     min_price_usd: 0.01
