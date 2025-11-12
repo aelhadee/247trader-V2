@@ -573,17 +573,26 @@ class UniverseManager:
                 )
                 # Pass override - continue to other checks
             else:
-                # Log why override didn't apply
-                if not override_enabled:
-                    logger.debug(f"{quote.symbol}: override disabled")
-                elif tier != 2:
-                    logger.debug(f"{quote.symbol}: wrong tier (T{tier}, need T2)")
-                elif quote.volume_24h < override_floor:
-                    logger.debug(
-                        f"{quote.symbol}: below override floor "
-                        f"(${quote.volume_24h:,.0f} < ${override_floor:,.0f})"
-                    )
-                return False, f"Volume ${quote.volume_24h:,.0f} < ${min_volume:,.0f}"
+                applied = self._apply_near_threshold_override(
+                    symbol=quote.symbol,
+                    tier=tier,
+                    metric="volume",
+                    metric_value=quote.volume_24h,
+                    floor=min_volume,
+                )
+
+                if not applied:
+                    # Log why override didn't apply
+                    if not override_enabled:
+                        logger.debug(f"{quote.symbol}: override disabled")
+                    elif tier != 2:
+                        logger.debug(f"{quote.symbol}: wrong tier (T{tier}, need T2)")
+                    elif quote.volume_24h < override_floor:
+                        logger.debug(
+                            f"{quote.symbol}: below override floor "
+                            f"(${quote.volume_24h:,.0f} < ${override_floor:,.0f})"
+                        )
+                    return False, f"Volume ${quote.volume_24h:,.0f} < ${min_volume:,.0f}"
         
         # Spread check
         max_spread_global = global_config.get("max_spread_bps", 100)
