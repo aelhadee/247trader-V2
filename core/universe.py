@@ -8,7 +8,7 @@ Salvaged from v1 but simplified and hardened.
 import yaml
 from typing import Dict, List, Set, Optional, Tuple
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 import logging
 
