@@ -386,10 +386,11 @@ class TradingLoop:
     
     def _init_portfolio_state(self) -> PortfolioState:
         """Initialize portfolio state from state store"""
-        state = self.state_store.load()
+    state = self.state_store.load()
 
-        # Default to persisted snapshot in case live lookups fail
-        positions_source: Dict[str, Any] = state.get("positions", {})
+    # Default to persisted snapshot in case live lookups fail
+    positions_source: Dict[str, Any] = state.get("positions", {})
+    normalized_positions_override: Optional[Dict[str, Dict[str, Any]]] = None
 
         # Get real account value from Coinbase (fallback to 10k for DRY_RUN)
         if self.mode == "DRY_RUN":
@@ -404,8 +405,14 @@ class TradingLoop:
                 )
                 stored_balances = state.get("cash_balances", {})
                 account_value_usd = sum(float(v) for v in stored_balances.values())
+                normalized_positions_override = self._normalize_positions_for_risk(positions_source)
+                if normalized_positions_override:
+                    account_value_usd += sum(
+                        float(pos.get("usd", 0.0)) for pos in normalized_positions_override.values()
+                    )
                 if account_value_usd <= 0:
                     account_value_usd = 10_000.0
+                    normalized_positions_override = None
             else:
                 snapshot = self._build_account_snapshot(accounts)
                 account_value_usd = snapshot["account_value_usd"]
@@ -417,12 +424,24 @@ class TradingLoop:
                     logger.warning(
                         "Account snapshot returned zero NAV; falling back to stored balances"
                     )
+                    positions_source = state.get("positions", {})
                     stored_balances = state.get("cash_balances", {})
                     account_value_usd = sum(float(v) for v in stored_balances.values())
+                    normalized_positions_override = self._normalize_positions_for_risk(positions_source)
+                    if normalized_positions_override:
+                        account_value_usd += sum(
+                            float(pos.get("usd", 0.0))
+                            for pos in normalized_positions_override.values()
+                        )
                     if account_value_usd <= 0:
                         account_value_usd = 10_000.0
+                        normalized_positions_override = None
         
-        positions = self._normalize_positions_for_risk(positions_source)
+        positions = (
+            normalized_positions_override
+            if normalized_positions_override is not None
+            else self._normalize_positions_for_risk(positions_source)
+        )
 
         pnl_today_usd = float(state.get("pnl_today", 0.0) or 0.0)
         pnl_week_usd = float(state.get("pnl_week", 0.0) or 0.0)
