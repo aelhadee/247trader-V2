@@ -800,20 +800,14 @@ class ExecutionEngine:
             error_text = exc.response.text.strip() if exc.response is not None else str(exc)
             lowered = error_text.lower()
             if status_code in {403, 404, 503} or "route is disabled" in lowered or "convert is disabled" in lowered:
-                self._convert_api_disabled = True
-                self._convert_api_last_error = error_text
-                logger.warning(
-                    "Convert API disabled (status=%s) for %s→%s: %s",
-                    status_code,
-                    pair[0],
-                    pair[1],
-                    error_text,
-                )
+                self._disable_convert_api(error_text, status_code, pair)
+                retry_hint = float(self.convert_api_retry_seconds) if self.convert_api_retry_seconds > 0 else None
                 return {
                     'success': False,
                     'error': 'convert_api_disabled',
                     'from_currency': from_currency,
                     'to_currency': to_currency,
+                    'retry_after_seconds': retry_hint,
                 }
 
             logger.warning(
@@ -868,21 +862,15 @@ class ExecutionEngine:
             error_text = exc.response.text.strip() if exc.response is not None else str(exc)
             lowered = error_text.lower()
             if status_code in {403, 404, 503} or "route is disabled" in lowered or "convert is disabled" in lowered:
-                self._convert_api_disabled = True
-                self._convert_api_last_error = error_text
-                logger.warning(
-                    "Convert API disabled during commit (status=%s) for %s→%s: %s",
-                    status_code,
-                    pair[0],
-                    pair[1],
-                    error_text,
-                )
+                self._disable_convert_api(error_text, status_code, pair)
+                retry_hint = float(self.convert_api_retry_seconds) if self.convert_api_retry_seconds > 0 else None
                 return {
                     'success': False,
                     'error': 'convert_api_disabled',
                     'trade_id': trade_id,
                     'from_currency': from_currency,
                     'to_currency': to_currency,
+                    'retry_after_seconds': retry_hint,
                 }
 
             logger.warning(
