@@ -741,6 +741,12 @@ class ExecutionEngine:
             
             logger.info(f"✅ Conversion executed: {from_currency}→{to_currency}, status={status}")
             
+            if self.state_store and from_currency:
+                try:
+                    self.state_store.mark_position_managed(f"{from_currency}-USD")
+                except Exception as exc:
+                    logger.debug("Failed to mark %s as managed after conversion: %s", from_currency, exc)
+
             return {
                 'success': True,
                 'trade_id': trade_id,
