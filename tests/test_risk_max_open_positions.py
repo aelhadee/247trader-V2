@@ -137,3 +137,37 @@ def test_rejection_reasons_surface_when_trimmed(base_policy):
     assert hasattr(result, "proposal_rejections")
     assert "ADA-USD" in result.proposal_rejections
     assert "max_open_positions" in result.proposal_rejections["ADA-USD"]
+
+
+def test_allow_adds_when_cap_saturated(base_policy):
+    policy = {
+        **base_policy,
+        "risk": {
+            **base_policy["risk"],
+            "allow_adds_when_over_cap": True,
+            "dust_threshold_usd": 3.0,
+        },
+        "strategy": {
+            **base_policy["strategy"],
+            "max_open_positions": 1,
+            "max_new_positions_per_cycle": 1,
+        },
+    }
+
+    risk_engine = RiskEngine(policy=policy)
+
+    open_positions = {"XLM-USD": {"usd": 500.0}}
+    portfolio = _portfolio({}, open_positions)
+
+    proposals = [
+        TradeProposal(symbol="XLM-USD", side="buy", size_pct=1.0, reason="", confidence=0.6),
+        TradeProposal(symbol="BONK-USD", side="buy", size_pct=1.0, reason="", confidence=0.8),
+    ]
+
+    result = risk_engine._check_max_open_positions(proposals, portfolio)
+
+    assert result.approved
+    assert result.filtered_proposals is not None
+    kept_symbols = {p.symbol for p in result.filtered_proposals}
+    assert kept_symbols == {"XLM-USD"}
+    assert result.proposal_rejections.get("BONK-USD") == ["max_open_positions"]
