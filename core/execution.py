@@ -1433,6 +1433,8 @@ class ExecutionEngine:
             return ExecutionResult(
                 success=True,
                 order_id=f"paper_{client_order_id}",
+                symbol=symbol,
+                side=side,
                 filled_size=filled_size,
                 filled_price=fill_price,
                 fees=fees,
