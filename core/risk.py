@@ -376,9 +376,8 @@ class RiskEngine:
             )
         
         # 6. Position sizing (per proposal)
-    approved_proposals = []
-    violated = []
-    cluster_rejections: Dict[str, List[str]] = {}
+        approved_proposals = []
+        violated = []
 
         for proposal in proposals:
             result = self._check_position_size(proposal, portfolio, regime)
