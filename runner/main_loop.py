@@ -490,6 +490,7 @@ class TradingLoop:
             current_time=datetime.now(timezone.utc),
             weekly_pnl_pct=weekly_pnl_pct,
             pending_orders=pending_orders,
+            managed_positions=dict(state.get("managed_positions", {})),
         )
 
     def _build_account_snapshot(self, accounts: List[dict]) -> Dict[str, Any]:
