@@ -528,11 +528,31 @@ class RulesEngine:
                         threshold: float) -> None:
         boosts = breakdown.get("boosts", [])
         boost_summary = ", ".join(f"{name}+{value:.2f}" for name, value in boosts) if boosts else "none"
+
+        base_component = breakdown.get("base", 0.0)
+        strength_component = breakdown.get("strength_component", 0.0)
+        strength_weight = breakdown.get("strength_weight", 0.0)
+        strength_value = breakdown.get("strength_value", 0.0)
+        confidence_component = breakdown.get("confidence_component", 0.0)
+        confidence_weight = breakdown.get("confidence_weight", 0.0)
+        confidence_value = breakdown.get("confidence_value", 0.0)
+        boosts_total = breakdown.get("boosts_total", 0.0)
+        trigger_score = breakdown.get("trigger_score")
+        if trigger_score is None:
+            trigger_score = strength_value * confidence_value
+
+        formula = (
+            f"{proposal.confidence:.3f} = base {base_component:.3f} + "
+            f"strength {strength_component:.3f} ({strength_weight:.2f}*{strength_value:.2f}) + "
+            f"confidence {confidence_component:.3f} ({confidence_weight:.2f}*{confidence_value:.2f}) + "
+            f"boosts {boosts_total:.3f}"
+        )
+
+        trigger_label = proposal.trigger.trigger_type if proposal.trigger else "n/a"
+
         logger.info(
-            f"CONVICTION {proposal.symbol} ({proposal.trigger.trigger_type if proposal.trigger else 'n/a'}): "
-            f"{proposal.confidence:.3f} = base {breakdown['base']:.3f} + strength {breakdown['strength_component']:.3f} + "
-            f"confidence {breakdown['confidence_component']:.3f} + boosts {breakdown['boosts_total']:.3f} [{boost_summary}] "
-            f"threshold={threshold:.2f}"
+            f"CONVICTION {proposal.symbol} ({trigger_label}): {formula} "
+            f"[{boost_summary}] threshold={threshold:.2f} trigger_score={trigger_score:.3f}"
         )
 
     def _try_canary(self, proposal: TradeProposal, asset: UniverseAsset, conviction: float,
