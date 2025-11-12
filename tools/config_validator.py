@@ -45,6 +45,9 @@ class RiskConfig(BaseModel):
     min_trade_notional_usd: float = Field(gt=0, description="Minimum trade size USD")
     stop_loss_pct: float = Field(gt=0, le=100, description="Stop loss %")
     take_profit_pct: float = Field(gt=0, description="Take profit %")
+    count_external_positions: bool = Field(default=True, description="Count non-managed holdings toward exposure cap")
+    managed_position_tag: str = Field(default="247trader", min_length=1, description="Client order prefix identifying managed trades")
+    external_exposure_buffer_pct: float = Field(default=0.0, ge=0, le=100, description="Buffer percent of external exposure ignored by cap")
 
     @field_validator('max_per_theme_pct')
     @classmethod
