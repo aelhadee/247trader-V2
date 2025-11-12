@@ -192,7 +192,7 @@ class RulesEngine:
         price_change = trigger.price_change_pct
         
         # Determine direction and strategy
-        if price_change > 3.0:
+        if price_change > 1.5:
             # Upward price move → momentum play
             side = "BUY"
             reason = f"Price move: +{price_change:.1f}% ({trigger.reason})"
@@ -200,7 +200,7 @@ class RulesEngine:
             take_profit = 12.0  # Quick profit target
             max_hold = 48  # 2 days
             boost = 1.0  # Standard sizing
-        elif price_change < -5.0:
+        elif price_change < -2.5:
             # Downward price move → reversal/bounce play
             side = "BUY"
             reason = f"Price move reversal: {price_change:.1f}% ({trigger.reason})"
