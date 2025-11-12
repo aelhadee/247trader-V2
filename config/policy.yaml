@@ -137,7 +137,10 @@ strategy:
   canary:
     enabled: true
     size_multiplier: 0.25
-    conviction_window: [0.32, 0.34)
+    conviction_window:
+      lower: 0.32
+      upper: 0.34
+      inclusive_upper: false
     require_tier_in: [T1, T2]
     maker_only: true
 
