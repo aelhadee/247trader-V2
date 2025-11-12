@@ -196,7 +196,7 @@ class TriggerEngine:
                     triggers.append(vol_trigger)
                 
                 # Breakout
-                breakout_trigger = self._check_breakout(asset, candles)
+                breakout_trigger = self._check_breakout(asset, candles, regime)
                 if breakout_trigger:
                     triggers.append(breakout_trigger)
                 
