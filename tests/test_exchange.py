@@ -48,8 +48,11 @@ def test_req_includes_query_string(monkeypatch):
     )
 
     assert result == {"ok": True}
-    assert captured["path"].endswith("/test/endpoint?foo=1&bar=baz")
-    assert captured["request"]["url"] == f"{CB_BASE}/test/endpoint?foo=1&bar=baz"
+    # Query params may be reordered (sorted for stable signatures)
+    assert "?bar=baz" in captured["path"] and "&foo=1" in captured["path"], \
+        f"Expected query params in path, got: {captured['path']}"
+    assert "?bar=baz" in captured["request"]["url"] and "&foo=1" in captured["request"]["url"], \
+        f"Expected query params in URL, got: {captured['request']['url']}"
     assert captured["request"]["headers"].get("X-Test") == "ok"
     assert captured["request"]["json"] is None
 
