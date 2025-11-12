@@ -2271,8 +2271,10 @@ class ExecutionEngine:
                 "order_id": order_id,
                 "client_order_id": client_order_id,
                 "product_id": symbol,
+                "symbol": symbol,
                 "side": side.lower(),
                 "quote_size_usd": size_usd,
+                "order_value_usd": size_usd,
                 "status": status_lower,
                 "route": route,
                 "filled_size": filled_size,
@@ -2281,6 +2283,11 @@ class ExecutionEngine:
                 "fills": fills,
                 "result_snapshot": result_payload,
             }
+
+            if result_payload and result_payload.get("ttl_cancelled"):
+                payload["ttl_cancelled"] = True
+            if result_payload and result_payload.get("ttl_warning"):
+                payload["ttl_warning"] = result_payload.get("ttl_warning")
 
             terminal_statuses = {
                 "done",
