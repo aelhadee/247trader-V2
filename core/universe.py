@@ -65,11 +65,12 @@ class UniverseManager:
     - Return eligible assets by regime
     """
     
-    def __init__(self, config_path: str = "config/universe.yaml"):
+    def __init__(self, config_path: str = "config/universe.yaml", cache_ttl_seconds: Optional[float] = None):
         self.config_path = Path(config_path)
         self.config = self._load_config()
         self._cache: Optional[UniverseSnapshot] = None
         self._cache_time: Optional[datetime] = None
+        self._cache_ttl_seconds: Optional[float] = cache_ttl_seconds
         
         logger.info(f"Initialized UniverseManager from {config_path}")
     
@@ -580,9 +581,14 @@ class UniverseManager:
         if cache_time.tzinfo is None:
             cache_time = cache_time.replace(tzinfo=timezone.utc)
         age_seconds = (datetime.now(timezone.utc) - cache_time).total_seconds()
-        max_age_seconds = self.config.get("universe", {}).get("refresh_interval_hours", 24) * 3600
-        
-        return age_seconds < max_age_seconds
+        ttl_seconds: Optional[float] = self._cache_ttl_seconds
+        if ttl_seconds is None:
+            ttl_seconds = self.config.get("universe", {}).get("refresh_interval_hours", 24) * 3600
+
+        if ttl_seconds <= 0:
+            return False
+
+        return age_seconds < ttl_seconds
     
     def get_cluster_limits(self) -> Dict[str, float]:
         """Get cluster exposure limits"""
