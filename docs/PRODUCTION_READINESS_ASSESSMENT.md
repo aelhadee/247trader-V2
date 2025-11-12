@@ -229,12 +229,14 @@ Create alert definitions with thresholds in `infra/alerting.py`
 ## 🎯 RECOMMENDED LAUNCH PLAN
 
 ### Phase 0: Critical Fixes (NOW - 1 day)
-- ✅ Fix AlertService initialization
-- ⏳ Configure alert webhooks
-- ⏳ Test staging alerts
+- ✅ Fix AlertService initialization (core/risk.py)
+- ✅ Configure alert webhooks (config/app.yaml + env vars)
+- ✅ Test staging alerts (scripts/test_alerts.py - dry-run passes)
+- ✅ Wire critical RiskEngine alerts (kill switch, stops, drawdown)
 - ⏳ Implement basic latency tracking
 
-**Gate:** All alerts working, latency monitored
+**Status:** 4/5 complete (80%)  
+**Gate:** Run `python scripts/test_alerts.py` with production webhook + add latency tracking
 
 ### Phase 1: Micro-Scale Launch ($100-$1K, 1 week)
 - Start DRY_RUN for 24h (validate logic)
