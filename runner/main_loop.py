@@ -472,7 +472,7 @@ class TradingLoop:
             pending_orders=pending_orders,
         )
 
-    def _build_account_snapshot(self, accounts: List[dict]) -> Dict[str, Dict[str, Any]]:
+    def _build_account_snapshot(self, accounts: List[dict]) -> Dict[str, Any]:
         """Aggregate Coinbase account balances into USD-valued snapshot for risk."""
 
         # Treat USD and stablecoins as cash; everything else is priced as exposure
