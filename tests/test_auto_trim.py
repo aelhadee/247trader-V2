@@ -85,3 +85,83 @@ def test_auto_trim_to_risk_cap_converts_excess_exposure():
     loop.executor.convert_asset.assert_called_once()
     loop._init_portfolio_state.assert_called_once()
     assert loop.portfolio is trimmed_portfolio
+
+
+def test_auto_trim_skips_convert_when_pair_denied():
+    loop = object.__new__(TradingLoop)
+    loop.mode = "LIVE"
+    loop.policy_config = {
+        "risk": {"max_total_at_risk_pct": 15.0},
+        "portfolio_management": {
+            "auto_trim_to_risk_cap": True,
+            "trim_target_buffer_pct": 1.0,
+            "trim_tolerance_pct": 0.25,
+            "trim_min_value_usd": 10.0,
+            "trim_max_liquidations": 5,
+            "trim_preferred_quotes": ["USDC", "USD", "USDT"],
+            "trim_slippage_buffer_pct": 5.0,
+        },
+    }
+
+    candidate = {
+        "currency": "HBAR",
+        "account_uuid": "hbar-uuid",
+        "balance": 120.0,
+        "value_usd": 80.0,
+        "price": 0.666666,
+        "pair": "HBAR-USD",
+    }
+
+    loop.executor = SimpleNamespace(
+        min_notional_usd=5.0,
+        get_liquidation_candidates=MagicMock(return_value=[candidate]),
+        convert_asset=MagicMock(return_value={"success": False}),
+        can_convert=MagicMock(return_value=False),
+    )
+
+    loop.portfolio = PortfolioState(
+        account_value_usd=400.0,
+        open_positions={"HBAR-USD": {"usd": 80.0, "units": 120.0}},
+        daily_pnl_pct=0.0,
+        max_drawdown_pct=0.0,
+        trades_today=0,
+        trades_this_hour=0,
+        pending_orders={"buy": {}},
+    )
+
+    loop._require_accounts = MagicMock(
+        return_value=[
+            {
+                "currency": "HBAR",
+                "uuid": "hbar-uuid",
+                "available_balance": {"value": 120},
+            },
+            {
+                "currency": "USDC",
+                "uuid": "usdc-uuid",
+                "available_balance": {"value": 10},
+            },
+        ]
+    )
+    loop._sell_via_market_order = MagicMock(return_value=True)
+    loop._infer_tier_from_config = MagicMock(return_value=2)
+
+    trimmed_portfolio = PortfolioState(
+        account_value_usd=400.0,
+        open_positions={"HBAR-USD": {"usd": 0.0, "units": 0.0}},
+        daily_pnl_pct=0.0,
+        max_drawdown_pct=0.0,
+        trades_today=0,
+        trades_this_hour=0,
+        pending_orders={"buy": {}},
+    )
+
+    loop._reconcile_exchange_state = MagicMock()
+    loop._init_portfolio_state = MagicMock(return_value=trimmed_portfolio)
+
+    result = TradingLoop._auto_trim_to_risk_cap(loop)
+
+    assert result is True
+    loop.executor.convert_asset.assert_not_called()
+    loop._sell_via_market_order.assert_called_once()
+    loop._init_portfolio_state.assert_called_once()
