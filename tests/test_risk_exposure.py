@@ -1,6 +1,7 @@
 """Tests for global risk exposure handling with managed vs external positions."""
 
 from datetime import datetime, timezone
+from typing import Dict, Optional
 
 import pytest
 
