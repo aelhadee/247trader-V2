@@ -640,8 +640,8 @@ class RiskEngine:
         risk_cfg = self.risk_config
         min_trade_usd = float(risk_cfg.get("min_trade_notional_usd", 0.0) or 0.0)
         dust_threshold = float(risk_cfg.get("dust_threshold_usd", 0.0) or 0.0)
-    allow_adds_when_over_cap = bool(risk_cfg.get("allow_adds_when_over_cap", True))
-    include_pending_orders = bool(risk_cfg.get("count_open_orders_in_cap", True))
+        allow_adds_when_over_cap = bool(risk_cfg.get("allow_adds_when_over_cap", True))
+        include_pending_orders = bool(risk_cfg.get("count_open_orders_in_cap", True))
 
         # Threshold used to decide whether a holding materially consumes a slot
         count_threshold = max(min_trade_usd * 0.25, dust_threshold, 1e-6)
@@ -684,11 +684,11 @@ class RiskEngine:
             except (TypeError, ValueError):
                 logger.warning("Invalid max_new_positions_per_cycle value: %s", max_new_cycle_raw)
 
-    approval_indices: set[int] = set()
-    rejection_reasons: Dict[int, List[str]] = {}
-    candidate_new: List[Tuple[int, TradeProposal, float, int]] = []
-    existing_additions: List[Tuple[int, TradeProposal]] = []
-    existing_for_adds = meaningful_symbols | dust_symbols | pending_symbols
+        approval_indices: set[int] = set()
+        rejection_reasons: Dict[int, List[str]] = {}
+        candidate_new: List[Tuple[int, TradeProposal, float, int]] = []
+        existing_additions: List[Tuple[int, TradeProposal]] = []
+        existing_for_adds = meaningful_symbols | dust_symbols | pending_symbols
 
         for idx, proposal in enumerate(proposals):
             side = (proposal.side or "BUY").upper()
