@@ -1080,14 +1080,21 @@ class RiskEngine:
         
         return filtered
     
-    def _check_position_size(self, proposal: TradeProposal,
-                            portfolio: PortfolioState,
-                            regime: str) -> RiskCheckResult:
+    def _check_position_size(
+        self,
+        proposal: TradeProposal,
+        portfolio: PortfolioState,
+        regime: str,
+        pending_notional_map: Optional[Dict[str, float]] = None,
+    ) -> RiskCheckResult:
         """Check if position size is within limits"""
         violated = []
 
         existing_position_usd = portfolio.get_position_usd(proposal.symbol)
         pending_buy_usd = portfolio.get_pending_notional_usd("buy", proposal.symbol)
+        normalized_symbol = proposal.symbol if "-" in proposal.symbol else f"{proposal.symbol}-USD"
+        if pending_notional_map:
+            pending_buy_usd = max(pending_buy_usd, pending_notional_map.get(normalized_symbol, 0.0))
         allow_adds_when_over_cap = bool(self.risk_config.get("allow_adds_when_over_cap", True))
 
         def _pct(value_usd: float) -> float:
@@ -1096,7 +1103,7 @@ class RiskEngine:
             except ZeroDivisionError:
                 return 0.0
 
-        existing_exposure_pct = _pct(existing_position_usd + pending_buy_usd)
+    existing_exposure_pct = _pct(existing_position_usd + pending_buy_usd)
         
         # Get base limits
         max_pos_pct = self.risk_config.get("max_position_size_pct", 5.0)
