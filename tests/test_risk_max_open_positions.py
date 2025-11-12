@@ -74,3 +74,66 @@ def test_capacity_respects_pending_new_slots(base_policy):
     kept_symbols = {proposal.symbol for proposal in result.filtered_proposals}
     assert "ADA-USD" in kept_symbols
     assert "DOGE-USD" not in kept_symbols
+
+
+def test_dust_threshold_frees_capacity_for_new_symbols(base_policy):
+    policy = {
+        **base_policy,
+        "risk": {
+            **base_policy["risk"],
+            "dust_threshold_usd": 3.0,
+        },
+        "strategy": {
+            **base_policy["strategy"],
+            "max_open_positions": 12,
+        },
+    }
+
+    risk_engine = RiskEngine(policy=policy)
+
+    # 13 small holdings that previously kept the cap saturated
+    open_positions = {f"SYM{i}-USD": {"usd": 2.6} for i in range(13)}
+    portfolio = _portfolio({}, open_positions)
+
+    proposals = [
+        TradeProposal(symbol="ADA-USD", side="buy", size_pct=2.0, reason="", confidence=0.7),
+    ]
+
+    result = risk_engine._check_max_open_positions(proposals, portfolio)
+
+    assert result.approved, result.reason
+    assert result.filtered_proposals is not None
+    assert len(result.filtered_proposals) == 1
+
+
+def test_rejection_reasons_surface_when_trimmed(base_policy):
+    policy = {
+        **base_policy,
+        "risk": {
+            **base_policy["risk"],
+            "allow_adds_when_over_cap": True,
+        },
+        "strategy": {
+            **base_policy["strategy"],
+            "max_open_positions": 1,
+        },
+    }
+
+    risk_engine = RiskEngine(policy=policy)
+
+    open_positions = {"SOL-USD": {"usd": 500.0}}
+    portfolio = _portfolio({}, open_positions)
+
+    proposals = [
+        TradeProposal(symbol="SOL-USD", side="buy", size_pct=2.0, reason="", confidence=0.6),
+        TradeProposal(symbol="ADA-USD", side="buy", size_pct=2.0, reason="", confidence=0.4),
+    ]
+
+    result = risk_engine._check_max_open_positions(proposals, portfolio)
+
+    assert result.approved
+    assert result.filtered_proposals is not None
+    assert len(result.filtered_proposals) == 1
+    assert hasattr(result, "proposal_rejections")
+    assert "ADA-USD" in result.proposal_rejections
+    assert result.proposal_rejections["ADA-USD"]
