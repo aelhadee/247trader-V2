@@ -1,5 +1,6 @@
 """Tests for global risk exposure handling with managed vs external positions."""
 
+import copy
 from datetime import datetime, timezone
 from typing import Dict, Optional
 
@@ -72,7 +73,7 @@ def _proposal(symbol: str, side: str, size_pct: float) -> TradeProposal:
 
 
 def test_external_exposure_ignored_when_flag_disabled(base_policy):
-    policy = base_policy
+    policy = copy.deepcopy(base_policy)
     policy["risk"]["count_external_positions"] = False
 
     risk = RiskEngine(policy=policy)
@@ -88,7 +89,7 @@ def test_external_exposure_ignored_when_flag_disabled(base_policy):
 
 
 def test_external_buffer_applied_when_enabled(base_policy):
-    policy = base_policy
+    policy = copy.deepcopy(base_policy)
     policy["risk"].update({
         "count_external_positions": True,
         "external_exposure_buffer_pct": 5.0,
@@ -108,7 +109,7 @@ def test_external_buffer_applied_when_enabled(base_policy):
 
 
 def test_external_exposure_counts_beyond_buffer(base_policy):
-    policy = base_policy
+    policy = copy.deepcopy(base_policy)
     policy["risk"].update({
         "count_external_positions": True,
         "external_exposure_buffer_pct": 5.0,
