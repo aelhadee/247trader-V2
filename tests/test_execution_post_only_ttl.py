@@ -43,6 +43,8 @@ def _build_engine(exchange: Mock, ttl_seconds: int = 1) -> ExecutionEngine:
     }
 
     exchange.read_only = False
+    exchange.list_accounts.return_value = []
+    exchange.list_balances.return_value = []
     engine = ExecutionEngine(mode="LIVE", exchange=exchange, policy=policy)
     engine.enforce_product_constraints = MagicMock(
         return_value={"success": True, "adjusted_size_usd": 20.0, "fee_adjusted": False}
