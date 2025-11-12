@@ -139,15 +139,15 @@ def test_reversal_trend_filter_allows_positive_slope_and_exposes_metrics():
         90.0,
         91.0,
         93.0,
-        95.0,
-        97.0,
+        94.5,
+        95.5,
+        96.5,
+        97.5,
+        98.0,
+        98.5,
         99.0,
-        100.0,
-        101.0,
-        102.0,
-        103.0,
-        104.0,
-        105.0,
+        99.0,
+        99.0,
     ]
     candles = _build_candles(prices)
 
