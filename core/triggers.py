@@ -9,7 +9,7 @@ Inspired by Jesse's clean strategy lifecycle and Freqtrade's indicator patterns.
 
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 from core.exchange_coinbase import get_exchange, OHLCV
