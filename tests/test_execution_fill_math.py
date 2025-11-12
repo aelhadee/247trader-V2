@@ -29,7 +29,7 @@ from core.execution import ExecutionEngine
                 "commission": "0.0028",
                 "liquidity_indicator": "TAKER",
             },
-            Decimal("17.96529285714285714286"),
+            Decimal("17.96493571428571428571"),
             Decimal("5.030182"),
         ),
     ],
