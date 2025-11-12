@@ -1708,72 +1708,96 @@ class ExecutionEngine:
             )
             
             # Extract fill details
-            filled_size = 0.0
-            filled_price = 0.0
-            fees = 0.0
-            
-            # Coinbase response structure varies; best-effort parsing
-            fills = result.get("fills", [])
-            
+            fills = result.get("fills") or []
+            filled_size, filled_price, fees = self._summarize_fills(fills)
+
             # CRITICAL FIX: Market orders don't have fills in initial response
             # Poll order status first, then fetch fills when terminal
             if not fills and order_type == "market" and order_id:
                 logger.info(f"Market order placed, polling for status then fills: {order_id}")
                 try:
-                    import time
-                    
                     # Poll order status until terminal (FILLED/CANCELLED/EXPIRED/FAILED)
                     max_attempts = 10
                     poll_interval = 0.5  # 500ms
                     terminal_states = {"FILLED", "CANCELLED", "EXPIRED", "FAILED"}
-                    
+
                     order_status = None
                     for attempt in range(max_attempts):
                         time.sleep(poll_interval)
-                        
+
                         order_status = self.exchange.get_order_status(order_id)
                         if not order_status:
                             logger.warning(f"Attempt {attempt+1}: No order status for {order_id}")
                             continue
-                        
+
                         status = order_status.get("status", "UNKNOWN")
                         filled_size_so_far = float(order_status.get("filled_size", 0))
-                        
+
                         logger.debug(
                             f"Attempt {attempt+1}: order {order_id} status={status}, "
                             f"filled_size={filled_size_so_far}"
                         )
-                        
+
                         if status in terminal_states:
                             logger.info(f"Order {order_id} reached terminal state: {status}")
                             break
-                    
+
                     # Now fetch fills (they should be available after status is terminal)
                     time.sleep(0.2)  # Brief wait for fills to propagate
                     fills = self.exchange.list_fills(order_id=order_id) or []
                     logger.info(f"Retrieved {len(fills)} fills for order {order_id}")
-                    
+
                 except Exception as poll_err:
                     logger.warning(f"Failed to poll status/fills for {order_id}: {poll_err}")
                     # Fall back to using preview price estimate
                     fills = []
-            
-            if fills:
-                for fill in fills:
-                    # Coinbase fills structure: 'size' (base), 'price', 'commission' (fee)
-                    fill_size = float(fill.get("size", 0))
-                    fill_price = float(fill.get("price", 0))
-                    fill_fee = float(fill.get("commission", fill.get("fee", 0)))
-                    
-                    filled_size += fill_size
-                    filled_price += fill_price * fill_size  # Weighted average
-                    fees += fill_fee
-                    
-                if filled_size > 0:
-                    filled_price /= filled_size  # Calculate weighted average price
-            
+
+                filled_size, filled_price, fees = self._summarize_fills(fills)
+
+            ttl_canceled = False
+            ttl_error: Optional[str] = None
+
+            if order_type == "limit_post_only" and self.post_only_ttl_seconds > 0:
+                ttl_result = self._handle_post_only_ttl(
+                    order_id=order_id,
+                    client_order_id=client_order_id,
+                    symbol=symbol,
+                    side=side,
+                    current_status=status,
+                    initial_fills=fills,
+                    filled_size=filled_size,
+                    filled_price=filled_price,
+                    fees=fees,
+                    ttl_seconds=self.post_only_ttl_seconds,
+                )
+
+                if ttl_result.triggered:
+                    if ttl_result.status:
+                        status = ttl_result.status
+                    if ttl_result.fills is not None:
+                        fills = ttl_result.fills
+                        filled_size, filled_price, fees = self._summarize_fills(fills)
+                    if ttl_result.filled_size is not None:
+                        filled_size = ttl_result.filled_size
+                    if ttl_result.filled_price is not None:
+                        filled_price = ttl_result.filled_price
+                    if ttl_result.fees is not None:
+                        fees = ttl_result.fees
+
+                    ttl_canceled = ttl_result.canceled
+                    ttl_error = ttl_result.error
+
+                    if ttl_result.canceled:
+                        result["ttl_cancelled"] = True
+                        if filled_size > 0:
+                            route = "live_limit_post_only_ttl_partial"
+                        else:
+                            route = "live_limit_post_only_timeout"
+                    elif ttl_result.error:
+                        result["ttl_warning"] = ttl_result.error
+
             # If still no fills data (rare), use preview estimate as fallback
-            if filled_size == 0.0 and filled_price == 0.0:
+            if filled_size == 0.0 and filled_price == 0.0 and not ttl_canceled:
                 # Use preview price as best estimate
                 if preview.get("expected_fill_price"):
                     filled_price = preview["expected_fill_price"]
@@ -1782,7 +1806,7 @@ class ExecutionEngine:
                         f"No fill data for {order_id}, using preview estimate: "
                         f"{filled_size:.6f} @ ${filled_price:.2f}"
                     )
-            
+
             # Update order state with fill details
             if filled_size > 0:
                 filled_value = filled_size * filled_price if filled_price > 0 else size_usd
@@ -1793,7 +1817,7 @@ class ExecutionEngine:
                     fees=fees,
                     fills=fills
                 )
-            
+
             actual_slippage = preview.get("estimated_slippage_bps", 0)
 
             self._update_state_store_after_execution(
@@ -1811,8 +1835,16 @@ class ExecutionEngine:
                 fees=fees,
             )
             
+            success_flag = True
+            error_message = None
+            if ttl_canceled and filled_size == 0.0:
+                success_flag = False
+                error_message = ttl_error or (
+                    f"Post-only order canceled after {self.post_only_ttl_seconds}s TTL without fill"
+                )
+
             return ExecutionResult(
-                success=True,
+                success=success_flag,
                 order_id=order_id,
                 symbol=symbol,
                 side=side,
@@ -1820,7 +1852,8 @@ class ExecutionEngine:
                 filled_price=filled_price,
                 fees=fees,
                 slippage_bps=actual_slippage,
-                route=route
+                route=route,
+                error=error_message,
             )
             
         except Exception as e:
