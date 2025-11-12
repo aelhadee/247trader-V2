@@ -730,27 +730,49 @@
       "filled_value": 0.0,
       "slice_target_usd": 15.0,
       "closed_at": "2025-11-12T17:23:46.128906+00:00"
+    },
+    {
+      "order_id": "ba3897f2-99c5-4f3d-a1f2-2ca22ee407df",
+      "client_order_id": "purge_217c40c7b987451f83",
+      "product_id": "HBAR-USD",
+      "side": "sell",
+      "quote_size_usd": 14.983770000000002,
+      "status": "canceled",
+      "route": "live_limit_post_only",
+      "filled_size": 0.0,
+      "filled_price": 0.0,
+      "fees": 0.0,
+      "fills": [],
+      "result_snapshot": {
+        "success": true,
+        "success_response": {
+          "order_id": "ba3897f2-99c5-4f3d-a1f2-2ca22ee407df",
+          "product_id": "HBAR-USD",
+          "side": "SELL",
+          "client_order_id": "purge_217c40c7b987451f83",
+          "attached_order_id": ""
+        },
+        "order_configuration": {
+          "limit_limit_gtc": {
+            "base_size": "85.9",
+            "limit_price": "0.17424",
+            "post_only": true,
+            "rfq_disabled": false,
+            "reduce_only": false
+          }
+        }
+      },
+      "first_seen": "2025-11-12T17:24:16.361998+00:00",
+      "updated_at": "2025-11-12T17:24:38.731111+00:00",
+      "filled_value": 0.0,
+      "slice_target_usd": 15.0,
+      "closed_at": "2025-11-12T17:24:38.731111+00:00"
     }
   ],
   "last_reconcile_at": "2025-11-12T17:24:05.174433+00:00",
   "last_reset_date": "2025-11-12",
   "last_reset_hour": 17,
   "events": [
-    {
-      "at": "2025-11-12T15:38:59.249330+00:00",
-      "event": "reconcile",
-      "positions": 8,
-      "open_orders": 1,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-12T15:39:04.286681+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 1,
-      "closed": [],
-      "created": []
-    },
     {
       "at": "2025-11-12T15:39:30.883432+00:00",
       "event": "reconcile",
@@ -1478,6 +1500,20 @@
       "open_orders": 3,
       "closed": [],
       "created": []
+    },
+    {
+      "at": "2025-11-12T17:24:16.361998+00:00",
+      "event": "order_opened",
+      "order_key": "purge_217c40c7b987451f83",
+      "product_id": "HBAR-USD",
+      "side": "sell",
+      "quote_size_usd": 14.983770000000002
+    },
+    {
+      "at": "2025-11-12T17:24:38.731111+00:00",
+      "event": "order_closed",
+      "order_key": "purge_217c40c7b987451f83",
+      "status": "canceled"
     }
   ],
   "high_water_mark": 538.2423030124753,

@@ -107,3 +107,98 @@ def test_purge_liquidation_uses_maker_limit_orders():
         assert kwargs.get("tier") == 1
     assert kwargs.get("bypass_slippage_budget") is True
     assert kwargs.get("bypass_failed_order_cooldown") is True
+
+
+def test_purge_retries_after_cancelled_slice():
+    """TWAP liquidation should retry when a slice is cancelled with zero fills."""
+    loop = TradingLoop.__new__(TradingLoop)
+
+    loop.mode = "LIVE"
+    loop.policy_config = {
+        "portfolio_management": {
+            "min_liquidation_value_usd": 0,
+            "max_liquidations_per_cycle": 1,
+            "purge_execution": {
+                "slice_usd": 15,
+                "replace_seconds": 1,
+                "max_duration_seconds": 5,
+                "poll_interval_seconds": 0.1,
+                "max_residual_usd": 5,
+                "max_consecutive_no_fill": 3,
+            },
+        },
+        "risk": {"min_trade_notional_usd": 5},
+        "execution": {},
+    }
+    loop.universe_config = {
+        "tiers": {
+            "tier_1_core": {"symbols": ["BAD-USD"]},
+            "tier_2_rotational": {"symbols": []},
+            "tier_3_event_driven": {"symbols": []},
+        }
+    }
+    loop.state_store = MagicMock()
+    loop._init_portfolio_state = MagicMock(return_value={})
+    loop.portfolio = {}
+
+    loop._require_accounts = MagicMock(
+        return_value=[
+            {
+                "currency": "BAD",
+                "available_balance": {"value": "1000"},
+                "hold": {"value": "0"},
+            }
+        ]
+    )
+
+    exchange = MagicMock()
+    exchange.get_quote.return_value = _make_quote(0.175)
+    loop.exchange = exchange
+
+    loop.executor = MagicMock()
+    loop.executor.min_notional_usd = 5
+    loop.executor.order_state_machine = MagicMock()
+    loop.executor._close_order_in_state_store = MagicMock()
+    loop.executor.exchange = exchange
+
+    loop.executor.execute.side_effect = [
+        ExecutionResult(
+            success=True,
+            order_id="order-1",
+            filled_size=0.0,
+            filled_price=0.0,
+            fees=0.0,
+            slippage_bps=0.0,
+            route="live_limit_post_only",
+        ),
+        ExecutionResult(
+            success=True,
+            order_id="order-2",
+            filled_size=0.0,
+            filled_price=0.0,
+            fees=0.0,
+            slippage_bps=0.0,
+            route="live_limit_post_only",
+        ),
+    ]
+
+    loop._await_twap_slice = MagicMock(
+        side_effect=[
+            (0.0, 0.0, 0.0, [], "CANCELED"),
+            (15.0, 86.0, 0.05, [], "FILLED"),
+        ]
+    )
+
+    with patch("runner.main_loop.time.sleep", return_value=None):
+        result = loop._sell_via_market_order(
+            currency="BAD",
+            balance=1000,
+            usd_target=30,
+            tier=1,
+            preferred_pair="BAD-USD",
+        )
+
+    assert result is True
+    assert loop.executor.execute.call_count == 2
+    assert loop._await_twap_slice.call_count == 2
+    exchange.get_quote.assert_called()
