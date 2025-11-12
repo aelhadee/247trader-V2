@@ -296,8 +296,8 @@ class UniverseManager:
         )
         
         # Cache result
-    self._cache = snapshot
-    self._cache_time = datetime.now(timezone.utc)
+        self._cache = snapshot
+        self._cache_time = datetime.now(timezone.utc)
         
         logger.info(
             f"Universe snapshot: {len(tier_1)} core, {len(tier_2)} rotational, "
