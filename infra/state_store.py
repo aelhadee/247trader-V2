@@ -493,10 +493,6 @@ class StateStore:
         Returns:
             Updated state with positions and PnL
         """
-        state = self.load()
-        positions = state.setdefault("positions", {})
-        managed_positions = state.setdefault("managed_positions", {})
-
         try:
             size_dec = Decimal(str(filled_size))
         except (InvalidOperation, TypeError, ValueError):
@@ -530,9 +526,9 @@ class StateStore:
             )
             return state
 
-        state = self.load()
-        positions = state.setdefault("positions", {})
-        managed_positions = state.setdefault("managed_positions", {})
+    state = self.load()
+    positions = state.setdefault("positions", {})
+    managed_positions = state.setdefault("managed_positions", {})
 
         side_upper = side.upper()
         total_pnl = Decimal("0")  # Initialize for event logging
@@ -622,9 +618,15 @@ class StateStore:
             # Total PnL includes proportional entry fees
             total_pnl = realized_pnl_dec - Decimal(str(proportion_fees))
             
-            logger.info(f"Closed {filled_size}/{current_qty} of {symbol}: "
-                       f"entry=${entry_price:.2f}, exit=${fill_price:.2f}, "
-                       f"PnL=${float(total_pnl):.2f}")
+            logger.info(
+                "Closed %.8f/%.8f of %s: entry=$%.2f, exit=$%.2f, PnL=$%.2f",
+                size_float,
+                current_qty,
+                symbol,
+                entry_price,
+                price_float,
+                float(total_pnl),
+            )
             
             # Update PnL accumulators
             state["pnl_today"] = state.get("pnl_today", 0.0) + float(total_pnl)
