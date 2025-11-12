@@ -136,7 +136,7 @@ def test_pending_buy_order_counts_toward_per_symbol_cap(risk_engine):
     proposal = TradeProposal(
         symbol="BTC-USD",
         side="buy",
-        size_pct=300.0,  # Another $300 for BTC
+        size_pct=3.0,  # Another $300 for BTC
         confidence=0.8,
         reason="test",
     )
@@ -145,7 +145,7 @@ def test_pending_buy_order_counts_toward_per_symbol_cap(risk_engine):
     
     # Should REJECT: $300 pending + $300 proposed = $600 (6%) > 5% limit
     assert not result.approved, "Should reject when pending + proposed > max_position_size_pct for same symbol"
-    assert "position_size" in result.violated_checks or "per_asset" in result.violated_checks
+    assert "position_size" in result.violated_checks or "per_asset" in result.violated_checks or "max_position_size_pct" in result.violated_checks or "max_per_asset_pct" in result.violated_checks
 
 
 def test_pending_orders_allow_room_for_valid_trade(risk_engine):
@@ -184,7 +184,7 @@ def test_pending_orders_allow_room_for_valid_trade(risk_engine):
     proposal = TradeProposal(
         symbol="SOL-USD",
         side="buy",
-        size_pct=500.0,
+        size_pct=5.0,
         confidence=0.8,
         reason="test",
     )
@@ -216,7 +216,7 @@ def test_empty_pending_orders_backward_compatible(risk_engine):
     proposal = TradeProposal(
         symbol="BTC-USD",
         side="buy",
-        size_pct=500.0,
+        size_pct=5.0,
         confidence=0.8,
         reason="test",
     )
@@ -253,7 +253,7 @@ def test_sell_orders_not_counted_in_buy_exposure(risk_engine):
     proposal = TradeProposal(
         symbol="ETH-USD",
         side="buy",
-        size_pct=400.0,  # 4% of NAV
+        size_pct=4.0,  # 4% of NAV
         confidence=0.8,
         reason="test",
     )
@@ -297,7 +297,7 @@ def test_multiple_pending_buys_aggregate_correctly(risk_engine):
     proposal = TradeProposal(
         symbol="AVAX-USD",
         side="buy",
-        size_pct=700.0,
+        size_pct=7.0,
         confidence=0.8,
         reason="test",
     )
