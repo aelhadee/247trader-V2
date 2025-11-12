@@ -682,10 +682,11 @@ class RiskEngine:
             except (TypeError, ValueError):
                 logger.warning("Invalid max_new_positions_per_cycle value: %s", max_new_cycle_raw)
 
-        approval_indices: set[int] = set()
-        rejection_reasons: Dict[int, List[str]] = {}
-        candidate_new: List[Tuple[int, TradeProposal, float, int]] = []
-        existing_additions: List[Tuple[int, TradeProposal]] = []
+    approval_indices: set[int] = set()
+    rejection_reasons: Dict[int, List[str]] = {}
+    candidate_new: List[Tuple[int, TradeProposal, float, int]] = []
+    existing_additions: List[Tuple[int, TradeProposal]] = []
+    existing_for_adds = meaningful_symbols | dust_symbols | pending_symbols
 
         for idx, proposal in enumerate(proposals):
             side = (proposal.side or "BUY").upper()
@@ -694,7 +695,7 @@ class RiskEngine:
                 continue
 
             symbol = proposal.symbol
-            if symbol in meaningful_symbols or symbol in dust_symbols:
+            if symbol in existing_for_adds:
                 existing_additions.append((idx, proposal))
                 continue
 
