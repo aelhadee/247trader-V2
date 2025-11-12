@@ -488,7 +488,7 @@ class UniverseManager:
                 # 4) Slippage budget must pass (checked later in execution)
                 
                 logger.info(
-                    f"Override zone: {symbol} volume ${quote.volume_24h:,.0f} "
+                    f"Override zone: {quote.symbol} volume ${quote.volume_24h:,.0f} "
                     f"(${override_floor:,.0f}–${min_volume:,.0f}), spread {quote.spread_bps:.1f}bps ≤ {override_max_spread}bps - ALLOWED"
                 )
                 # Pass override - continue to other checks
