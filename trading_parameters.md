@@ -124,7 +124,7 @@ strategy:
 
   require:
     min_conviction_to_propose: 0.5
-    max_open_positions: 8
+    max_open_positions: 12
 ```
 
 If a candidate can’t reach 0.5+ conviction **from pure math**, don’t even ask the models.
