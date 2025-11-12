@@ -643,7 +643,8 @@ class RiskEngine:
         
         # CRITICAL FIX: Check combined exposure (existing + pending + proposed) for BUY orders
         # This ensures pending orders count toward per-symbol cap
-        if proposal.side == "BUY":
+        side_upper = proposal.side.upper() if proposal.side else "BUY"
+        if side_upper == "BUY":
             combined_pct = existing_exposure_pct + proposal.size_pct
             if combined_pct > max_pos_pct:
                 violated.append(
@@ -665,7 +666,7 @@ class RiskEngine:
                 violated.append(f"already_have_position ({proposal.symbol})")
 
         # Pending orders count toward pyramiding guard as well
-        if not allow_pyramid and pending_buy_usd > 0 and proposal.side == "BUY":
+        if not allow_pyramid and pending_buy_usd > 0 and side_upper == "BUY":
             violated.append(f"pending_buy_exists ({proposal.symbol})")
         
         if violated:
