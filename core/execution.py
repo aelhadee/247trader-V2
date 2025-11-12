@@ -1156,7 +1156,7 @@ class ExecutionEngine:
         
         if self.mode == "LIVE":
             # Real execution
-            return self._execute_live(symbol, side, size_usd, client_order_id, max_slippage_bps, force_order_type, skip_liquidity_checks)
+            return self._execute_live(symbol, side, size_usd, client_order_id, max_slippage_bps, force_order_type, skip_liquidity_checks, tier)
         
         raise ValueError(f"Invalid mode: {self.mode}")
     
