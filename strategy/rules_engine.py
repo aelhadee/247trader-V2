@@ -9,7 +9,7 @@ AI (M1/M2/M3) can only adjust/veto, never create.
 """
 
 from typing import List, Optional, Dict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 import logging
 import yaml
@@ -40,6 +40,9 @@ class TradeProposal:
     max_hold_hours: Optional[int] = None
     
     timestamp: datetime = None
+    tags: List[str] = field(default_factory=list)
+    metadata: Dict[str, float] = field(default_factory=dict)
+    conviction_breakdown: Dict[str, float] = field(default_factory=dict)
     
     def __post_init__(self):
         if self.timestamp is None:
