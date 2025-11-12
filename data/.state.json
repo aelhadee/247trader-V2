@@ -76,7 +76,7 @@
       "filled_value": 0.0,
       "created_time": "2025-11-11T06:05:42.206556Z",
       "first_seen": "2025-11-11T23:00:55.901263+00:00",
-      "updated_at": "2025-11-12T17:23:19.276122+00:00"
+      "updated_at": "2025-11-12T17:24:10.941572+00:00"
     },
     "purge_5710de88d059490682": {
       "order_id": "9d34ca34-ed30-46ae-b6b9-5de027cd23be",
@@ -90,7 +90,7 @@
       "filled_value": 0.0,
       "created_time": "2025-11-12T16:38:25.722546Z",
       "first_seen": "2025-11-12T16:39:15.744360+00:00",
-      "updated_at": "2025-11-12T17:23:19.276122+00:00"
+      "updated_at": "2025-11-12T17:24:10.941572+00:00"
     },
     "purge_c2fc85ff91194c27b3": {
       "order_id": "e9f82b52-1acf-498c-bb81-c94e65130db9",
@@ -104,7 +104,7 @@
       "filled_value": 0.0,
       "created_time": "2025-11-12T17:22:31.950034Z",
       "first_seen": "2025-11-12T17:23:19.276122+00:00",
-      "updated_at": "2025-11-12T17:23:19.276122+00:00"
+      "updated_at": "2025-11-12T17:24:10.941572+00:00"
     }
   },
   "recent_orders": [
@@ -736,13 +736,6 @@
   "last_reset_date": "2025-11-12",
   "last_reset_hour": 17,
   "events": [
-    {
-      "at": "2025-11-12T15:38:34.695553+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 1,
-      "closed": [],
-      "created": []
-    },
     {
       "at": "2025-11-12T15:38:59.249330+00:00",
       "event": "reconcile",
@@ -1478,6 +1471,13 @@
       "open_orders": 3,
       "orders_closed": [],
       "orders_seen": []
+    },
+    {
+      "at": "2025-11-12T17:24:10.941572+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 3,
+      "closed": [],
+      "created": []
     }
   ],
   "high_water_mark": 538.2423030124753,
@@ -1485,5 +1485,5 @@
   "auto_tune_applied": false,
   "zero_proposal_cycles": 0,
   "auto_loosen_applied": false,
-  "last_open_orders_sync": "2025-11-12T17:23:19.276122+00:00"
+  "last_open_orders_sync": "2025-11-12T17:24:10.941572+00:00"
 }
