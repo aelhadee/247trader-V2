@@ -105,4 +105,3 @@ def test_canary_trade_emits_for_single_low_conviction_trigger():
     assert proposal.metadata.get("order_type_override") == "limit_post_only"
     assert proposal.confidence < proposal.metadata.get("conviction_threshold", 0.34)
     assert 0.32 <= proposal.confidence < 0.34
-*** End of tests
