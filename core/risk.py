@@ -209,6 +209,112 @@ class RiskEngine:
         self._last_rate_limit_time = None
         
         logger.info("Initialized RiskEngine with policy constraints and circuit breakers")
+
+    def _build_pending_buy_map(self, portfolio: PortfolioState) -> Dict[str, float]:
+        """Normalize pending BUY orders keyed by fully-qualified symbol."""
+
+        pending_map: Dict[str, float] = {}
+        orders = (portfolio.pending_orders or {}).get("buy", {}) if portfolio.pending_orders else {}
+
+        for raw_symbol, value in orders.items():
+            symbol = raw_symbol if "-" in raw_symbol else f"{raw_symbol}-USD"
+            try:
+                usd_value = float(value)
+            except (TypeError, ValueError):
+                continue
+            if usd_value <= 0:
+                continue
+            pending_map[symbol] = pending_map.get(symbol, 0.0) + usd_value
+
+        return pending_map
+
+    def _collect_open_order_buys(self) -> Dict[str, float]:
+        """Aggregate outstanding BUY open-order notional from the exchange."""
+
+        exposures: Dict[str, float] = {}
+
+        if not self.exchange:
+            return exposures
+
+        try:
+            orders = self.exchange.list_open_orders()
+        except Exception as exc:  # pragma: no cover - network/adapter errors mocked in tests
+            logger.debug("Open order fetch failed: %s", exc)
+            return exposures
+
+        for order in orders or []:
+            product = order.get("product_id") or ""
+            if "-" not in product:
+                continue
+
+            side = (order.get("side") or "").upper()
+            if side != "BUY":
+                continue
+
+            config = order.get("order_configuration") or {}
+            notional = 0.0
+
+            limit_conf = (
+                config.get("limit_limit_gtc")
+                or config.get("limit_limit_gtc_post_only")
+            )
+            market_conf = config.get("market_market_ioc")
+
+            if limit_conf:
+                try:
+                    base_units = float(limit_conf.get("base_size") or 0.0)
+                except (TypeError, ValueError):
+                    base_units = 0.0
+                price_raw = limit_conf.get("limit_price")
+                try:
+                    price = float(price_raw) if price_raw is not None else 0.0
+                except (TypeError, ValueError):
+                    price = 0.0
+
+                if price <= 0 and base_units > 0:
+                    price = self._safe_mid_price(product)
+
+                notional = base_units * price if price and base_units else 0.0
+
+            elif market_conf:
+                quote_size = market_conf.get("quote_size")
+                try:
+                    notional = float(quote_size) if quote_size is not None else 0.0
+                except (TypeError, ValueError):
+                    notional = 0.0
+
+            if notional <= 0:
+                continue
+
+            exposures[product] = max(exposures.get(product, 0.0), notional)
+
+        return exposures
+
+    def _combine_pending_maps(
+        self,
+        state_pending: Dict[str, float],
+        open_order_pending: Dict[str, float],
+    ) -> Dict[str, float]:
+        """Merge pending-order maps using the maximum notional per symbol."""
+
+        combined = dict(state_pending)
+        for symbol, notional in open_order_pending.items():
+            current = combined.get(symbol, 0.0)
+            if notional > current:
+                combined[symbol] = notional
+        return combined
+
+    def _safe_mid_price(self, product: str) -> float:
+        """Best-effort mid-price for exposure estimation (non-critical)."""
+
+        if not self.exchange:
+            return 0.0
+
+        try:
+            quote = self.exchange.get_quote(product)
+            return float(getattr(quote, "mid", 0.0) or 0.0)
+        except Exception:
+            return 0.0
     
     def check_all(self, 
                   proposals: List[TradeProposal],
