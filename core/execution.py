@@ -263,11 +263,40 @@ class ExecutionEngine:
             return f"{self.client_order_prefix}_{base_id}"
         return base_id
 
+    def _convert_api_available(self) -> Tuple[bool, Optional[float]]:
+        """Return whether the convert API is currently available, with retry ETA."""
+
+        if not self._convert_api_disabled:
+            return True, None
+
+        if self.convert_api_retry_seconds <= 0 or self._convert_api_disabled_at is None:
+            return False, None
+
+        elapsed = (datetime.now(timezone.utc) - self._convert_api_disabled_at).total_seconds()
+        if elapsed >= self.convert_api_retry_seconds:
+            logger.info(
+                "Convert API retry window expired (%.1fs); re-enabling convert attempts",
+                elapsed,
+            )
+            self._convert_api_disabled = False
+            self._convert_api_disabled_at = None
+            self._convert_api_last_error = None
+            return True, None
+
+        remaining = max(0.0, self.convert_api_retry_seconds - elapsed)
+        return False, remaining
+
     def can_convert(self, from_currency: str, to_currency: str) -> bool:
         """Return True if convert API should be attempted for the pair."""
 
         pair = (from_currency.upper(), to_currency.upper())
-        if self._convert_api_disabled:
+        available, _ = self._convert_api_available()
+        if not available:
+            logger.debug(
+                "Convert API disabled; skipping convert %s→%s and falling back to spot routing",
+                pair[0],
+                pair[1],
+            )
             return False
         return pair not in self._convert_denylist
     
