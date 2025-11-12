@@ -154,4 +154,3 @@ def test_post_only_ttl_skips_when_filled(monkeypatch: pytest.MonkeyPatch):
     assert result.filled_size == pytest.approx(2.0)
     assert result.filled_price == pytest.approx(10.0)
     exchange.cancel_order.assert_not_called()
-*** End File
