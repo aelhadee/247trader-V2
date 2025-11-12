@@ -157,6 +157,7 @@ def test_reversal_trend_filter_allows_positive_slope_and_exposes_metrics():
     assert signal.qualifiers.get("trend_filter_passed") is True
     slope = signal.metrics.get("trend_filter_slope_pct_per_hr")
     assert slope is not None and slope >= trend_cfg["min_slope_pct_per_hour"]
+    assert signal.metrics.get("trend_filter_passed") == 1.0
 
 
 def test_conviction_breakdown_includes_weights():
