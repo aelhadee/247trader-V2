@@ -10,7 +10,7 @@ AI (M1/M2/M3) can only adjust/veto, never create.
 
 from typing import List, Optional, Dict, Tuple, Any
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 import yaml
 from pathlib import Path
@@ -46,7 +46,7 @@ class TradeProposal:
     
     def __post_init__(self):
         if self.timestamp is None:
-            self.timestamp = datetime.utcnow()
+            self.timestamp = datetime.now(timezone.utc)
 
 
 class RulesEngine:
