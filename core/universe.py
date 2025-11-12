@@ -467,6 +467,14 @@ class UniverseManager:
         lower_mult = override_config.get("lower_mult", 0.95)
         override_floor = min_volume * lower_mult
         
+        # Diagnostic logging for near-threshold assets
+        if quote.volume_24h < min_volume and quote.volume_24h >= override_floor * 0.9:
+            logger.info(
+                f"DIAGNOSTIC: {quote.symbol} near threshold - "
+                f"volume=${quote.volume_24h:,.0f}, floor=${min_volume:,.0f}, "
+                f"override_floor=${override_floor:,.0f}, override_enabled={override_enabled}, tier={tier}"
+            )
+        
         if quote.volume_24h < min_volume:
             # Check near-threshold override (only for T2)
             if override_enabled and tier == 2 and quote.volume_24h >= override_floor:
