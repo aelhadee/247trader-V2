@@ -129,6 +129,26 @@ class ExecutionEngine:
             f"slippage_budget=[T1:{self.slippage_budget_t1_bps}, T2:{self.slippage_budget_t2_bps}, T3:{self.slippage_budget_t3_bps}]bps)"
         )
     
+    def _get_slippage_budget(self, tier: Optional[int]) -> float:
+        """
+        Get slippage budget for a given tier.
+        
+        Args:
+            tier: Asset tier (1, 2, or 3), or None for default
+            
+        Returns:
+            Slippage budget in bps
+        """
+        if tier == 1:
+            return self.slippage_budget_t1_bps
+        elif tier == 2:
+            return self.slippage_budget_t2_bps
+        elif tier == 3:
+            return self.slippage_budget_t3_bps
+        else:
+            # Default to Tier 3 budget (most permissive) if tier unknown
+            return self.slippage_budget_t3_bps
+    
     def _validate_quote_freshness(self, quote, symbol: str) -> Optional[str]:
         """
         Validate quote timestamp is fresh enough for trading decisions.
