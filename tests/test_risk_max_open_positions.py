@@ -15,7 +15,7 @@ def base_policy():
             "min_trade_notional_usd": 10.0,
         },
         "strategy": {
-            "max_open_positions": 2,
+            "max_open_positions": 1,
             "prefer_add_to_existing": True,
         },
     }
