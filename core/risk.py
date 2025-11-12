@@ -1030,10 +1030,10 @@ class RiskEngine:
         logger.debug(f"Current cluster exposure: {dict(cluster_exposure)}")
         
         # Add proposed trades to cluster exposure
-        approved_proposals = []
-        violated = []
-        
-        for proposal in proposals:
+            approved_proposals = []
+            violated = []
+
+            for proposal in proposals:
             cluster = self.universe_manager.get_asset_cluster(proposal.symbol)
             
             if cluster:
