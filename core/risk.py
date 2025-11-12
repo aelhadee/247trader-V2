@@ -960,7 +960,10 @@ class RiskEngine:
         if self.circuit_breakers_config.get("pause_on_rate_limit", True):
             if self._last_rate_limit_time:
                 cooldown_seconds = self.circuit_breakers_config.get("rate_limit_cooldown_seconds", 60)
-                elapsed = (datetime.utcnow() - self._last_rate_limit_time).total_seconds()
+                last_rate_limit = self._last_rate_limit_time
+                if last_rate_limit.tzinfo is None:
+                    last_rate_limit = last_rate_limit.replace(tzinfo=timezone.utc)
+                elapsed = (datetime.now(timezone.utc) - last_rate_limit).total_seconds()
                 if elapsed < cooldown_seconds:
                     remaining = cooldown_seconds - elapsed
                     logger.warning(f"Rate limit cooldown active: {remaining:.0f}s remaining")
@@ -975,7 +978,10 @@ class RiskEngine:
         if self._api_error_count >= max_errors:
             error_window = self.circuit_breakers_config.get("api_error_window_seconds", 300)
             if self._last_api_success:
-                elapsed = (datetime.utcnow() - self._last_api_success).total_seconds()
+                last_success = self._last_api_success
+                if last_success.tzinfo is None:
+                    last_success = last_success.replace(tzinfo=timezone.utc)
+                elapsed = (datetime.now(timezone.utc) - last_success).total_seconds()
                 if elapsed > error_window:
                     # Reset counter after window
                     logger.info(f"Resetting API error counter after {elapsed:.0f}s")
