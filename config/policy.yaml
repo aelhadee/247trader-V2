@@ -56,9 +56,12 @@ position_sizing:
   min_order_usd: 10.0
   max_order_usd: 10000.0
   
-  # Pyramid rules
+    # Pyramid rules
   allow_pyramiding: false
   max_pyramid_positions: 2
+
+liquidity:
+  # Unified liquidity filters (single source of truth)
 
 liquidity:
   # Unified liquidity filters (single source of truth)
