@@ -141,6 +141,12 @@ class TriggerEngine:
                     logger.warning(f"{asset.symbol}: {outlier_reason}")
                     continue  # Skip this asset for this cycle
                 
+                # Check ATR volatility filter (skip low-volatility chop)
+                atr_reason = self._check_atr_filter(asset.symbol, candles)
+                if atr_reason:
+                    logger.debug(f"{asset.symbol}: {atr_reason}")
+                    continue  # Skip this asset for this cycle
+                
                 # Check various trigger types
                 triggers = []
                 
