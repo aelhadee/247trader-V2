@@ -721,6 +721,75 @@ class TriggerEngine:
 
         return qualifiers, metrics
 
+    def _calculate_ema_series(self, values: List[float], period: int) -> List[Optional[float]]:
+        if period <= 0:
+            return []
+        if len(values) < period:
+            return []
+
+        multiplier = 2.0 / (period + 1)
+        ema_values: List[Optional[float]] = [None] * max(period - 1, 0)
+        ema = sum(values[:period]) / period
+        ema_values.append(ema)
+
+        for price in values[period:]:
+            ema = (price - ema) * multiplier + ema
+            ema_values.append(ema)
+
+        return ema_values
+
+    def _passes_trend_filter(self, candles: List[OHLCV], regime: str) -> Tuple[bool, str, Dict[str, float]]:
+        config = self.trend_filter_config or {}
+        metrics: Dict[str, float] = {}
+
+        if not config.get("enabled", False):
+            return True, "", metrics
+
+        period = int(config.get("ema_period_hours", 21))
+        slope_lookback = max(1, int(config.get("slope_lookback_hours", 3)))
+        slope_cfg = config.get("min_slope_pct_per_hour", 0.0)
+
+        if isinstance(slope_cfg, dict):
+            min_slope = float(slope_cfg.get(regime, slope_cfg.get("default", 0.0)))
+        else:
+            min_slope = float(slope_cfg)
+
+        closes = [c.close for c in candles]
+        if len(closes) < period + slope_lookback:
+            return False, (
+                f"Trend filter: insufficient data for EMA period {period}"
+            ), metrics
+
+        ema_series = self._calculate_ema_series(closes, period)
+        ema_values = [value for value in ema_series if value is not None]
+
+        if len(ema_values) < slope_lookback + 1:
+            return False, (
+                f"Trend filter: insufficient EMA samples for slope lookback {slope_lookback}"
+            ), metrics
+
+        current_ema = ema_values[-1]
+        prior_ema = ema_values[-(slope_lookback + 1)]
+
+        if prior_ema <= 0:
+            return False, "Trend filter: invalid prior EMA value", metrics
+
+        slope_pct = ((current_ema - prior_ema) / prior_ema) * 100.0 / slope_lookback
+
+        metrics["trend_filter_ema_period"] = float(period)
+        metrics["trend_filter_slope_pct_per_hr"] = slope_pct
+        metrics["trend_filter_ema_current"] = current_ema
+        metrics["trend_filter_ema_prev"] = prior_ema
+        metrics["trend_filter_slope_lookback"] = float(slope_lookback)
+
+        if slope_pct < min_slope:
+            reason = (
+                f"Trend filter: EMA slope {slope_pct:.3f}%/h < {min_slope:.3f}%/h requirement"
+            )
+            return False, reason, metrics
+
+        return True, "", metrics
+
     def _calculate_vwap(self, candles: List[OHLCV]) -> Optional[float]:
         if not candles:
             return None
