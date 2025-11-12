@@ -776,3 +776,117 @@ Next step: **Merge the best of both** by porting v1's infrastructure into v2's f
 
 
 ## FUTURE 
+[2025-11-12 00:16:50] ✅ System started (Press Ctrl+C to stop)
+
+2025-11-12 00:16:51,079 INFO __main__: Starting 247trader-v2 in mode=LIVE, read_only=False
+2025-11-12 00:16:51,081 INFO infra.instance_lock: Lock acquired (PID=51697, file=data/247trader-v2.pid)
+2025-11-12 00:16:51,081 INFO __main__: ✅ Single-instance lock acquired
+2025-11-12 00:16:51,082 INFO core.exchange_coinbase: Loaded Coinbase credentials from /Users/ahmed/coding-stuff/trader/cb_api.json
+2025-11-12 00:16:51,082 INFO core.exchange_coinbase: Using Cloud API authentication (JWT/ES256) with PEM key
+2025-11-12 00:16:51,082 INFO core.exchange_coinbase: Initialized CoinbaseExchange (read_only=False, mode=pem)
+2025-11-12 00:16:51,082 INFO infra.state_store: Initialized StateStore at data/.state.json
+2025-11-12 00:16:51,082 INFO core.audit_log: Initialized AuditLogger at logs/247trader-v2_audit.jsonl
+2025-11-12 00:16:51,097 INFO core.universe: Using dynamic universe discovery from Coinbase
+2025-11-12 00:16:51,098 INFO core.universe: Fetching all tradable pairs from Coinbase...
+2025-11-12 00:16:51,098 INFO core.exchange_coinbase: Loaded Coinbase credentials from /Users/ahmed/coding-stuff/trader/cb_api.json
+2025-11-12 00:16:51,098 INFO core.exchange_coinbase: Using Cloud API authentication (JWT/ES256) with PEM key
+2025-11-12 00:16:51,098 INFO core.exchange_coinbase: Initialized CoinbaseExchange (read_only=True, mode=pem)
+2025-11-12 00:16:51,285 INFO core.universe: Found 112 USD trading pairs
+2025-11-12 00:17:07,441 INFO core.universe: Dynamic universe: 8 tier1, 23 tier2, 2 tier3
+2025-11-12 00:17:07,442 INFO core.universe: Loaded universe config with 3 tiers
+2025-11-12 00:17:07,442 INFO core.universe: Initialized UniverseManager from config/universe.yaml
+2025-11-12 00:17:07,473 INFO core.triggers: Initialized TriggerEngine (regime_aware=True, lookback=24h, atr_filter=True, only_upside=True, max_triggers=5)
+2025-11-12 00:17:07,474 INFO core.triggers:   Chop thresholds: 15m=2.0%, 60m=4.0%, vol=1.9x, atr=1.1x
+2025-11-12 00:17:07,501 INFO strategy.rules_engine: Loaded policy.yaml from /Users/ahmed/coding-stuff/trader/247trader-v2/config/policy.yaml
+2025-11-12 00:17:07,501 INFO strategy.rules_engine: Initialized RulesEngine with tier sizing: T1=2.0%, T2=1.0%, T3=0.5% | min_conviction=0.34
+2025-11-12 00:17:07,501 INFO core.risk: Initialized RiskEngine with policy constraints and circuit breakers
+2025-11-12 00:17:07,502 INFO core.order_state: OrderStateMachine initialized
+2025-11-12 00:17:07,502 INFO core.execution: Initialized ExecutionEngine (mode=LIVE, min_notional=$5, quotes=['USDC', 'USD', 'USDT', 'BTC', 'ETH'], auto_convert=True, clamp_small_trades=True, maker_fee=40bps, taker_fee=60bps, max_quote_age=5s, slippage_budget=[T1:20, T2:35, T3:60]bps)
+2025-11-12 00:17:10,047 INFO __main__: Real account value: $489.93
+2025-11-12 00:17:10,047 INFO __main__: Initialized TradingLoop in LIVE mode
+2025-11-12 00:17:10,047 INFO __main__: Starting continuous loop (interval=30.0s)
+2025-11-12 00:17:10,047 INFO __main__: ================================================================================
+2025-11-12 00:17:10,048 INFO __main__: CYCLE START: 2025-11-12T05:17:10.047906+00:00
+2025-11-12 00:17:10,048 INFO __main__: ================================================================================
+2025-11-12 00:17:14,817 INFO __main__: Real account value: $490.00
+2025-11-12 00:17:14,992 INFO __main__: Step 1: Building universe...
+2025-11-12 00:17:14,992 INFO core.universe: Building universe snapshot for regime=chop
+2025-11-12 00:17:15,428 INFO core.universe: ✅ ELIGIBLE: DOGE-USD passed all T1 liquidity checks
+2025-11-12 00:17:15,831 INFO core.universe: ✅ ELIGIBLE: HBAR-USD passed all T1 liquidity checks
+2025-11-12 00:17:15,831 INFO core.universe: Skipping excluded asset: PUMP-USD
+2025-11-12 00:17:16,320 INFO core.universe: ✅ ELIGIBLE: PENGU-USD passed all T1 liquidity checks
+2025-11-12 00:17:16,810 INFO core.universe: ✅ ELIGIBLE: BONK-USD passed all T1 liquidity checks
+2025-11-12 00:17:17,445 WARNING core.universe: Tier 1 asset PROMPT-USD ineligible: Depth $4,641 < $100,000 (T1)
+2025-11-12 00:17:17,977 WARNING core.universe: Tier 1 asset PEPE-USD ineligible: Depth $35,729 < $100,000 (T1)
+2025-11-12 00:17:18,503 WARNING core.universe: Tier 1 asset VET-USD ineligible: Depth $47,793 < $100,000 (T1)
+2025-11-12 00:17:18,997 INFO core.universe: ✅ ELIGIBLE: XRP-USD passed all T2 liquidity checks
+2025-11-12 00:17:19,488 INFO core.universe: Tier 2 asset UNI-USD ineligible: Volume $13,532,248 < $30,000,000
+2025-11-12 00:17:19,933 INFO core.universe: Tier 2 asset SUI-USD ineligible: Volume $16,797,222 < $30,000,000
+2025-11-12 00:17:20,398 INFO core.universe: Tier 2 asset AERO-USD ineligible: Volume $25,518,128 < $30,000,000
+2025-11-12 00:17:21,013 INFO core.universe: Tier 2 asset FIL-USD ineligible: Volume $12,365,303 < $30,000,000
+2025-11-12 00:17:21,574 INFO core.universe: ✅ ELIGIBLE: ADA-USD passed all T2 liquidity checks
+2025-11-12 00:17:21,574 INFO core.universe: Skipping excluded asset: USDT-USD
+2025-11-12 00:17:22,031 INFO core.universe: ✅ ELIGIBLE: FET-USD passed all T2 liquidity checks
+2025-11-12 00:17:22,031 INFO core.universe: Skipping excluded asset: FARTCOIN-USD
+2025-11-12 00:17:22,468 INFO core.universe: ✅ ELIGIBLE: XLM-USD passed all T2 liquidity checks
+2025-11-12 00:17:22,976 INFO core.universe: ✅ ELIGIBLE: WLFI-USD passed all T2 liquidity checks
+2025-11-12 00:17:23,426 INFO core.universe: ✅ ELIGIBLE: SEI-USD passed all T2 liquidity checks
+2025-11-12 00:17:23,851 INFO core.universe: Tier 2 asset CRV-USD ineligible: Volume $12,142,213 < $30,000,000
+2025-11-12 00:17:24,276 INFO core.universe: Tier 2 asset ONDO-USD ineligible: Volume $8,626,907 < $30,000,000
+2025-11-12 00:17:24,276 INFO core.universe: Skipping excluded asset: USELESS-USD
+2025-11-12 00:17:24,792 INFO core.universe: Tier 2 asset MET-USD ineligible: Volume $8,631,803 < $30,000,000
+2025-11-12 00:17:25,387 INFO core.universe: DIAGNOSTIC: STRK-USD near threshold - volume=$29,277,987, floor=$30,000,000, override_floor=$28,500,000, override_enabled=True, tier=2
+2025-11-12 00:17:25,387 INFO core.universe: OVERRIDE CHECK: STRK-USD in zone - volume=$29,277,987 ($28,500,000-$30,000,000), spread=69.7bps
+2025-11-12 00:17:25,387 WARNING core.universe: OVERRIDE REJECT: STRK-USD spread 69.7bps > 30bps
+2025-11-12 00:17:25,387 INFO core.universe: Tier 2 asset STRK-USD ineligible: Volume $29,277,987 in override zone but spread 69.7bps > 30bps
+2025-11-12 00:17:25,884 INFO core.universe: Tier 2 asset SAPIEN-USD ineligible: Volume $17,794,710 < $30,000,000
+2025-11-12 00:17:26,374 INFO core.universe: Tier 2 asset ARB-USD ineligible: Volume $13,583,243 < $30,000,000
+2025-11-12 00:17:26,851 INFO core.universe: Tier 2 asset ENA-USD ineligible: Volume $11,228,086 < $30,000,000
+2025-11-12 00:17:27,372 INFO core.universe: Tier 2 asset ZK-USD ineligible: Depth $13,949 < $25,000 (T2)
+2025-11-12 00:17:27,775 INFO core.universe: Tier 2 asset POPCAT-USD ineligible: Volume $21,955,044 < $30,000,000
+2025-11-12 00:17:28,212 INFO core.universe: Tier 2 asset VELO-USD ineligible: Spread 53.0bps > 35bps
+2025-11-12 00:17:28,212 INFO core.universe: Universe snapshot: 4 core, 6 rotational, 0 event-driven, 7 excluded
+2025-11-12 00:17:29,396 INFO __main__: Universe: 10 eligible (4 core, 6 rotational, 0 event-driven)
+2025-11-12 00:17:29,396 INFO __main__: Step 2: Scanning for triggers...
+2025-11-12 00:17:29,396 INFO core.triggers: Scanning 10 assets for triggers (regime=chop)
+2025-11-12 00:17:31,691 INFO core.triggers: Found 1 triggers
+2025-11-12 00:17:31,691 INFO core.triggers:   Trigger #1: WLFI-USD reversal strength=0.28 conf=0.60 price_chg=5.52%
+2025-11-12 00:17:31,692 INFO __main__: Triggers: 1 detected
+2025-11-12 00:17:31,692 INFO __main__: Step 3: Generating trade proposals...
+2025-11-12 00:17:31,692 INFO strategy.rules_engine: Running rules engine: 1 triggers, 10 eligible assets, regime=chop
+2025-11-12 00:17:31,692 INFO strategy.rules_engine: Generated 0 trade proposals (filtered by min_conviction=0.34)
+2025-11-12 00:17:31,692 INFO __main__: NO_TRADE: rules_engine_no_proposals
+2025-11-12 00:17:31,694 WARNING __main__: High cycle utilization (72.2%), adding 15.0s backoff
+2025-11-12 00:17:31,694 INFO __main__: Cycle took 21.65s, sleeping 23.33s (util: 72.2%)
+2025-11-12 00:17:55,031 INFO __main__: ================================================================================
+2025-11-12 00:17:55,032 INFO __main__: CYCLE START: 2025-11-12T05:17:55.031483+00:00
+2025-11-12 00:17:55,032 INFO __main__: ================================================================================
+2025-11-12 00:17:59,981 INFO __main__: Real account value: $489.87
+2025-11-12 00:18:00,199 INFO __main__: Step 1: Building universe...
+2025-11-12 00:18:01,344 INFO __main__: Universe: 10 eligible (4 core, 6 rotational, 0 event-driven)
+2025-11-12 00:18:01,345 INFO __main__: Step 2: Scanning for triggers...
+2025-11-12 00:18:01,345 INFO core.triggers: Scanning 10 assets for triggers (regime=chop)
+2025-11-12 00:18:04,013 INFO core.triggers: Found 1 triggers
+2025-11-12 00:18:04,013 INFO core.triggers:   Trigger #1: WLFI-USD reversal strength=0.28 conf=0.60 price_chg=5.60%
+2025-11-12 00:18:04,014 INFO __main__: Triggers: 1 detected
+2025-11-12 00:18:04,014 INFO __main__: Step 3: Generating trade proposals...
+2025-11-12 00:18:04,014 INFO strategy.rules_engine: Running rules engine: 1 triggers, 10 eligible assets, regime=chop
+2025-11-12 00:18:04,014 INFO strategy.rules_engine: Generated 0 trade proposals (filtered by min_conviction=0.34)
+2025-11-12 00:18:04,015 INFO __main__: NO_TRADE: rules_engine_no_proposals
+2025-11-12 00:18:04,016 INFO __main__: Cycle took 8.98s, sleeping 23.32s (util: 29.9%)
+2025-11-12 00:18:27,341 INFO __main__: ================================================================================
+2025-11-12 00:18:27,342 INFO __main__: CYCLE START: 2025-11-12T05:18:27.341477+00:00
+2025-11-12 00:18:27,342 INFO __main__: ================================================================================
+2025-11-12 00:18:32,195 INFO __main__: Real account value: $490.05
+2025-11-12 00:18:32,345 INFO __main__: Step 1: Building universe...
+2025-11-12 00:18:33,578 INFO __main__: Universe: 10 eligible (4 core, 6 rotational, 0 event-driven)
+2025-11-12 00:18:33,578 INFO __main__: Step 2: Scanning for triggers...
+2025-11-12 00:18:33,578 INFO core.triggers: Scanning 10 assets for triggers (regime=chop)
+2025-11-12 00:18:35,793 INFO core.triggers: Found 1 triggers
+2025-11-12 00:18:35,794 INFO core.triggers:   Trigger #1: WLFI-USD reversal strength=0.28 conf=0.60 price_chg=5.59%
+2025-11-12 00:18:35,794 INFO __main__: Triggers: 1 detected
+2025-11-12 00:18:35,794 INFO __main__: Step 3: Generating trade proposals...
+2025-11-12 00:18:35,795 INFO strategy.rules_engine: Running rules engine: 1 triggers, 10 eligible assets, regime=chop
+2025-11-12 00:18:35,795 INFO strategy.rules_engine: Generated 0 trade proposals (filtered by min_conviction=0.34)
+2025-11-12 00:18:35,795 INFO __main__: NO_TRADE: rules_engine_no_proposals
+2025-11-12 00:18:35,796 INFO __main__: Cycle took 8.45s, sleeping 24.13s (util: 28.2%)
