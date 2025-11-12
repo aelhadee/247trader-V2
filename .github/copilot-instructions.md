@@ -16,6 +16,7 @@ NOTE: you can check ./reference_code/.. (freqtrade, hummingbot, jesse, Superlago
 NOTE2: ALWAYS PROCEED WITH what you think is the best approach based on your expertise, you don't have to ask for confirmation before making changes. Just make sure to follow the guidelines.
 
 NOTE3: ALWAYS CREATE A TODO LIST AND TRACK IT UNTIL all tasks are done.
+
 ---
 
 # 247trader‑v2 Copilot Guide
