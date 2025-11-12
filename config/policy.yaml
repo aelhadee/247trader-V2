@@ -241,11 +241,11 @@ execution:
   max_slippage_bps: 40              # 0.40% max allowed vs reference (default)
   hard_max_spread_bps: 80           # must align with liquidity.max_spread_bps
   
-  # Slippage budget by tier (est_slippage_bps + fees must be < budget)
-  # Prevents "okay signal, terrible execution" scenarios
-  slippage_budget_t1_bps: 20        # Tier 1: tight spreads, low fees
-  slippage_budget_t2_bps: 35        # Tier 2: moderate spreads
-  slippage_budget_t3_bps: 60        # Tier 3: wider spreads acceptable
+  # Slippage budget by tier (est_slippage_bps + fees must stay under budget)
+  # Updated to exceed maker/taker fees plus realistic slippage cushions
+  slippage_budget_t1_bps: 60        # Maker fee 40bps + 20bps slippage headroom
+  slippage_budget_t2_bps: 95        # Taker fee 60bps + 35bps buffer for T2 assets
+  slippage_budget_t3_bps: 120       # Additional slack for illiquid Tier 3 names
   
   # Order management
   cancel_after_seconds: 60          # cancel resting orders if not filled
