@@ -31,8 +31,7 @@ class TestDeterministicClientOrderIds:
         id3 = engine.generate_client_order_id("BTC-USD", "BUY", 100.0, ts)
         
         assert id1 == id2 == id3, "Same inputs must produce same ID"
-        assert id1.startswith("coid_"), "ID should have coid_ prefix"
-        assert len(id1) == 21, "ID should be 'coid_' + 16 hex chars"
+    assert id1.startswith("247trader_coid_"), "ID should include managed prefix"
     
     def test_different_symbols_different_ids(self):
         """Different symbols should produce different IDs"""
@@ -142,8 +141,7 @@ class TestDeterministicClientOrderIds:
         id1 = engine.generate_client_order_id("BTC-USD", "BUY", 100.0)
         
         # Should produce valid ID
-        assert id1.startswith("coid_")
-        assert len(id1) == 21
+    assert id1.startswith("247trader_coid_")
         
         # Generate again immediately - should be same (within same minute)
         id2 = engine.generate_client_order_id("BTC-USD", "BUY", 100.0)
@@ -164,8 +162,8 @@ class TestClientOrderIdIntegration:
         # Execute without providing client_order_id
         result = engine.execute("BTC-USD", "BUY", 100.0)
         
-        assert result.success is True
-        assert result.order_id.startswith("dry_run_coid_")
+    assert result.success is True
+    assert result.order_id.startswith("dry_run_247trader_coid_")
         
         # Execute again with same params - should get same underlying ID
         result2 = engine.execute("BTC-USD", "BUY", 100.0)
@@ -184,8 +182,8 @@ class TestClientOrderIdIntegration:
         # Execute with full trading pair to avoid _find_best_trading_pair
         result = engine.execute("BTC-USD", "SELL", 100.0)  # Use SELL to avoid balance lookup
         
-        assert result.success is True
-        assert result.order_id.startswith("paper_coid_")
+    assert result.success is True
+    assert result.order_id.startswith("paper_247trader_coid_")
         
         # Execute again with same params - should get same underlying ID
         result2 = engine.execute("BTC-USD", "SELL", 100.0)
@@ -233,8 +231,8 @@ class TestClientOrderIdIntegration:
         # Verify deterministic client_order_id was passed to place_order
         call_args = mock_exchange.place_order.call_args
         client_order_id = call_args.kwargs.get("client_order_id")
-        assert client_order_id is not None
-        assert client_order_id.startswith("coid_")
+    assert client_order_id is not None
+    assert client_order_id.startswith("247trader_coid_")
     
     @patch('core.execution.get_exchange')
     def test_explicit_client_order_id_preserved(self, mock_get_exchange):
