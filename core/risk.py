@@ -8,7 +8,7 @@ NO component (rules, AI, or human) can violate these.
 """
 
 from typing import List, Dict, Optional, Tuple
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from collections import defaultdict
 import logging
