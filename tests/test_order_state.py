@@ -218,6 +218,47 @@ class TestOrderStateMachine:
         order = self.machine.get_order("test_123")
         assert order.status == OrderStatus.FILLED.value
     
+    def test_late_fill_allows_canceled_to_filled(self):
+        """Late fills from the exchange should upgrade canceled orders to filled."""
+        self.machine.create_order(
+            client_order_id="late_fill",
+            symbol="ETH-USD",
+            side="buy",
+            size_usd=500.0,
+        )
+        self.machine.transition("late_fill", OrderStatus.OPEN)
+        self.machine.transition("late_fill", OrderStatus.CANCELED)
+
+        success = self.machine.transition("late_fill", OrderStatus.FILLED)
+
+        assert success is True
+        order = self.machine.get_order("late_fill")
+        assert order.status == OrderStatus.FILLED.value
+        assert order.completed_at is not None
+
+    def test_update_fill_promotes_canceled_to_filled(self):
+        """update_fill should tolerate late fills even after local cancellation."""
+        self.machine.create_order(
+            client_order_id="late_fill_update",
+            symbol="SOL-USD",
+            side="buy",
+            size_usd=200.0,
+            size_base=5.0,
+        )
+        self.machine.transition("late_fill_update", OrderStatus.OPEN)
+        self.machine.transition("late_fill_update", OrderStatus.CANCELED)
+
+        self.machine.update_fill(
+            client_order_id="late_fill_update",
+            filled_size=5.0,
+            filled_value=200.0,
+            fees=1.0,
+        )
+
+        order = self.machine.get_order("late_fill_update")
+        assert order.status == OrderStatus.FILLED.value
+        assert order.filled_size == 5.0
+
     def test_transition_nonexistent_order(self):
         """Test transitioning nonexistent order returns False"""
         success = self.machine.transition("nonexistent", OrderStatus.OPEN)
