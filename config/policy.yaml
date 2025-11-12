@@ -40,6 +40,9 @@ risk:
   
   # Minimum trade size
   min_trade_notional_usd: 5  # Skip dust (lowered for very small account)
+  dust_threshold_usd: 3.0  # Holdings below this USD value do not consume a slot
+  allow_adds_when_over_cap: true  # Permit topping up existing symbols even if cap reached
+  count_open_orders_in_cap: true  # Treat pending buy orders as occupying slots
   
   # Hard stops per position
   stop_loss_pct: 8.0
@@ -218,6 +221,7 @@ execution:
   
   # Order types
   default_order_type: "limit_post_only"  # Phase 1: conservative
+  min_notional_usd: 10.0                 # Execution floor for gross order size
   # Auto-convert USD → USDC to honor preferred quote (when needed for BUYs)
   auto_convert_preferred_quote: false
   # Clamp tiny trades up to the minimum notional to avoid rejects
@@ -265,6 +269,14 @@ execution:
   # Retry logic
   max_retries: 3
   retry_delay_seconds: 5
+  cancel_retry_backoff_ms:
+    - 250
+    - 500
+    - 1000
+  promote_to_taker_if_budget_allows: false
+  taker_promotion_requirements:
+    min_confidence: 0.7
+    max_slippage_bps: 50
   
   # Volatility-aware sizing: cut risk in crazy tape
   high_volatility:
