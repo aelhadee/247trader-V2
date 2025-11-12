@@ -371,10 +371,16 @@ class RiskEngine:
             )
             # Alert on stop loss hit
             if self.alert_service:
-                self.alert_service.send_alert(
-                    message=f"Weekly stop loss triggered: {weekly_pnl:.2f}% loss",
+                from infra.alerting import AlertSeverity
+                self.alert_service.notify(
                     severity=AlertSeverity.CRITICAL,
-                    tags=["risk", "stop_loss", "weekly"]
+                    title="🛑 Weekly Stop Loss Triggered",
+                    message=f"Weekly PnL breached -{max_weekly_loss_pct}% threshold",
+                    context={
+                        "weekly_pnl_pct": round(weekly_pnl, 2),
+                        "threshold": -max_weekly_loss_pct,
+                        "nav": round(portfolio.nav, 2)
+                    }
                 )
             return RiskCheckResult(
                 approved=False,
