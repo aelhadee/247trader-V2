@@ -15,7 +15,7 @@ triggers:
   min_trigger_confidence: 0.5  # Minimum confidence to act
   
   # Rate limiting
-  max_triggers_per_cycle: 10  # Cap triggers to avoid overload
+  max_triggers_per_cycle: 5  # Cap triggers to focus on quality (was 10)
   
   # Regime adjustments
   regime_multipliers:
