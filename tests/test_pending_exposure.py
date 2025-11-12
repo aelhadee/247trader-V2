@@ -306,7 +306,7 @@ def test_multiple_pending_buys_aggregate_correctly(risk_engine):
     
     # Should REJECT: $900 pending + $700 proposed = $1,600 (16%) > 15%
     assert not result.approved, "Should aggregate all pending buys toward total exposure"
-    assert "max_total_at_risk" in result.violated_checks or "global_exposure" in result.violated_checks
+    assert "max_total_at_risk" in result.violated_checks or "global_exposure" in result.violated_checks or "max_total_at_risk_pct" in result.violated_checks
 
 
 def test_integration_with_main_loop_state_hydration():
