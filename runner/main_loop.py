@@ -136,7 +136,8 @@ class TradingLoop:
         self.risk_engine = RiskEngine(
             self.policy_config, 
             universe_manager=self.universe_mgr,
-            exchange=self.exchange
+            exchange=self.exchange,
+            alert_service=self.alerts  # CRITICAL: Wire alerts for safety notifications
         )
         self.executor = ExecutionEngine(
             mode=self.mode,
