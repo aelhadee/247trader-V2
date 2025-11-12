@@ -1407,12 +1407,8 @@ class ExecutionEngine:
                     # Wait briefly for fill to propagate (market orders fill instantly)
                     time.sleep(0.5)
                     
-                    # Fetch fills from exchange (list_fills returns dict with 'fills' key)
-                    fills_response = self.exchange.list_fills(order_id=order_id)
-                    if isinstance(fills_response, dict):
-                        fills = fills_response.get("fills", [])
-                    else:
-                        fills = fills_response if fills_response else []
+                    # Fetch fills from exchange (list_fills returns list directly)
+                    fills = self.exchange.list_fills(order_id=order_id) or []
                     logger.info(f"Retrieved {len(fills)} fills for order {order_id}")
                 except Exception as poll_err:
                     logger.warning(f"Failed to poll fills for {order_id}: {poll_err}")
