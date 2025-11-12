@@ -2091,7 +2091,7 @@ class TradingLoop:
                 )
                 break
 
-            filled_value, filled_units, fees, _, status = self._await_twap_slice(
+            filled_value, filled_units, fees, fills, status = self._await_twap_slice(
                 pair=pair,
                 order_id=result.order_id,
                 client_order_id=client_order_id,
