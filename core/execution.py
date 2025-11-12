@@ -2268,54 +2268,91 @@ class ExecutionEngine:
             time.sleep(poll_interval)
 
         # TTL expired without terminal state; cancel to avoid resting risk
-        try:
-            self.exchange.cancel_order(order_id)
-            logger.info(
-                "Post-only TTL expired for %s (%s %s); canceled after %ss",
-                order_id,
-                side,
-                symbol,
-                ttl_seconds,
-            )
-            if client_order_id:
-                try:
-                    self.order_state_machine.transition(
-                        client_order_id,
-                        OrderStatus.CANCELED,
-                        error="post_only_ttl_expired",
-                    )
-                except Exception as exc:  # pragma: no cover - defensive
-                    logger.debug("Order state transition failed after TTL cancel: %s", exc)
+        backoffs = list(self.cancel_retry_backoff_ms) if self.cancel_retry_backoff_ms else [250, 500, 1000]
+        attempts = len(backoffs) + 1
+        cancel_error: Optional[str] = None
+        snapshot_post_cancel: Optional[Dict[str, Any]] = None
 
-            fills = self.exchange.list_fills(order_id=order_id) or latest_fills
-            size, price, total_fees, total_quote = self._summarize_fills(fills)
-            return PostOnlyTTLResult(
-                triggered=True,
-                canceled=True,
-                status="CANCELED",
-                fills=fills,
-                filled_size=size,
-                filled_price=price,
-                filled_value=total_quote,
-                fees=total_fees,
-            )
-        except Exception as exc:
-            logger.warning(
-                "Failed to cancel post-only order %s after TTL expiry: %s",
-                order_id,
-                exc,
-            )
-            return PostOnlyTTLResult(
-                triggered=True,
-                canceled=False,
-                status=latest_status,
-                fills=latest_fills,
-                filled_size=latest_size,
-                filled_price=latest_price,
-                filled_value=(latest_size * latest_price if latest_size and latest_price else None),
-                fees=latest_fees,
-                error=f"ttl_cancel_failed:{last_error or exc}",
-            )
+        for attempt in range(attempts):
+            try:
+                cancel_resp = self.exchange.cancel_order(order_id)
+            except Exception as exc:  # pragma: no cover - defensive
+                cancel_resp = {"success": False, "error": str(exc)}
+
+            cancel_error = cancel_resp.get("error") if isinstance(cancel_resp, dict) else None
+            cancel_success = bool(cancel_resp.get("success")) if isinstance(cancel_resp, dict) else False
+
+            snapshot_post_cancel = self.exchange.get_order_status(order_id) or snapshot_post_cancel
+            status_after = (snapshot_post_cancel or {}).get("status", latest_status).upper()
+            filled_after = float((snapshot_post_cancel or {}).get("filled_size", latest_size) or latest_size)
+
+            if cancel_success:
+                status_after = "CANCELED" if status_after not in terminal_states else status_after
+                logger.info(
+                    "Post-only TTL expired for %s (%s %s); canceled after %ss (attempt=%d)",
+                    order_id,
+                    side,
+                    symbol,
+                    ttl_seconds,
+                    attempt + 1,
+                )
+                if client_order_id:
+                    try:
+                        self.order_state_machine.transition(
+                            client_order_id,
+                            OrderStatus.CANCELED,
+                            error="post_only_ttl_expired",
+                        )
+                    except Exception as exc:  # pragma: no cover - defensive
+                        logger.debug("Order state transition failed after TTL cancel: %s", exc)
+
+                fills = self.exchange.list_fills(order_id=order_id) or latest_fills
+                size, price, total_fees, total_quote = self._summarize_fills(fills)
+                return PostOnlyTTLResult(
+                    triggered=True,
+                    canceled=True,
+                    status=status_after,
+                    fills=fills,
+                    filled_size=size,
+                    filled_price=price,
+                    filled_value=total_quote,
+                    fees=total_fees,
+                )
+
+            # Exchange may report FINISHED despite cancel failure. Accept fills.
+            if status_after in terminal_states or filled_after > 0:
+                fills = self.exchange.list_fills(order_id=order_id) or latest_fills
+                size, price, total_fees, total_quote = self._summarize_fills(fills)
+                return PostOnlyTTLResult(
+                    triggered=True,
+                    canceled=status_after in {"CANCELED", "CANCELLED", "EXPIRED"},
+                    status=status_after,
+                    fills=fills,
+                    filled_size=size if size else filled_after,
+                    filled_price=price,
+                    filled_value=total_quote if size else (filled_after * price if price else None),
+                    fees=total_fees,
+                )
+
+            if attempt < len(backoffs):
+                time.sleep(max(backoffs[attempt] / 1000.0, 0.05))
+
+        logger.warning(
+            "Failed to cancel post-only order %s after TTL expiry (last_error=%s)",
+            order_id,
+            cancel_error,
+        )
+        return PostOnlyTTLResult(
+            triggered=True,
+            canceled=False,
+            status=(snapshot_post_cancel or {}).get("status", latest_status),
+            fills=latest_fills,
+            filled_size=latest_size,
+            filled_price=latest_price,
+            filled_value=(latest_size * latest_price if latest_size and latest_price else None),
+            fees=latest_fees,
+            error=f"ttl_cancel_failed:{cancel_error or last_error or 'unknown'}",
+        )
 
     def _update_state_store_after_execution(
         self,
