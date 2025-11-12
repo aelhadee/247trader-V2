@@ -238,7 +238,13 @@ class UniverseManager:
         """
         # Check cache
         if not force_refresh and self._is_cache_valid(regime):
-            logger.debug(f"Using cached universe (age: {datetime.utcnow() - self._cache_time})")
+            cache_time = self._cache_time
+            if cache_time and cache_time.tzinfo is None:
+                cache_time = cache_time.replace(tzinfo=timezone.utc)
+            age = None
+            if cache_time:
+                age = datetime.now(timezone.utc) - cache_time
+            logger.debug(f"Using cached universe (age: {age})")
             return self._cache
         
         logger.info(f"Building universe snapshot for regime={regime}")
@@ -280,7 +286,7 @@ class UniverseManager:
         )
         
         snapshot = UniverseSnapshot(
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             regime=regime,
             tier_1_assets=tier_1,
             tier_2_assets=tier_2,
@@ -290,8 +296,8 @@ class UniverseManager:
         )
         
         # Cache result
-        self._cache = snapshot
-        self._cache_time = datetime.utcnow()
+    self._cache = snapshot
+    self._cache_time = datetime.now(timezone.utc)
         
         logger.info(
             f"Universe snapshot: {len(tier_1)} core, {len(tier_2)} rotational, "
