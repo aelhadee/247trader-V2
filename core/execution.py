@@ -2284,7 +2284,15 @@ class ExecutionEngine:
 
             snapshot_post_cancel = self.exchange.get_order_status(order_id) or snapshot_post_cancel
             status_after = (snapshot_post_cancel or {}).get("status", latest_status).upper()
-            filled_after = float((snapshot_post_cancel or {}).get("filled_size", latest_size) or latest_size)
+            raw_filled_after = (snapshot_post_cancel or {}).get("filled_size")
+            filled_after: Optional[Decimal] = None
+            try:
+                if raw_filled_after is not None:
+                    filled_after = Decimal(str(raw_filled_after))
+                elif latest_size:
+                    filled_after = Decimal(str(latest_size))
+            except (InvalidOperation, TypeError):
+                filled_after = None
 
             if cancel_success:
                 status_after = "CANCELED" if status_after not in terminal_states else status_after
@@ -2320,7 +2328,9 @@ class ExecutionEngine:
                 )
 
             # Exchange may report FINISHED despite cancel failure. Accept fills.
-            if status_after in terminal_states or filled_after > 0:
+            has_fill_after = bool(filled_after and filled_after > 0)
+
+            if status_after in terminal_states or has_fill_after:
                 fills = self.exchange.list_fills(order_id=order_id) or latest_fills
                 size, price, total_fees, total_quote = self._summarize_fills(fills)
                 return PostOnlyTTLResult(
