@@ -1091,10 +1091,12 @@ class RiskEngine:
         violated = []
 
         existing_position_usd = portfolio.get_position_usd(proposal.symbol)
-        pending_buy_usd = portfolio.get_pending_notional_usd("buy", proposal.symbol)
         normalized_symbol = proposal.symbol if "-" in proposal.symbol else f"{proposal.symbol}-USD"
+        pending_buy_usd = portfolio.get_pending_notional_usd("buy", proposal.symbol)
         if pending_notional_map:
             pending_buy_usd = max(pending_buy_usd, pending_notional_map.get(normalized_symbol, 0.0))
+
+        effective_pending_usd = pending_buy_usd
         allow_adds_when_over_cap = bool(self.risk_config.get("allow_adds_when_over_cap", True))
 
         def _pct(value_usd: float) -> float:
@@ -1103,7 +1105,7 @@ class RiskEngine:
             except ZeroDivisionError:
                 return 0.0
 
-    existing_exposure_pct = _pct(existing_position_usd + pending_buy_usd)
+        existing_exposure_pct = _pct(existing_position_usd + effective_pending_usd)
         
         # Get base limits
         max_pos_pct = self.risk_config.get("max_position_size_pct", 5.0)
@@ -1137,11 +1139,11 @@ class RiskEngine:
         # Check if already have position
         allow_pyramid = self.sizing_config.get("allow_pyramiding", False)
         if is_existing_position:
-            if not allow_pyramid and not (side_upper == "BUY" and allow_adds_when_over_cap and pending_buy_usd <= 0):
+            if not allow_pyramid and not (side_upper == "BUY" and allow_adds_when_over_cap and effective_pending_usd <= 0):
                 violated.append(f"already_have_position ({proposal.symbol})")
 
         # Pending orders count toward pyramiding guard as well
-        if not allow_pyramid and pending_buy_usd > 0 and side_upper == "BUY":
+        if not allow_pyramid and effective_pending_usd > 0 and side_upper == "BUY":
             violated.append(f"pending_buy_exists ({proposal.symbol})")
         
         if violated:
