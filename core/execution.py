@@ -2233,7 +2233,7 @@ class ExecutionEngine:
 
                 if latest_status in terminal_states or latest_size > 0:
                     fills = self.exchange.list_fills(order_id=order_id) or latest_fills
-                    size, price, total_fees = self._summarize_fills(fills)
+                    size, price, total_fees, total_quote = self._summarize_fills(fills)
                     return PostOnlyTTLResult(
                         triggered=True,
                         canceled=False,
@@ -2241,6 +2241,7 @@ class ExecutionEngine:
                         fills=fills,
                         filled_size=size,
                         filled_price=price,
+                        filled_value=total_quote,
                         fees=total_fees,
                     )
 
@@ -2267,7 +2268,7 @@ class ExecutionEngine:
                     logger.debug("Order state transition failed after TTL cancel: %s", exc)
 
             fills = self.exchange.list_fills(order_id=order_id) or latest_fills
-            size, price, total_fees = self._summarize_fills(fills)
+            size, price, total_fees, total_quote = self._summarize_fills(fills)
             return PostOnlyTTLResult(
                 triggered=True,
                 canceled=True,
@@ -2275,6 +2276,7 @@ class ExecutionEngine:
                 fills=fills,
                 filled_size=size,
                 filled_price=price,
+                filled_value=total_quote,
                 fees=total_fees,
             )
         except Exception as exc:
@@ -2290,6 +2292,7 @@ class ExecutionEngine:
                 fills=latest_fills,
                 filled_size=latest_size,
                 filled_price=latest_price,
+                filled_value=(latest_size * latest_price if latest_size and latest_price else None),
                 fees=latest_fees,
                 error=f"ttl_cancel_failed:{last_error or exc}",
             )
