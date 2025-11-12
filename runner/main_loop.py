@@ -1450,6 +1450,21 @@ class TradingLoop:
             logger.error(f"Auto-rebalance failed: {e}")
             return False
     
+    def _infer_tier_from_config(self, symbol: str) -> Optional[int]:
+        """Infer asset tier from universe configuration for slippage budgets."""
+        tiers_cfg = (self.universe_config or {}).get("tiers", {}) if hasattr(self, "universe_config") else {}
+        tier_mapping = {
+            "tier_1_core": 1,
+            "tier_2_rotational": 2,
+            "tier_3_event_driven": 3,
+        }
+
+        for tier_name, tier_value in tier_mapping.items():
+            symbols = tiers_cfg.get(tier_name, {}).get("symbols", []) or []
+            if symbol in symbols:
+                return tier_value
+        return None
+
     def _sell_via_market_order(
         self,
         currency: str,
