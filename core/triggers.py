@@ -103,7 +103,7 @@ class TriggerEngine:
 
         # Confirmation rules for reversal triggers (Option A tuning)
         self.reversal_confirm_config = self.config.get("reversal_confirm", {})
-    self.trend_filter_config = self.config.get("trend_filter", {})
+        self.trend_filter_config = self.config.get("trend_filter", {})
         
         # Fallback to policy.yaml if signals.yaml doesn't have regime thresholds (backward compat)
         price_move_config = self.policy_triggers.get("price_move", {})
