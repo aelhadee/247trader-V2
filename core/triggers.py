@@ -77,13 +77,35 @@ class TriggerEngine:
             self.policy_triggers = {}
             self.circuit_breakers = {}
         
-        # Extract spec-compliant parameters (from policy.yaml)
+        # Extract regime-aware thresholds (from signals.yaml)
+        self.regime_thresholds = self.config.get("regime_thresholds", {
+            "chop": {
+                "pct_change_15m": 2.0,
+                "pct_change_60m": 4.0,
+                "volume_ratio_1h": 1.9,
+                "atr_filter_min_mult": 1.1
+            },
+            "bull": {
+                "pct_change_15m": 3.5,
+                "pct_change_60m": 7.0,
+                "volume_ratio_1h": 2.0,
+                "atr_filter_min_mult": 1.2
+            },
+            "bear": {
+                "pct_change_15m": 3.0,
+                "pct_change_60m": 7.0,
+                "volume_ratio_1h": 2.0,
+                "atr_filter_min_mult": 1.2
+            }
+        })
+        
+        # Fallback to policy.yaml if signals.yaml doesn't have regime thresholds (backward compat)
         price_move_config = self.policy_triggers.get("price_move", {})
-        self.pct_15m = price_move_config.get("pct_15m", 3.5)
-        self.pct_60m = price_move_config.get("pct_60m", 6.0)
+        self.pct_15m = price_move_config.get("pct_15m", 2.5)  # Fallback default
+        self.pct_60m = price_move_config.get("pct_60m", 4.5)  # Fallback default
         
         volume_spike_config = self.policy_triggers.get("volume_spike", {})
-        self.ratio_1h_vs_24h = volume_spike_config.get("ratio_1h_vs_24h", 1.8)
+        self.ratio_1h_vs_24h = volume_spike_config.get("ratio_1h_vs_24h", 1.9)
         
         breakout_config = self.policy_triggers.get("breakout", {})
         self.lookback_hours = breakout_config.get("lookback_hours", 24)
@@ -97,7 +119,7 @@ class TriggerEngine:
         self.breakout_threshold_pct = self.config.get("breakout_threshold_pct", 2.0)
         self.min_trigger_score = self.config.get("min_trigger_score", 0.2)
         self.min_trigger_confidence = self.config.get("min_trigger_confidence", 0.5)
-        self.max_triggers_per_cycle = self.config.get("max_triggers_per_cycle", 10)
+        self.max_triggers_per_cycle = self.config.get("max_triggers_per_cycle", 5)
         self.regime_multipliers = self.config.get("regime_multipliers", {
             "bull": 1.2, "chop": 1.0, "bear": 0.8, "crash": 0.0
         })
