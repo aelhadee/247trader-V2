@@ -357,6 +357,7 @@ class TestFileValidation:
                     "small_order_market_threshold_usd": 6.0,
                     "failed_order_cooldown_seconds": 0,
                     "cancel_after_seconds": 60,
+                    "post_only_ttl_seconds": 4,
                     "post_trade_reconcile_wait_seconds": 0.5,
                 },
                 "data": {
