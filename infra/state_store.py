@@ -535,16 +535,18 @@ class StateStore:
                 total_value_dec = (old_qty_dec * old_price_dec) + notional_dec
                 new_qty_dec = old_qty_dec + size_dec
                 new_entry_price_dec = total_value_dec / new_qty_dec if new_qty_dec > 0 else price_dec
+                mark_value_dec = new_qty_dec * price_dec if price_dec > 0 else total_value_dec
 
                 pos["quantity"] = float(new_qty_dec)
                 pos["units"] = float(new_qty_dec)
                 pos["base_qty"] = float(new_qty_dec)
                 pos["entry_price"] = float(new_entry_price_dec)
                 pos["entry_value_usd"] = float(total_value_dec)
-                pos["usd_value"] = float(total_value_dec)
-                pos["usd"] = float(total_value_dec)
+                pos["usd_value"] = float(mark_value_dec)
+                pos["usd"] = float(mark_value_dec)
                 pos["fees_paid"] = float(old_fees_dec + fees_dec)
                 pos["last_updated"] = timestamp.isoformat()
+                pos["last_fill_price"] = price_float
 
                 logger.debug(
                     "Added to %s position: %.8f @ $%.8f, new avg entry: $%.8f, total qty: %.8f",
@@ -567,6 +569,7 @@ class StateStore:
                     "fees_paid": fees_float,
                     "entry_time": timestamp.isoformat(),
                     "last_updated": timestamp.isoformat(),
+                    "last_fill_price": price_float,
                 }
 
                 logger.info("Opened %s position: %.8f @ $%.8f", symbol, size_float, price_float)
@@ -627,15 +630,17 @@ class StateStore:
                 managed_positions.pop(symbol, None)
                 logger.info("Fully closed %s position", symbol)
             else:
+                mark_value_usd = remaining_qty * price_float
                 pos["quantity"] = remaining_qty
                 pos["units"] = remaining_qty
                 pos["base_qty"] = remaining_qty
                 entry_value_usd = remaining_qty * entry_price
                 pos["entry_value_usd"] = entry_value_usd
-                pos["usd_value"] = entry_value_usd
-                pos["usd"] = entry_value_usd
+                pos["usd_value"] = mark_value_usd
+                pos["usd"] = mark_value_usd
                 pos["fees_paid"] = max(total_entry_fees * (1 - proportion_sold), 0.0)
                 pos["last_updated"] = timestamp.isoformat()
+                pos["last_fill_price"] = price_float
                 logger.debug("Reduced %s position to %.8f units", symbol, remaining_qty)
 
         else:
@@ -653,6 +658,7 @@ class StateStore:
                 "notional_usd": notional_float,
                 "fees": fees_float,
                 "pnl": float(total_pnl_dec) if side_upper == "SELL" else None,
+                "mark_price": price_float,
             }
         )
 
