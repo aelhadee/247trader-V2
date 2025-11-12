@@ -376,6 +376,58 @@ class TradingLoop:
             weekly_pnl_pct=weekly_pnl_pct,
             pending_orders=pending_orders,
         )
+    
+    def _build_pending_orders_from_state(self, state: Dict[str, Any]) -> Dict[str, Dict[str, float]]:
+        """
+        Build pending_orders dict from persisted open_orders for risk accounting.
+        
+        Returns: {"buy": {"BTC-USD": notional_usd, ...}, "sell": {"ETH-USD": notional_usd, ...}}
+        
+        CRITICAL: This ensures open orders count toward exposure caps in RiskEngine.
+        Without this, we can over-allocate while orders are working.
+        """
+        pending = {"buy": {}, "sell": {}}
+        
+        open_orders = state.get("open_orders", {})
+        if not open_orders:
+            return pending
+        
+        for order_id, order_data in open_orders.items():
+            if not isinstance(order_data, dict):
+                continue
+            
+            # Extract order details
+            side = order_data.get("side", "").lower()  # "buy" or "sell"
+            symbol = order_data.get("symbol", "")
+            
+            # Calculate notional value
+            # For BUY: use order_value or (size * price)
+            # For SELL: we don't count sell orders toward buy exposure
+            if side == "buy":
+                notional_usd = float(order_data.get("order_value_usd", 0.0))
+                
+                # Fallback: calculate from size * price if order_value not stored
+                if notional_usd == 0.0:
+                    size = float(order_data.get("size", 0.0))
+                    price = float(order_data.get("price", 0.0))
+                    notional_usd = size * price
+                
+                if symbol and notional_usd > 0:
+                    pending["buy"][symbol] = pending["buy"].get(symbol, 0.0) + notional_usd
+            
+            elif side == "sell":
+                # Track sell orders separately (not counted in buy exposure)
+                notional_usd = float(order_data.get("order_value_usd", 0.0))
+                if notional_usd == 0.0:
+                    size = float(order_data.get("size", 0.0))
+                    price = float(order_data.get("price", 0.0))
+                    notional_usd = size * price
+                
+                if symbol and notional_usd > 0:
+                    pending["sell"][symbol] = pending["sell"].get(symbol, 0.0) + notional_usd
+        
+        logger.debug(f"Pending orders from state: buy={pending['buy']}, sell={pending['sell']}")
+        return pending
 
     @staticmethod
     def _normalize_positions_for_risk(raw_positions: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
