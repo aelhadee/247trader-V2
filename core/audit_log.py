@@ -55,6 +55,7 @@ class AuditLogger:
                   final_orders: List[Any],
                   no_trade_reason: Optional[str] = None,
                   risk_violations: Optional[List[str]] = None,
+                  proposal_rejections: Optional[Dict[str, List[str]]] = None,
                   state_store: Optional[Any] = None) -> None:
         """
         Log a complete trading cycle.
@@ -144,6 +145,9 @@ class AuditLogger:
             # Risk violations
             if risk_violations:
                 entry["risk_violations"] = risk_violations
+
+            if proposal_rejections:
+                entry["proposal_rejections"] = proposal_rejections
             
             # Final orders detail
             if final_orders:
