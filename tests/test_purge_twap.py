@@ -43,7 +43,7 @@ def test_purge_liquidation_uses_maker_limit_orders():
         return_value=[
             {
                 "currency": "BAD",
-                "available_balance": {"value": "3"},
+                "available_balance": {"value": "10"},
                 "hold": {"value": "0"},
             }
         ]
