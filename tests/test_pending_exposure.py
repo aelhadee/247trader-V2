@@ -92,7 +92,7 @@ def test_pending_buy_order_counts_toward_total_exposure(risk_engine):
         reason="test"
     )
     
-    result = risk_engine.check_all(portfolio, [proposal])
+    result = risk_engine.check_all([proposal], portfolio)
     
     # Should REJECT because:
     # - Current positions: $500 (5%)
@@ -100,7 +100,7 @@ def test_pending_buy_order_counts_toward_total_exposure(risk_engine):
     # - Proposed: $900 (9%)
     # - Total: $2,000 (20%) > 15% limit
     assert not result.approved, "Should reject when pending + positions + proposed > max_total_at_risk_pct"
-    assert "max_total_at_risk" in result.violated_checks or "global_exposure" in result.violated_checks
+    assert "max_total_at_risk_pct" in result.violated_checks or "max_total_at_risk" in result.violated_checks or "global_exposure" in result.violated_checks
 
 
 def test_pending_buy_order_counts_toward_per_symbol_cap(risk_engine):
@@ -136,13 +136,12 @@ def test_pending_buy_order_counts_toward_per_symbol_cap(risk_engine):
     proposal = TradeProposal(
         symbol="BTC-USD",
         side="buy",
-        base_size_usd=300.0,  # Another $300 for BTC
-        conviction=0.8,
+        size_pct=300.0,  # Another $300 for BTC
+        confidence=0.8,
         reason="test",
-        tier="tier1"
     )
     
-    result = risk_engine.check_all(portfolio, [proposal])
+    result = risk_engine.check_all([proposal], portfolio)
     
     # Should REJECT: $300 pending + $300 proposed = $600 (6%) > 5% limit
     assert not result.approved, "Should reject when pending + proposed > max_position_size_pct for same symbol"
@@ -185,13 +184,12 @@ def test_pending_orders_allow_room_for_valid_trade(risk_engine):
     proposal = TradeProposal(
         symbol="SOL-USD",
         side="buy",
-        base_size_usd=500.0,
-        conviction=0.8,
+        size_pct=500.0,
+        confidence=0.8,
         reason="test",
-        tier="tier1"
     )
     
-    result = risk_engine.check_all(portfolio, [proposal])
+    result = risk_engine.check_all([proposal], portfolio)
     
     # Should APPROVE: $300 + $400 + $500 = $1,200 (12%) < 15%
     assert result.approved, f"Should approve valid trade with pending orders: {result.reason}"
@@ -218,13 +216,12 @@ def test_empty_pending_orders_backward_compatible(risk_engine):
     proposal = TradeProposal(
         symbol="BTC-USD",
         side="buy",
-        base_size_usd=500.0,
-        conviction=0.8,
+        size_pct=500.0,
+        confidence=0.8,
         reason="test",
-        tier="tier1"
     )
     
-    result = risk_engine.check_all(portfolio, [proposal])
+    result = risk_engine.check_all([proposal], portfolio)
     
     # Should work without errors
     assert result.approved, f"Should handle empty pending_orders: {result.reason}"
@@ -256,13 +253,12 @@ def test_sell_orders_not_counted_in_buy_exposure(risk_engine):
     proposal = TradeProposal(
         symbol="ETH-USD",
         side="buy",
-        base_size_usd=400.0,  # 4% of NAV
-        conviction=0.8,
+        size_pct=400.0,  # 4% of NAV
+        confidence=0.8,
         reason="test",
-        tier="tier1"
     )
     
-    result = risk_engine.check_all(portfolio, [proposal])
+    result = risk_engine.check_all([proposal], portfolio)
     
     # Should APPROVE: only $1000 position + $400 proposed = $1400 (14%) < 15%
     # Pending SELL of $500 doesn't count
@@ -301,13 +297,12 @@ def test_multiple_pending_buys_aggregate_correctly(risk_engine):
     proposal = TradeProposal(
         symbol="AVAX-USD",
         side="buy",
-        base_size_usd=700.0,
-        conviction=0.8,
+        size_pct=700.0,
+        confidence=0.8,
         reason="test",
-        tier="tier2"
     )
     
-    result = risk_engine.check_all(portfolio, [proposal])
+    result = risk_engine.check_all([proposal], portfolio)
     
     # Should REJECT: $900 pending + $700 proposed = $1,600 (16%) > 15%
     assert not result.approved, "Should aggregate all pending buys toward total exposure"
