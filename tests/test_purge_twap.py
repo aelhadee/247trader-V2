@@ -38,6 +38,9 @@ def test_purge_liquidation_uses_maker_limit_orders():
             "tier_3_event_driven": {"symbols": []},
         }
     }
+    loop.state_store = MagicMock()
+    loop._init_portfolio_state = MagicMock(return_value={})
+    loop.portfolio = {}
 
     loop._require_accounts = MagicMock(
         return_value=[
