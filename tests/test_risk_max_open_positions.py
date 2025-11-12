@@ -72,4 +72,3 @@ def test_capacity_respects_pending_new_slots(base_policy):
     kept_symbols = {proposal.symbol for proposal in result.filtered_proposals}
     assert "ADA-USD" in kept_symbols
     assert "DOGE-USD" not in kept_symbols
-*** End File
