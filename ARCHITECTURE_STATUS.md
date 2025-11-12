@@ -897,3 +897,43 @@ def tune(params, metrics, state):
 **Tldr:** Yes—add a small auto-tuner that nudges **conviction and trigger thresholds** within tight bounds to hit a proposals/hour target, with **dead-band, cooldown, and hard safety rails** untouched. Start in **shadow**, then **canary**, then full auto with **audit + auto-revert**.
 
 
+Short answer: **not initially.** The proposal I gave is a **rule-based controller** (dead-band + hysteresis), i.e., control theory, not AI. It nudges thresholds within hard bounds—no model training, no black box.
+
+If you want it **AI-driven**, here’s the safest way to layer it in:
+
+## Minimal AI path (safe & incremental)
+
+**Phase 0 (now) — Rule-based (no AI).**
+Bounded tweaks to `min_conviction`, `pct_change_15m`, etc., with cooldowns, dead-bands, and immutable safety rails (slippage/quote age/depth). This is what I proposed.
+
+**Phase 1 (soon) — Contextual bandit (lightweight AI).**
+
+* **Context (features):** regime (chop/bull/bear), realized 1h vol, median spread, recent proposals/hour, slippage-violation rate, cycle utilization.
+* **Actions:** tiny discrete knob moves (e.g., `min_conviction ±0.01`, `pct_change_15m ±0.1%`).
+* **Reward:** `R = +α·proposals_per_hour − β·slippage_violations − γ·utilization`.
+* **Algorithm:** **Thompson Sampling** (or ε-greedy) with a **safety shield** that rejects any action outside your hard bounds.
+* **Cadence:** at most **1 action/hour**, auto-revert if slippage worsens by >1pp window-over-window.
+* **Data:** log windows to SQLite, warm-start from your rule-based logs.
+  This adds learning but remains **interpretable and reversible**. (I’m ~85% confident it will improve throughput without hurting safety.)
+
+**Phase 2 (later) — Offline Bayesian tuning.**
+
+* Use **Bayesian optimization** (e.g., Optuna/TPE) on **historical replays or a simulator** to find better priors for the bandit.
+* No live risk; you deploy only tested parameter priors. (Confidence ~75%, depends on log quality.)
+
+**Phase 3 (much later) — Safe RL (reinforcement learning) in sim only.**
+
+* Train in a **deterministic simulator** with fees, latency, and slippage modeling; deploy a **policy distillation** to discrete rules.
+* Keep a **safety layer** that enforces slippage/quote-age/depth regardless of the policy. (Live benefit without a great simulator is uncertain—~50%.)
+
+## What is *not* AI here (on purpose)
+
+* No LLM deciding threshold values. LLMs can **explain** or summarize anomalies, but knobs should be controlled by **bounded algorithms** (rules/bandits) under strict safety constraints.
+
+## Recommendation (for a single user on Coinbase)
+
+* **Now:** ship the **rule-based** tuner (no AI). **Go: 95%**.
+* **Next:** add a **contextual bandit** in **shadow mode** for a week, then allow **1 change/hour** in canary. **Go: 85%**.
+* **Defer** Bayesian/RL until you have a backtester/simulator.
+
+**Tldr:** The current proposal is **not AI**—it’s a bounded, rule-based controller. If you want AI, add a **contextual bandit** that makes tiny, reversible adjustments inside strict safety rails, with shadow → canary → full rollout.
