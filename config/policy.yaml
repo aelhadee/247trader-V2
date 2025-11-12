@@ -62,9 +62,6 @@ position_sizing:
 
 liquidity:
   # Unified liquidity filters (single source of truth)
-
-liquidity:
-  # Unified liquidity filters (single source of truth)
   min_24h_volume_usd: 8_000_000     # $8M minimum (unified policy)
   max_spread_bps: 80                # 0.80% max spread (unified policy)
   min_depth_20bps_usd: 10_000       # $10K depth within 20bps (broader universe, monitor slippage)
