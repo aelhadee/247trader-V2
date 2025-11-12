@@ -1,7 +1,6 @@
 import datetime
 from unittest.mock import MagicMock
 
-import pytest
 import requests
 
 from core.execution import ExecutionEngine, ExecutionResult
