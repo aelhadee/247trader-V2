@@ -43,7 +43,7 @@ def base_policy():
     }
 
 
-def _portfolio(account_value: float, positions: dict, managed: dict | None = None) -> PortfolioState:
+def _portfolio(account_value: float, positions: dict, managed: Optional[Dict[str, bool]] = None) -> PortfolioState:
     return PortfolioState(
         account_value_usd=account_value,
         open_positions=positions,
@@ -56,7 +56,7 @@ def _portfolio(account_value: float, positions: dict, managed: dict | None = Non
         current_time=datetime.now(timezone.utc),
         weekly_pnl_pct=0.0,
         pending_orders={},
-        managed_positions=managed or {},
+    managed_positions=managed or {},
     )
 
 
