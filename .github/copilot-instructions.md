@@ -11,7 +11,7 @@
 - Freshness: for library advice or ecosystem changes, check last 60–90 days.
 - Output format for bigger tasks: TL;DR → Findings → Risks → Improvements (ICE: Impact/Confidence/Effort) → Recommendation (Go/No-Go %) → Caveats/tips.
 
-NOTE: after edits, run `git add -A && git commit -m "updates summary" && git push origin main`. NOTE: git commit mig
+NOTE: after edits, run `git add -A && git commit -m "updates summary" && git push origin main`. NOTE: git commit might happen automaitcally in some cases.
 NOTE2: you can check ./reference_code/.. (freqtrade, hummingbot, jesse, Superlagos) for inspiration on best practices in crypto trading bots and reference implementations.
 ---
 
