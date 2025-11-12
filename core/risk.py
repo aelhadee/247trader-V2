@@ -1155,8 +1155,12 @@ class RiskEngine:
         
         return RiskCheckResult(approved=True)
     
-    def _check_cluster_limits(self, proposals: List[TradeProposal],
-                             portfolio: PortfolioState) -> RiskCheckResult:
+    def _check_cluster_limits(
+        self,
+        proposals: List[TradeProposal],
+        portfolio: PortfolioState,
+        pending_notional_map: Optional[Dict[str, float]] = None,
+    ) -> RiskCheckResult:
         """
         Check cluster/theme exposure limits (spec requirement).
 
@@ -1185,9 +1189,13 @@ class RiskEngine:
                 continue
             cluster_exposure[cluster] += (size_usd / portfolio.account_value_usd) * 100.0
 
-        pending_buy_orders = (portfolio.pending_orders or {}).get("buy", {})
-        for symbol, usd_value in pending_buy_orders.items():
-            lookup_symbol = symbol if "-" in symbol else f"{symbol}-USD"
+        if pending_notional_map is not None:
+            pending_source = pending_notional_map.items()
+        else:
+            pending_source = ((symbol if "-" in symbol else f"{symbol}-USD", value)
+                              for symbol, value in ((portfolio.pending_orders or {}).get("buy", {}) or {}).items())
+
+        for lookup_symbol, usd_value in pending_source:
             cluster = self.universe_manager.get_asset_cluster(lookup_symbol)
             if not cluster or portfolio.account_value_usd <= 0:
                 continue
