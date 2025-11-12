@@ -500,16 +500,20 @@ class TriggerEngine:
         )
     
     def _check_volume_spike(self, asset: UniverseAsset, 
-                           candles: List[OHLCV]) -> Optional[TriggerSignal]:
+                           candles: List[OHLCV], regime: str = "chop") -> Optional[TriggerSignal]:
         """
-        Check for volume spike (spec: 1h volume vs 24h average).
+        Check for volume spike (regime-aware threshold).
         
-        Uses policy.yaml triggers.volume_spike.ratio_1h_vs_24h (default 1.8x)
+        Uses regime-specific volume_ratio_1h from signals.yaml regime_thresholds.
         
         Also calculates volatility for downstream sizing.
         """
         if len(candles) < 24:
             return None
+        
+        # Get regime-specific volume threshold
+        regime_key = regime if regime in self.regime_thresholds else "chop"
+        volume_threshold = self.regime_thresholds[regime_key].get("volume_ratio_1h", 1.9)
         
         # Current 1h volume (last candle)
         current_volume = candles[-1].volume
@@ -526,11 +530,11 @@ class TriggerEngine:
         if avg_hourly == 0:
             return None
         
-        # Calculate ratio: 1h / avg_hourly (spec: ratio_1h_vs_24h)
+        # Calculate ratio: 1h / avg_hourly
         volume_ratio = current_volume / avg_hourly
         
-        # Use spec-compliant threshold from policy.yaml (default 1.8x)
-        if volume_ratio < self.ratio_1h_vs_24h:
+        # Use regime-specific threshold
+        if volume_ratio < volume_threshold:
             return None
         
         # Strength: 1.8x = 0.27, 2.0x = 0.33, 3.0x = 0.67, 4.0x+ = 1.0
