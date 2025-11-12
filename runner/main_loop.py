@@ -930,11 +930,15 @@ class TradingLoop:
                 for proposal, size_usd in adjusted_proposals:
                     logger.info(f"Executing: {proposal.side} {proposal.symbol} (${size_usd:.2f})")
                     
+                    # Extract tier from proposal asset if available
+                    tier = proposal.asset.tier if proposal.asset else None
+                    
                     try:
                         result = self.executor.execute(
                             symbol=proposal.symbol,
                             side=proposal.side,
                             size_usd=size_usd,
+                            tier=tier,
                         )
                     except CriticalDataUnavailable as data_exc:
                         self._abort_cycle_due_to_data(
