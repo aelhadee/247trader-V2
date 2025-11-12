@@ -710,66 +710,126 @@ class ExecutionEngine:
         Returns:
             Dict with success status and details
         """
+        pair = (from_currency.upper(), to_currency.upper())
+
+        if pair in self._convert_denylist:
+            logger.info(
+                "Skipping convert %s→%s: cached as unsupported", pair[0], pair[1]
+            )
+            return {
+                'success': False,
+                'error': 'convert_pair_unsupported_cached',
+                'from_currency': from_currency,
+                'to_currency': to_currency,
+            }
+
         try:
             logger.info(f"Converting {amount} {from_currency} → {to_currency}")
-            
-            # Step 1: Get quote
+
             quote_response = self.exchange.create_convert_quote(
                 from_account=from_account_uuid,
                 to_account=to_account_uuid,
-                amount=amount
+                amount=amount,
             )
-            
-            if 'trade' not in quote_response:
-                logger.error(f"Convert quote failed: {quote_response}")
-                return {'success': False, 'error': 'Quote failed'}
-            
-            trade = quote_response['trade']
-            trade_id = trade.get('id')
-            
-            # Extract key quote details
-            exchange_rate = trade.get('exchange_rate', {}).get('value', 0)
-            total_fee = trade.get('total_fee', {}).get('amount', {}).get('value', 0)
-            
-            logger.info(f"Quote received: rate={exchange_rate}, fee={total_fee}, trade_id={trade_id}")
-            
-            # Step 2: Auto-commit (we accept all quotes for liquidation)
-            # In production, you might want to add checks here (e.g., max slippage)
+        except requests_exceptions.HTTPError as exc:
+            error_text = exc.response.text.strip() if exc.response is not None else str(exc)
+            logger.warning(
+                "Convert quote failed for %s→%s: %s",
+                pair[0],
+                pair[1],
+                error_text,
+            )
+            self._convert_denylist.add(pair)
+            return {'success': False, 'error': error_text}
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(
+                "Convert quote raised for %s→%s: %s", pair[0], pair[1], exc
+            )
+            self._convert_denylist.add(pair)
+            return {'success': False, 'error': str(exc)}
+
+        trade = quote_response.get('trade')
+        if not isinstance(trade, dict):
+            logger.warning(
+                "Convert quote missing trade payload for %s→%s: %s",
+                pair[0],
+                pair[1],
+                quote_response,
+            )
+            self._convert_denylist.add(pair)
+            return {'success': False, 'error': 'Quote missing trade'}
+
+        trade_id = trade.get('id')
+        exchange_rate = trade.get('exchange_rate', {}).get('value', 0)
+        total_fee = trade.get('total_fee', {}).get('amount', {}).get('value', 0)
+
+        logger.info(
+            "Quote received for %s→%s: rate=%s fee=%s trade_id=%s",
+            pair[0],
+            pair[1],
+            exchange_rate,
+            total_fee,
+            trade_id,
+        )
+
+        try:
             commit_response = self.exchange.commit_convert_trade(
                 trade_id=trade_id,
                 from_account=from_account_uuid,
-                to_account=to_account_uuid
+                to_account=to_account_uuid,
             )
-            
-            if 'trade' not in commit_response:
-                logger.error(f"Convert commit failed: {commit_response}")
-                return {'success': False, 'error': 'Commit failed', 'trade_id': trade_id}
-            
-            final_trade = commit_response['trade']
-            status = final_trade.get('status', 'UNKNOWN')
-            
-            logger.info(f"✅ Conversion executed: {from_currency}→{to_currency}, status={status}")
-            
-            if self.state_store and from_currency:
-                try:
-                    self.state_store.mark_position_managed(f"{from_currency}-USD")
-                except Exception as exc:
-                    logger.debug("Failed to mark %s as managed after conversion: %s", from_currency, exc)
+        except requests_exceptions.HTTPError as exc:
+            error_text = exc.response.text.strip() if exc.response is not None else str(exc)
+            logger.warning(
+                "Convert commit failed for %s→%s: %s",
+                pair[0],
+                pair[1],
+                error_text,
+            )
+            self._convert_denylist.add(pair)
+            return {'success': False, 'error': error_text, 'trade_id': trade_id}
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(
+                "Convert commit raised for %s→%s: %s", pair[0], pair[1], exc
+            )
+            self._convert_denylist.add(pair)
+            return {'success': False, 'error': str(exc), 'trade_id': trade_id}
 
-            return {
-                'success': True,
-                'trade_id': trade_id,
-                'status': status,
-                'exchange_rate': exchange_rate,
-                'fee': total_fee,
-                'from_currency': from_currency,
-                'to_currency': to_currency,
-                'amount': amount
-            }
-            
-        except Exception as e:
-            logger.error(f"Error converting {from_currency} to {to_currency}: {e}")
-            return {'success': False, 'error': str(e)}
+        final_trade = commit_response.get('trade')
+        if not isinstance(final_trade, dict):
+            logger.warning(
+                "Convert commit missing trade payload for %s→%s: %s",
+                pair[0],
+                pair[1],
+                commit_response,
+            )
+            self._convert_denylist.add(pair)
+            return {'success': False, 'error': 'Commit missing trade', 'trade_id': trade_id}
+
+        status = final_trade.get('status', 'UNKNOWN')
+
+        logger.info(f"✅ Conversion executed: {from_currency}→{to_currency}, status={status}")
+
+        if self.state_store and from_currency:
+            try:
+                self.state_store.mark_position_managed(f"{from_currency}-USD")
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.debug(
+                    "Failed to mark %s as managed after conversion: %s", from_currency, exc
+                )
+
+        self._convert_denylist.discard(pair)
+
+        return {
+            'success': True,
+            'trade_id': trade_id,
+            'status': status,
+            'exchange_rate': exchange_rate,
+            'fee': total_fee,
+            'from_currency': from_currency,
+            'to_currency': to_currency,
+            'amount': amount
+        }
     
     def _find_best_trading_pair(self, base_symbol: str, size_usd: float) -> Optional[Tuple[str, str, float]]:
         """
