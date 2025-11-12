@@ -517,10 +517,10 @@ class StateStore:
         side_upper = (side or "").upper()
         total_pnl_dec = Decimal("0")
 
-    size_float = float(size_dec)
-    price_float = float(price_dec)
-    notional_float = float(notional_dec)
-    fees_float = float(fees_dec)
+        size_float = float(size_dec)
+        price_float = float(price_dec)
+        notional_float = float(notional_dec)
+        fees_float = float(fees_dec)
 
         if side_upper == "BUY":
             managed_positions[symbol] = True
