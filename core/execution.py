@@ -2311,6 +2311,28 @@ class ExecutionEngine:
 
             cancel_error = cancel_resp.get("error") if isinstance(cancel_resp, dict) else None
             cancel_success = bool(cancel_resp.get("success")) if isinstance(cancel_resp, dict) else False
+            already_resolved = False
+
+            if not cancel_success and cancel_error:
+                error_text = str(cancel_error).lower()
+                already_resolved = any(
+                    token in error_text
+                    for token in (
+                        "404",
+                        "not found",
+                        "already filled",
+                        "order completed",
+                        "unknown order",
+                        "does not exist",
+                    )
+                )
+
+                if already_resolved:
+                    logger.debug(
+                        "TTL cancel for %s returned %s; treating as already resolved",
+                        order_id,
+                        cancel_error,
+                    )
 
             snapshot_post_cancel = self.exchange.get_order_status(order_id) or snapshot_post_cancel
             status_after = (snapshot_post_cancel or {}).get("status", latest_status).upper()
@@ -2360,9 +2382,14 @@ class ExecutionEngine:
             # Exchange may report FINISHED despite cancel failure. Accept fills.
             has_fill_after = bool(filled_after and filled_after > 0)
 
+            if already_resolved and status_after not in terminal_states and not has_fill_after:
+                status_after = "CANCELLED"
+
             if status_after in terminal_states or has_fill_after:
                 fills = self.exchange.list_fills(order_id=order_id) or latest_fills
                 size, price, total_fees, total_quote = self._summarize_fills(fills)
+                if size and size > 0 and status_after in {"CANCELED", "CANCELLED", "EXPIRED"}:
+                    status_after = "FILLED"
                 return PostOnlyTTLResult(
                     triggered=True,
                     canceled=status_after in {"CANCELED", "CANCELLED", "EXPIRED"},
