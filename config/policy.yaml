@@ -69,11 +69,26 @@ liquidity:
   # Size-aware depth requirement (depth must be ≥ N× order notional)
   require_depth_mult: 10            # Depth within ±0.5% must be ≥ 10× order notional
   
-  # Tier-specific depth floors (NOT hard requirements if depth_mult passes)
+  # Tier-specific constraints
+  spreads_bps:
+    T1: 20                          # Max 20bps spread for T1
+    T2: 35                          # Max 35bps spread for T2
+    T3: 60                          # Max 60bps spread for T3
+  
   min_depth_floor_usd:
-    T1: 50_000                      # $50K floor for T1 (was $100K - loosened)
+    T1: 50_000                      # $50K floor for T1 (realistic for small accounts)
     T2: 25_000                      # $25K floor for T2
     T3: 10_000                      # $10K floor for T3
+  
+  slippage_budget_bps:
+    T1: 20                          # Max 20bps total cost (slippage + fees) for T1
+    T2: 35                          # Max 35bps total cost for T2
+    T3: 60                          # Max 60bps total cost for T3
+  
+  # Eligibility persistence (avoid thrashing)
+  eligibility_persistence:
+    ineligible_grace_cycles: 5     # Don't purge until 5 consecutive ineligible cycles
+    eligible_grace_cycles: 2       # Avoid thrash on re-entries (must be eligible 2× before adding)
 
 triggers:
   # Direction filter (long-only strategy)
