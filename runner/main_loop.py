@@ -360,6 +360,21 @@ class TradingLoop:
         daily_pnl_pct = _pct(pnl_today_usd)
         weekly_pnl_pct = _pct(pnl_week_usd)
 
+        # CRITICAL: Calculate actual max drawdown from state history
+        # Use high_water_mark to track peak NAV and compute drawdown
+        high_water_mark = float(state.get("high_water_mark", account_value_usd))
+        
+        # Update high water mark if current NAV is higher
+        if account_value_usd > high_water_mark:
+            high_water_mark = account_value_usd
+            state["high_water_mark"] = high_water_mark
+            self.state_store.save(state)
+        
+        # Calculate drawdown: (peak - current) / peak
+        max_drawdown_pct = 0.0
+        if high_water_mark > 0:
+            max_drawdown_pct = ((high_water_mark - account_value_usd) / high_water_mark) * 100.0
+
         # CRITICAL: Hydrate pending_orders from open_orders to count toward risk caps
         pending_orders = self._build_pending_orders_from_state(state)
         
@@ -367,7 +382,7 @@ class TradingLoop:
             account_value_usd=account_value_usd,
             open_positions=positions,
             daily_pnl_pct=daily_pnl_pct,
-            max_drawdown_pct=0.0,  # TODO: Calculate from history
+            max_drawdown_pct=max_drawdown_pct,
             trades_today=state.get("trades_today", 0),
             trades_this_hour=state.get("trades_this_hour", 0),
             consecutive_losses=state.get("consecutive_losses", 0),
