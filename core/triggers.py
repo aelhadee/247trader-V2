@@ -102,8 +102,14 @@ class TriggerEngine:
             "bull": 1.2, "chop": 1.0, "bear": 0.8, "crash": 0.0
         })
         
+        # ATR filter parameters
+        self.enable_atr_filter = self.circuit_breakers.get("enable_atr_filter", True)
+        self.atr_lookback = self.circuit_breakers.get("atr_lookback_periods", 14)
+        self.atr_min_multiplier = self.circuit_breakers.get("atr_min_multiplier", 1.2)  # Must be 1.2x median
+        
         logger.info(f"Initialized TriggerEngine (pct_15m={self.pct_15m}%, pct_60m={self.pct_60m}%, "
-                   f"vol_ratio_1h={self.ratio_1h_vs_24h}x, lookback={self.lookback_hours}h)")
+                   f"vol_ratio_1h={self.ratio_1h_vs_24h}x, lookback={self.lookback_hours}h, "
+                   f"atr_filter={self.enable_atr_filter})")
     
     def scan(self, assets: List[UniverseAsset], 
              regime: str = "chop") -> List[TriggerSignal]:
