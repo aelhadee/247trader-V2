@@ -822,9 +822,9 @@ class RiskEngine:
         """Check if position size is within limits"""
         violated = []
 
-    existing_position_usd = portfolio.get_position_usd(proposal.symbol)
-    pending_buy_usd = portfolio.get_pending_notional_usd("buy", proposal.symbol)
-    allow_adds_when_over_cap = bool(self.risk_config.get("allow_adds_when_over_cap", True))
+        existing_position_usd = portfolio.get_position_usd(proposal.symbol)
+        pending_buy_usd = portfolio.get_pending_notional_usd("buy", proposal.symbol)
+        allow_adds_when_over_cap = bool(self.risk_config.get("allow_adds_when_over_cap", True))
 
         def _pct(value_usd: float) -> float:
             try:
