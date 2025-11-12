@@ -1002,6 +1002,39 @@ class TradingLoop:
                 else:
                     self.portfolio.pending_orders = pending_orders
 
+            try:
+                capacity_reason = self._ensure_capacity_for_new_positions()
+            except CriticalDataUnavailable as data_exc:
+                self._abort_cycle_due_to_data(
+                    cycle_started,
+                    data_exc.source,
+                    str(data_exc.original) if data_exc.original else None,
+                )
+                return
+
+            if capacity_reason:
+                if capacity_reason == "max_open_positions_trimmed":
+                    logger.info(
+                        "Capacity freed this cycle; skipping new proposals to allow state to settle."
+                    )
+                else:
+                    logger.warning(
+                        "Max open positions remain saturated; skipping proposal generation this cycle."
+                    )
+
+                self.audit.log_cycle(
+                    ts=cycle_started,
+                    mode=self.mode,
+                    universe=None,
+                    triggers=None,
+                    base_proposals=[],
+                    risk_approved=[],
+                    final_orders=[],
+                    no_trade_reason=capacity_reason,
+                    state_store=self.state_store,
+                )
+                return
+
             # Step 1: Build universe
             logger.info("Step 1: Building universe...")
             universe = self.universe_mgr.get_universe(regime=self.current_regime)
