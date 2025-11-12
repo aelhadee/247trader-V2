@@ -8,7 +8,7 @@ This is your baseline. Must be profitable WITHOUT AI.
 AI (M1/M2/M3) can only adjust/veto, never create.
 """
 
-from typing import List, Optional, Dict, Tuple
+from typing import List, Optional, Dict, Tuple, Any
 from dataclasses import dataclass, field
 from datetime import datetime
 import logging
@@ -41,8 +41,8 @@ class TradeProposal:
     
     timestamp: datetime = None
     tags: List[str] = field(default_factory=list)
-    metadata: Dict[str, float] = field(default_factory=dict)
-    conviction_breakdown: Dict[str, float] = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    conviction_breakdown: Dict[str, Any] = field(default_factory=dict)
     
     def __post_init__(self):
         if self.timestamp is None:
