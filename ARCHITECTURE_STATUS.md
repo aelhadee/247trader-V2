@@ -776,3 +776,122 @@ Next step: **Merge the best of both** by porting v1's infrastructure into v2's f
 
 
 ## FUTURE 
+100% — we can make the guardrails self-tuning. Think of it as cruise-control for risk: small, bounded nudges to keep throughput healthy without ever touching the hard safety rails.
+
+## Minimal, safe auto-tuner (single user, Coinbase-only)
+
+### 1) Objectives (what the tuner tries to hit)
+
+* **Proposals/hour target:** 2–6 (per regime).
+* **Slippage violations:** ≤ 2% of orders over last 100 orders.
+* **Utilization:** ≤ 70% average cycle time.
+* **Kill triggers:** any breach of **hard** limits (quote age, slippage budget, depth multiple) disables tuning instantly.
+
+### 2) Knobs the tuner may adjust (bounded)
+
+* **Conviction gate:** `min_conviction_by_regime[chop]` ∈ **[0.30, 0.38]**, step **0.01**.
+* **Trigger sensitivity:** `pct_change_15m` ∈ **[1.6%, 2.4%]**, step **0.1%**; `vol_ratio_1h` ∈ **[1.7, 2.1]**, step **0.1**.
+* **Max triggers per cycle:** ∈ **[3, 8]**.
+* **Regime scalers:** volume/depth floors × **[0.95, 1.05]** (but **override rules** stay strict).
+
+### 3) Non-negotiables (never tuned)
+
+* **Slippage budgets, max quote age, depth multiple, min notional, purge as maker/TWAP.**
+* **Override zone spread cap (e.g., T2 ≤ 30 bps)** is only allowed to **tighten**, never loosen.
+
+### 4) Controller logic (simple + robust)
+
+Use a dead-band + hysteresis controller with rate limits (no ML required on day 1).
+
+**Control window:** last 30–60 cycles (15–30 min).
+
+* If **proposals/h < lower bound** for 3 windows **and** slippage violations ≤ 1% →
+  **Loosen slightly:** `min_conviction -= 0.01` (floor 0.30) **or** `pct_change_15m -= 0.1%` (floor 1.6).
+* If **proposals/h > upper bound** **or** slippage violations > 2% →
+  **Tighten:** `min_conviction += 0.01` (ceiling 0.38) **and** cap `max_triggers = min(current, 5)`.
+* If **utilization > 70%** for 3 windows → temporarily **raise** `pct_change_15m` by 0.1% and reduce `max_triggers` by 1.
+* **Cooldown & hysteresis:** after any change, **lock** tuner for 10 cycles; require the metric to cross back through a **dead-band** before reversing direction.
+* **Auto-revert:** if any change increases slippage violations by >1 pp over the prior window, **revert** the last change.
+
+### 5) State & audit (tiny but essential)
+
+Persist each change with:
+
+```
+{ ts, knob, old, new, reason, window_metrics: { proposals_per_h, slippage_violations, util } }
+```
+
+and replay on restart. Expose `status tuner` to print last 10 changes + current window metrics.
+
+### 6) Config sketch
+
+```yaml
+tuner:
+  enabled: true
+  window_cycles: 60              # ~30 min @ 30s
+  cooldown_cycles: 10
+  targets:
+    proposals_per_hour: {min: 2, max: 6}
+    slippage_violation_rate_max: 0.02
+    utilization_max: 0.70
+  knobs:
+    min_conviction_chop: {min: 0.30, max: 0.38, step: 0.01}
+    pct_change_15m:      {min: 0.016, max: 0.024, step: 0.001}
+    vol_ratio_1h:        {min: 1.7,   max: 2.1,   step: 0.1}
+    max_triggers:        {min: 3,     max: 8,     step: 1}
+  hard_stops:
+    quote_age_s: 5
+    slippage_budget_bps: {T1:20, T2:35, T3:60}
+    depth_mult_min: 10
+  safety:
+    deadband: {proposals_per_hour: 1, util: 0.05}
+    revert_on_slippage_pp_increase: 1.0
+```
+
+### 7) Pseudocode (drop-in)
+
+```python
+def tune(params, metrics, state):
+    if not state.cooldown and metrics.hard_violation:
+        state.enabled = False; return params, state
+
+    # Proposals control
+    if metrics.proposals_per_h < tgt.min - deadband and metrics.slip_rate <= 0.01:
+        params.min_conviction_chop = max(floor, params.min_conviction_chop - 0.01)
+        state.apply("min_conviction_chop", reason="starved")
+    elif metrics.proposals_per_h > tgt.max + deadband or metrics.slip_rate > 0.02:
+        params.min_conviction_chop = min(ceil, params.min_conviction_chop + 0.01)
+        params.max_triggers = max(params.max_triggers - 1, 3)
+        state.apply("tighten", reason="noisy_or_slippy")
+
+    # Utilization guard
+    if metrics.util > 0.70:
+        params.pct_change_15m = min(params.pct_change_15m + 0.001, 0.024)
+
+    # Revert if slippage worsened sharply
+    if metrics.slip_rate - state.prev_slip_rate > 0.01:
+        state.revert_last()
+
+    state.cooldown = tuner.cooldown_cycles
+    return params, state
+```
+
+### 8) Rollout plan (safe)
+
+1. **Shadow mode (observe only):** compute suggested changes, don’t apply; log deltas and hypothetical outcomes.
+2. **Canary mode:** apply at most **one** knob change per **hour**, **smallest** step, with auto-revert.
+3. **Full auto within bounds:** keep immutable hard rails; continue canary for high-impact knobs.
+
+### 9) Common mistakes to avoid
+
+* Letting the tuner touch hard safety rails (don’t).
+* Changing multiple knobs at once (leads to whiplash).
+* No dead-band/cooldown (causes oscillation).
+* Tuning on tiny windows (noisy decisions).
+
+### Recommendation
+
+* **Go** for the bounded, rule-based tuner now (≥90% confidence it improves trade frequency without safety regressions).
+* Defer fancy ML (bandits/Bayesian) until you have a backtester; doing it live is **risky** (40% confidence it helps without simulation).
+
+**Tldr:** Yes—add a small auto-tuner that nudges **conviction and trigger thresholds** within tight bounds to hit a proposals/hour target, with **dead-band, cooldown, and hard safety rails** untouched. Start in **shadow**, then **canary**, then full auto with **audit + auto-revert**.
