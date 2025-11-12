@@ -1417,11 +1417,17 @@ class ExecutionEngine:
             
             if fills:
                 for fill in fills:
-                    filled_size += float(fill.get("size", 0))
-                    filled_price += float(fill.get("price", 0)) * float(fill.get("size", 0))
-                    fees += float(fill.get("fee", 0))
+                    # Coinbase fills structure: 'size' (base), 'price', 'commission' (fee)
+                    fill_size = float(fill.get("size", 0))
+                    fill_price = float(fill.get("price", 0))
+                    fill_fee = float(fill.get("commission", fill.get("fee", 0)))
+                    
+                    filled_size += fill_size
+                    filled_price += fill_price * fill_size  # Weighted average
+                    fees += fill_fee
+                    
                 if filled_size > 0:
-                    filled_price /= filled_size
+                    filled_price /= filled_size  # Calculate weighted average price
             
             # If still no fills data (rare), use preview estimate as fallback
             if filled_size == 0.0 and filled_price == 0.0:
