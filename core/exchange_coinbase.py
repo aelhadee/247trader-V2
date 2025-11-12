@@ -877,7 +877,8 @@ class CoinbaseExchange:
             # Build query parameters
             query_params = {}
             if order_id:
-                query_params["order_id"] = order_id
+                # CRITICAL FIX: Use order_ids (plural) parameter, not order_id
+                query_params["order_ids"] = order_id
             if product_id:
                 query_params["product_id"] = product_id
             if limit:
@@ -886,8 +887,8 @@ class CoinbaseExchange:
                 # Coinbase expects RFC3339 format
                 query_params["start_sequence_timestamp"] = start_time.isoformat()
             
-            # Use list_fills endpoint
-            resp = self._req("GET", "/orders/fills", query=query_params, authenticated=True)
+            # CRITICAL FIX: Use correct endpoint path /orders/historical/fills
+            resp = self._req("GET", "/orders/historical/fills", query=query_params, authenticated=True)
             
             fills = resp.get("fills", [])
             logger.debug(f"Retrieved {len(fills)} fills" + (f" for order {order_id}" if order_id else ""))
