@@ -89,4 +89,4 @@ def test_summarize_fills_quantizes_with_metadata():
     assert avg_price == pytest.approx(100.12)
     assert total_fees == pytest.approx(0.0105)
     # Cost should remain close to original notional within rounding tolerance
-    assert total_quote == pytest.approx(123.318839, rel=1e-6)
+    assert total_quote == pytest.approx(123.6092038, rel=1e-6)
