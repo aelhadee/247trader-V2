@@ -25,6 +25,13 @@ triggers:
       pct_change_60m: 7.0        # Strong moves only
       volume_ratio_1h: 2.0       # High volume confirmation
       atr_filter_min_mult: 1.2   # Normal volatility requirement
+
+  # Reversal confirmation checklist (Option A conviction boosts)
+  reversal_confirm:
+    close_above_vwap_5m: true          # price > 5m VWAP
+    higher_low_vs_prev: true           # last swing low > previous swing low
+    rsi_cross_up_50: true              # RSI(14) crossed above 50
+    min_bounce_from_low_pct: 0.6       # minimum % bounce off local low
   
   # Legacy parameters (backward compatibility)
   volume_spike_min_ratio: 1.5
