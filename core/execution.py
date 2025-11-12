@@ -116,11 +116,17 @@ class ExecutionEngine:
         # Quote staleness threshold from policy
         self.max_quote_age_seconds = microstructure_config.get("max_quote_age_seconds", 30)
 
+        # Slippage budgets by tier (slippage + fees must be < budget)
+        self.slippage_budget_t1_bps = execution_config.get("slippage_budget_t1_bps", 20.0)
+        self.slippage_budget_t2_bps = execution_config.get("slippage_budget_t2_bps", 35.0)
+        self.slippage_budget_t3_bps = execution_config.get("slippage_budget_t3_bps", 60.0)
+
         logger.info(
             f"Initialized ExecutionEngine (mode={self.mode}, min_notional=${self.min_notional_usd}, "
             f"quotes={self.preferred_quotes}, auto_convert={self.auto_convert_preferred_quote}, "
             f"clamp_small_trades={self.clamp_small_trades}, maker_fee={self.maker_fee_bps}bps, "
-            f"taker_fee={self.taker_fee_bps}bps, max_quote_age={self.max_quote_age_seconds}s)"
+            f"taker_fee={self.taker_fee_bps}bps, max_quote_age={self.max_quote_age_seconds}s, "
+            f"slippage_budget=[T1:{self.slippage_budget_t1_bps}, T2:{self.slippage_budget_t2_bps}, T3:{self.slippage_budget_t3_bps}]bps)"
         )
     
     def _validate_quote_freshness(self, quote, symbol: str) -> Optional[str]:
