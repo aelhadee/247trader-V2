@@ -849,6 +849,91 @@ class TradingLoop:
         except Exception as exc:
             raise CriticalDataUnavailable(f"accounts:{context}", exc) from exc
     
+    def _count_open_positions(self) -> int:
+        """Return number of meaningful open positions (ignores dust)."""
+        if not isinstance(self.portfolio.open_positions, dict):
+            return 0
+
+        threshold = max(self.executor.min_notional_usd, 5.0)
+        count = 0
+        for data in self.portfolio.open_positions.values():
+            if not isinstance(data, dict):
+                continue
+            raw_value = data.get("usd") if "usd" in data else data.get("usd_value")
+            try:
+                value = float(raw_value)
+            except (TypeError, ValueError):
+                continue
+            if value >= threshold:
+                count += 1
+        return count
+
+    def _trim_worst_position_for_capacity(self) -> bool:
+        """Force-sell the worst performer to free a position slot."""
+        pm_cfg = self.policy_config.get("portfolio_management", {}) or {}
+        min_value = float(pm_cfg.get("min_liquidation_value_usd", self.executor.min_notional_usd) or self.executor.min_notional_usd)
+
+        candidates = self.executor.get_liquidation_candidates(
+            min_value_usd=min_value,
+            sort_by="performance",
+        )
+        if not candidates:
+            logger.warning("Capacity check: no liquidation candidates available to free slot")
+            return False
+
+        candidate = candidates[0]
+        balance = float(candidate.get("balance", 0.0) or 0.0)
+        price = float(candidate.get("price", 0.0) or 0.0)
+        if balance <= 0 or price <= 0:
+            logger.warning("Capacity check: candidate %s has invalid balance/price", candidate.get("currency"))
+            return False
+
+        usd_target = float(candidate.get("value_usd") or (balance * price))
+        tier = self._infer_tier_from_config(candidate.get("pair")) or 3
+
+        logger.info(
+            "Max-open trim: liquidating %s (~$%.2f) to free a slot (balance=%.6f)",
+            candidate.get("currency"),
+            usd_target,
+            balance,
+        )
+
+        success = self._sell_via_market_order(
+            candidate.get("currency"),
+            balance,
+            usd_target=usd_target,
+            tier=tier,
+            preferred_pair=candidate.get("pair"),
+        )
+
+        if success:
+            logger.info(
+                "Capacity trim complete: freed slot by selling %s (~$%.2f)",
+                candidate.get("currency"),
+                usd_target,
+            )
+        return success
+
+    def _ensure_capacity_for_new_positions(self) -> Optional[str]:
+        """Ensure we have room for new positions; trim if max_open is saturated."""
+        strategy_cfg = self.policy_config.get("strategy", {}) or {}
+        max_open = int(strategy_cfg.get("max_open_positions", 8) or 8)
+        current_open = self._count_open_positions()
+
+        if current_open < max_open:
+            return None
+
+        logger.warning(
+            "Max open positions reached (%d/%d). Attempting to free a slot before proposing new trades.",
+            current_open,
+            max_open,
+        )
+
+        trimmed = self._trim_worst_position_for_capacity()
+        if trimmed:
+            return "max_open_positions_trimmed"
+        return "max_open_positions_saturated"
+
     def run_cycle(self):
         """
         Execute one trading cycle with full safety guarantees.
