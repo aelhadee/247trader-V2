@@ -589,8 +589,18 @@ class RiskEngine:
         if portfolio.consecutive_losses >= cooldown_after:
             # Check if cooldown period has expired
             if portfolio.last_loss_time:
-                cooldown_expires = portfolio.last_loss_time + timedelta(minutes=cooldown_minutes)
-                now = portfolio.current_time if portfolio.current_time else datetime.utcnow()
+                last_loss_time = portfolio.last_loss_time
+                if last_loss_time.tzinfo is None:
+                    last_loss_time = last_loss_time.replace(tzinfo=timezone.utc)
+
+                cooldown_expires = last_loss_time + timedelta(minutes=cooldown_minutes)
+
+                if portfolio.current_time:
+                    now = portfolio.current_time
+                    if now.tzinfo is None:
+                        now = now.replace(tzinfo=timezone.utc)
+                else:
+                    now = datetime.now(timezone.utc)
                 
                 if now < cooldown_expires:
                     minutes_left = (cooldown_expires - now).total_seconds() / 60
