@@ -330,7 +330,7 @@ class BacktestEngine:
                 continue
             
             # Check breakout
-            breakout_trigger = self.trigger_engine._check_breakout(asset, candles)
+            breakout_trigger = self.trigger_engine._check_breakout(asset, candles, regime)
             if breakout_trigger:
                 triggers.append(breakout_trigger)
                 logger.debug(
