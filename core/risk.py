@@ -663,8 +663,12 @@ class RiskEngine:
         
         return RiskCheckResult(approved=True)
     
-    def _check_global_at_risk(self, proposals: List[TradeProposal],
-                             portfolio: PortfolioState) -> RiskCheckResult:
+    def _check_global_at_risk(
+        self,
+        proposals: List[TradeProposal],
+        portfolio: PortfolioState,
+        pending_buy_override_usd: Optional[float] = None,
+    ) -> RiskCheckResult:
         """Check if total at-risk (existing + proposed) exceeds global limit"""
         max_total_at_risk_pct = self.risk_config.get("max_total_at_risk_pct", 15.0)
         
@@ -673,6 +677,8 @@ class RiskEngine:
         managed_exposure_usd = portfolio.get_managed_exposure_usd()
         external_exposure_usd = portfolio.get_external_exposure_usd()
         pending_buy_usd = portfolio.get_pending_notional_usd("buy")
+        if pending_buy_override_usd is not None:
+            pending_buy_usd = max(pending_buy_usd, pending_buy_override_usd)
 
         def _pct(value_usd: float) -> float:
             try:
