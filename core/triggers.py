@@ -130,13 +130,17 @@ class TriggerEngine:
             "bull": 1.2, "chop": 1.0, "bear": 0.8, "crash": 0.0
         })
         
-        # ATR filter parameters
+    # ATR filter parameters
         self.enable_atr_filter = self.circuit_breakers.get("enable_atr_filter", True)
         self.atr_lookback = self.circuit_breakers.get("atr_lookback_periods", 14)
         self.atr_min_multiplier = self.circuit_breakers.get("atr_min_multiplier", 1.2)  # Must be 1.2x median
         
         # Direction filter (for long-only strategies)
         self.only_upside = self.config.get("only_upside", self.policy_triggers.get("only_upside", False))
+
+    # Fallback configuration (policy overrides signals.yaml defaults)
+    self.fallback_config = self.policy_triggers.get("fallback", {}) or {}
+    self._no_trigger_streak = 0
         
         logger.info(f"Initialized TriggerEngine (regime_aware={bool(self.regime_thresholds)}, "
                    f"lookback={self.lookback_hours}h, atr_filter={self.enable_atr_filter}, "
@@ -161,6 +165,7 @@ class TriggerEngine:
         logger.info(f"Scanning {len(assets)} assets for triggers (regime={regime})")
         
         signals = []
+        asset_contexts: List[Tuple[UniverseAsset, List[OHLCV]]] = []
         
         for asset in assets:
             try:
@@ -182,6 +187,8 @@ class TriggerEngine:
                     logger.debug(f"{asset.symbol}: {atr_reason}")
                     continue  # Skip this asset for this cycle
                 
+                asset_contexts.append((asset, candles))
+
                 # Check various trigger types
                 triggers = []
                 
@@ -217,6 +224,9 @@ class TriggerEngine:
             except Exception as e:
                 logger.warning(f"Failed to scan {asset.symbol}: {e}")
         
+        if not signals:
+            signals = self._maybe_run_fallback_scan(asset_contexts, regime)
+
         # Sort by strength × confidence
         signals.sort(key=lambda s: s.strength * s.confidence, reverse=True)
         
@@ -235,6 +245,77 @@ class TriggerEngine:
             )
         
         return signals
+
+    def _maybe_run_fallback_scan(
+        self,
+        asset_contexts: List[Tuple[UniverseAsset, List[OHLCV]]],
+        regime: str,
+    ) -> List[TriggerSignal]:
+        """Optionally run relaxed scan when primary pass returns nothing."""
+
+        if not asset_contexts:
+            self._no_trigger_streak = 0
+            return []
+
+        fallback_cfg = self.fallback_config
+        enabled = bool(fallback_cfg.get("enabled", True))
+        if not enabled:
+            self._no_trigger_streak = 0
+            return []
+
+        consecutive = self._no_trigger_streak
+        min_streak = int(fallback_cfg.get("min_no_trigger_streak", 1) or 0)
+
+        if consecutive < min_streak:
+            self._no_trigger_streak = consecutive + 1
+            return []
+
+        relax_pct = float(fallback_cfg.get("relax_pct", 0.30) or 0.0)
+        relax_pct = min(max(relax_pct, 0.0), 0.9)
+        max_new = int(fallback_cfg.get("max_new_positions_per_cycle", 1) or 1)
+        allow_downside = bool(fallback_cfg.get("allow_downside", True))
+
+        fallback_signals: List[TriggerSignal] = []
+        prev_only_upside = self.only_upside
+        if allow_downside:
+            self.only_upside = False
+
+        try:
+            regime_key = regime if regime in self.regime_thresholds else "chop"
+            base_15m = self.regime_thresholds[regime_key].get("pct_change_15m", self.pct_15m)
+            base_60m = self.regime_thresholds[regime_key].get("pct_change_60m", self.pct_60m)
+            relaxed_thresholds = (
+                max(base_15m * (1.0 - relax_pct), 0.0),
+                max(base_60m * (1.0 - relax_pct), 0.0),
+            )
+
+            for asset, candles in asset_contexts:
+                signal = self._check_price_move(
+                    asset,
+                    candles,
+                    regime,
+                    threshold_override=relaxed_thresholds,
+                    reason_suffix="[fallback relaxed scan]",
+                )
+                if signal:
+                    fallback_signals.append(signal)
+
+        finally:
+            self.only_upside = prev_only_upside
+
+        if not fallback_signals:
+            self._no_trigger_streak = consecutive + 1
+            return []
+
+        fallback_signals.sort(key=lambda s: s.strength * s.confidence, reverse=True)
+        limited = fallback_signals[:max_new]
+        logger.info(
+            "Fallback scan enabled: relaxed thresholds produced %d trigger(s) after %d empty cycle(s)",
+            len(limited),
+            consecutive,
+        )
+        self._no_trigger_streak = 0
+        return limited
     
     def _validate_price_outlier(self, symbol: str, candles: List[OHLCV]) -> Optional[str]:
         """
