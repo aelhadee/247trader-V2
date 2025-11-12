@@ -86,6 +86,7 @@ class ExecutionEngine:
         Initialize execution engine.
         
         Args:
+                product_metadata = constraints.get("metadata") or product_metadata
             mode: "DRY_RUN" | "PAPER" | "LIVE"
             exchange: Coinbase exchange instance
             policy: Policy configuration dict (optional, for reading limits)
@@ -1729,7 +1730,7 @@ class ExecutionEngine:
             
             # Extract fill details
             fills = result.get("fills") or []
-            filled_size, filled_price, fees, filled_value = self._summarize_fills(fills)
+            filled_size, filled_price, fees, filled_value = self._summarize_fills(fills, product_metadata)
 
             # CRITICAL FIX: Market orders don't have fills in initial response
             # Poll order status first, then fetch fills when terminal
@@ -1772,7 +1773,7 @@ class ExecutionEngine:
                     # Fall back to using preview price estimate
                     fills = []
 
-                filled_size, filled_price, fees, filled_value = self._summarize_fills(fills)
+                filled_size, filled_price, fees, filled_value = self._summarize_fills(fills, product_metadata)
 
             ttl_canceled = False
             ttl_error: Optional[str] = None
@@ -1796,7 +1797,7 @@ class ExecutionEngine:
                         status = ttl_result.status
                     if ttl_result.fills is not None:
                         fills = ttl_result.fills
-                        filled_size, filled_price, fees, filled_value = self._summarize_fills(fills)
+                        filled_size, filled_price, fees, filled_value = self._summarize_fills(fills, product_metadata)
                     if ttl_result.filled_size is not None:
                         filled_size = ttl_result.filled_size
                     if ttl_result.filled_price is not None:
@@ -1808,7 +1809,7 @@ class ExecutionEngine:
                     if ttl_result.filled_value is not None:
                         filled_value = ttl_result.filled_value
                     if ttl_result.fills is not None and ttl_result.filled_size is None:
-                        _, _, _, ttl_quote = self._summarize_fills(ttl_result.fills)
+                        _, _, _, ttl_quote = self._summarize_fills(ttl_result.fills, product_metadata)
                         filled_value = ttl_quote
 
                     ttl_canceled = ttl_result.canceled
