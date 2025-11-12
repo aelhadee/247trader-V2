@@ -1454,19 +1454,45 @@ class ExecutionEngine:
             fills = result.get("fills", [])
             
             # CRITICAL FIX: Market orders don't have fills in initial response
-            # Poll the fills endpoint for market orders to get actual execution details
+            # Poll order status first, then fetch fills when terminal
             if not fills and order_type == "market" and order_id:
-                logger.info(f"Market order placed, polling for fills: {order_id}")
+                logger.info(f"Market order placed, polling for status then fills: {order_id}")
                 try:
                     import time
-                    # Wait briefly for fill to propagate (market orders fill instantly)
-                    time.sleep(0.5)
                     
-                    # Fetch fills from exchange (list_fills returns list directly)
+                    # Poll order status until terminal (FILLED/CANCELLED/EXPIRED/FAILED)
+                    max_attempts = 10
+                    poll_interval = 0.5  # 500ms
+                    terminal_states = {"FILLED", "CANCELLED", "EXPIRED", "FAILED"}
+                    
+                    order_status = None
+                    for attempt in range(max_attempts):
+                        time.sleep(poll_interval)
+                        
+                        order_status = self.exchange.get_order_status(order_id)
+                        if not order_status:
+                            logger.warning(f"Attempt {attempt+1}: No order status for {order_id}")
+                            continue
+                        
+                        status = order_status.get("status", "UNKNOWN")
+                        filled_size_so_far = float(order_status.get("filled_size", 0))
+                        
+                        logger.debug(
+                            f"Attempt {attempt+1}: order {order_id} status={status}, "
+                            f"filled_size={filled_size_so_far}"
+                        )
+                        
+                        if status in terminal_states:
+                            logger.info(f"Order {order_id} reached terminal state: {status}")
+                            break
+                    
+                    # Now fetch fills (they should be available after status is terminal)
+                    time.sleep(0.2)  # Brief wait for fills to propagate
                     fills = self.exchange.list_fills(order_id=order_id) or []
                     logger.info(f"Retrieved {len(fills)} fills for order {order_id}")
+                    
                 except Exception as poll_err:
-                    logger.warning(f"Failed to poll fills for {order_id}: {poll_err}")
+                    logger.warning(f"Failed to poll status/fills for {order_id}: {poll_err}")
                     # Fall back to using preview price estimate
                     fills = []
             
