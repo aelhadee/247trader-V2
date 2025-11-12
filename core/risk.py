@@ -298,11 +298,12 @@ class RiskEngine:
             # Alert on kill switch activation
             if self.alert_service:
                 from infra.alerting import AlertSeverity
+                from datetime import datetime, timezone
                 self.alert_service.notify(
                     severity=AlertSeverity.CRITICAL,
                     title="🚨 KILL SWITCH ACTIVATED",
                     message="Trading halted: data/KILL_SWITCH file detected",
-                    context={"action": "all_trading_halted", "timestamp": portfolio.timestamp.isoformat() if hasattr(portfolio, 'timestamp') else None}
+                    context={"action": "all_trading_halted", "timestamp": datetime.now(timezone.utc).isoformat()}
                 )
             return RiskCheckResult(
                 approved=False,
