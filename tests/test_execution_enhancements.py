@@ -42,6 +42,7 @@ def test_convert_route_disabled_sets_flag_and_skips_denylist():
     assert engine._convert_api_disabled is True
     assert engine.can_convert("PEPE", "USDC") is False
     assert ("PEPE", "USDC") not in engine._convert_denylist
+    assert "retry_after_seconds" in result
 
 
 def test_execute_bypass_failed_order_cooldown():
@@ -62,7 +63,7 @@ def test_execute_bypass_failed_order_cooldown():
         )
     )
 
-    now_ts = datetime.datetime.utcnow().timestamp()
+    now_ts = datetime.datetime.now(datetime.timezone.utc).timestamp()
     engine._last_fail["BTC"] = now_ts
 
     skipped = engine.execute("BTC-USD", "SELL", 10.0)
@@ -82,3 +83,37 @@ def test_execute_bypass_failed_order_cooldown():
 
     engine._execute_live.assert_called_once()
     assert result.success is True
+
+
+def test_convert_route_retries_after_backoff():
+    exchange = MagicMock()
+    exchange.read_only = False
+
+    engine = ExecutionEngine(mode="LIVE", exchange=exchange, policy=_make_policy())
+    engine.order_state_machine = MagicMock()
+
+    # Simulate prior disablement in the past
+    engine._convert_api_disabled = True
+    engine._convert_api_disabled_at = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
+        seconds=engine.convert_api_retry_seconds + 5
+    )
+
+    exchange.create_convert_quote.return_value = {
+        "trade": {
+            "id": "trade-1",
+            "exchange_rate": {"value": "1"},
+            "total_fee": {"amount": {"value": "0"}},
+        }
+    }
+    exchange.commit_convert_trade.return_value = {"trade": {"status": "SETTLED"}}
+
+    result = engine.convert_asset(
+        from_currency="PEPE",
+        to_currency="USDC",
+        amount="1",
+        from_account_uuid="from-uuid",
+        to_account_uuid="to-uuid",
+    )
+
+    assert result["success"] is True
+    assert engine._convert_api_disabled is False
