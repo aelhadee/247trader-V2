@@ -11,7 +11,7 @@ submissions on network retries.
 import uuid
 import hashlib
 import time
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_DOWN
 from typing import Any, Dict, List, Optional, Tuple, Set
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
@@ -2005,81 +2005,101 @@ class ExecutionEngine:
 
     @staticmethod
     def _summarize_fills(
-        fills: Optional[List[Dict[str, Any]]]
+        fills: Optional[List[Dict[str, Any]]],
+        product_metadata: Optional[Dict[str, Any]] = None,
     ) -> Tuple[float, float, float, float]:
         """Aggregate fill data into size, average price, total fees, and quote notional."""
 
         if not fills:
             return 0.0, 0.0, 0.0, 0.0
 
+        def _as_decimal(value: Any) -> Optional[Decimal]:
+            if value is None:
+                return None
+            try:
+                dec = Decimal(str(value))
+            except (InvalidOperation, TypeError, ValueError):
+                return None
+            return dec
+
+        def _first_decimal(payload: Dict[str, Any], keys: Tuple[str, ...]) -> Optional[Decimal]:
+            for key in keys:
+                dec = _as_decimal(payload.get(key))
+                if dec is not None:
+                    return dec
+            return None
+
+        def _quantize(value: Decimal, increment: Optional[Decimal]) -> Decimal:
+            if increment is None or increment <= 0:
+                return value
+            try:
+                return value.quantize(increment, rounding=ROUND_DOWN)
+            except (InvalidOperation, ValueError):
+                return value
+
         total_base = Decimal("0")
         total_quote = Decimal("0")
         total_fees = Decimal("0")
-
-        def _to_decimal(*values: Any) -> Decimal:
-            for value in values:
-                if value is None:
-                    continue
-                try:
-                    dec = Decimal(str(value))
-                except (InvalidOperation, TypeError, ValueError):
-                    continue
-                if dec != 0:
-                    return dec
-            return Decimal("0")
+        reported_quote_total = Decimal("0")
 
         for fill in fills:
-            base_size = _to_decimal(
-                fill.get("size"),
-                fill.get("base_size"),
-                fill.get("filled_size"),
-            )
-            quote_size = _to_decimal(
-                fill.get("size_in_quote"),
-                fill.get("quote_size"),
-                fill.get("filled_value"),
-            )
-            price = _to_decimal(fill.get("price"))
-            fee = _to_decimal(
-                fill.get("commission"),
-                fill.get("fee"),
-            )
-
-            # Derive missing components where possible
-            if price > 0 and quote_size == 0 and base_size > 0:
-                quote_size = (base_size * price)
-            elif price > 0 and base_size == 0 and quote_size > 0:
-                base_size = (quote_size / price)
-
-            if base_size == 0 or price == 0:
+            price = _first_decimal(fill, ("price", "average_price"))
+            if price is None or price <= 0:
                 continue
 
-            if quote_size == 0:
-                quote_size = base_size * price
+            base_size = _first_decimal(fill, ("size", "base_size", "filled_size"))
+            quote_size = _first_decimal(fill, ("size_in_quote", "quote_size", "filled_value"))
+            fee = _first_decimal(fill, ("commission", "fee", "fee_amount")) or Decimal("0")
 
-            expected_quote = base_size * price
-            mismatch = abs(expected_quote - quote_size)
-            tolerance = max(Decimal("0.01"), quote_size * Decimal("0.005"))
-
-            if mismatch > tolerance and price > 0:
-                logger.warning(
-                    "FILL_UNITS_MISMATCH base=%s price=%s expected_quote=%s quote=%s",
-                    base_size,
-                    price,
-                    expected_quote,
-                    quote_size,
-                )
+            if (base_size is None or base_size <= 0) and quote_size is not None and quote_size > 0:
                 base_size = quote_size / price
-                expected_quote = quote_size
 
+            if base_size is None or base_size <= 0:
+                continue
+
+            cost = price * base_size
             total_base += base_size
-            total_quote += expected_quote
+            total_quote += cost
             total_fees += fee
+
+            if quote_size is not None and quote_size > 0:
+                reported_quote_total += quote_size
 
         if total_base <= 0:
             return 0.0, 0.0, float(total_fees), float(total_quote)
 
-        avg_price = (total_quote / total_base) if total_base > 0 else Decimal("0")
+        avg_price = total_quote / total_base
+
+        # Quantize results using product metadata (if available)
+        base_increment = _as_decimal(product_metadata.get("base_increment")) if product_metadata else None
+        price_increment = None
+        quote_increment = None
+        if product_metadata:
+            price_increment = _as_decimal(
+                product_metadata.get("price_increment") or product_metadata.get("quote_increment")
+            )
+            quote_increment = _as_decimal(product_metadata.get("quote_increment"))
+
+        quantized_base = _quantize(total_base, base_increment)
+        if quantized_base > 0:
+            total_base = quantized_base
+        # Ensure we don't lose fills if quantization zeroed a small amount
+
+        avg_price = _quantize(avg_price, price_increment) if price_increment else avg_price
+        total_quote = _quantize(total_quote, quote_increment) if quote_increment else total_quote
+
+        if reported_quote_total > 0:
+            mismatch = abs(total_quote - reported_quote_total)
+            tolerance = max(Decimal("0.01"), reported_quote_total * Decimal("0.005"))
+            if mismatch > tolerance:
+                logger.warning(
+                    "FILL_UNITS_MISMATCH base_total=%s price=%s quote_cost=%s reported_quote=%s",
+                    total_base,
+                    avg_price,
+                    total_quote,
+                    reported_quote_total,
+                )
+
         return float(total_base), float(avg_price), float(total_fees), float(total_quote)
 
     @staticmethod
