@@ -66,6 +66,20 @@ regime_modifiers:
     tier_1_multiplier: 0.0
     tier_2_multiplier: 0.0
     tier_3_multiplier: 0.0
+  # Regime-based volume floor scalers (optional enhancement)
+  volume_floor_scalers:
+    bull: 0.90    # Lower floor in bull (27M for T2)
+    chop: 1.00    # Normal floor in chop (30M for T2)
+    bear: 1.20    # Higher floor in bear (36M for T2)
+
+# Eligibility hysteresis (prevents thrashing near thresholds)
+eligibility_hysteresis:
+  enable: true
+  volume_24h:
+    cycles_confirm_enter: 3   # Must stay ≥ threshold for 3 cycles to enter
+    cycles_confirm_exit: 3    # Must stay < threshold for 3 cycles to exit
+    enter_mult: 1.00          # Enter at floor or override zone + rules
+    exit_mult: 0.95           # Exit after 3 cycles below 95% of floor
 tiers:
   tier_1_core:
     constraints:
