@@ -20,7 +20,7 @@ import math
 import time
 import signal
 import yaml
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import logging
