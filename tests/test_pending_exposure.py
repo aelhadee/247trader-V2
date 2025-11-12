@@ -356,7 +356,7 @@ def test_integration_with_main_loop_state_hydration():
             "logging": {"level": "ERROR"}
         }
         
-        with patch("runner.main_loop.validate_all_configs", return_value=[]):
+        with patch("tools.config_validator.validate_all_configs", return_value=[]):
             loop = TradingLoop.__new__(TradingLoop)
             loop.config_dir = "config"
             
