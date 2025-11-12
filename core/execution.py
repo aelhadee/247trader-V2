@@ -716,6 +716,19 @@ class ExecutionEngine:
         """
         pair = (from_currency.upper(), to_currency.upper())
 
+        if self._convert_api_disabled:
+            logger.debug(
+                "Convert API disabled; skipping convert %s→%s and falling back to spot routing",
+                pair[0],
+                pair[1],
+            )
+            return {
+                'success': False,
+                'error': 'convert_api_disabled',
+                'from_currency': from_currency,
+                'to_currency': to_currency,
+            }
+
         if pair in self._convert_denylist:
             logger.info(
                 "Skipping convert %s→%s: cached as unsupported", pair[0], pair[1]
@@ -736,7 +749,26 @@ class ExecutionEngine:
                 amount=amount,
             )
         except requests_exceptions.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response is not None else None
             error_text = exc.response.text.strip() if exc.response is not None else str(exc)
+            lowered = error_text.lower()
+            if status_code in {403, 404, 503} or "route is disabled" in lowered or "convert is disabled" in lowered:
+                self._convert_api_disabled = True
+                self._convert_api_last_error = error_text
+                logger.warning(
+                    "Convert API disabled (status=%s) for %s→%s: %s",
+                    status_code,
+                    pair[0],
+                    pair[1],
+                    error_text,
+                )
+                return {
+                    'success': False,
+                    'error': 'convert_api_disabled',
+                    'from_currency': from_currency,
+                    'to_currency': to_currency,
+                }
+
             logger.warning(
                 "Convert quote failed for %s→%s: %s",
                 pair[0],
@@ -744,12 +776,14 @@ class ExecutionEngine:
                 error_text,
             )
             self._convert_denylist.add(pair)
+            self._convert_api_last_error = error_text
             return {'success': False, 'error': error_text}
         except Exception as exc:  # pragma: no cover - defensive
             logger.warning(
                 "Convert quote raised for %s→%s: %s", pair[0], pair[1], exc
             )
             self._convert_denylist.add(pair)
+            self._convert_api_last_error = str(exc)
             return {'success': False, 'error': str(exc)}
 
         trade = quote_response.get('trade')
@@ -783,7 +817,27 @@ class ExecutionEngine:
                 to_account=to_account_uuid,
             )
         except requests_exceptions.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response is not None else None
             error_text = exc.response.text.strip() if exc.response is not None else str(exc)
+            lowered = error_text.lower()
+            if status_code in {403, 404, 503} or "route is disabled" in lowered or "convert is disabled" in lowered:
+                self._convert_api_disabled = True
+                self._convert_api_last_error = error_text
+                logger.warning(
+                    "Convert API disabled during commit (status=%s) for %s→%s: %s",
+                    status_code,
+                    pair[0],
+                    pair[1],
+                    error_text,
+                )
+                return {
+                    'success': False,
+                    'error': 'convert_api_disabled',
+                    'trade_id': trade_id,
+                    'from_currency': from_currency,
+                    'to_currency': to_currency,
+                }
+
             logger.warning(
                 "Convert commit failed for %s→%s: %s",
                 pair[0],
@@ -791,12 +845,14 @@ class ExecutionEngine:
                 error_text,
             )
             self._convert_denylist.add(pair)
+            self._convert_api_last_error = error_text
             return {'success': False, 'error': error_text, 'trade_id': trade_id}
         except Exception as exc:  # pragma: no cover - defensive
             logger.warning(
                 "Convert commit raised for %s→%s: %s", pair[0], pair[1], exc
             )
             self._convert_denylist.add(pair)
+            self._convert_api_last_error = str(exc)
             return {'success': False, 'error': str(exc), 'trade_id': trade_id}
 
         final_trade = commit_response.get('trade')
@@ -823,6 +879,7 @@ class ExecutionEngine:
                 )
 
         self._convert_denylist.discard(pair)
+        self._convert_api_last_error = None
 
         return {
             'success': True,
