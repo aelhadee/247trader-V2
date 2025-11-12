@@ -171,7 +171,7 @@ class TriggerEngine:
                     continue  # Skip this asset for this cycle
                 
                 # Check ATR volatility filter (skip low-volatility chop)
-                atr_reason = self._check_atr_filter(asset.symbol, candles)
+                atr_reason = self._check_atr_filter(asset.symbol, candles, regime)
                 if atr_reason:
                     logger.debug(f"{asset.symbol}: {atr_reason}")
                     continue  # Skip this asset for this cycle
@@ -179,13 +179,13 @@ class TriggerEngine:
                 # Check various trigger types
                 triggers = []
                 
-                # Price move (spec-compliant: 15m/60m thresholds)
-                price_move_trigger = self._check_price_move(asset, candles)
+                # Price move (regime-aware thresholds)
+                price_move_trigger = self._check_price_move(asset, candles, regime)
                 if price_move_trigger:
                     triggers.append(price_move_trigger)
                 
-                # Volume spike
-                vol_trigger = self._check_volume_spike(asset, candles)
+                # Volume spike (regime-aware threshold)
+                vol_trigger = self._check_volume_spike(asset, candles, regime)
                 if vol_trigger:
                     triggers.append(vol_trigger)
                 
