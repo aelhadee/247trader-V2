@@ -1787,6 +1787,8 @@ class ExecutionEngine:
                         fees = ttl_result.fees
                     if filled_size and filled_price:
                         filled_value = filled_size * filled_price
+                    if ttl_result.filled_value is not None:
+                        filled_value = ttl_result.filled_value
                     if ttl_result.fills is not None and ttl_result.filled_size is None:
                         _, _, _, ttl_quote = self._summarize_fills(ttl_result.fills)
                         filled_value = ttl_quote
