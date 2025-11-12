@@ -1,7 +1,7 @@
 """Tests for conviction boosting and canary behaviour in the rules engine."""
 
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -15,7 +15,7 @@ from strategy.rules_engine import RulesEngine  # noqa
 
 def _make_snapshot(asset: UniverseAsset) -> UniverseSnapshot:
     return UniverseSnapshot(
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
         regime="chop",
         tier_1_assets=[asset] if asset.tier == 1 else [],
         tier_2_assets=[asset] if asset.tier == 2 else [],
@@ -46,7 +46,7 @@ def _make_trigger(symbol: str, strength: float, confidence: float, qualifiers=No
         strength=strength,
         confidence=confidence,
         reason="test reversal",
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(timezone.utc),
         current_price=10.0,
         volatility=50.0,
         qualifiers=qualifiers,
@@ -74,10 +74,10 @@ def test_reversal_requires_confirmations_for_conviction():
     engine = RulesEngine(config={})
     engine.policy.setdefault("triggers", {})["min_score"] = 0.1
 
-    proposals_weak = engine.propose_trades(snapshot=snapshot, triggers=[weak_trigger], regime="chop")
+    proposals_weak = engine.propose_trades(universe=snapshot, triggers=[weak_trigger], regime="chop")
     assert proposals_weak == [], "Weak reversal without confirmations should be rejected"
 
-    proposals_strong = engine.propose_trades(snapshot=snapshot, triggers=[strong_trigger], regime="chop")
+    proposals_strong = engine.propose_trades(universe=snapshot, triggers=[strong_trigger], regime="chop")
     assert len(proposals_strong) == 1, "Confirmed reversal should produce a proposal"
     proposal = proposals_strong[0]
     assert proposal.confidence >= 0.34
@@ -97,7 +97,7 @@ def test_canary_trade_emits_for_single_low_conviction_trigger():
     engine = RulesEngine(config={})
     engine.policy.setdefault("triggers", {})["min_score"] = 0.1
 
-    proposals = engine.propose_trades(snapshot=snapshot, triggers=[trigger], regime="chop")
+    proposals = engine.propose_trades(universe=snapshot, triggers=[trigger], regime="chop")
     assert len(proposals) == 1, "Canary trade should be emitted for single trigger in conviction window"
     proposal = proposals[0]
     assert "canary" in proposal.tags
