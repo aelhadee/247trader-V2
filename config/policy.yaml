@@ -303,6 +303,7 @@ portfolio_management:
     poll_interval_seconds: 2.0    # Order status polling cadence
     max_slices: 24                # Safety cap on number of slices per purge
     max_residual_usd: 5.0         # Allowable leftover notional before flagging failure
+    max_consecutive_no_fill: 3    # Retry cancelled slices up to this many times before aborting
 
 ai:
   # AI module configuration
