@@ -77,6 +77,7 @@ class ExecutionEngine:
         execution_config = self.policy.get("execution", {})
         microstructure_config = self.policy.get("microstructure", {})
         risk_config = self.policy.get("risk", {})
+    portfolio_config = self.policy.get("portfolio_management", {})
         
         self.max_slippage_bps = microstructure_config.get("max_expected_slippage_bps", 50.0)
         self.max_spread_bps = microstructure_config.get("max_spread_bps", 100.0)
@@ -120,6 +121,13 @@ class ExecutionEngine:
         self.slippage_budget_t1_bps = execution_config.get("slippage_budget_t1_bps", 20.0)
         self.slippage_budget_t2_bps = execution_config.get("slippage_budget_t2_bps", 35.0)
         self.slippage_budget_t3_bps = execution_config.get("slippage_budget_t3_bps", 60.0)
+
+        raw_prefix = (
+            portfolio_config.get("managed_order_prefix")
+            or risk_config.get("managed_position_tag")
+            or "247trader"
+        )
+        self.client_order_prefix = self._sanitize_client_prefix(str(raw_prefix))
 
         logger.info(
             f"Initialized ExecutionEngine (mode={self.mode}, min_notional=${self.min_notional_usd}, "
@@ -188,6 +196,19 @@ class ExecutionEngine:
         logger.debug(f"Quote freshness OK for {symbol}: {age_seconds:.1f}s old")
         return None
     
+    @staticmethod
+    def _sanitize_client_prefix(prefix: str) -> str:
+        """Ensure client order prefix is lowercase and ASCII-safe."""
+
+        allowed = []
+        for char in prefix.strip():
+            if char.isalnum() or char in {"-", "_"}:
+                allowed.append(char.lower())
+            elif char.isspace():
+                allowed.append("_")
+        sanitized = "".join(allowed).strip("_")
+        return sanitized or "247trader"
+
     def generate_client_order_id(self, symbol: str, side: str, size_usd: float, 
                                   timestamp: Optional[datetime] = None) -> str:
         """
@@ -228,7 +249,10 @@ class ExecutionEngine:
         hash_obj = hashlib.sha256(input_str.encode('utf-8'))
         hash_hex = hash_obj.hexdigest()[:16]  # First 16 chars for brevity
         
-        return f"coid_{hash_hex}"
+        base_id = f"coid_{hash_hex}"
+        if self.client_order_prefix:
+            return f"{self.client_order_prefix}_{base_id}"
+        return base_id
     
     def estimate_fee(self, size_usd: float, is_maker: bool = True) -> float:
         """
