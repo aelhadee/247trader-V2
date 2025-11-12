@@ -334,19 +334,16 @@ class TriggerEngine:
         atr_pct = (atr / current_price) * 100.0
         return atr_pct
     
-    def _check_atr_filter(self, symbol: str, candles: List[OHLCV]) -> Optional[str]:
+    def _check_atr_filter(self, symbol: str, candles: List[OHLCV], regime: str = "chop") -> Optional[str]:
         """
-        Check if asset passes ATR volatility filter.
+        Check if asset passes ATR volatility filter (regime-aware).
         
         Returns rejection reason if fails, None if passes.
         
         Filters out low-volatility chop/tight ranges where signals
         tend to be false positives.
         
-        Per policy.yaml circuit_breakers:
-        - enable_atr_filter: enable/disable
-        - atr_lookback_periods: period for ATR calculation (default 14)
-        - atr_min_multiplier: minimum ATR vs median (default 1.2x)
+        Uses regime-specific atr_filter_min_mult from signals.yaml regime_thresholds.
         """
         if not self.enable_atr_filter:
             return None  # Filter disabled
@@ -354,6 +351,10 @@ class TriggerEngine:
         # Need sufficient data
         if len(candles) < self.atr_lookback * 2:
             return None  # Insufficient data, skip filter
+        
+        # Get regime-specific ATR multiplier
+        regime_key = regime if regime in self.regime_thresholds else "chop"
+        atr_min_mult = self.regime_thresholds[regime_key].get("atr_filter_min_mult", 1.1)
         
         # Calculate current ATR
         current_atr_pct = self._calculate_atr_pct(candles, self.atr_lookback)
@@ -381,11 +382,11 @@ class TriggerEngine:
         
         atr_ratio = current_atr_pct / median_atr_pct
         
-        if atr_ratio < self.atr_min_multiplier:
+        if atr_ratio < atr_min_mult:
             return (
                 f"Low volatility: ATR {current_atr_pct:.2f}% "
                 f"({atr_ratio:.2f}x median {median_atr_pct:.2f}%, "
-                f"need {self.atr_min_multiplier:.1f}x)"
+                f"need {atr_min_mult:.1f}x for {regime})"
             )
         
         return None  # Passes filter
