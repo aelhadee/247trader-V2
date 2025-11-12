@@ -393,7 +393,8 @@ class UniverseManager:
                 )
                 
                 if not eligible:
-                    logger.debug(f"Tier 2 asset {symbol} failed liquidity: {reason}")
+                    # Use INFO instead of DEBUG for better visibility
+                    logger.info(f"Tier 2 asset {symbol} ineligible: {reason}")
                     continue
                 
                 # Apply additional filters
