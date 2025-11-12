@@ -73,8 +73,8 @@ tiers:
   tier_2_rotational:
     constraints:
       max_allocation_pct: 20.0
-      max_spread_bps: 60
-      min_24h_volume_usd: 20000000
+      max_spread_bps: 35  # Tightened from 60 → 35 bps to reduce hidden slippage
+      min_24h_volume_usd: 30000000  # Raised from 20M → 30M for better resilience
     filters:
     - volume_spike
     - trend_strength
