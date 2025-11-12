@@ -387,7 +387,10 @@ class TradingLoop:
     def _init_portfolio_state(self) -> PortfolioState:
         """Initialize portfolio state from state store"""
         state = self.state_store.load()
-        
+
+        # Default to persisted snapshot in case live lookups fail
+        positions_source: Dict[str, Any] = state.get("positions", {})
+
         # Get real account value from Coinbase (fallback to 10k for DRY_RUN)
         if self.mode == "DRY_RUN":
             account_value_usd = 10_000.0
@@ -395,44 +398,31 @@ class TradingLoop:
             try:
                 accounts = self._require_accounts("portfolio_init")
             except CriticalDataUnavailable as data_exc:
-                logger.warning("Account lookup failed (%s); using last stored cash balance", data_exc.source)
+                logger.warning(
+                    "Account lookup failed (%s); using last stored cash balance",
+                    data_exc.source,
+                )
                 stored_balances = state.get("cash_balances", {})
                 account_value_usd = sum(float(v) for v in stored_balances.values())
                 if account_value_usd <= 0:
                     account_value_usd = 10_000.0
-                accounts = []
             else:
-                account_value_usd = 0.0
+                snapshot = self._build_account_snapshot(accounts)
+                account_value_usd = snapshot["account_value_usd"]
 
-                # Sum all balances (convert to USD)
-                for acc in accounts:
-                    currency = acc['currency']
-                    balance = float(acc.get('available_balance', {}).get('value', 0))
-
-                    if balance == 0:
-                        continue
-
-                    # USD/USDC/USDT are 1:1
-                    if currency in ['USD', 'USDC', 'USDT']:
-                        account_value_usd += balance
-                    else:
-                        # Get USD value for crypto holdings
-                        try:
-                            pair = f"{currency}-USD"
-                            quote = self.exchange.get_quote(pair)
-                            account_value_usd += balance * quote.mid
-                        except Exception:
-                            # Try USDC if USD fails
-                            try:
-                                pair = f"{currency}-USDC"
-                                quote = self.exchange.get_quote(pair)
-                                account_value_usd += balance * quote.mid
-                            except Exception:
-                                continue
-
-                logger.info(f"Real account value: ${account_value_usd:.2f}")
+                if account_value_usd > 0:
+                    positions_source = snapshot["positions"]
+                    logger.info("Real account value: $%.2f", account_value_usd)
+                else:
+                    logger.warning(
+                        "Account snapshot returned zero NAV; falling back to stored balances"
+                    )
+                    stored_balances = state.get("cash_balances", {})
+                    account_value_usd = sum(float(v) for v in stored_balances.values())
+                    if account_value_usd <= 0:
+                        account_value_usd = 10_000.0
         
-        positions = self._normalize_positions_for_risk(state.get("positions", {}))
+        positions = self._normalize_positions_for_risk(positions_source)
 
         pnl_today_usd = float(state.get("pnl_today", 0.0) or 0.0)
         pnl_week_usd = float(state.get("pnl_week", 0.0) or 0.0)
@@ -481,6 +471,99 @@ class TradingLoop:
             weekly_pnl_pct=weekly_pnl_pct,
             pending_orders=pending_orders,
         )
+
+    def _build_account_snapshot(self, accounts: List[dict]) -> Dict[str, Dict[str, Any]]:
+        """Aggregate Coinbase account balances into USD-valued snapshot for risk."""
+
+        # Treat USD and stablecoins as cash; everything else is priced as exposure
+        cash_equivalents = set(
+            self.policy_config.get("risk", {}).get(
+                "cash_equivalents", ["USD", "USDC", "USDT"]
+            )
+        )
+
+        price_cache: Dict[str, Optional[float]] = {"USD": 1.0, "USDC": 1.0, "USDT": 1.0}
+
+        def _get_mid(currency: str) -> Optional[float]:
+            if currency in price_cache:
+                return price_cache[currency]
+
+            for quote_currency in ("USD", "USDC", "USDT"):
+                product_id = f"{currency}-{quote_currency}"
+                try:
+                    quote = self.exchange.get_quote(product_id)
+                    mid = float(getattr(quote, "mid", 0.0))
+                except Exception:
+                    mid = 0.0
+
+                if mid > 0:
+                    # If we priced against a stablecoin, convert stablecoin → USD (assume 1:1)
+                    if quote_currency != "USD":
+                        mid *= price_cache.get(quote_currency, 1.0)
+
+                    price_cache[currency] = mid
+                    return mid
+
+            price_cache[currency] = None
+            logger.debug("Unable to price %s against USD/USDC/USDT", currency)
+            return None
+
+        snapshot: Dict[str, Any] = {
+            "account_value_usd": 0.0,
+            "positions": {},
+            "cash_balances": {},
+        }
+
+        for account in accounts or []:
+            currency = account.get("currency")
+            if not currency:
+                continue
+
+            available = float(account.get("available_balance", {}).get("value", 0.0) or 0.0)
+            hold = float(account.get("hold", {}).get("value", 0.0) or 0.0)
+            total_units = available + hold
+
+            if total_units <= 0:
+                continue
+
+            if currency in cash_equivalents:
+                snapshot["cash_balances"][currency] = (
+                    snapshot["cash_balances"].get(currency, 0.0) + total_units
+                )
+                snapshot["account_value_usd"] += total_units
+                continue
+
+            mid_price = _get_mid(currency)
+            if mid_price is None or mid_price <= 0:
+                continue
+
+            usd_value = total_units * mid_price
+            snapshot["account_value_usd"] += usd_value
+
+            entry = snapshot["positions"].setdefault(
+                currency,
+                {
+                    "currency": currency,
+                    "available": 0.0,
+                    "hold": 0.0,
+                    "total": 0.0,
+                    "usd_value": 0.0,
+                },
+            )
+
+            entry["available"] += available
+            entry["hold"] += hold
+            entry["total"] += total_units
+            entry["usd_value"] += usd_value
+
+        logger.debug(
+            "Account snapshot aggregated NAV=$%.2f (%d positions, %d cash currencies)",
+            snapshot["account_value_usd"],
+            len(snapshot["positions"]),
+            len(snapshot["cash_balances"]),
+        )
+
+        return snapshot
     
     def _build_pending_orders_from_state(self, state: Dict[str, Any]) -> Dict[str, Dict[str, float]]:
         """
