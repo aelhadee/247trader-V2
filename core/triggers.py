@@ -130,17 +130,17 @@ class TriggerEngine:
             "bull": 1.2, "chop": 1.0, "bear": 0.8, "crash": 0.0
         })
         
-    # ATR filter parameters
+        # ATR filter parameters
         self.enable_atr_filter = self.circuit_breakers.get("enable_atr_filter", True)
         self.atr_lookback = self.circuit_breakers.get("atr_lookback_periods", 14)
         self.atr_min_multiplier = self.circuit_breakers.get("atr_min_multiplier", 1.2)  # Must be 1.2x median
-        
+
         # Direction filter (for long-only strategies)
         self.only_upside = self.config.get("only_upside", self.policy_triggers.get("only_upside", False))
 
-    # Fallback configuration (policy overrides signals.yaml defaults)
-    self.fallback_config = self.policy_triggers.get("fallback", {}) or {}
-    self._no_trigger_streak = 0
+        # Fallback configuration (policy overrides signals.yaml defaults)
+        self.fallback_config = self.policy_triggers.get("fallback", {}) or {}
+        self._no_trigger_streak = 0
         
         logger.info(f"Initialized TriggerEngine (regime_aware={bool(self.regime_thresholds)}, "
                    f"lookback={self.lookback_hours}h, atr_filter={self.enable_atr_filter}, "
