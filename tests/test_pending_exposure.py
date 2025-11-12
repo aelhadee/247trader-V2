@@ -42,9 +42,10 @@ def policy_config():
 def risk_engine(policy_config):
     """RiskEngine with test policy"""
     return RiskEngine(
-        risk_config=policy_config["risk"],
-        circuit_config=policy_config["circuit_breakers"],
-        governance_config=policy_config["governance"],
+        policy=policy_config,
+        universe_manager=None,
+        exchange=None,
+        state_store=None,
         alert_service=None
     )
 
