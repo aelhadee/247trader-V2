@@ -1262,6 +1262,11 @@ class TradingLoop:
             # Use the filtered approved proposals from risk engine
             approved_proposals = risk_result.approved_proposals
             logger.info(f"Risk checks PASSED: {len(approved_proposals)}/{len(proposals)} proposals approved")
+            if getattr(risk_result, "proposal_rejections", None):
+                logger.info(
+                    "Risk filtered proposals: %s",
+                    risk_result.proposal_rejections,
+                )
             
             # Step 5: Execute trades (respects mode: DRY_RUN/PAPER/LIVE)
             logger.info(f"Step 5: Executing {len(approved_proposals)} approved trades...")
