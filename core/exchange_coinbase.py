@@ -838,7 +838,40 @@ class CoinbaseExchange:
         except Exception as e:
             logger.error(f"Batch cancel failed: {e}")
             return {"success": False, "error": str(e), "order_ids": order_ids}
-    
+
+    def get_order_status(self, order_id: str) -> Optional[dict]:
+        """
+        Get historical order status by ID.
+        
+        Uses /orders/historical/{order_id} endpoint to check order state.
+        
+        Args:
+            order_id: Order UUID
+            
+        Returns:
+            Order dict with status, fills, etc. or None if not found
+        """
+        if self.read_only and not self.api_key:
+            logger.info(f"READ_ONLY: would get order status for {order_id}")
+            return None
+        
+        try:
+            self._rate_limit("get_order")
+            resp = self._req("GET", f"/orders/historical/{order_id}", authenticated=True)
+            
+            # Response has { "order": {...} } wrapper
+            order = resp.get("order", {})
+            if order:
+                logger.debug(
+                    f"Order {order_id}: status={order.get('status')}, "
+                    f"filled_size={order.get('filled_size', 0)}"
+                )
+            return order
+            
+        except Exception as e:
+            logger.warning(f"get_order_status failed for {order_id}: {e}")
+            return None
+
     def list_fills(self, order_id: Optional[str] = None, product_id: Optional[str] = None,
                   limit: int = 100, start_time: Optional[datetime] = None) -> List[dict]:
         """
