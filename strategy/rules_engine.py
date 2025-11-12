@@ -246,11 +246,11 @@ class RulesEngine:
             return None
         
         # If price is up significantly, expect continuation
-        if trigger.price_change_pct > 5.0:
+        if trigger.price_change_pct > 2.0:
             side = "BUY"
             reason = f"Volume spike {trigger.volume_ratio:.1f}x + price up {trigger.price_change_pct:.1f}%"
         # If price is down significantly, expect bounce
-        elif trigger.price_change_pct < -5.0:
+        elif trigger.price_change_pct < -2.0:
             side = "BUY"
             reason = f"Volume spike {trigger.volume_ratio:.1f}x + price down {trigger.price_change_pct:.1f}% (reversal)"
         else:
