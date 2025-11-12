@@ -105,3 +105,5 @@ def test_purge_liquidation_uses_maker_limit_orders():
         assert kwargs.get("force_order_type") == "limit_post_only"
         assert kwargs.get("skip_liquidity_checks", False) is False
         assert kwargs.get("tier") == 1
+    assert kwargs.get("bypass_slippage_budget") is True
+    assert kwargs.get("bypass_failed_order_cooldown") is True
