@@ -902,7 +902,7 @@
     }
   ],
   "high_water_mark": 494.03608340685287,
-  "zero_trigger_cycles": 7,
+  "zero_trigger_cycles": 8,
   "auto_tune_applied": false,
   "zero_proposal_cycles": 0,
   "auto_loosen_applied": false,
