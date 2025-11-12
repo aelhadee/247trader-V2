@@ -985,95 +985,92 @@ class RiskEngine:
                              portfolio: PortfolioState) -> RiskCheckResult:
         """
         Check cluster/theme exposure limits (spec requirement).
-        
+
         Enforces max_per_theme_pct from policy.yaml risk section:
         - MEME: 5%
         - L2: 10%
         - DEFI: 10%
-        
+
         Calculates existing + proposed exposure per theme.
         """
         if not self.universe_manager:
-            # No universe manager, can't check clusters
             logger.debug("No universe manager, skipping cluster limits check")
             return RiskCheckResult(approved=True)
-        
-        # Get policy limits for each theme/cluster from risk.max_per_theme_pct
+
         max_per_theme = self.risk_config.get("max_per_theme_pct", {})
-        
         if not max_per_theme:
             logger.debug("No max_per_theme_pct configured, skipping cluster limits")
             return RiskCheckResult(approved=True)
-        
-        # Calculate current cluster exposure from open positions (using schema)
-        cluster_exposure = defaultdict(float)  # {cluster_name: total_size_pct}
-        
+
+        cluster_exposure = defaultdict(float)
+
         for symbol in portfolio.open_positions.keys():
             size_usd = portfolio.get_position_usd(symbol)
             cluster = self.universe_manager.get_asset_cluster(symbol)
-            if cluster:
-                size_pct = (size_usd / portfolio.account_value_usd) * 100
-                cluster_exposure[cluster] += size_pct
+            if not cluster or portfolio.account_value_usd <= 0:
+                continue
+            cluster_exposure[cluster] += (size_usd / portfolio.account_value_usd) * 100.0
 
         pending_buy_orders = (portfolio.pending_orders or {}).get("buy", {})
         for symbol, usd_value in pending_buy_orders.items():
-            lookup_symbol = symbol if '-' in symbol else f"{symbol}-USD"
+            lookup_symbol = symbol if "-" in symbol else f"{symbol}-USD"
             cluster = self.universe_manager.get_asset_cluster(lookup_symbol)
-            if not cluster:
+            if not cluster or portfolio.account_value_usd <= 0:
                 continue
             try:
-                size_pct = (float(usd_value) / portfolio.account_value_usd) * 100 if portfolio.account_value_usd > 0 else 0.0
+                cluster_exposure[cluster] += (float(usd_value) / portfolio.account_value_usd) * 100.0
             except (TypeError, ValueError):
                 continue
-            cluster_exposure[cluster] += size_pct
-        
-        logger.debug(f"Current cluster exposure: {dict(cluster_exposure)}")
-        
-        # Add proposed trades to cluster exposure
-            approved_proposals = []
-            violated = []
 
-            for proposal in proposals:
+        logger.debug("Current cluster exposure: %s", dict(cluster_exposure))
+
+        approved_proposals: List[TradeProposal] = []
+        violated_reasons: List[str] = []
+        cluster_rejections: Dict[str, List[str]] = {}
+
+        for proposal in proposals:
             cluster = self.universe_manager.get_asset_cluster(proposal.symbol)
-            
             if cluster:
-                # Check if this proposal would violate cluster limit
                 max_cluster_pct = max_per_theme.get(cluster)
-                
                 if max_cluster_pct:
                     new_exposure = cluster_exposure[cluster] + proposal.size_pct
-                    
                     if new_exposure > max_cluster_pct:
                         reason = (
                             f"{cluster} theme limit violated: "
                             f"{new_exposure:.1f}% > {max_cluster_pct:.1f}% "
                             f"(current: {cluster_exposure[cluster]:.1f}% + proposed: {proposal.size_pct:.1f}%)"
                         )
-                        violated.append(reason)
+                        violated_reasons.append(reason)
                         cluster_rejections.setdefault(proposal.symbol, []).append("cluster_limit")
-                        logger.warning(f"Rejected {proposal.symbol}: {reason}")
+                        logger.warning("Rejected %s: %s", proposal.symbol, reason)
                         continue
-                    
-                    # Update temporary exposure for next proposals
+
                     cluster_exposure[cluster] = new_exposure
-            
+
             approved_proposals.append(proposal)
-        
+
         if not approved_proposals and proposals:
             return RiskCheckResult(
                 approved=False,
                 reason="All proposals would violate theme/cluster limits",
-                violated_checks=violated,
+                violated_checks=violated_reasons,
                 proposal_rejections=cluster_rejections,
             )
-        
-        # Update proposals list to only include approved ones
+
         proposals.clear()
         proposals.extend(approved_proposals)
-        
-        logger.debug(f"Cluster limits passed: {len(approved_proposals)}/{len(proposals) + len(violated)} approved")
 
-        return RiskCheckResult(approved=True, violated_checks=violated, proposal_rejections=cluster_rejections)
+        logger.debug(
+            "Cluster limits passed: %d/%d approved",
+            len(approved_proposals),
+            len(approved_proposals) + len(violated_reasons),
+        )
+
+        return RiskCheckResult(
+            approved=True,
+            violated_checks=violated_reasons,
+            proposal_rejections=cluster_rejections,
+        )
     
     def adjust_proposal_size(self, proposal: TradeProposal,
                             portfolio: PortfolioState,
