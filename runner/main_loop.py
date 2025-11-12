@@ -752,6 +752,16 @@ class TradingLoop:
             if not proposals:
                 reason = "rules_engine_no_proposals"
                 logger.info(f"NO_TRADE: {reason}")
+                
+                # Zero-trade sentinel: Track consecutive cycles with 0 proposals
+                zero_count = self.state_store.increment_zero_proposal_cycles()
+                
+                # Auto-loosen if stuck at 0 proposals for 20 cycles (once only)
+                if zero_count >= 20 and not self.state_store.has_auto_loosen_applied():
+                    logger.warning(f"Zero-proposal sentinel triggered after {zero_count} cycles - auto-loosening thresholds")
+                    self._apply_auto_loosen()
+                    self.state_store.mark_auto_loosen_applied()
+                
                 self.audit.log_cycle(
                     ts=cycle_started,
                     mode=self.mode,
@@ -764,6 +774,9 @@ class TradingLoop:
             state_store=self.state_store,
                 )
                 return
+            
+            # Proposals generated - reset zero-proposal counter
+            self.state_store.reset_zero_proposal_cycles()
             
             # Avoid stacking buys while there are outstanding orders for the same base asset
             pending_buy_notional = (pending_orders or {}).get("buy", {})
