@@ -574,8 +574,9 @@ class TriggerEngine:
             price_change_pct=price_change_pct
         )
     
-    def _check_breakout(self, asset: UniverseAsset, 
-                       candles: List[OHLCV]) -> Optional[TriggerSignal]:
+    def _check_breakout(self, asset: UniverseAsset,
+                       candles: List[OHLCV],
+                       regime: str = "chop") -> Optional[TriggerSignal]:
         """
         Check for price breakout (spec: new high/low within lookback period).
         
