@@ -12,43 +12,43 @@
       "available": 1.093593,
       "hold": 0.0,
       "total": 1.093593,
-      "usd_value": 9.4776237345
+      "usd_value": 9.475983345
     },
     "AERO": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.1140695
+      "usd_value": 0.11418900000000001
     },
     "FET": {
       "available": 88.2,
       "hold": 0.0,
       "total": 88.2,
-      "usd_value": 29.106
+      "usd_value": 29.03985
     },
     "HBAR": {
       "available": 1682.9,
       "hold": 0.0,
       "total": 1682.9,
-      "usd_value": 302.8799275
+      "usd_value": 302.905171
     },
     "ZK": {
       "available": 0.21905562,
       "hold": 873.1,
       "total": 873.31905562,
-      "usd_value": 44.7357686241345
+      "usd_value": 44.7532350052469
     },
     "XRP": {
       "available": 0.00812,
       "hold": 0.0,
       "total": 0.00812,
-      "usd_value": 0.019467294000000003
+      "usd_value": 0.019463234
     },
     "BTC": {
       "available": 0.00068841,
       "hold": 0.0,
       "total": 0.00068841,
-      "usd_value": 71.09768714715
+      "usd_value": 71.07972653025
     }
   },
   "cash_balances": {
@@ -108,17 +108,10 @@
       "closed_at": "2025-11-12T03:39:46.631019+00:00"
     }
   ],
-  "last_reconcile_at": "2025-11-12T04:00:26.169087+00:00",
+  "last_reconcile_at": "2025-11-12T04:00:56.172388+00:00",
   "last_reset_date": "2025-11-12",
   "last_reset_hour": 4,
   "events": [
-    {
-      "at": "2025-11-12T02:19:08.303636+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 1,
-      "closed": [],
-      "created": []
-    },
     {
       "at": "2025-11-12T02:19:33.514926+00:00",
       "event": "reconcile",
@@ -865,6 +858,14 @@
       "open_orders": 1,
       "closed": [],
       "created": []
+    },
+    {
+      "at": "2025-11-12T04:00:56.172388+00:00",
+      "event": "reconcile",
+      "positions": 7,
+      "open_orders": 1,
+      "orders_closed": [],
+      "orders_seen": []
     }
   ],
   "high_water_mark": 494.03608340685287,
