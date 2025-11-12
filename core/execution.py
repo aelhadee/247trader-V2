@@ -2088,6 +2088,127 @@ class ExecutionEngine:
             except Exception as exc:
                 logger.warning("State store close_order failed for %s: %s", candidate, exc)
 
+    def _handle_post_only_ttl(
+        self,
+        *,
+        order_id: Optional[str],
+        client_order_id: Optional[str],
+        symbol: str,
+        side: str,
+        current_status: str,
+        initial_fills: Optional[List[Dict[str, Any]]],
+        filled_size: float,
+        filled_price: float,
+        fees: float,
+        ttl_seconds: int,
+    ) -> PostOnlyTTLResult:
+        """Poll order status and cancel if maker order exceeds TTL."""
+
+        if ttl_seconds <= 0 or not order_id:
+            return PostOnlyTTLResult(triggered=False)
+
+        status_upper = (current_status or "").upper()
+        terminal_states = {
+            "FILLED",
+            "COMPLETED",
+            "DONE",
+            "CANCELED",
+            "CANCELLED",
+            "EXPIRED",
+            "FAILED",
+            "REJECTED",
+        }
+
+        if filled_size > 0 or status_upper in terminal_states:
+            return PostOnlyTTLResult(triggered=False)
+
+        poll_interval = max(0.2, min(ttl_seconds / 5.0, 1.0))
+        start = time.monotonic()
+        last_error: Optional[str] = None
+        latest_status = status_upper or "OPEN"
+        latest_fills = initial_fills or []
+        latest_size = filled_size
+        latest_price = filled_price
+        latest_fees = fees
+
+        while (time.monotonic() - start) < ttl_seconds:
+            try:
+                snapshot = self.exchange.get_order_status(order_id)
+            except Exception as exc:  # pragma: no cover - defensive
+                last_error = str(exc)
+                logger.debug("TTL poll failed for %s: %s", order_id, exc)
+                break
+
+            if snapshot:
+                latest_status = (snapshot.get("status") or latest_status or "OPEN").upper()
+                try:
+                    latest_size = float(snapshot.get("filled_size", latest_size) or latest_size)
+                except (TypeError, ValueError):
+                    latest_size = latest_size
+
+                if latest_status in terminal_states or latest_size > 0:
+                    fills = self.exchange.list_fills(order_id=order_id) or latest_fills
+                    size, price, total_fees = self._summarize_fills(fills)
+                    return PostOnlyTTLResult(
+                        triggered=True,
+                        canceled=False,
+                        status=latest_status,
+                        fills=fills,
+                        filled_size=size,
+                        filled_price=price,
+                        fees=total_fees,
+                    )
+
+            time.sleep(poll_interval)
+
+        # TTL expired without terminal state; cancel to avoid resting risk
+        try:
+            self.exchange.cancel_order(order_id)
+            logger.info(
+                "Post-only TTL expired for %s (%s %s); canceled after %ss",
+                order_id,
+                side,
+                symbol,
+                ttl_seconds,
+            )
+            if client_order_id:
+                try:
+                    self.order_state_machine.transition(
+                        client_order_id,
+                        OrderStatus.CANCELED,
+                        error="post_only_ttl_expired",
+                    )
+                except Exception as exc:  # pragma: no cover - defensive
+                    logger.debug("Order state transition failed after TTL cancel: %s", exc)
+
+            fills = self.exchange.list_fills(order_id=order_id) or latest_fills
+            size, price, total_fees = self._summarize_fills(fills)
+            return PostOnlyTTLResult(
+                triggered=True,
+                canceled=True,
+                status="CANCELED",
+                fills=fills,
+                filled_size=size,
+                filled_price=price,
+                fees=total_fees,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Failed to cancel post-only order %s after TTL expiry: %s",
+                order_id,
+                exc,
+            )
+            return PostOnlyTTLResult(
+                triggered=True,
+                canceled=False,
+                status=latest_status,
+                fills=latest_fills,
+                filled_size=latest_size,
+                filled_price=latest_price,
+                fees=latest_fees,
+                error=f"ttl_cancel_failed:{last_error or exc}",
+            )
+
     def _update_state_store_after_execution(
         self,
         *,
