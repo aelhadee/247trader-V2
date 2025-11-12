@@ -217,7 +217,8 @@ class OrderStateMachine:
         new_status: OrderStatus,
         order_id: Optional[str] = None,
         error: Optional[str] = None,
-        rejection_reason: Optional[str] = None
+        rejection_reason: Optional[str] = None,
+        allow_override: bool = False,
     ) -> bool:
         """
         Transition order to new state.
@@ -239,14 +240,23 @@ class OrderStateMachine:
         order = self.orders[client_order_id]
         current_status = OrderStatus(order.status)
         
-        # Check if transition is valid
+        # Check if transition is valid or requires override (late fill reconciliation, etc.)
         valid_next_states = self.VALID_TRANSITIONS.get(current_status, set())
+        override_allowed = allow_override or self._should_allow_override(current_status, new_status)
+
         if new_status not in valid_next_states:
-            logger.warning(
-                f"Invalid transition for {client_order_id}: "
-                f"{current_status.value} → {new_status.value}"
+            if not override_allowed:
+                logger.warning(
+                    f"Invalid transition for {client_order_id}: "
+                    f"{current_status.value} → {new_status.value}"
+                )
+                return False
+            logger.info(
+                "Override transition for %s: %s → %s",
+                client_order_id,
+                current_status.value,
+                new_status.value,
             )
-            return False
         
         # Perform transition
         old_status = order.status
@@ -275,6 +285,15 @@ class OrderStateMachine:
             f"{old_status} → {new_status.value}"
         )
         return True
+
+    @staticmethod
+    def _should_allow_override(current: OrderStatus, new: OrderStatus) -> bool:
+        """Allow late fill upgrades from canceled/expired paths."""
+
+        if new == OrderStatus.FILLED and current in {OrderStatus.CANCELED, OrderStatus.EXPIRED, OrderStatus.FAILED}:
+            return True
+
+        return False
     
     def update_fill(
         self,
