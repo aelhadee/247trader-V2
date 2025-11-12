@@ -187,8 +187,14 @@ execution:
     - "ETH"   # Major crypto
   
   # Hard guardrails
-  max_slippage_bps: 40              # 0.40% max allowed vs reference
+  max_slippage_bps: 40              # 0.40% max allowed vs reference (default)
   hard_max_spread_bps: 80           # must align with liquidity.max_spread_bps
+  
+  # Slippage budget by tier (est_slippage_bps + fees must be < budget)
+  # Prevents "okay signal, terrible execution" scenarios
+  slippage_budget_t1_bps: 20        # Tier 1: tight spreads, low fees
+  slippage_budget_t2_bps: 35        # Tier 2: moderate spreads
+  slippage_budget_t3_bps: 60        # Tier 3: wider spreads acceptable
   
   # Order management
   cancel_after_seconds: 60          # cancel resting orders if not filled
