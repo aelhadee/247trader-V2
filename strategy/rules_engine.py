@@ -559,7 +559,8 @@ class RulesEngine:
         proposal.tags.append("canary")
         proposal.metadata["canary"] = True
         proposal.metadata["canary_size_multiplier"] = size_multiplier
-        proposal.reason = f"{proposal.reason} | CANARY".strip()
+        if "CANARY" not in proposal.reason:
+            proposal.reason = f"{proposal.reason} | CANARY".strip()
 
         if cfg.get("maker_only", True):
             proposal.metadata["order_type_override"] = "limit_post_only"
