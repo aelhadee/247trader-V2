@@ -9,6 +9,7 @@ import json
 import os
 import tempfile
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, Optional, Tuple, List
 from pathlib import Path
 import logging
@@ -471,7 +472,8 @@ class StateStore:
         filled_size: float,
         fill_price: float,
         fees: float,
-        timestamp: datetime
+        timestamp: datetime,
+        notional_usd: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
         Record a fill and update positions/PnL.
@@ -494,46 +496,100 @@ class StateStore:
         state = self.load()
         positions = state.setdefault("positions", {})
         managed_positions = state.setdefault("managed_positions", {})
-        
+
+        try:
+            size_dec = Decimal(str(filled_size))
+        except (InvalidOperation, TypeError, ValueError):
+            size_dec = Decimal("0")
+
+        try:
+            price_dec = Decimal(str(fill_price))
+        except (InvalidOperation, TypeError, ValueError):
+            price_dec = Decimal("0")
+
+        try:
+            fees_dec = Decimal(str(fees))
+        except (InvalidOperation, TypeError, ValueError):
+            fees_dec = Decimal("0")
+
+        if notional_usd is not None:
+            try:
+                notional_dec = Decimal(str(notional_usd))
+            except (InvalidOperation, TypeError, ValueError):
+                notional_dec = Decimal("0")
+        else:
+            notional_dec = size_dec * price_dec
+
+        if size_dec <= 0 or price_dec <= 0 or notional_dec <= 0:
+            logger.debug(
+                "record_fill skipped for %s: size=%s price=%s notional=%s",
+                symbol,
+                size_dec,
+                price_dec,
+                notional_dec,
+            )
+            return state
+
+        state = self.load()
+        positions = state.setdefault("positions", {})
+        managed_positions = state.setdefault("managed_positions", {})
+
         side_upper = side.upper()
-        total_pnl = 0.0  # Initialize for event logging
-        
+        total_pnl = Decimal("0")  # Initialize for event logging
+
+        size_float = float(size_dec)
+        price_float = float(price_dec)
+        notional_float = float(notional_dec)
+        fees_float = float(fees_dec)
+
         if side_upper == "BUY":
             managed_positions[symbol] = True
             # BUY: Create or add to position
             if symbol in positions:
-                # Add to existing position - weighted average entry price
                 pos = positions[symbol]
-                old_qty = pos["quantity"]
-                old_price = pos["entry_price"]
-                old_fees = pos.get("fees_paid", 0.0)
-                
-                # Weighted average entry price
-                total_value = (old_qty * old_price) + (filled_size * fill_price)
-                new_qty = old_qty + filled_size
-                new_entry_price = total_value / new_qty if new_qty > 0 else fill_price
-                
-                pos["quantity"] = new_qty
-                pos["entry_price"] = new_entry_price
-                pos["entry_value_usd"] = new_qty * new_entry_price
-                pos["fees_paid"] = old_fees + fees
+                old_qty_dec = Decimal(str(pos.get("quantity", 0.0) or 0.0))
+                old_price_dec = Decimal(str(pos.get("entry_price", price_float) or price_float))
+                old_fees_dec = Decimal(str(pos.get("fees_paid", 0.0) or 0.0))
+
+                total_value_dec = (old_qty_dec * old_price_dec) + notional_dec
+                new_qty_dec = old_qty_dec + size_dec
+                if new_qty_dec > 0:
+                    new_entry_price_dec = total_value_dec / new_qty_dec
+                else:
+                    new_entry_price_dec = price_dec
+
+                pos["quantity"] = float(new_qty_dec)
+                pos["units"] = float(new_qty_dec)
+                pos["entry_price"] = float(new_entry_price_dec)
+                pos["entry_value_usd"] = float(total_value_dec)
+                pos["usd_value"] = float(total_value_dec)
+                pos["usd"] = float(total_value_dec)
+                pos["fees_paid"] = float(old_fees_dec + fees_dec)
                 pos["last_updated"] = timestamp.isoformat()
-                
-                logger.debug(f"Added to {symbol} position: {filled_size} @ ${fill_price:.2f}, "
-                           f"new avg entry: ${new_entry_price:.2f}, total qty: {new_qty}")
+
+                logger.debug(
+                    "Added to %s position: %.8f @ $%.8f, new avg entry: $%.8f, total qty: %.8f",
+                    symbol,
+                    size_float,
+                    price_float,
+                    float(new_entry_price_dec),
+                    float(new_qty_dec),
+                )
             else:
-                # Create new position
                 positions[symbol] = {
                     "side": "BUY",
-                    "quantity": filled_size,
-                    "entry_price": fill_price,
-                    "entry_value_usd": filled_size * fill_price,
-                    "fees_paid": fees,
+                    "quantity": size_float,
+                    "units": size_float,
+                    "entry_price": price_float,
+                    "entry_value_usd": notional_float,
+                    "usd_value": notional_float,
+                    "usd": notional_float,
+                    "fees_paid": fees_float,
                     "entry_time": timestamp.isoformat(),
-                    "last_updated": timestamp.isoformat()
+                    "last_updated": timestamp.isoformat(),
                 }
-                
-                logger.info(f"Opened {symbol} position: {filled_size} @ ${fill_price:.2f}")
+
+                logger.info("Opened %s position: %.8f @ $%.8f", symbol, size_float, price_float)
         
         elif side_upper == "SELL":
             # SELL: Close or reduce position and calculate realized PnL
@@ -544,33 +600,35 @@ class StateStore:
                 return state
             
             pos = positions[symbol]
-            entry_price = pos["entry_price"]
-            current_qty = pos["quantity"]
-            
-            if filled_size > current_qty + 0.0001:  # Allow tiny rounding
-                logger.warning(f"SELL size {filled_size} > position size {current_qty} for {symbol}")
-                # Sell what we have
-                filled_size = current_qty
-            
+            entry_price = float(pos["entry_price"])
+            current_qty = float(pos["quantity"])
+
+            if size_float > current_qty + 0.0001:  # Allow tiny rounding
+                logger.warning(f"SELL size {size_float} > position size {current_qty} for {symbol}")
+                size_float = current_qty
+                size_dec = Decimal(str(size_float))
+
+            entry_price_dec = Decimal(str(entry_price))
+            current_qty_dec = Decimal(str(current_qty))
+
             # Calculate realized PnL for the sold portion
-            # PnL = (exit_price - entry_price) * quantity_sold - fees
-            price_diff = fill_price - entry_price
-            realized_pnl = (price_diff * filled_size) - fees
-            
+            price_diff_dec = price_dec - entry_price_dec
+            realized_pnl_dec = (price_diff_dec * size_dec) - fees_dec
+
             # Proportion of position sold
-            proportion_sold = filled_size / current_qty if current_qty > 0 else 1.0
-            proportion_fees = pos.get("fees_paid", 0.0) * proportion_sold
-            
+            proportion_sold = float(size_dec / current_qty_dec) if current_qty_dec > 0 else 1.0
+            proportion_fees = float(pos.get("fees_paid", 0.0) * proportion_sold)
+
             # Total PnL includes proportional entry fees
-            total_pnl = realized_pnl - proportion_fees
+            total_pnl = realized_pnl_dec - Decimal(str(proportion_fees))
             
             logger.info(f"Closed {filled_size}/{current_qty} of {symbol}: "
                        f"entry=${entry_price:.2f}, exit=${fill_price:.2f}, "
-                       f"PnL=${total_pnl:.2f}")
+                       f"PnL=${float(total_pnl):.2f}")
             
             # Update PnL accumulators
-            state["pnl_today"] = state.get("pnl_today", 0.0) + total_pnl
-            state["pnl_week"] = state.get("pnl_week", 0.0) + total_pnl
+            state["pnl_today"] = state.get("pnl_today", 0.0) + float(total_pnl)
+            state["pnl_week"] = state.get("pnl_week", 0.0) + float(total_pnl)
             
             # Update win/loss streaks
             if total_pnl > 0:
@@ -581,7 +639,7 @@ class StateStore:
                 state["last_loss_time"] = timestamp.isoformat()
             
             # Update or remove position
-            remaining_qty = current_qty - filled_size
+            remaining_qty = current_qty - size_float
             if remaining_qty < 0.0001:  # Essentially zero
                 # Position fully closed
                 del positions[symbol]
@@ -590,7 +648,10 @@ class StateStore:
             else:
                 # Partial close - reduce quantity and fees proportionally
                 pos["quantity"] = remaining_qty
+                 pos["units"] = remaining_qty
                 pos["entry_value_usd"] = remaining_qty * entry_price
+                pos["usd_value"] = pos["entry_value_usd"]
+                pos["usd"] = pos["entry_value_usd"]
                 pos["fees_paid"] = pos.get("fees_paid", 0.0) * (1 - proportion_sold)
                 pos["last_updated"] = timestamp.isoformat()
                 logger.debug(f"Reduced {symbol} position to {remaining_qty}")
@@ -601,10 +662,11 @@ class StateStore:
             "event": "fill",
             "symbol": symbol,
             "side": side_upper,
-            "quantity": filled_size,
-            "price": fill_price,
-            "fees": fees,
-            "pnl": total_pnl if side_upper == "SELL" and symbol in positions or side_upper == "SELL" else None
+            "quantity": size_float,
+            "price": price_float,
+            "notional_usd": notional_float,
+            "fees": fees_float,
+            "pnl": float(total_pnl) if side_upper == "SELL" else None,
         })
         
         # Trim events
