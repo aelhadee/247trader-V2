@@ -906,27 +906,64 @@ class CoinbaseExchange:
         
         try:
             self._rate_limit("fills")
-            
+
             # Build query parameters
             query_params = {}
             if order_id:
-                # CRITICAL FIX: Use order_ids (plural) parameter, not order_id
                 query_params["order_ids"] = order_id
-            if product_id:
+                if product_id:
+                    logger.debug(
+                        "list_fills: dropping redundant product_id=%s filter for order %s",
+                        product_id,
+                        order_id,
+                    )
+            elif product_id:
                 query_params["product_id"] = product_id
             if limit:
                 query_params["limit"] = min(max(1, limit), 1000)
             if start_time:
                 # Coinbase expects RFC3339 format
                 query_params["start_sequence_timestamp"] = start_time.isoformat()
-            
+
             # CRITICAL FIX: Use correct endpoint path /orders/historical/fills
             resp = self._req("GET", "/orders/historical/fills", query=query_params, authenticated=True)
-            
+
             fills = resp.get("fills", [])
             logger.debug(f"Retrieved {len(fills)} fills" + (f" for order {order_id}" if order_id else ""))
             return fills
-            
+
+        except requests_exceptions.HTTPError as exc:
+            if (
+                exc.response is not None
+                and exc.response.status_code == 400
+                and order_id
+                and product_id
+            ):
+                logger.debug(
+                    "list_fills 400 with redundant product filter; retrying order %s without product_id",
+                    order_id,
+                )
+                try:
+                    retry_params = {"order_ids": order_id}
+                    if limit:
+                        retry_params["limit"] = min(max(1, limit), 1000)
+                    if start_time:
+                        retry_params["start_sequence_timestamp"] = start_time.isoformat()
+                    self._rate_limit("fills")
+                    resp = self._req("GET", "/orders/historical/fills", query=retry_params, authenticated=True)
+                    fills = resp.get("fills", [])
+                    logger.debug(
+                        "Retrieved %d fills after retry for order %s",
+                        len(fills),
+                        order_id,
+                    )
+                    return fills
+                except Exception as retry_exc:  # pragma: no cover - defensive
+                    logger.warning("list_fills retry failed for %s: %s", order_id, retry_exc)
+                    return []
+
+            logger.warning("list_fills HTTP %s: %s", exc.response.status_code if exc.response else "?", exc)
+            return []
         except Exception as e:
             logger.warning(f"list_fills failed: {e}")
             return []
