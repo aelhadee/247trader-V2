@@ -1378,6 +1378,33 @@ class ExecutionEngine:
                     error=f"Slippage {preview['estimated_slippage_bps']:.1f}bps exceeds max {max_slip}bps"
                 )
             
+            # Check slippage budget (tier-specific: estimated_slippage + fees)
+            if tier is not None:
+                est_slippage_bps = preview.get("estimated_slippage_bps", 0.0)
+                # Use appropriate fee based on order type
+                is_maker = (order_type == "limit_post_only")
+                fee_bps = self.maker_fee_bps if is_maker else self.taker_fee_bps
+                total_cost_bps = est_slippage_bps + fee_bps
+                
+                slippage_budget = self._get_slippage_budget(tier)
+                
+                if total_cost_bps > slippage_budget:
+                    logger.warning(
+                        f"Slippage budget exceeded for {symbol} T{tier}: "
+                        f"{total_cost_bps:.1f}bps (slippage {est_slippage_bps:.1f} + fees {fee_bps:.1f}) "
+                        f"> budget {slippage_budget:.1f}bps"
+                    )
+                    return ExecutionResult(
+                        success=False,
+                        order_id=None,
+                        filled_size=0.0,
+                        filled_price=0.0,
+                        fees=0.0,
+                        slippage_bps=est_slippage_bps,
+                        route="live_rejected_budget",
+                        error=f"Total cost {total_cost_bps:.1f}bps exceeds T{tier} budget {slippage_budget:.1f}bps"
+                    )
+            
             # Place order (order_type already determined above for fee calculation)
             result = self.exchange.place_order(
                 product_id=symbol,
