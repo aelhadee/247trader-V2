@@ -19,8 +19,8 @@ def _build_candles(prices, symbol="WLFI-USD"):
                 symbol=symbol,
                 timestamp=timestamp,
                 open=price,
-                high=price * 1.01,
-                low=price * 0.99,
+                high=price,
+                low=price,
                 close=price,
                 volume=1_000_000.0,
             )
