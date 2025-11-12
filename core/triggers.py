@@ -509,8 +509,14 @@ class TriggerEngine:
         
         return min(annualized_vol, 200.0)  # Cap at 200% to avoid extreme outliers
     
-    def _check_price_move(self, asset: UniverseAsset, 
-                          candles: List[OHLCV], regime: str = "chop") -> Optional[TriggerSignal]:
+    def _check_price_move(
+        self,
+        asset: UniverseAsset,
+        candles: List[OHLCV],
+        regime: str = "chop",
+        threshold_override: Optional[Tuple[float, float]] = None,
+        reason_suffix: str = "",
+    ) -> Optional[TriggerSignal]:
         """
         Check for significant price moves (regime-aware thresholds).
         
@@ -523,6 +529,11 @@ class TriggerEngine:
         regime_key = regime if regime in self.regime_thresholds else "chop"
         pct_15m = self.regime_thresholds[regime_key].get("pct_change_15m", 2.0)
         pct_60m = self.regime_thresholds[regime_key].get("pct_change_60m", 4.0)
+
+        if threshold_override:
+            override_15, override_60 = threshold_override
+            pct_15m = max(override_15, 0.0)
+            pct_60m = max(override_60, 0.0)
         
         current_price = candles[-1].close
         
@@ -571,6 +582,9 @@ class TriggerEngine:
             confidence = 0.75
             move_pct = move_60m
         
+        if reason_suffix:
+            reason = f"{reason} {reason_suffix}".strip()
+
         # Calculate volatility for sizing
         volatility = self._calculate_volatility(candles)
         
