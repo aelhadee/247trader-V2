@@ -644,6 +644,24 @@ class RiskEngine:
             if portfolio.get_position_usd(symbol) > value_threshold
         }
 
+        existing_active = set(active_symbols)
+
+        pending_buy_orders = (portfolio.pending_orders or {}).get("buy", {})
+        pending_symbols = set()
+        for pending_symbol, pending_value in pending_buy_orders.items():
+            try:
+                pending_notional = float(pending_value)
+            except (TypeError, ValueError):
+                continue
+            if pending_notional <= value_threshold:
+                continue
+
+            normalized = pending_symbol if '-' in pending_symbol else f"{pending_symbol}-USD"
+            pending_symbols.add(normalized)
+
+        if pending_symbols:
+            active_symbols |= pending_symbols
+
         current_open = len(active_symbols)
         capacity = max_open - current_open
 
