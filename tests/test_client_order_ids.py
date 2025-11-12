@@ -230,9 +230,9 @@ class TestClientOrderIdIntegration:
         
         # Verify deterministic client_order_id was passed to place_order
         call_args = mock_exchange.place_order.call_args
-    client_order_id = call_args.kwargs.get("client_order_id")
-    assert client_order_id is not None
-    assert client_order_id.startswith("247trader_coid_")
+        client_order_id = call_args.kwargs.get("client_order_id")
+        assert client_order_id is not None
+        assert client_order_id.startswith("247trader_coid_")
     
     @patch('core.execution.get_exchange')
     def test_explicit_client_order_id_preserved(self, mock_get_exchange):
