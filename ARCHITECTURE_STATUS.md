@@ -895,3 +895,5 @@ def tune(params, metrics, state):
 * Defer fancy ML (bandits/Bayesian) until you have a backtester; doing it live is **risky** (40% confidence it helps without simulation).
 
 **Tldr:** Yes—add a small auto-tuner that nudges **conviction and trigger thresholds** within tight bounds to hit a proposals/hour target, with **dead-band, cooldown, and hard safety rails** untouched. Start in **shadow**, then **canary**, then full auto with **audit + auto-revert**.
+
+
