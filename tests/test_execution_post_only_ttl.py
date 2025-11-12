@@ -154,3 +154,57 @@ def test_post_only_ttl_skips_when_filled(monkeypatch: pytest.MonkeyPatch):
     assert result.filled_size == pytest.approx(2.0)
     assert result.filled_price == pytest.approx(10.0)
     exchange.cancel_order.assert_not_called()
+
+
+def test_post_only_ttl_handles_cancel_fill_race(monkeypatch: pytest.MonkeyPatch):
+    """Late fills after a cancel failure should transition order to FILLED."""
+
+    exchange = Mock()
+    exchange.get_quote.return_value = _quote()
+    exchange.preview_order.return_value = _default_preview()
+    exchange.place_order.return_value = {
+        "success": True,
+        "order_id": "ttl-race-1",
+        "status": "OPEN",
+        "fills": [],
+    }
+
+    status_sequence = [
+        {"status": "OPEN", "filled_size": "0"},
+        {"status": "OPEN", "filled_size": "0"},
+        {"status": "FILLED", "filled_size": "498"},
+    ]
+
+    def _status(_order_id):
+        return status_sequence.pop(0) if status_sequence else {"status": "FILLED", "filled_size": "498"}
+
+    exchange.get_order_status.side_effect = _status
+    exchange.cancel_order.return_value = {
+        "success": False,
+        "error": "404 Client Error: Not Found",
+        "order_id": "ttl-race-1",
+    }
+    exchange.list_fills.return_value = [
+        {
+            "size": "498",
+            "size_in_quote": "7.1002",
+            "price": "0.014256",
+            "commission": "0.01",
+        }
+    ]
+
+    engine = _build_engine(exchange, ttl_seconds=1)
+    engine.preview_order = MagicMock(return_value=_default_preview())
+
+    _patch_time(monkeypatch, [0.0, 0.3, 0.8, 1.2, 1.5])
+
+    result = engine.execute(symbol="PENGU-USD", side="BUY", size_usd=7.10)
+
+    assert result.success
+    assert result.filled_size == pytest.approx(498.0)
+
+    # Late fill must upgrade previously canceled order to FILLED state
+    assert any(
+        order.status == OrderStatus.FILLED.value
+        for order in engine.order_state_machine.orders.values()
+    )
