@@ -298,7 +298,7 @@ portfolio_management:
   # Maker-only TWAP purge settings (replaces legacy market dump path)
   purge_execution:
     slice_usd: 15.0               # Notional per maker slice
-    replace_seconds: 20           # Reprice cadence for resting orders
+  replace_seconds: 45           # Reprice cadence for resting orders
     max_duration_seconds: 240     # Bail after 4 minutes of attempts
     poll_interval_seconds: 2.0    # Order status polling cadence
     max_slices: 24                # Safety cap on number of slices per purge
