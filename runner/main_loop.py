@@ -1581,7 +1581,15 @@ class TradingLoop:
 
             currency = candidate.get("currency")
 
-            if target_currency and target_account_uuid:
+            can_attempt_convert = (
+                target_currency
+                and target_account_uuid
+                and getattr(self.executor, "can_convert", lambda *_args: True)(
+                    currency, target_currency
+                )
+            )
+
+            if can_attempt_convert:
                 convert_result = self.executor.convert_asset(
                     currency,
                     target_currency,
@@ -1590,6 +1598,13 @@ class TradingLoop:
                     target_account_uuid,
                 )
                 success = bool(convert_result and convert_result.get("success"))
+            else:
+                if target_currency and target_account_uuid:
+                    logger.debug(
+                        "Skipping convert %s→%s (convert not supported)",
+                        currency,
+                        target_currency,
+                    )
 
             if not success:
                 tier = self._infer_tier_from_config(candidate.get("pair")) or 3
