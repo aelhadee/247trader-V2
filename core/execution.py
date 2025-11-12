@@ -2306,6 +2306,7 @@ class ExecutionEngine:
         filled_size: float,
         filled_price: float,
         fees: float,
+        filled_value: float,
     ) -> None:
         if not self.state_store:
             return
@@ -2328,10 +2329,24 @@ class ExecutionEngine:
                 "route": route,
                 "filled_size": filled_size,
                 "filled_price": filled_price,
+                "filled_value": filled_value,
                 "fees": fees,
                 "fills": fills,
                 "result_snapshot": result_payload,
             }
+
+            if filled_value and size_usd:
+                mismatch = abs(filled_value - size_usd)
+                tolerance = max(0.01, size_usd * 0.005)
+                if mismatch > tolerance:
+                    logger.error(
+                        "FILL_NOTIONAL_MISMATCH product=%s requested=%.6f filled=%.6f tolerance=%.4f payload=%s",
+                        symbol,
+                        size_usd,
+                        filled_value,
+                        tolerance,
+                        fills,
+                    )
 
             if result_payload and result_payload.get("ttl_cancelled"):
                 payload["ttl_cancelled"] = True
