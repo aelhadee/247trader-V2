@@ -139,6 +139,21 @@ class ExecutionEngine:
         self.convert_api_retry_seconds = int(execution_config.get(
             "convert_api_retry_seconds", 900
         ))
+        self.cancel_retry_backoff_ms = [
+            int(value)
+            for value in execution_config.get("cancel_retry_backoff_ms", [250, 500, 1000])
+            if isinstance(value, (int, float))
+        ] or [250, 500, 1000]
+        self.promote_to_taker_if_budget_allows = bool(
+            execution_config.get("promote_to_taker_if_budget_allows", False)
+        )
+        self.taker_promotion_requirements = execution_config.get(
+            "taker_promotion_requirements", {}
+        ) or {}
+        self.price_source_for_mid = execution_config.get("price_source_for_mid", "best_bid_ask_mid")
+        self.execution_min_notional_usd = float(
+            execution_config.get("min_notional_usd", 0.0) or 0.0
+        )
 
         # Track last failure by symbol to avoid retry spam
         self._last_fail = {}
@@ -170,6 +185,9 @@ class ExecutionEngine:
             f"post_only_ttl={self.post_only_ttl_seconds}s, "
             f"slippage_budget=[T1:{self.slippage_budget_t1_bps}, T2:{self.slippage_budget_t2_bps}, T3:{self.slippage_budget_t3_bps}]bps)"
         )
+
+        if self.execution_min_notional_usd and self.execution_min_notional_usd > self.min_notional_usd:
+            self.min_notional_usd = self.execution_min_notional_usd
     
     def _get_slippage_budget(self, tier: Optional[int]) -> float:
         """
