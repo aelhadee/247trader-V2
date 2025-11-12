@@ -5,7 +5,6 @@
 - Secure-by-default: timeouts, retries with exponential backoff, least privilege, secret-free samples.
 - Maintainable > clever: readable code, docstrings, CHANGELOG updates, tests.
 - Process: prove it with Minimum Reproducible Examples (MRE) and failing tests first when fixing bugs.
-- CI/CD (Continuous Integration/Continuous Delivery): prefer GitHub Actions, Conventional Commits, SemVer (Semantic Versioning).
 - Testing defaults: pytest/Jest with coverage gates; add regression tests for every fix.
 - Risk callouts: explicitly state uncertainty and add a rollback plan.
 - Freshness: for library advice or ecosystem changes, check last 60–90 days.
