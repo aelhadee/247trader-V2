@@ -71,6 +71,28 @@ class TradingLoop:
         self.app_config = self._load_yaml("app.yaml")
         self.policy_config = self._load_yaml("policy.yaml")
         self.universe_config = self._load_yaml("universe.yaml")
+
+        loop_policy_cfg = (self.policy_config.get("loop") or {})
+        loop_app_cfg = (self.app_config.get("loop") or {})
+        self.loop_policy_config = loop_policy_cfg
+        self.loop_app_config = loop_app_cfg
+
+        loop_cache_ttl = loop_policy_cfg.get("universe_cache_seconds") or loop_app_cfg.get("universe_cache_seconds")
+        self._universe_cache_ttl = float(loop_cache_ttl) if loop_cache_ttl is not None else None
+
+        interval_seconds = loop_policy_cfg.get("interval_seconds") or loop_app_cfg.get("interval_seconds")
+        if interval_seconds is None:
+            interval_cfg = loop_app_cfg.get("interval") if isinstance(loop_app_cfg.get("interval"), dict) else {}
+            interval_seconds = interval_cfg.get("seconds")
+        if interval_seconds is None:
+            minutes_value = loop_app_cfg.get("interval_minutes")
+            if minutes_value is not None:
+                try:
+                    interval_seconds = float(minutes_value) * 60.0
+                except (TypeError, ValueError):
+                    interval_seconds = None
+
+        self.loop_interval_seconds = float(interval_seconds) if interval_seconds else None
         
         # Mode & safety
         self.mode = self.app_config.get("app", {}).get("mode", "DRY_RUN").upper()
@@ -132,7 +154,10 @@ class TradingLoop:
                 monitoring_cfg.get("alerts", {}).get("min_severity", "warning"),
             )
         
-        self.universe_mgr = UniverseManager(self.config_dir / "universe.yaml")
+        self.universe_mgr = UniverseManager(
+            self.config_dir / "universe.yaml",
+            cache_ttl_seconds=self._universe_cache_ttl,
+        )
         self.trigger_engine = TriggerEngine()
         self.rules_engine = RulesEngine(config={})
         self.risk_engine = RiskEngine(
