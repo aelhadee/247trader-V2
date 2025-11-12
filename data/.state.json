@@ -12,13 +12,13 @@
       "available": 1.093593,
       "hold": 0.0,
       "total": 1.093593,
-      "usd_value": 9.523007844
+      "usd_value": 9.520820658
     },
     "AERO": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.11412800000000001
+      "usd_value": 0.11428349999999998
     },
     "FET": {
       "available": 88.2,
@@ -30,25 +30,25 @@
       "available": 1682.9,
       "hold": 0.0,
       "total": 1682.9,
-      "usd_value": 303.1323625
+      "usd_value": 303.140777
     },
     "ZK": {
       "available": 0.21905562,
       "hold": 873.1,
       "total": 873.31905562,
-      "usd_value": 44.7183022430221
+      "usd_value": 44.7008358619097
     },
     "XRP": {
       "available": 0.00812,
       "hold": 0.0,
       "total": 0.00812,
-      "usd_value": 0.019460798
+      "usd_value": 0.019464046000000002
     },
     "BTC": {
       "available": 0.00068841,
       "hold": 0.0,
       "total": 0.00068841,
-      "usd_value": 71.08520627384999
+      "usd_value": 71.07937544114999
     }
   },
   "cash_balances": {
@@ -108,17 +108,10 @@
       "closed_at": "2025-11-12T03:39:46.631019+00:00"
     }
   ],
-  "last_reconcile_at": "2025-11-12T03:57:26.144087+00:00",
+  "last_reconcile_at": "2025-11-12T03:57:56.146246+00:00",
   "last_reset_date": "2025-11-12",
   "last_reset_hour": 3,
   "events": [
-    {
-      "at": "2025-11-12T02:16:08.401819+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 1,
-      "closed": [],
-      "created": []
-    },
     {
       "at": "2025-11-12T02:16:33.494117+00:00",
       "event": "reconcile",
@@ -865,6 +858,14 @@
       "open_orders": 1,
       "closed": [],
       "created": []
+    },
+    {
+      "at": "2025-11-12T03:57:56.146246+00:00",
+      "event": "reconcile",
+      "positions": 7,
+      "open_orders": 1,
+      "orders_closed": [],
+      "orders_seen": []
     }
   ],
   "high_water_mark": 494.03608340685287,
