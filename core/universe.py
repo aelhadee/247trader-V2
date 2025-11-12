@@ -461,7 +461,8 @@ class UniverseManager:
         min_volume = max(min_volume_global, min_volume_tier)
         
         # Check if in override zone (95% of floor → floor)
-        override_config = tier_config.get("constraints", {}).get("near_threshold_override", {})
+        # Note: tier_config is actually the constraints dict when called from _build_tier_2
+        override_config = tier_config.get("near_threshold_override", {})
         override_enabled = override_config.get("enable", False)
         lower_mult = override_config.get("lower_mult", 0.95)
         override_floor = min_volume * lower_mult

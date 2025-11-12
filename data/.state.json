@@ -12,49 +12,49 @@
       "available": 1.093593,
       "hold": 0.0,
       "total": 1.093593,
-      "usd_value": 9.4863724785
+      "usd_value": 9.5169930825
     },
     "AERO": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.11544349999999999
+      "usd_value": 0.1148595
     },
     "FET": {
-      "available": 88.2,
+      "available": 0.1,
       "hold": 0.0,
-      "total": 88.2,
-      "usd_value": 28.84581
+      "total": 0.1,
+      "usd_value": 0.032775
     },
     "HBAR": {
       "available": 1682.9,
       "hold": 0.0,
       "total": 1682.9,
-      "usd_value": 302.61066350000004
+      "usd_value": 302.29091250000005
     },
     "ZK": {
       "available": 0.21905562,
       "hold": 873.1,
       "total": 873.31905562,
-      "usd_value": 45.2684932480627
+      "usd_value": 45.35582515362469
     },
     "XRP": {
       "available": 0.00812,
       "hold": 0.0,
       "total": 0.00812,
-      "usd_value": 0.019401522000000004
+      "usd_value": 0.019404364000000004
     },
     "BTC": {
       "available": 0.00068841,
       "hold": 0.0,
       "total": 0.00068841,
-      "usd_value": 71.01164966535
+      "usd_value": 70.98486363225
     }
   },
   "cash_balances": {
     "USDC": 0.070462312468,
     "USDT": 2.33462704,
-    "USD": 75.7032673970177
+    "USD": 104.2446015170177
   },
   "open_orders": {
     "378d866b-0f73-4717-be51-a9dc93f7499f": {
@@ -69,7 +69,7 @@
       "filled_value": 0.0,
       "created_time": "2025-11-11T06:05:42.206556Z",
       "first_seen": "2025-11-11T23:00:55.901263+00:00",
-      "updated_at": "2025-11-12T04:49:13.049726+00:00"
+      "updated_at": "2025-11-12T04:52:35.730473+00:00"
     }
   },
   "recent_orders": [
@@ -106,50 +106,46 @@
       "first_seen": "2025-11-12T03:39:34.336622+00:00",
       "updated_at": "2025-11-12T03:39:34.336622+00:00",
       "closed_at": "2025-11-12T03:39:46.631019+00:00"
+    },
+    {
+      "order_id": "0868965c-7ddc-4743-812f-2e3c3f91cc06",
+      "client_order_id": "coid_f6257c81d8244297",
+      "product_id": "FET-USD",
+      "side": "sell",
+      "quote_size_usd": 28.9251,
+      "status": "closed",
+      "route": "live_market",
+      "filled_size": 0.0,
+      "filled_price": 0.0,
+      "fees": 0.0,
+      "fills": [],
+      "result_snapshot": {
+        "success": true,
+        "success_response": {
+          "order_id": "0868965c-7ddc-4743-812f-2e3c3f91cc06",
+          "product_id": "FET-USD",
+          "side": "SELL",
+          "client_order_id": "coid_f6257c81d8244297",
+          "attached_order_id": ""
+        },
+        "order_configuration": {
+          "market_market_ioc": {
+            "base_size": "88.1",
+            "rfq_enabled": false,
+            "rfq_disabled": false,
+            "reduce_only": false
+          }
+        }
+      },
+      "first_seen": "2025-11-12T04:52:05.708525+00:00",
+      "updated_at": "2025-11-12T04:52:05.708525+00:00",
+      "closed_at": "2025-11-12T04:52:35.730473+00:00"
     }
   ],
-  "last_reconcile_at": "2025-11-12T04:49:07.923071+00:00",
+  "last_reconcile_at": "2025-11-12T04:52:30.566507+00:00",
   "last_reset_date": "2025-11-12",
   "last_reset_hour": 4,
   "events": [
-    {
-      "at": "2025-11-12T03:53:56.067750+00:00",
-      "event": "reconcile",
-      "positions": 7,
-      "open_orders": 1,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-12T03:54:01.892710+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 1,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-12T03:54:26.071064+00:00",
-      "event": "reconcile",
-      "positions": 7,
-      "open_orders": 1,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-12T03:54:31.532031+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 1,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-12T03:54:56.072247+00:00",
-      "event": "reconcile",
-      "positions": 7,
-      "open_orders": 1,
-      "orders_closed": [],
-      "orders_seen": []
-    },
     {
       "at": "2025-11-12T03:55:01.335138+00:00",
       "event": "open_orders_sync",
@@ -861,12 +857,54 @@
       "open_orders": 1,
       "closed": [],
       "created": []
+    },
+    {
+      "at": "2025-11-12T04:51:43.755701+00:00",
+      "event": "reconcile",
+      "positions": 7,
+      "open_orders": 1,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-12T04:51:48.761943+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 1,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-12T04:52:05.708525+00:00",
+      "event": "order_opened",
+      "order_key": "coid_f6257c81d8244297",
+      "product_id": "FET-USD",
+      "side": "sell",
+      "quote_size_usd": 28.9251
+    },
+    {
+      "at": "2025-11-12T04:52:30.566507+00:00",
+      "event": "reconcile",
+      "positions": 7,
+      "open_orders": 1,
+      "orders_closed": [
+        "coid_f6257c81d8244297"
+      ],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-12T04:52:35.730473+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 1,
+      "closed": [
+        "coid_f6257c81d8244297"
+      ],
+      "created": []
     }
   ],
   "high_water_mark": 494.03608340685287,
-  "zero_trigger_cycles": 0,
+  "zero_trigger_cycles": 2,
   "auto_tune_applied": false,
   "zero_proposal_cycles": 0,
   "auto_loosen_applied": false,
-  "last_open_orders_sync": "2025-11-12T04:49:13.049726+00:00"
+  "last_open_orders_sync": "2025-11-12T04:52:35.730473+00:00"
 }
