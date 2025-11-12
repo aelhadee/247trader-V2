@@ -39,7 +39,6 @@ Explicitly expand acronyms on first use; call out uncertainty (â€œI am not sureâ
 - **Testing:** pytest (Python) / Jest (JS/TS), with coverage gates
 - **Lint/Format:** Ruff/Black (Python), ESLint/Prettier (JS/TS)
 - **Security:** OWASP ASVS; dependency review; pinned hashes
-- **CI/CD:** GitHub Actions with caching & parallelization
 
 ## Workflows
 ### bug_hunt
