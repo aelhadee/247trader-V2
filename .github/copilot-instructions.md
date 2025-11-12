@@ -13,6 +13,7 @@
 
 
 NOTE: you can check ./reference_code/.. (freqtrade, hummingbot, jesse, Superlagos) for inspiration on best practices in crypto trading bots and reference implementations.
+
 ---
 
 # 247trader‑v2 Copilot Guide
