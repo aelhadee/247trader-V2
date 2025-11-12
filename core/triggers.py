@@ -107,9 +107,12 @@ class TriggerEngine:
         self.atr_lookback = self.circuit_breakers.get("atr_lookback_periods", 14)
         self.atr_min_multiplier = self.circuit_breakers.get("atr_min_multiplier", 1.2)  # Must be 1.2x median
         
+        # Direction filter (for long-only strategies)
+        self.only_upside = self.policy_triggers.get("only_upside", False)  # If true, ignore downward momentum
+        
         logger.info(f"Initialized TriggerEngine (pct_15m={self.pct_15m}%, pct_60m={self.pct_60m}%, "
                    f"vol_ratio_1h={self.ratio_1h_vs_24h}x, lookback={self.lookback_hours}h, "
-                   f"atr_filter={self.enable_atr_filter})")
+                   f"atr_filter={self.enable_atr_filter}, only_upside={self.only_upside})")
     
     def scan(self, assets: List[UniverseAsset], 
              regime: str = "chop") -> List[TriggerSignal]:
