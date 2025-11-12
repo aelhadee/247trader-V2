@@ -736,16 +736,10 @@ class RiskEngine:
             return RiskCheckResult(approved=True)
 
         # Select highest-priority new proposals within capacity
-        sort_key = (
-            (lambda item: (
-                0 if not prefer_adds else 0,  # placeholder for readability
-                -item[2],
-                item[3],
-                item[0],
-            ))
-        )
-
-        ranked_new = sorted(candidate_new, key=lambda item: (-item[2], item[3], item[0]))
+        if prefer_adds:
+            ranked_new = sorted(candidate_new, key=lambda item: (-item[2], item[3], item[0]))
+        else:
+            ranked_new = sorted(candidate_new, key=lambda item: item[0])
         selected_indices = {idx for idx, _, _, _ in ranked_new[:max_new_allowed]}
 
         filtered: List[TradeProposal] = []
