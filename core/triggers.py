@@ -624,6 +624,8 @@ class TriggerEngine:
                 strength = min(recovery_pct / 0.20, 1.0)  # 20% recovery = max strength
                 confidence = 0.6
                 reason = f"Recovering from {lookback}h low (+{recovery_pct*100:.1f}% from ${low_lookback:,.2f})"
+                qualifiers, metrics = self._compute_reversal_confirmations(asset.symbol, candles)
+                metrics.setdefault("reversal_recovery_pct", recovery_pct * 100)
                 
                 return TriggerSignal(
                     symbol=asset.symbol,
@@ -634,7 +636,9 @@ class TriggerEngine:
                     timestamp=datetime.utcnow(),
                     current_price=current_price,
                     price_change_pct=recovery_pct * 100,
-                    volatility=volatility
+                    volatility=volatility,
+                    qualifiers=qualifiers,
+                    metrics=metrics
                 )
         
         return None
