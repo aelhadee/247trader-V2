@@ -475,6 +475,113 @@ class RulesEngine:
             # Default to tier 2 sizing for unknown tiers
             return self.tier2_base_size
     
+    def _calculate_conviction(self, trigger: TriggerSignal, asset: UniverseAsset,
+                              proposal: TradeProposal) -> (float, Dict[str, float]):
+        weights = self.conviction_weights
+        base_component = weights.get("base", 0.0)
+        strength_component = weights.get("strength", 0.5) * trigger.strength
+        confidence_component = weights.get("confidence", 0.3) * trigger.confidence
+
+        boosts_total = 0.0
+        boosts_applied = []
+
+        for key, boost_value in self.conviction_quality_boosts.items():
+            applied = False
+            if key.startswith("tier_bias_"):
+                tier_label = key.split("_")[-1].upper()
+                tier_match = (tier_label == "T1" and asset.tier == 1) or \
+                             (tier_label == "T2" and asset.tier == 2) or \
+                             (tier_label == "T3" and asset.tier == 3)
+                applied = tier_match
+            else:
+                applied = trigger.qualifiers.get(key, False)
+
+            if applied:
+                boosts_total += boost_value
+                boosts_applied.append((key, boost_value))
+
+        conviction = base_component + strength_component + confidence_component + boosts_total
+        conviction = max(0.0, min(1.0, conviction))
+
+        breakdown = {
+            "base": base_component,
+            "strength_component": strength_component,
+            "confidence_component": confidence_component,
+            "boosts_total": boosts_total,
+            "boosts": boosts_applied,
+        }
+
+        # Preserve booster insight for downstream consumers
+        if boosts_applied:
+            proposal.metadata.setdefault("conviction_boosts", [k for k, _ in boosts_applied])
+
+        return conviction, breakdown
+
+    def _log_conviction(self, proposal: TradeProposal, breakdown: Dict[str, float],
+                        threshold: float) -> None:
+        boosts = breakdown.get("boosts", [])
+        boost_summary = ", ".join(f"{name}+{value:.2f}" for name, value in boosts) if boosts else "none"
+        logger.info(
+            f"CONVICTION {proposal.symbol} ({proposal.trigger.trigger_type if proposal.trigger else 'n/a'}): "
+            f"{proposal.confidence:.3f} = base {breakdown['base']:.3f} + strength {breakdown['strength_component']:.3f} + "
+            f"confidence {breakdown['confidence_component']:.3f} + boosts {breakdown['boosts_total']:.3f} [{boost_summary}] "
+            f"threshold={threshold:.2f}"
+        )
+
+    def _try_canary(self, proposal: TradeProposal, asset: UniverseAsset, conviction: float,
+                    threshold: float, breakdown: Dict[str, float], total_triggers: int) -> Optional[TradeProposal]:
+        cfg = self.canary_cfg or {}
+        if not cfg.get("enabled", False):
+            return None
+        if total_triggers != 1:
+            return None
+
+        window_cfg = cfg.get("conviction_window", {})
+        lower = window_cfg.get("lower", 0.0)
+        upper = window_cfg.get("upper", threshold)
+        inclusive_upper = window_cfg.get("inclusive_upper", False)
+
+        upper_check = conviction <= upper if inclusive_upper else conviction < upper
+        if not (conviction >= lower and upper_check):
+            return None
+
+        if self.canary_tier_whitelist and asset.tier not in self.canary_tier_whitelist:
+            return None
+
+        if not self._canary_liquidity_ok(asset):
+            logger.info(
+                f"✗ Canary blocked: {asset.symbol} liquidity guard failed (depth={asset.depth_usd:.0f}, spread={asset.spread_bps:.1f}bps)"
+            )
+            return None
+
+        size_multiplier = float(cfg.get("size_multiplier", 0.25))
+        proposal.size_pct *= size_multiplier
+        proposal.tags.append("canary")
+        proposal.metadata["canary"] = True
+        proposal.metadata["canary_size_multiplier"] = size_multiplier
+        proposal.reason = f"{proposal.reason} | CANARY".strip()
+
+        if cfg.get("maker_only", True):
+            proposal.metadata["order_type_override"] = "limit_post_only"
+
+        logger.info(
+            f"🪶 Canary: {proposal.symbol} conviction={conviction:.3f} (< {threshold:.2f}) "
+            f"size={proposal.size_pct:.2f}% tags={proposal.tags}"
+        )
+        return proposal
+
+    def _canary_liquidity_ok(self, asset: UniverseAsset) -> bool:
+        spreads_cfg = self.liquidity_policy.get("spreads_bps", {})
+        depth_cfg = self.liquidity_policy.get("min_depth_floor_usd", {})
+        tier_key = f"T{asset.tier}" if asset.tier in (1, 2, 3) else None
+
+        max_spread = spreads_cfg.get(tier_key, self.liquidity_policy.get("max_spread_bps", 100))
+        min_depth = depth_cfg.get(tier_key, self.liquidity_policy.get("min_depth_20bps_usd", 0))
+
+        spread_ok = asset.spread_bps <= max_spread if max_spread is not None else True
+        depth_ok = asset.depth_usd >= min_depth if min_depth is not None else True
+        return spread_ok and depth_ok
+
     def calculate_volatility_adjusted_size(self, trigger: TriggerSignal, base_size_pct: float,
                                           stop_loss_pct: float, target_risk_pct: float = 1.0) -> float:
         """
