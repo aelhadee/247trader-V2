@@ -477,12 +477,12 @@ class RulesEngine:
     
     def _calculate_conviction(self, trigger: TriggerSignal, asset: UniverseAsset,
                               proposal: TradeProposal) -> Tuple[float, Dict[str, float]]:
-    weights = self.conviction_weights
-    base_component = weights.get("base", 0.0)
-    strength_weight = weights.get("strength", 0.5)
-    confidence_weight = weights.get("confidence", 0.3)
-    strength_component = strength_weight * trigger.strength
-    confidence_component = confidence_weight * trigger.confidence
+        weights = self.conviction_weights
+        base_component = weights.get("base", 0.0)
+        strength_weight = weights.get("strength", 0.5)
+        confidence_weight = weights.get("confidence", 0.3)
+        strength_component = strength_weight * trigger.strength
+        confidence_component = confidence_weight * trigger.confidence
 
         boosts_total = 0.0
         boosts_applied = []
