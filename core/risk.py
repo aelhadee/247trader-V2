@@ -285,6 +285,8 @@ class RiskEngine:
         result = self._check_max_open_positions(proposals, portfolio)
         if not result.approved:
             return result
+        if result.filtered_proposals is not None:
+            proposals = result.filtered_proposals
         
         # 5. Per-symbol cooldowns (filter proposals)
         proposals = self._filter_cooled_symbols(proposals)
