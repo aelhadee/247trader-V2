@@ -26,6 +26,7 @@ DEFAULT_STATE = {
     "last_win_time": None,
     "cooldowns": {},  # asset -> ISO time when eligible again
     "positions": {},  # asset -> position info
+    "managed_positions": {},  # asset -> bool flag if position created by bot
     "cash_balances": {},  # quote currency -> available
     "open_orders": {},  # client_order_id/order_id -> metadata
     "recent_orders": [],  # bounded history of closed/canceled orders
@@ -200,6 +201,11 @@ class StateStore:
         state["positions"] = positions
         state["cash_balances"] = cash_balances
         state["last_reconcile_at"] = timestamp.isoformat()
+
+        managed = state.setdefault("managed_positions", {})
+        for symbol in list(managed.keys()):
+            if symbol not in positions:
+                managed.pop(symbol, None)
 
         # Sync open orders against active set
         closed, created = self.sync_open_orders(open_orders, timestamp)
@@ -486,12 +492,14 @@ class StateStore:
             Updated state with positions and PnL
         """
         state = self.load()
-        positions = state.setdefault("positions", {})
+    positions = state.setdefault("positions", {})
+    managed_positions = state.setdefault("managed_positions", {})
         
         side_upper = side.upper()
         total_pnl = 0.0  # Initialize for event logging
         
         if side_upper == "BUY":
+            managed_positions[symbol] = True
             # BUY: Create or add to position
             if symbol in positions:
                 # Add to existing position - weighted average entry price
@@ -577,6 +585,7 @@ class StateStore:
             if remaining_qty < 0.0001:  # Essentially zero
                 # Position fully closed
                 del positions[symbol]
+                managed_positions.pop(symbol, None)
                 logger.info(f"Fully closed {symbol} position")
             else:
                 # Partial close - reduce quantity and fees proportionally
@@ -604,6 +613,23 @@ class StateStore:
         
         self.save(state)
         return state
+
+    def mark_position_managed(self, symbol: str) -> None:
+        """Explicitly mark a position as managed by the bot."""
+
+        normalized = symbol if "-" in symbol else f"{symbol}-USD"
+        state = self.load()
+        state.setdefault("managed_positions", {})[normalized] = True
+        self.save(state)
+
+    def get_managed_positions(self) -> Dict[str, bool]:
+        """Return a copy of managed position flags."""
+
+        state = self.load()
+        managed = state.get("managed_positions", {})
+        if not isinstance(managed, dict):
+            return {}
+        return dict(managed)
     
     def get(self, key: str, default: Any = None) -> Any:
         """
