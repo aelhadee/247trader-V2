@@ -12,56 +12,56 @@
       "available": 1.093593,
       "hold": 0.0,
       "total": 1.093593,
-      "usd_value": 8.667818118000001
+      "usd_value": 8.567207562
     },
     "AERO": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.116041
+      "usd_value": 0.116306
     },
     "FET": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.03162500000000001
+      "usd_value": 0.03171
     },
     "WLFI": {
-      "available": 436.4,
-      "hold": 0.0,
-      "total": 436.4,
-      "usd_value": 62.324465999999994
+      "available": 15.4,
+      "hold": 105.2,
+      "total": 120.60000000000001,
+      "usd_value": 17.107110000000002
     },
     "HBAR": {
       "available": 1682.9,
       "hold": 0.0,
       "total": 1682.9,
-      "usd_value": 296.81307300000003
+      "usd_value": 296.3334465
     },
     "ZK": {
       "available": 0.01905562,
       "hold": 873.3,
       "total": 873.31905562,
-      "usd_value": 42.6267031048122
+      "usd_value": 42.4782388653568
     },
     "XRP": {
       "available": 0.00812,
       "hold": 0.0,
       "total": 0.00812,
-      "usd_value": 0.019045460000000004
+      "usd_value": 0.019020694
     },
     "BTC": {
       "available": 0.00068841,
       "hold": 0.0,
       "total": 0.00068841,
-      "usd_value": 70.22028106575
+      "usd_value": 70.08710815124999
     }
   },
   "managed_positions": {},
   "cash_balances": {
     "USDC": 0.070462312468,
     "USDT": 2.33462704,
-    "USD": 30.3996343250177
+    "USD": 75.0861239630177
   },
   "open_orders": {
     "378d866b-0f73-4717-be51-a9dc93f7499f": {
@@ -76,7 +76,21 @@
       "filled_value": 0.0,
       "created_time": "2025-11-11T06:05:42.206556Z",
       "first_seen": "2025-11-11T23:00:55.901263+00:00",
-      "updated_at": "2025-11-12T16:32:59.781204+00:00"
+      "updated_at": "2025-11-12T16:40:14.505303+00:00"
+    },
+    "purge_5710de88d059490682": {
+      "order_id": "9d34ca34-ed30-46ae-b6b9-5de027cd23be",
+      "client_order_id": "purge_5710de88d059490682",
+      "product_id": "WLFI-USD",
+      "side": "sell",
+      "status": "open",
+      "quote_size_usd": 14.984688000000002,
+      "base_size": 105.2,
+      "filled_size": 0.0,
+      "filled_value": 0.0,
+      "created_time": "2025-11-12T16:38:25.722546Z",
+      "first_seen": "2025-11-12T16:39:15.744360+00:00",
+      "updated_at": "2025-11-12T16:40:14.505303+00:00"
     }
   },
   "recent_orders": [
@@ -221,177 +235,160 @@
       "filled_value": 0.0,
       "slice_target_usd": 15.0,
       "closed_at": "2025-11-12T16:28:30.287415+00:00"
+    },
+    {
+      "order_id": "804273e4-a8e8-4fff-8197-4270472a60eb",
+      "client_order_id": "purge_e60d246a704046ebaa",
+      "product_id": "WLFI-USD",
+      "side": "sell",
+      "quote_size_usd": 14.99261,
+      "status": "filled",
+      "route": "live_limit_post_only",
+      "filled_size": 0.0,
+      "filled_price": 0.0,
+      "fees": 0.0,
+      "fills": [],
+      "result_snapshot": {
+        "success": true,
+        "success_response": {
+          "order_id": "804273e4-a8e8-4fff-8197-4270472a60eb",
+          "product_id": "WLFI-USD",
+          "side": "SELL",
+          "client_order_id": "purge_e60d246a704046ebaa",
+          "attached_order_id": ""
+        },
+        "order_configuration": {
+          "limit_limit_gtc": {
+            "base_size": "105.3",
+            "limit_price": "0.14236",
+            "post_only": true,
+            "rfq_disabled": false,
+            "reduce_only": false
+          }
+        }
+      },
+      "first_seen": "2025-11-12T16:36:18.555829+00:00",
+      "updated_at": "2025-11-12T16:36:27.607710+00:00",
+      "filled_value": 0.0,
+      "slice_target_usd": 15.0,
+      "closed_at": "2025-11-12T16:36:27.607710+00:00"
+    },
+    {
+      "order_id": "97ea7ebb-4157-4dcd-a9b9-ecba57243ffb",
+      "client_order_id": "purge_43f9a299dd814e06af",
+      "product_id": "WLFI-USD",
+      "side": "sell",
+      "quote_size_usd": 14.996820000000001,
+      "status": "filled",
+      "route": "live_limit_post_only",
+      "filled_size": 0.0,
+      "filled_price": 0.0,
+      "fees": 0.0,
+      "fills": [],
+      "result_snapshot": {
+        "success": true,
+        "success_response": {
+          "order_id": "97ea7ebb-4157-4dcd-a9b9-ecba57243ffb",
+          "product_id": "WLFI-USD",
+          "side": "SELL",
+          "client_order_id": "purge_43f9a299dd814e06af",
+          "attached_order_id": ""
+        },
+        "order_configuration": {
+          "limit_limit_gtc": {
+            "base_size": "105.2",
+            "limit_price": "0.14244",
+            "post_only": true,
+            "rfq_disabled": false,
+            "reduce_only": false
+          }
+        }
+      },
+      "first_seen": "2025-11-12T16:37:13.251512+00:00",
+      "updated_at": "2025-11-12T16:37:18.057233+00:00",
+      "filled_value": 0.0,
+      "slice_target_usd": 15.0,
+      "closed_at": "2025-11-12T16:37:18.057233+00:00"
+    },
+    {
+      "order_id": "7b409983-b61b-4825-8664-e35a89161714",
+      "client_order_id": "purge_744e6cff2aa64fc19d",
+      "product_id": "WLFI-USD",
+      "side": "sell",
+      "quote_size_usd": 14.99262,
+      "status": "filled",
+      "route": "live_limit_post_only",
+      "filled_size": 0.0,
+      "filled_price": 0.0,
+      "fees": 0.0,
+      "fills": [],
+      "result_snapshot": {
+        "success": true,
+        "success_response": {
+          "order_id": "7b409983-b61b-4825-8664-e35a89161714",
+          "product_id": "WLFI-USD",
+          "side": "SELL",
+          "client_order_id": "purge_744e6cff2aa64fc19d",
+          "attached_order_id": ""
+        },
+        "order_configuration": {
+          "limit_limit_gtc": {
+            "base_size": "105.3",
+            "limit_price": "0.14227",
+            "post_only": true,
+            "rfq_disabled": false,
+            "reduce_only": false
+          }
+        }
+      },
+      "first_seen": "2025-11-12T16:37:57.157894+00:00",
+      "updated_at": "2025-11-12T16:37:59.632202+00:00",
+      "filled_value": 0.0,
+      "slice_target_usd": 15.0,
+      "closed_at": "2025-11-12T16:37:59.632202+00:00"
+    },
+    {
+      "order_id": "9d34ca34-ed30-46ae-b6b9-5de027cd23be",
+      "client_order_id": "purge_5710de88d059490682",
+      "product_id": "WLFI-USD",
+      "side": "sell",
+      "quote_size_usd": 14.996820000000001,
+      "status": "canceled",
+      "route": "live_limit_post_only",
+      "filled_size": 0.0,
+      "filled_price": 0.0,
+      "fees": 0.0,
+      "fills": [],
+      "result_snapshot": {
+        "success": true,
+        "success_response": {
+          "order_id": "9d34ca34-ed30-46ae-b6b9-5de027cd23be",
+          "product_id": "WLFI-USD",
+          "side": "SELL",
+          "client_order_id": "purge_5710de88d059490682",
+          "attached_order_id": ""
+        },
+        "order_configuration": {
+          "limit_limit_gtc": {
+            "base_size": "105.2",
+            "limit_price": "0.14244",
+            "post_only": true,
+            "rfq_disabled": false,
+            "reduce_only": false
+          }
+        }
+      },
+      "first_seen": "2025-11-12T16:38:25.744323+00:00",
+      "updated_at": "2025-11-12T16:38:48.189122+00:00",
+      "filled_value": 0.0,
+      "slice_target_usd": 15.0,
+      "closed_at": "2025-11-12T16:38:48.189122+00:00"
     }
   ],
-  "last_reconcile_at": "2025-11-12T16:32:54.504919+00:00",
+  "last_reconcile_at": "2025-11-12T16:40:08.810375+00:00",
   "last_reset_date": "2025-11-12",
   "last_reset_hour": 16,
   "events": [
-    {
-      "at": "2025-11-12T05:49:52.856138+00:00",
-      "event": "reconcile",
-      "positions": 7,
-      "open_orders": 1,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-12T05:49:58.086484+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 1,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-12T05:50:23.331979+00:00",
-      "event": "reconcile",
-      "positions": 8,
-      "open_orders": 1,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-12T05:50:29.197266+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 1,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-12T05:50:52.740603+00:00",
-      "event": "reconcile",
-      "positions": 8,
-      "open_orders": 1,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-12T05:50:58.366944+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 1,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-12T05:51:24.324097+00:00",
-      "event": "reconcile",
-      "positions": 8,
-      "open_orders": 1,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-12T05:51:30.588387+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 1,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-12T05:51:56.887343+00:00",
-      "event": "reconcile",
-      "positions": 8,
-      "open_orders": 1,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-12T05:52:02.955974+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 1,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-12T05:52:27.811249+00:00",
-      "event": "reconcile",
-      "positions": 8,
-      "open_orders": 1,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-12T05:52:33.423437+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 1,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-12T05:52:59.119782+00:00",
-      "event": "reconcile",
-      "positions": 8,
-      "open_orders": 1,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-12T05:53:04.908694+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 1,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-12T05:53:27.031266+00:00",
-      "event": "reconcile",
-      "positions": 8,
-      "open_orders": 1,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-12T05:53:33.061972+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 1,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-12T05:53:54.350054+00:00",
-      "event": "reconcile",
-      "positions": 8,
-      "open_orders": 1,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-12T05:54:00.099736+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 1,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-12T05:54:26.325429+00:00",
-      "event": "reconcile",
-      "positions": 8,
-      "open_orders": 1,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-12T05:54:31.959394+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 1,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-12T05:54:56.549782+00:00",
-      "event": "reconcile",
-      "positions": 8,
-      "open_orders": 1,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-12T05:55:02.329701+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 1,
-      "closed": [],
-      "created": []
-    },
     {
       "at": "2025-11-12T05:55:26.231281+00:00",
       "event": "reconcile",
@@ -974,6 +971,171 @@
       "open_orders": 1,
       "closed": [],
       "created": []
+    },
+    {
+      "at": "2025-11-12T16:36:06.854023+00:00",
+      "event": "reconcile",
+      "positions": 8,
+      "open_orders": 1,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-12T16:36:11.851032+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 1,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-12T16:36:18.555829+00:00",
+      "event": "order_opened",
+      "order_key": "purge_e60d246a704046ebaa",
+      "product_id": "WLFI-USD",
+      "side": "sell",
+      "quote_size_usd": 14.99261
+    },
+    {
+      "at": "2025-11-12T16:36:27.607710+00:00",
+      "event": "order_closed",
+      "order_key": "purge_e60d246a704046ebaa",
+      "status": "filled"
+    },
+    {
+      "at": "2025-11-12T16:37:00.169923+00:00",
+      "event": "reconcile",
+      "positions": 8,
+      "open_orders": 1,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-12T16:37:06.189327+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 1,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-12T16:37:13.251512+00:00",
+      "event": "order_opened",
+      "order_key": "purge_43f9a299dd814e06af",
+      "product_id": "WLFI-USD",
+      "side": "sell",
+      "quote_size_usd": 14.996820000000001
+    },
+    {
+      "at": "2025-11-12T16:37:18.057233+00:00",
+      "event": "order_closed",
+      "order_key": "purge_43f9a299dd814e06af",
+      "status": "filled"
+    },
+    {
+      "at": "2025-11-12T16:37:44.993529+00:00",
+      "event": "reconcile",
+      "positions": 8,
+      "open_orders": 1,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-12T16:37:50.614589+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 1,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-12T16:37:57.157894+00:00",
+      "event": "order_opened",
+      "order_key": "purge_744e6cff2aa64fc19d",
+      "product_id": "WLFI-USD",
+      "side": "sell",
+      "quote_size_usd": 14.99262
+    },
+    {
+      "at": "2025-11-12T16:37:59.632202+00:00",
+      "event": "order_closed",
+      "order_key": "purge_744e6cff2aa64fc19d",
+      "status": "filled"
+    },
+    {
+      "at": "2025-11-12T16:38:15.241447+00:00",
+      "event": "reconcile",
+      "positions": 8,
+      "open_orders": 1,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-12T16:38:20.945278+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 1,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-12T16:38:25.744323+00:00",
+      "event": "order_opened",
+      "order_key": "purge_5710de88d059490682",
+      "product_id": "WLFI-USD",
+      "side": "sell",
+      "quote_size_usd": 14.996820000000001
+    },
+    {
+      "at": "2025-11-12T16:38:48.189122+00:00",
+      "event": "order_closed",
+      "order_key": "purge_5710de88d059490682",
+      "status": "canceled"
+    },
+    {
+      "at": "2025-11-12T16:39:09.412832+00:00",
+      "event": "reconcile",
+      "positions": 8,
+      "open_orders": 2,
+      "orders_closed": [],
+      "orders_seen": [
+        "purge_5710de88d059490682"
+      ]
+    },
+    {
+      "at": "2025-11-12T16:39:15.744360+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 2,
+      "closed": [],
+      "created": [
+        "purge_5710de88d059490682"
+      ]
+    },
+    {
+      "at": "2025-11-12T16:39:41.768736+00:00",
+      "event": "reconcile",
+      "positions": 8,
+      "open_orders": 2,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-12T16:39:47.545291+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 2,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-12T16:40:08.810375+00:00",
+      "event": "reconcile",
+      "positions": 8,
+      "open_orders": 2,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-12T16:40:14.505303+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 2,
+      "closed": [],
+      "created": []
     }
   ],
   "high_water_mark": 538.2423030124753,
@@ -981,5 +1143,5 @@
   "auto_tune_applied": false,
   "zero_proposal_cycles": 0,
   "auto_loosen_applied": false,
-  "last_open_orders_sync": "2025-11-12T16:32:59.781204+00:00"
+  "last_open_orders_sync": "2025-11-12T16:40:14.505303+00:00"
 }
