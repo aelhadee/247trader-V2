@@ -1199,6 +1199,8 @@ class ExecutionEngine:
             size_usd: USD-equivalent amount to trade
             client_order_id: Optional idempotency key
             max_slippage_bps: Optional slippage limit (overrides default)
+            bypass_slippage_budget: Skip tier slippage+fee budget enforcement (for forced purges)
+            bypass_failed_order_cooldown: Ignore recent failure cooldown gate (for safety purges)
             
         Returns:
             ExecutionResult with fill details
