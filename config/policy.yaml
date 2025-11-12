@@ -273,6 +273,23 @@ portfolio_management:
   min_liquidation_value_usd: 10
   # Cap liquidations per cycle to avoid mass sells
   max_liquidations_per_cycle: 2
+  # Automatically trim portfolio back under global risk cap before evaluating new trades
+  auto_trim_to_risk_cap: true
+  # Buffer below the hard cap to avoid thrash when exposure hovers near the threshold (percent of NAV)
+  trim_target_buffer_pct: 1.0
+  # Allowable margin over the cap before triggering forced trimming (percent of NAV)
+  trim_tolerance_pct: 0.25
+  # Minimum USD value for liquidation attempts when trimming exposure
+  trim_min_value_usd: 10.0
+  # Maximum number of assets to liquidate in a single trim pass
+  trim_max_liquidations: 5
+  # Preferred destination currencies when converting excess exposure back to cash
+  trim_preferred_quotes:
+    - "USDC"
+    - "USD"
+    - "USDT"
+  # Extra percentage buffer applied to liquidation size to cover fees/slippage
+  trim_slippage_buffer_pct: 5.0
   # Attempt to free capital by liquidating worst-performing holding when stable buying power is insufficient
   auto_rebalance_worst_performer: true
   # Maker-only TWAP purge settings (replaces legacy market dump path)
