@@ -1377,8 +1377,21 @@ class TradingLoop:
             start = time.monotonic()
             self.run_cycle()
             elapsed = time.monotonic() - start
-            sleep_for = max(1.0, interval_seconds - elapsed)
-            logger.info(f"Cycle took {elapsed:.2f}s, sleeping {sleep_for:.2f}s")
+            
+            # Add ±10% jitter to avoid synchronized bursts
+            import random
+            jitter = random.uniform(-0.1, 0.1) * interval_seconds
+            base_sleep = interval_seconds - elapsed
+            sleep_for = max(1.0, base_sleep + jitter)
+            
+            # Auto-backoff if cycle utilization > 70%
+            utilization = elapsed / interval_seconds
+            if utilization > 0.7:
+                backoff = 15.0
+                sleep_for += backoff
+                logger.warning(f"High cycle utilization ({utilization:.1%}), adding {backoff}s backoff")
+            
+            logger.info(f"Cycle took {elapsed:.2f}s, sleeping {sleep_for:.2f}s (util: {utilization:.1%})")
             time.sleep(sleep_for)
         
         logger.info("Trading loop stopped cleanly.")
