@@ -423,16 +423,19 @@ class TriggerEngine:
         return min(annualized_vol, 200.0)  # Cap at 200% to avoid extreme outliers
     
     def _check_price_move(self, asset: UniverseAsset, 
-                          candles: List[OHLCV]) -> Optional[TriggerSignal]:
+                          candles: List[OHLCV], regime: str = "chop") -> Optional[TriggerSignal]:
         """
-        Check for significant price moves (spec-compliant: 15m/60m thresholds).
+        Check for significant price moves (regime-aware thresholds).
         
-        Triggers on:
-        - |Δprice_15m| >= pct_15m (default 3.5%)
-        - |Δprice_60m| >= pct_60m (default 6.0%)
+        Uses regime-specific pct_change_15m and pct_change_60m from signals.yaml.
         """
         if len(candles) < 60:
             return None
+        
+        # Get regime-specific thresholds
+        regime_key = regime if regime in self.regime_thresholds else "chop"
+        pct_15m = self.regime_thresholds[regime_key].get("pct_change_15m", 2.0)
+        pct_60m = self.regime_thresholds[regime_key].get("pct_change_60m", 4.0)
         
         current_price = candles[-1].close
         
@@ -456,10 +459,10 @@ class TriggerEngine:
                 max_1h_move = max(max_1h_move, move)
         
         # Check 15m threshold (using max 1h move as proxy)
-        triggered_15m = max_1h_move >= self.pct_15m
+        triggered_15m = max_1h_move >= pct_15m
         
         # Check 60m threshold  
-        triggered_60m = move_60m >= self.pct_60m
+        triggered_60m = move_60m >= pct_60m
         
         if not (triggered_15m or triggered_60m):
             return None
