@@ -1039,4 +1039,4 @@ def propose_adjustment(events, metrics, params):
 
 **Bottom line:** yes—AI can read news and *propose* “tighten” or “loosen.” Keep it **bounded**, **time-boxed**, **multi-sourced**, and never touch the **hard safety rails**. You approve the big moves; the bot auto-handles small nudges and then decays back.
 
-**Tldr:** Use AI to classify/score news, map to a small set of **tighten/loosen** actions (within strict bounds), apply for a limited time, and auto-revert. Hard rails never change; strong actions require your OK.
+**Tldr:** Use AI to classify/score news, map to a small set of **tighten/loosen** actions (within strict bounds), apply for a limited time, and auto-revert. Hard rails never change; strong actions require user's OK.
