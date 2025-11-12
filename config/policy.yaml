@@ -217,7 +217,7 @@ execution:
   # Order types
   default_order_type: "limit_post_only"  # Phase 1: conservative
   # Auto-convert USD → USDC to honor preferred quote (when needed for BUYs)
-  auto_convert_preferred_quote: true
+  auto_convert_preferred_quote: false
   # Clamp tiny trades up to the minimum notional to avoid rejects
   clamp_small_trades: true
   # Use market orders instead of post-only limits for very small trades (to avoid repeated $5 failures)
