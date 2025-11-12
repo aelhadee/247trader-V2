@@ -576,7 +576,10 @@ class UniverseManager:
             return False
         
         # Check age
-        age_seconds = (datetime.utcnow() - self._cache_time).total_seconds()
+        cache_time = self._cache_time
+        if cache_time.tzinfo is None:
+            cache_time = cache_time.replace(tzinfo=timezone.utc)
+        age_seconds = (datetime.now(timezone.utc) - cache_time).total_seconds()
         max_age_seconds = self.config.get("universe", {}).get("refresh_interval_hours", 24) * 3600
         
         return age_seconds < max_age_seconds
