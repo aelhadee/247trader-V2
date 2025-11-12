@@ -389,7 +389,7 @@ class UniverseManager:
                 
                 # Check liquidity
                 eligible, reason = self._check_liquidity(
-                    quote, orderbook, liquidity_config, constraints
+                    quote, orderbook, liquidity_config, constraints, tier=2
                 )
                 
                 if not eligible:
