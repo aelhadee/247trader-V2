@@ -71,8 +71,8 @@ class UniverseManager:
         self._cache: Optional[UniverseSnapshot] = None
         self._cache_time: Optional[datetime] = None
         self._cache_ttl_seconds: Optional[float] = cache_ttl_seconds
-    self._near_threshold_cfg = self.config.get("universe", {}).get("near_threshold", {}) or {}
-    self._near_threshold_usage: Dict[str, int] = {"tier1": 0, "tier2": 0, "tier3": 0}
+        self._near_threshold_cfg = self.config.get("universe", {}).get("near_threshold", {}) or {}
+        self._near_threshold_usage = {"tier1": 0, "tier2": 0, "tier3": 0}
         
         logger.info(f"Initialized UniverseManager from {config_path}")
     
