@@ -627,6 +627,13 @@ class TriggerEngine:
                 reason = f"Recovering from {lookback}h low (+{recovery_pct*100:.1f}% from ${low_lookback:,.2f})"
                 qualifiers, metrics = self._compute_reversal_confirmations(asset.symbol, candles)
                 metrics.setdefault("reversal_recovery_pct", recovery_pct * 100)
+                trend_ok, trend_reason, trend_metrics = self._passes_trend_filter(candles, regime)
+                metrics.update(trend_metrics)
+                if not trend_ok:
+                    logger.debug(f"{asset.symbol}: {trend_reason}")
+                    return None
+                if self.trend_filter_config.get("enabled", False):
+                    qualifiers["trend_filter_passed"] = True
                 
                 return TriggerSignal(
                     symbol=asset.symbol,
