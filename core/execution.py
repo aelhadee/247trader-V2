@@ -1941,6 +1941,43 @@ class ExecutionEngine:
             return 0.0
 
     @staticmethod
+    def _summarize_fills(fills: Optional[List[Dict[str, Any]]]) -> Tuple[float, float, float]:
+        """Aggregate fill data into size, average price, and total fees."""
+
+        if not fills:
+            return 0.0, 0.0, 0.0
+
+        total_size = 0.0
+        total_value = 0.0
+        total_fees = 0.0
+
+        for fill in fills:
+            try:
+                size = float(fill.get("size", 0.0) or 0.0)
+            except (TypeError, ValueError):
+                size = 0.0
+
+            try:
+                price = float(fill.get("price", 0.0) or 0.0)
+            except (TypeError, ValueError):
+                price = 0.0
+
+            try:
+                fee = float(fill.get("commission", fill.get("fee", 0.0)) or 0.0)
+            except (TypeError, ValueError):
+                fee = 0.0
+
+            if size <= 0 or price <= 0:
+                continue
+
+            total_size += size
+            total_value += size * price
+            total_fees += fee
+
+        avg_price = total_value / total_size if total_size > 0 else 0.0
+        return total_size, avg_price, total_fees
+
+    @staticmethod
     def _order_key(client_order_id: Optional[str], order_id: Optional[str]) -> Optional[str]:
         if client_order_id:
             return client_order_id
