@@ -297,10 +297,12 @@ class RiskEngine:
             logger.error("🚨 KILL SWITCH ACTIVATED - All trading halted")
             # Alert on kill switch activation
             if self.alert_service:
-                self.alert_service.send_alert(
-                    message="KILL SWITCH activated - all trading halted immediately",
+                from infra.alerting import AlertSeverity
+                self.alert_service.notify(
                     severity=AlertSeverity.CRITICAL,
-                    tags=["kill_switch", "emergency", "halt"]
+                    title="🚨 KILL SWITCH ACTIVATED",
+                    message="Trading halted: data/KILL_SWITCH file detected",
+                    context={"action": "all_trading_halted", "timestamp": portfolio.timestamp.isoformat() if hasattr(portfolio, 'timestamp') else None}
                 )
             return RiskCheckResult(
                 approved=False,
