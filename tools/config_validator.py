@@ -127,6 +127,7 @@ class ExecutionConfig(BaseModel):
     small_order_market_threshold_usd: float = Field(ge=0, description="Small order threshold USD")
     failed_order_cooldown_seconds: int = Field(ge=0, description="Failed order cooldown (seconds)")
     cancel_after_seconds: int = Field(ge=0, description="Cancel stale orders after (seconds)")
+    post_only_ttl_seconds: int = Field(ge=0, description="Cancel post-only orders after (seconds)")
     post_trade_reconcile_wait_seconds: float = Field(ge=0, description="Wait after trade (seconds)")
 
 
