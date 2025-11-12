@@ -55,6 +55,8 @@ def test_execute_bypass_failed_order_cooldown():
         return_value=ExecutionResult(
             success=True,
             order_id="test",
+            symbol="BTC-USD",
+            side="SELL",
             filled_size=1.0,
             filled_price=1.0,
             fees=0.0,
