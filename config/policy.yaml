@@ -117,6 +117,13 @@ triggers:
   # Minimum combined trigger score (if you implement scoring)
   min_score: 0.2
 
+  fallback:
+    enabled: true
+    min_no_trigger_streak: 1
+    relax_pct: 0.30
+    max_new_positions_per_cycle: 1
+    allow_downside: true
+
 strategy:
   # Base target allocation per asset tier (fraction of NLV)
   base_position_pct:
