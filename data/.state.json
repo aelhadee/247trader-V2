@@ -12,25 +12,25 @@
       "available": 1.093593,
       "hold": 0.0,
       "total": 1.093593,
-      "usd_value": 9.4841852925
+      "usd_value": 9.4776237345
     },
     "AERO": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.11392350000000001
+      "usd_value": 0.11395
     },
     "FET": {
       "available": 88.2,
       "hold": 0.0,
       "total": 88.2,
-      "usd_value": 29.044260000000005
+      "usd_value": 29.05749
     },
     "HBAR": {
       "available": 1682.9,
       "hold": 0.0,
       "total": 1682.9,
-      "usd_value": 302.43395899999996
+      "usd_value": 302.5770055
     },
     "ZK": {
       "available": 0.21905562,
@@ -42,13 +42,13 @@
       "available": 0.00812,
       "hold": 0.0,
       "total": 0.00812,
-      "usd_value": 0.019442122000000003
+      "usd_value": 0.01944131
     },
     "BTC": {
       "available": 0.00068841,
       "hold": 0.0,
       "total": 0.00068841,
-      "usd_value": 71.06818877865
+      "usd_value": 71.05235534865
     }
   },
   "cash_balances": {
@@ -69,7 +69,7 @@
       "filled_value": 0.0,
       "created_time": "2025-11-11T06:05:42.206556Z",
       "first_seen": "2025-11-11T23:00:55.901263+00:00",
-      "updated_at": "2025-11-12T04:24:01.415357+00:00"
+      "updated_at": "2025-11-12T04:24:29.982770+00:00"
     }
   },
   "recent_orders": [
@@ -108,25 +108,10 @@
       "closed_at": "2025-11-12T03:39:46.631019+00:00"
     }
   ],
-  "last_reconcile_at": "2025-11-12T04:23:56.259566+00:00",
+  "last_reconcile_at": "2025-11-12T04:24:25.049515+00:00",
   "last_reset_date": "2025-11-12",
   "last_reset_hour": 4,
   "events": [
-    {
-      "at": "2025-11-12T02:26:38.506762+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 1,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-12T02:27:03.612378+00:00",
-      "event": "reconcile",
-      "positions": 7,
-      "open_orders": 1,
-      "orders_closed": [],
-      "orders_seen": []
-    },
     {
       "at": "2025-11-12T02:27:08.604392+00:00",
       "event": "open_orders_sync",
@@ -865,8 +850,23 @@
       "open_orders": 1,
       "closed": [],
       "created": []
+    },
+    {
+      "at": "2025-11-12T04:24:25.049515+00:00",
+      "event": "reconcile",
+      "positions": 7,
+      "open_orders": 1,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-12T04:24:29.982770+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 1,
+      "closed": [],
+      "created": []
     }
   ],
   "high_water_mark": 494.03608340685287,
-  "last_open_orders_sync": "2025-11-12T04:24:01.415357+00:00"
+  "last_open_orders_sync": "2025-11-12T04:24:29.982770+00:00"
 }

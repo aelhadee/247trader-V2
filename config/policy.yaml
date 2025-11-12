@@ -70,14 +70,14 @@ triggers:
   # Direction filter (long-only strategy)
   only_upside: true                 # Ignore downward momentum (long-only)
   
-  # Price-move based triggers
+  # Price-move based triggers (LOOSENED for chop regime)
   price_move:
-    pct_15m: 3.0                    # abs move >= 3.0% in 15m
-    pct_60m: 5.0                    # abs move >= 5.0% in 60m
+    pct_15m: 2.5                    # abs move >= 2.5% in 15m (was 3.0%)
+    pct_60m: 4.5                    # abs move >= 4.5% in 60m (was 5.0%)
 
   # Volume spike trigger
   volume_spike:
-    ratio_1h_vs_24h: 1.8            # last 1h >= 1.8x average hourly
+    ratio_1h_vs_24h: 1.9            # last 1h >= 1.9x average hourly (was 1.8x - tighter to demand real interest)
 
   # Breakout / breakdown trigger
   breakout:
