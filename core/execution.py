@@ -998,7 +998,7 @@ class ExecutionEngine:
     
     def execute(self, symbol: str, side: str, size_usd: float,
                 client_order_id: Optional[str] = None,
-                max_slippage_bps: Optional[float] = None,
+                max_slippage_bps: Optional[str] = None,
                 force_order_type: Optional[str] = None,
                 skip_liquidity_checks: bool = False) -> ExecutionResult:
         """
@@ -1014,6 +1014,14 @@ class ExecutionEngine:
         Returns:
             ExecutionResult with fill details
         """
+        # Early validation: LIVE mode requires read_only=false
+        if self.mode == "LIVE" and self.exchange.read_only:
+            logger.error("LIVE mode execution attempted with read_only=true exchange")
+            raise ValueError(
+                "Cannot execute LIVE orders with read_only exchange. "
+                "Set exchange.read_only=false in config/app.yaml to enable real trading."
+            )
+        
         # Extract base symbol if full pair provided (e.g., "BTC-USD" -> "BTC")
         base_symbol = symbol.split('-')[0] if '-' in symbol else symbol
         
@@ -1279,9 +1287,21 @@ class ExecutionEngine:
                 logger.warning(f"Failed to get quote for {symbol}: {e}")
                 current_price = 0
             
-            # Enforce product constraints (increments, min size)
+            # Determine order type early (needed for fee calculation in constraints)
+            if force_order_type:
+                order_type = force_order_type
+            else:
+                if self.small_order_market_threshold_usd and size_usd <= self.small_order_market_threshold_usd:
+                    order_type = "market"
+                else:
+                    order_type = "limit_post_only" if self.limit_post_only else "market"
+            
+            # Assume maker for post-only, taker for market orders
+            is_maker = (order_type == "limit_post_only")
+            
+            # Enforce product constraints (increments, min size, fee-adjusted rounding)
             if current_price > 0:
-                constraints = self.enforce_product_constraints(symbol, size_usd, current_price)
+                constraints = self.enforce_product_constraints(symbol, size_usd, current_price, is_maker=is_maker)
                 if not constraints.get("success"):
                     logger.warning(f"Product constraints failed for {symbol}: {constraints.get('error')}")
                     return ExecutionResult(
@@ -1298,7 +1318,8 @@ class ExecutionEngine:
                 # Use adjusted size if constraints modified it
                 adjusted_size = constraints.get("adjusted_size_usd", size_usd)
                 if adjusted_size != size_usd:
-                    logger.info(f"Adjusted order size ${size_usd:.4f} → ${adjusted_size:.4f} for {symbol} (constraints)")
+                    fee_adj_note = " (fee-adjusted)" if constraints.get("fee_adjusted") else " (constraints)"
+                    logger.info(f"Adjusted order size ${size_usd:.4f} → ${adjusted_size:.4f} for {symbol}{fee_adj_note}")
                     size_usd = adjusted_size
             
             # Preview first
@@ -1329,15 +1350,7 @@ class ExecutionEngine:
                     error=f"Slippage {preview['estimated_slippage_bps']:.1f}bps exceeds max {max_slip}bps"
                 )
             
-            # Place order (use post-only if configured), but allow explicit override
-            # Route very small orders via market to avoid precision-limit failures
-            if force_order_type:
-                order_type = force_order_type
-            else:
-                if self.small_order_market_threshold_usd and size_usd <= self.small_order_market_threshold_usd:
-                    order_type = "market"
-                else:
-                    order_type = "limit_post_only" if self.limit_post_only else "market"
+            # Place order (order_type already determined above for fee calculation)
             result = self.exchange.place_order(
                 product_id=symbol,
                 side=side.lower(),

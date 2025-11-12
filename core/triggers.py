@@ -71,9 +71,11 @@ class TriggerEngine:
             with open(Path(policy_path)) as f:
                 policy_config = yaml.safe_load(f)
                 self.policy_triggers = policy_config.get("triggers", {})
+                self.circuit_breakers = policy_config.get("circuit_breakers", {})
         except Exception as e:
             logger.warning(f"Could not load policy triggers: {e}, using defaults")
             self.policy_triggers = {}
+            self.circuit_breakers = {}
         
         # Extract spec-compliant parameters (from policy.yaml)
         price_move_config = self.policy_triggers.get("price_move", {})
@@ -127,6 +129,12 @@ class TriggerEngine:
                 if not candles:
                     continue
                 
+                # Validate price data for outliers (bad ticks, flash crashes/spikes)
+                outlier_reason = self._validate_price_outlier(asset.symbol, candles)
+                if outlier_reason:
+                    logger.warning(f"{asset.symbol}: {outlier_reason}")
+                    continue  # Skip this asset for this cycle
+                
                 # Check various trigger types
                 triggers = []
                 
@@ -167,6 +175,66 @@ class TriggerEngine:
         
         logger.info(f"Found {len(signals)} triggers")
         return signals
+    
+    def _validate_price_outlier(self, symbol: str, candles: List[OHLCV]) -> Optional[str]:
+        """
+        Validate price data for outliers (bad ticks, flash crashes/spikes).
+        
+        Returns rejection reason if outlier detected, None if valid.
+        
+        Guards against:
+        - Price deviation >max_price_deviation_pct from moving average (default 10%)
+        - Without volume confirmation (min_volume_ratio, default 0.1 = 10%)
+        
+        Per policy.yaml circuit_breakers:
+        - check_price_outliers: enable/disable
+        - max_price_deviation_pct: maximum allowed deviation from MA
+        - min_volume_ratio: required volume ratio for extreme moves
+        - outlier_lookback_periods: periods for moving average (default 20)
+        """
+        # Check if outlier detection is enabled
+        if not self.circuit_breakers.get("check_price_outliers", True):
+            return None  # Outlier detection disabled
+        
+        max_dev_pct = self.circuit_breakers.get("max_price_deviation_pct", 10.0)
+        min_vol_ratio = self.circuit_breakers.get("min_volume_ratio", 0.1)
+        lookback = self.circuit_breakers.get("outlier_lookback_periods", 20)
+        
+        # Need at least lookback periods + 1 for validation
+        if len(candles) < lookback + 1:
+            return None  # Insufficient data, skip validation
+        
+        current = candles[-1]
+        historical = candles[-(lookback+1):-1]  # Last N periods, excluding current
+        
+        # Calculate moving average of close prices
+        avg_price = sum(c.close for c in historical) / len(historical)
+        
+        # Calculate deviation
+        if avg_price <= 0:
+            return f"Invalid average price: {avg_price}"
+        
+        deviation_pct = abs(current.close - avg_price) / avg_price * 100.0
+        
+        # If deviation exceeds threshold, check volume confirmation
+        if deviation_pct > max_dev_pct:
+            # Calculate average volume
+            avg_volume = sum(c.volume for c in historical) / len(historical)
+            
+            if avg_volume <= 0:
+                return f"Invalid average volume: {avg_volume}"
+            
+            volume_ratio = current.volume / avg_volume
+            
+            # Extreme move without volume confirmation = outlier
+            if volume_ratio < min_vol_ratio:
+                return (
+                    f"Price outlier: {deviation_pct:.1f}% deviation "
+                    f"(>{max_dev_pct}%) with low volume "
+                    f"({volume_ratio:.2f}x < {min_vol_ratio}x)"
+                )
+        
+        return None  # Valid price data
     
     def _calculate_volatility(self, candles: List[OHLCV]) -> float:
         """

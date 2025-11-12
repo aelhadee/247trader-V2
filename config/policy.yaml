@@ -117,6 +117,12 @@ circuit_breakers:
   check_product_status: true         # Block trading on POST_ONLY/LIMIT_ONLY/CANCEL_ONLY products
   halt_on_maintenance: true          # Stop trading during maintenance windows
   
+  # Outlier/bad-tick guards
+  check_price_outliers: true         # Reject prices deviating significantly from moving average
+  max_price_deviation_pct: 10.0      # Max % deviation from 20-period moving average (10% = flash crash/spike protection)
+  min_volume_ratio: 0.1              # Require volume >= 10% of average to validate extreme moves
+  outlier_lookback_periods: 20       # Periods to calculate moving average for outlier detection
+  
   # Volatility circuit breaker
   max_realized_volatility_pct: 150   # Halt if realized vol > 150% annualized
   volatility_lookback_hours: 24      # Calculate vol over last 24h

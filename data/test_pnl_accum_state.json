@@ -4,21 +4,21 @@
   "trades_today": 0,
   "trades_this_hour": 0,
   "consecutive_losses": 0,
-  "last_loss_time": "2025-11-11T23:44:47.116010+00:00",
-  "last_win_time": "2025-11-11T23:44:47.119214+00:00",
+  "last_loss_time": "2025-11-12T00:27:30.419600+00:00",
+  "last_win_time": "2025-11-12T00:27:30.421088+00:00",
   "cooldowns": {
-    "BTC-USD": "2025-11-12T00:12:15.383407+00:00"
+    "BTC-USD": "2025-11-12T00:55:20.212196+00:00"
   },
   "positions": {},
   "cash_balances": {},
   "open_orders": {},
   "recent_orders": [],
   "last_reconcile_at": null,
-  "last_reset_date": "2025-11-11",
-  "last_reset_hour": 23,
+  "last_reset_date": "2025-11-12",
+  "last_reset_hour": 0,
   "events": [
     {
-      "at": "2025-11-11T23:44:47.110886+00:00",
+      "at": "2025-11-12T00:27:30.417642+00:00",
       "event": "fill",
       "symbol": "BTC-USD",
       "side": "BUY",
@@ -28,7 +28,7 @@
       "pnl": null
     },
     {
-      "at": "2025-11-11T23:44:47.112704+00:00",
+      "at": "2025-11-12T00:27:30.418297+00:00",
       "event": "fill",
       "symbol": "BTC-USD",
       "side": "SELL",
@@ -38,7 +38,7 @@
       "pnl": -30.0
     },
     {
-      "at": "2025-11-11T23:44:47.114619+00:00",
+      "at": "2025-11-12T00:27:30.419000+00:00",
       "event": "fill",
       "symbol": "ETH-USD",
       "side": "BUY",
@@ -48,7 +48,7 @@
       "pnl": null
     },
     {
-      "at": "2025-11-11T23:44:47.116010+00:00",
+      "at": "2025-11-12T00:27:30.419600+00:00",
       "event": "fill",
       "symbol": "ETH-USD",
       "side": "SELL",
@@ -58,7 +58,7 @@
       "pnl": -70.0
     },
     {
-      "at": "2025-11-11T23:44:47.117650+00:00",
+      "at": "2025-11-12T00:27:30.420356+00:00",
       "event": "fill",
       "symbol": "SOL-USD",
       "side": "BUY",
@@ -68,7 +68,7 @@
       "pnl": null
     },
     {
-      "at": "2025-11-11T23:44:47.119214+00:00",
+      "at": "2025-11-12T00:27:30.421088+00:00",
       "event": "fill",
       "symbol": "SOL-USD",
       "side": "SELL",
