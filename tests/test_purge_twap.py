@@ -189,14 +189,14 @@ def test_purge_retries_after_cancelled_slice():
         ]
     )
 
-        with patch("runner.main_loop.time.sleep", return_value=None):
-            result = loop._sell_via_market_order(
-                currency="BAD",
-                balance=1000,
-                usd_target=15,
-                tier=1,
-                preferred_pair="BAD-USD",
-            )
+    with patch("runner.main_loop.time.sleep", return_value=None):
+        result = loop._sell_via_market_order(
+            currency="BAD",
+            balance=1000,
+            usd_target=15,
+            tier=1,
+            preferred_pair="BAD-USD",
+        )
 
     assert result is True
     assert loop.executor.execute.call_count == 2
