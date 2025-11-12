@@ -149,6 +149,8 @@ def rebuild_positions(
             symbol_fills,
             key=lambda item: _parse_trade_time(item) or datetime.min.replace(tzinfo=timezone.utc),
         )
+        if not symbol_fills_sorted:
+            continue
         summary = _aggregate_fills(symbol_fills_sorted)
         if not summary:
             if symbol in positions:
