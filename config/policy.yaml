@@ -124,6 +124,11 @@ circuit_breakers:
   min_volume_ratio: 0.1              # Require volume >= 10% of average to validate extreme moves
   outlier_lookback_periods: 20       # Periods to calculate moving average for outlier detection
   
+  # ATR volatility filter (reduce false signals in low-vol chop)
+  enable_atr_filter: true            # Skip low-volatility assets (tight ranges = noise)
+  atr_lookback_periods: 14           # Period for ATR calculation
+  atr_min_multiplier: 1.2            # Current ATR must be >= 1.2x median ATR (last 7 days)
+  
   # Volatility circuit breaker
   max_realized_volatility_pct: 150   # Halt if realized vol > 150% annualized
   volatility_lookback_hours: 24      # Calculate vol over last 24h
