@@ -145,7 +145,9 @@ def test_pending_buy_order_counts_toward_per_symbol_cap(risk_engine):
     
     # Should REJECT: $300 pending + $300 proposed = $600 (6%) > 5% limit
     assert not result.approved, "Should reject when pending + proposed > max_position_size_pct for same symbol"
-    assert "position_size" in result.violated_checks or "per_asset" in result.violated_checks or "max_position_size_pct" in result.violated_checks or "max_per_asset_pct" in result.violated_checks
+    # Check that the violation message contains position_size (as part of position_size_with_pending)
+    assert any("position_size" in check for check in result.violated_checks), \
+        f"Expected 'position_size' in violated_checks, got: {result.violated_checks}"
 
 
 def test_pending_orders_allow_room_for_valid_trade(risk_engine):
