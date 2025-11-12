@@ -130,11 +130,15 @@ class TriggerEngine:
         self.atr_min_multiplier = self.circuit_breakers.get("atr_min_multiplier", 1.2)  # Must be 1.2x median
         
         # Direction filter (for long-only strategies)
-        self.only_upside = self.policy_triggers.get("only_upside", False)  # If true, ignore downward momentum
+        self.only_upside = self.config.get("only_upside", self.policy_triggers.get("only_upside", False))
         
-        logger.info(f"Initialized TriggerEngine (pct_15m={self.pct_15m}%, pct_60m={self.pct_60m}%, "
-                   f"vol_ratio_1h={self.ratio_1h_vs_24h}x, lookback={self.lookback_hours}h, "
-                   f"atr_filter={self.enable_atr_filter}, only_upside={self.only_upside})")
+        logger.info(f"Initialized TriggerEngine (regime_aware={bool(self.regime_thresholds)}, "
+                   f"lookback={self.lookback_hours}h, atr_filter={self.enable_atr_filter}, "
+                   f"only_upside={self.only_upside}, max_triggers={self.max_triggers_per_cycle})")
+        logger.info(f"  Chop thresholds: 15m={self.regime_thresholds['chop']['pct_change_15m']}%, "
+                   f"60m={self.regime_thresholds['chop']['pct_change_60m']}%, "
+                   f"vol={self.regime_thresholds['chop']['volume_ratio_1h']}x, "
+                   f"atr={self.regime_thresholds['chop']['atr_filter_min_mult']}x")
     
     def scan(self, assets: List[UniverseAsset], 
              regime: str = "chop") -> List[TriggerSignal]:
