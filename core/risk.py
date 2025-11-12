@@ -198,7 +198,6 @@ class RiskEngine:
         self._external_exposure_buffer_pct = max(
             0.0, float(self.risk_config.get("external_exposure_buffer_pct", 0.0) or 0.0)
         )
-        self._managed_position_tag = self.risk_config.get("managed_position_tag", "247trader")
         
         # Circuit breaker state tracking
         self._api_error_count = 0
