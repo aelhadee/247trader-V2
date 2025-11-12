@@ -130,9 +130,9 @@ class ExecutionEngine:
             or "247trader"
         )
         self.client_order_prefix = self._sanitize_client_prefix(str(raw_prefix))
-    self._convert_denylist: Set[Tuple[str, str]] = set()
-    self._convert_api_disabled = False
-    self._convert_api_last_error: Optional[str] = None
+        self._convert_denylist: Set[Tuple[str, str]] = set()
+        self._convert_api_disabled = False
+        self._convert_api_last_error: Optional[str] = None
 
         logger.info(
             f"Initialized ExecutionEngine (mode={self.mode}, min_notional=${self.min_notional_usd}, "
