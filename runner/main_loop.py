@@ -1923,6 +1923,8 @@ class TradingLoop:
                     force_order_type="limit_post_only",
                     skip_liquidity_checks=False,
                     tier=tier,
+                    bypass_slippage_budget=True,
+                    bypass_failed_order_cooldown=True,
                 )
             except CriticalDataUnavailable:
                 raise
