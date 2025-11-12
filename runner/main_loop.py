@@ -1948,14 +1948,17 @@ class TradingLoop:
 
         pm_cfg = self.policy_config.get("portfolio_management", {})
         purge_cfg = pm_cfg.get("purge_execution", {})
+        twap_cfg = self.policy_config.get("twap", {}) or {}
 
         slice_usd = float(purge_cfg.get("slice_usd", 15.0))
-        replace_seconds = float(purge_cfg.get("replace_seconds", 20.0))
+        replace_seconds = float(twap_cfg.get("replace_seconds", purge_cfg.get("replace_seconds", 20.0)))
         max_duration = float(purge_cfg.get("max_duration_seconds", 180.0))
         poll_interval = float(purge_cfg.get("poll_interval_seconds", 2.0))
         max_slices = int(purge_cfg.get("max_slices", 20))
         max_residual = float(purge_cfg.get("max_residual_usd", self.executor.min_notional_usd))
-        max_consecutive_no_fill = int(purge_cfg.get("max_consecutive_no_fill", 3))
+        max_consecutive_no_fill = int(
+            twap_cfg.get("max_consecutive_no_fill", purge_cfg.get("max_consecutive_no_fill", 3))
+        )
 
         slice_usd = max(slice_usd, self.executor.min_notional_usd)
         poll_interval = max(0.2, poll_interval)
@@ -2101,7 +2104,19 @@ class TradingLoop:
             total_fees += fees
             total_filled_units += filled_units
 
+            status_upper = (status or "").upper()
+
             if filled_value <= 0:
+                if status_upper in {"CANCELED", "CANCELLED", "EXPIRED", "REJECTED"}:
+                    logger.info(
+                        "TWAP: slice %d for %s ended %s with no fills; widening and retrying",
+                        attempt,
+                        pair,
+                        status_upper,
+                    )
+                    consecutive_no_fill = 0
+                    continue
+
                 consecutive_no_fill += 1
                 if consecutive_no_fill >= max_consecutive_no_fill:
                     logger.warning(
@@ -2125,6 +2140,9 @@ class TradingLoop:
 
             consecutive_no_fill = 0
 
+            liquidity_tags = sorted({str(fill.get("liquidity_indicator")) for fill in fills if isinstance(fill, dict) and fill.get("liquidity_indicator")})
+            fee_bps = (fees / filled_value * 10_000) if filled_value > 0 else 0.0
+
             logger.info(
                 "TWAP slice %d: filled %.6f %s (~$%.2f), fees=$%.2f, status=%s",
                 attempt,
@@ -2134,6 +2152,13 @@ class TradingLoop:
                 fees,
                 status,
             )
+            if liquidity_tags:
+                logger.debug(
+                    "TWAP slice %d liquidity=%s, effective_fee_bps=%.2f",
+                    attempt,
+                    ",".join(liquidity_tags),
+                    fee_bps,
+                )
 
         residual = max(target_value_usd - total_filled_usd, 0.0)
         if residual > max_residual:
