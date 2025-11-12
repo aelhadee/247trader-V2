@@ -275,6 +275,45 @@ class SignalsSchema(BaseModel):
 
 
 # ===== Validation Functions =====
+def _format_yaml_error(file_path: Path, error: yaml.YAMLError) -> str:
+    """Return enriched message with line/column context for YAML errors."""
+
+    message = f"Malformed YAML in {file_path}: {error}"
+    mark = getattr(error, "problem_mark", None)
+    if mark is None:
+        return message
+
+    line = getattr(mark, "line", None)
+    column = getattr(mark, "column", None)
+
+    if line is None or column is None:
+        return message
+
+    try:
+        raw_lines = file_path.read_text().splitlines()
+    except Exception:
+        return (
+            f"Malformed YAML in {file_path}: line {line + 1}, column {column + 1}: "
+            f"{getattr(error, 'problem', str(error))}"
+        )
+
+    start = max(line - 2, 0)
+    end = min(line + 3, len(raw_lines))
+
+    snippet_lines: List[str] = []
+    for idx in range(start, end):
+        pointer = "▶" if idx == line else " "
+        snippet_lines.append(f"{pointer} {idx + 1:04d} | {raw_lines[idx]}")
+
+    snippet = "\n".join(snippet_lines)
+    problem = getattr(error, "problem", str(error))
+
+    return (
+        f"Malformed YAML in {file_path}: line {line + 1}, column {column + 1}: {problem}\n"
+        f"Context:\n{snippet}"
+    )
+
+
 def load_yaml_file(file_path: Path) -> Dict[str, Any]:
     """
     Load YAML file and return as dict.
@@ -296,7 +335,7 @@ def load_yaml_file(file_path: Path) -> Dict[str, Any]:
         try:
             return yaml.safe_load(f)
         except yaml.YAMLError as e:
-            raise yaml.YAMLError(f"Malformed YAML in {file_path}: {e}")
+            raise yaml.YAMLError(_format_yaml_error(file_path, e))
 
 
 def validate_policy(config_dir: Path) -> List[str]:
