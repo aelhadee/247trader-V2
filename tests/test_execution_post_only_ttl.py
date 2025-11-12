@@ -95,6 +95,7 @@ def test_post_only_ttl_cancels_unfilled_order(monkeypatch: pytest.MonkeyPatch):
         "status": "OPEN",
         "fills": [],
     }
+    exchange.list_accounts.return_value = []
 
     status_sequence = [
         {"status": "OPEN", "filled_size": "0"},
