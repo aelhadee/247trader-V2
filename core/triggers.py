@@ -764,6 +764,7 @@ class TriggerEngine:
 
         closes = [c.close for c in candles]
         if len(closes) < period + slope_lookback:
+            metrics["trend_filter_passed"] = 0.0
             return False, (
                 f"Trend filter: insufficient data for EMA period {period}"
             ), metrics
@@ -772,6 +773,7 @@ class TriggerEngine:
         ema_values = [value for value in ema_series if value is not None]
 
         if len(ema_values) < slope_lookback + 1:
+            metrics["trend_filter_passed"] = 0.0
             return False, (
                 f"Trend filter: insufficient EMA samples for slope lookback {slope_lookback}"
             ), metrics
@@ -780,6 +782,7 @@ class TriggerEngine:
         prior_ema = ema_values[-(slope_lookback + 1)]
 
         if prior_ema <= 0:
+            metrics["trend_filter_passed"] = 0.0
             return False, "Trend filter: invalid prior EMA value", metrics
 
         slope_pct = ((current_ema - prior_ema) / prior_ema) * 100.0 / slope_lookback
@@ -794,8 +797,10 @@ class TriggerEngine:
             reason = (
                 f"Trend filter: EMA slope {slope_pct:.3f}%/h < {min_slope:.3f}%/h requirement"
             )
+            metrics["trend_filter_passed"] = 0.0
             return False, reason, metrics
 
+        metrics["trend_filter_passed"] = 1.0
         return True, "", metrics
 
     def _calculate_vwap(self, candles: List[OHLCV]) -> Optional[float]:
