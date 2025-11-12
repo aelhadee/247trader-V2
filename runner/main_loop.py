@@ -790,7 +790,24 @@ class TradingLoop:
             
             if not triggers or len(triggers) == 0:
                 reason = "no_candidates_from_triggers"
-                logger.debug(f"NO_TRADE: {reason}")
+                logger.info(f"NO_TRADE: {reason} (0 triggers)")
+                
+                # Zero-trigger sentinel: Track consecutive cycles with 0 triggers
+                zero_trigger_count = self.state_store.get("zero_trigger_cycles", 0) + 1
+                state = self.state_store.load()
+                state["zero_trigger_cycles"] = zero_trigger_count
+                self.state_store.save(state)
+                
+                # Auto-loosen if stuck at 0 triggers for configured cycles (bounded)
+                auto_tune_cfg = self.app_config.get("auto_tune", {})
+                trigger_threshold = auto_tune_cfg.get("zero_trigger_cycles", 12)
+                
+                if zero_trigger_count >= trigger_threshold and not state.get("auto_tune_applied", False):
+                    logger.warning(f"Zero-trigger sentinel triggered after {zero_trigger_count} cycles - applying bounded auto-loosen")
+                    self._apply_bounded_auto_loosen()
+                    state["auto_tune_applied"] = True
+                    self.state_store.save(state)
+                
                 self.audit.log_cycle(
                     ts=cycle_started,
                     mode=self.mode,
@@ -803,6 +820,13 @@ class TradingLoop:
             state_store=self.state_store,
                 )
                 return
+            
+            # Triggers detected - reset zero-trigger counter
+            state = self.state_store.load()
+            if state.get("zero_trigger_cycles", 0) > 0:
+                state["zero_trigger_cycles"] = 0
+                state["auto_tune_applied"] = False  # Reset flag when triggers resume
+                self.state_store.save(state)
             
             logger.info(f"Triggers: {len(triggers)} detected")
             
