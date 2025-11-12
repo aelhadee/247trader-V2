@@ -10,10 +10,12 @@ submissions on network retries.
 
 import uuid
 import hashlib
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Set
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 import logging
+
+from requests import exceptions as requests_exceptions
 
 from core.exchange_coinbase import CoinbaseExchange, get_exchange
 from core.exceptions import CriticalDataUnavailable
