@@ -148,7 +148,7 @@ class RiskEngine:
     Returns: approved=True + vetoed proposals, OR approved=False + reason
     """
     
-    def __init__(self, policy: Dict, universe_manager=None, exchange=None, state_store=None):
+    def __init__(self, policy: Dict, universe_manager=None, exchange=None, state_store=None, alert_service=None):
         self.policy = policy
         self.risk_config = policy.get("risk", {})
         self.sizing_config = policy.get("position_sizing", {})
@@ -159,6 +159,7 @@ class RiskEngine:
         self.universe_manager = universe_manager
         self.exchange = exchange
         self._state_store = state_store  # Optional: for testing or explicit state management
+        self.alert_service = alert_service  # Optional: AlertService for critical notifications (kill switch, stops, etc.)
         
         # Circuit breaker state tracking
         self._api_error_count = 0
