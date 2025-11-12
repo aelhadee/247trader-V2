@@ -12,49 +12,49 @@
       "available": 1.093593,
       "hold": 0.0,
       "total": 1.093593,
-      "usd_value": 8.6147788575
+      "usd_value": 8.604389724
     },
     "AERO": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.115899
+      "usd_value": 0.1153425
     },
     "FET": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.031235000000000002
+      "usd_value": 0.031135000000000003
     },
     "WLFI": {
       "available": 436.4,
       "hold": 0.0,
       "total": 436.4,
-      "usd_value": 62.13245
+      "usd_value": 61.914249999999996
     },
     "HBAR": {
       "available": 1682.9,
       "hold": 0.0,
       "total": 1682.9,
-      "usd_value": 295.27321950000004
+      "usd_value": 294.70103350000005
     },
     "ZK": {
       "available": 0.01905562,
       "hold": 873.3,
       "total": 873.31905562,
-      "usd_value": 42.395273555072905
+      "usd_value": 42.3210414353452
     },
     "XRP": {
       "available": 0.00812,
       "hold": 0.0,
       "total": 0.00812,
-      "usd_value": 0.018963042000000003
+      "usd_value": 0.018918382
     },
     "BTC": {
       "available": 0.00068841,
       "hold": 0.0,
       "total": 0.00068841,
-      "usd_value": 70.08575886765
+      "usd_value": 70.02131680755
     }
   },
   "managed_positions": {},
@@ -223,18 +223,10 @@
       "closed_at": "2025-11-12T16:28:30.287415+00:00"
     }
   ],
-  "last_reconcile_at": "2025-11-12T16:29:52.958893+00:00",
+  "last_reconcile_at": "2025-11-12T16:30:21.908303+00:00",
   "last_reset_date": "2025-11-12",
   "last_reset_hour": 16,
   "events": [
-    {
-      "at": "2025-11-12T05:46:46.598492+00:00",
-      "event": "reconcile",
-      "positions": 7,
-      "open_orders": 1,
-      "orders_closed": [],
-      "orders_seen": []
-    },
     {
       "at": "2025-11-12T05:46:51.937618+00:00",
       "event": "open_orders_sync",
@@ -974,6 +966,14 @@
       "open_orders": 1,
       "closed": [],
       "created": []
+    },
+    {
+      "at": "2025-11-12T16:30:21.908303+00:00",
+      "event": "reconcile",
+      "positions": 8,
+      "open_orders": 1,
+      "orders_closed": [],
+      "orders_seen": []
     }
   ],
   "high_water_mark": 538.2423030124753,
