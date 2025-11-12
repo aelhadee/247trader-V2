@@ -1233,7 +1233,14 @@ class TradingLoop:
                         },
                     )
                 else:
-                    logger.warning(f"Risk check FAILED: {reason}")
+                    if getattr(risk_result, "proposal_rejections", None):
+                        logger.warning(
+                            "Risk check FAILED: %s | rejections=%s",
+                            reason,
+                            risk_result.proposal_rejections,
+                        )
+                    else:
+                        logger.warning(f"Risk check FAILED: {reason}")
                 
                 self.audit.log_cycle(
                     ts=cycle_started,
@@ -1245,7 +1252,8 @@ class TradingLoop:
                     final_orders=[],
                     no_trade_reason=reason,
             state_store=self.state_store,
-                    risk_violations=risk_result.violated_checks,
+            risk_violations=risk_result.violated_checks,
+            proposal_rejections=risk_result.proposal_rejections,
                 )
                 return
             
