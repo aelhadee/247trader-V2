@@ -619,6 +619,10 @@ class TriggerEngine:
         if abs(return_24h) < 0.02:
             return None
         
+        # Direction filter for long-only strategies
+        if self.only_upside and return_24h < 0:
+            return None  # Skip downward momentum if only_upside=true
+        
         # In bear/crash, only flag downward momentum
         if regime in ["bear", "crash"] and return_24h > 0:
             return None
