@@ -62,8 +62,13 @@ class TradingLoop:
             logger.error("=" * 80)
             logger.error("CONFIGURATION VALIDATION FAILED")
             logger.error("=" * 80)
-            for error in validation_errors:
-                logger.error(f"  • {error}")
+            for idx, error in enumerate(validation_errors, start=1):
+                lines = str(error).splitlines()
+                if not lines:
+                    continue
+                logger.error(f"{idx:>2}. {lines[0]}")
+                for extra in lines[1:]:
+                    logger.error(f"    {extra}")
             logger.error("=" * 80)
             raise ValueError(f"Invalid configuration: {len(validation_errors)} error(s) found")
         
