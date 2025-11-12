@@ -1498,6 +1498,8 @@ class ExecutionEngine:
             return ExecutionResult(
                 success=False,
                 order_id=None,
+                symbol=symbol,
+                side=side,
                 filled_size=0.0,
                 filled_price=0.0,
                 fees=0.0,
