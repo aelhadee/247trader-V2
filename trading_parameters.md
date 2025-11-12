@@ -138,6 +138,7 @@ execution:
   default_order_type: "limit_post_only"
   max_slippage_bps: 40                 # 0.4% worst-case from mid
   cancel_after_seconds: 60             # for passive orders
+  post_only_ttl_seconds: 4             # cancel resting maker orders quickly if unfilled
   partial_fill_min_pct: 0.25
 
   spread_checks:
