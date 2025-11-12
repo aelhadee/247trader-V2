@@ -386,11 +386,11 @@ class TradingLoop:
     
     def _init_portfolio_state(self) -> PortfolioState:
         """Initialize portfolio state from state store"""
-    state = self.state_store.load()
+        state = self.state_store.load()
 
-    # Default to persisted snapshot in case live lookups fail
-    positions_source: Dict[str, Any] = state.get("positions", {})
-    normalized_positions_override: Optional[Dict[str, Dict[str, Any]]] = None
+        # Default to persisted snapshot in case live lookups fail
+        positions_source: Dict[str, Any] = state.get("positions", {})
+        normalized_positions_override: Optional[Dict[str, Dict[str, Any]]] = None
 
         # Get real account value from Coinbase (fallback to 10k for DRY_RUN)
         if self.mode == "DRY_RUN":
@@ -408,7 +408,8 @@ class TradingLoop:
                 normalized_positions_override = self._normalize_positions_for_risk(positions_source)
                 if normalized_positions_override:
                     account_value_usd += sum(
-                        float(pos.get("usd", 0.0)) for pos in normalized_positions_override.values()
+                        float(pos.get("usd", 0.0))
+                        for pos in normalized_positions_override.values()
                     )
                 if account_value_usd <= 0:
                     account_value_usd = 10_000.0
@@ -436,7 +437,7 @@ class TradingLoop:
                     if account_value_usd <= 0:
                         account_value_usd = 10_000.0
                         normalized_positions_override = None
-        
+
         positions = (
             normalized_positions_override
             if normalized_positions_override is not None
@@ -461,13 +462,13 @@ class TradingLoop:
         # CRITICAL: Calculate actual max drawdown from state history
         # Use high_water_mark to track peak NAV and compute drawdown
         high_water_mark = float(state.get("high_water_mark", account_value_usd))
-        
+
         # Update high water mark if current NAV is higher
         if account_value_usd > high_water_mark:
             high_water_mark = account_value_usd
             state["high_water_mark"] = high_water_mark
             self.state_store.save(state)
-        
+
         # Calculate drawdown: (peak - current) / peak
         max_drawdown_pct = 0.0
         if high_water_mark > 0:
@@ -475,7 +476,7 @@ class TradingLoop:
 
         # CRITICAL: Hydrate pending_orders from open_orders to count toward risk caps
         pending_orders = self._build_pending_orders_from_state(state)
-        
+
         return PortfolioState(
             account_value_usd=account_value_usd,
             open_positions=positions,
