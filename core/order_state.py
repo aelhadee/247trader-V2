@@ -331,21 +331,40 @@ class OrderStateMachine:
         if fills:
             order.fills = fills
         
-        # Auto-transition based on fill status
-        if filled_size > 0 and order.status == OrderStatus.OPEN.value:
-            # Check if fully filled
+        # Auto-transition based on fill status (allow late fill upgrades)
+        if filled_size > 0:
+            target_status = None
+
             if order.size_base > 0:
-                fill_pct = (filled_size / order.size_base) * 100.0
-                if fill_pct >= 99.9:  # Account for rounding
-                    self.transition(client_order_id, OrderStatus.FILLED)
-                else:
-                    self.transition(client_order_id, OrderStatus.PARTIAL_FILL)
+                try:
+                    fill_pct = (filled_size / order.size_base) * 100.0
+                except ZeroDivisionError:
+                    fill_pct = 0.0
             elif order.size_usd > 0:
-                fill_pct = (filled_value / order.size_usd) * 100.0
-                if fill_pct >= 99.9:
-                    self.transition(client_order_id, OrderStatus.FILLED)
-                else:
-                    self.transition(client_order_id, OrderStatus.PARTIAL_FILL)
+                try:
+                    fill_pct = (filled_value / order.size_usd) * 100.0
+                except ZeroDivisionError:
+                    fill_pct = 0.0
+            else:
+                fill_pct = 0.0
+
+            if fill_pct >= 99.9:
+                target_status = OrderStatus.FILLED
+            elif fill_pct > 0:
+                target_status = OrderStatus.PARTIAL_FILL
+
+            if target_status is not None:
+                current_status = OrderStatus(order.status)
+
+                if not order.first_fill_at:
+                    order.first_fill_at = datetime.now(timezone.utc)
+
+                if current_status != target_status:
+                    self.transition(
+                        client_order_id,
+                        target_status,
+                        allow_override=True,
+                    )
         
         return True
     
