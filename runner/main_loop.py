@@ -1474,6 +1474,174 @@ class TradingLoop:
 
         return exposure
 
+    def _auto_trim_to_risk_cap(self) -> bool:
+        """Liquidate enough exposure to fall back under the global risk cap."""
+
+        pm_cfg = self.policy_config.get("portfolio_management", {})
+        if not pm_cfg.get("auto_trim_to_risk_cap", False):
+            return False
+
+        if self.mode == "DRY_RUN":
+            logger.debug("Auto trim skipped: DRY_RUN mode")
+            return False
+
+        risk_cfg = self.policy_config.get("risk", {})
+        max_total_at_risk = float(risk_cfg.get("max_total_at_risk_pct", 0.0) or 0.0)
+        if max_total_at_risk <= 0:
+            logger.debug("Auto trim skipped: invalid max_total_at_risk_pct")
+            return False
+
+        nav = float(self.portfolio.account_value_usd or 0.0)
+        if nav <= 0:
+            logger.debug("Auto trim skipped: no account value data")
+            return False
+
+        exposure_usd = self.portfolio.get_total_exposure_usd()
+        exposure_usd += self.portfolio.get_pending_notional_usd("buy")
+        exposure_pct = (exposure_usd / nav) * 100 if nav else 0.0
+
+        tolerance_pct = float(pm_cfg.get("trim_tolerance_pct", 0.25) or 0.0)
+        if exposure_pct <= max_total_at_risk + tolerance_pct:
+            return False
+
+        buffer_pct = float(pm_cfg.get("trim_target_buffer_pct", 1.0) or 0.0)
+        target_pct = max(0.0, max_total_at_risk - buffer_pct)
+        tolerance_usd = max((tolerance_pct / 100.0) * nav, 0.0)
+
+        excess_pct = max(0.0, exposure_pct - target_pct)
+        excess_usd = (excess_pct / 100.0) * nav
+
+        if excess_usd <= max(tolerance_usd, self.executor.min_notional_usd):
+            return False
+
+        logger.warning(
+            "Global exposure %.1f%% exceeds cap %.1f%%. Trimming portfolio toward %.1f%% target (excess $%.2f)",
+            exposure_pct,
+            max_total_at_risk,
+            target_pct,
+            excess_usd,
+        )
+
+        min_liq_value = float(pm_cfg.get("trim_min_value_usd", self.executor.min_notional_usd) or self.executor.min_notional_usd)
+        max_liqs = int(pm_cfg.get("trim_max_liquidations", 5) or 5)
+        slippage_buffer_pct = max(0.0, float(pm_cfg.get("trim_slippage_buffer_pct", 5.0) or 0.0) / 100.0)
+        preferred_quotes = pm_cfg.get("trim_preferred_quotes", ["USDC", "USD", "USDT"]) or []
+
+        candidates = self.executor.get_liquidation_candidates(
+            min_value_usd=min_liq_value,
+            sort_by="performance",
+        )
+
+        if not candidates:
+            logger.warning("Auto trim skipped: no liquidation candidates available")
+            return False
+
+        accounts = self._require_accounts("auto_trim")
+        preferred_target = next(
+            (acc for acc in accounts if acc.get("currency") in preferred_quotes),
+            None,
+        )
+
+        target_currency = preferred_target.get("currency") if preferred_target else None
+        target_account_uuid = preferred_target.get("uuid") if preferred_target else None
+
+        remaining_excess_usd = excess_usd
+        trimmed_any = False
+
+        for candidate in candidates:
+            if remaining_excess_usd <= tolerance_usd:
+                break
+            if max_liqs <= 0:
+                logger.info("Auto trim stopping after reaching liquidation limit")
+                break
+
+            balance = float(candidate.get("balance", 0.0) or 0.0)
+            price = float(candidate.get("price", 0.0) or 0.0)
+            value_usd = float(candidate.get("value_usd", 0.0) or 0.0)
+            account_uuid = candidate.get("account_uuid")
+
+            if balance <= 0 or price <= 0 or value_usd <= 0 or not account_uuid:
+                continue
+
+            available_usd = min(value_usd, balance * price)
+            if available_usd < self.executor.min_notional_usd:
+                continue
+
+            usd_to_free = min(remaining_excess_usd, available_usd)
+            if usd_to_free < self.executor.min_notional_usd:
+                continue
+
+            units_to_liquidate = min(balance, (usd_to_free / price) * (1.0 + slippage_buffer_pct))
+            if units_to_liquidate * price < self.executor.min_notional_usd:
+                continue
+
+            freed_usd = units_to_liquidate * price
+            success = False
+
+            currency = candidate.get("currency")
+
+            if target_currency and target_account_uuid:
+                convert_result = self.executor.convert_asset(
+                    currency,
+                    target_currency,
+                    f"{units_to_liquidate:.8f}",
+                    account_uuid,
+                    target_account_uuid,
+                )
+                success = bool(convert_result and convert_result.get("success"))
+
+            if not success:
+                tier = self._infer_tier_from_config(candidate.get("pair")) or 3
+                success = self._sell_via_market_order(
+                    currency,
+                    units_to_liquidate,
+                    usd_target=min(freed_usd, remaining_excess_usd),
+                    tier=tier,
+                    preferred_pair=candidate.get("pair"),
+                )
+
+                if success:
+                    logger.info(
+                        "Auto trim sold %s via TWAP fallback (~$%.2f)",
+                        currency,
+                        min(freed_usd, remaining_excess_usd),
+                    )
+                else:
+                    logger.warning("Auto trim failed to reduce %s position", currency)
+                    continue
+            else:
+                logger.info(
+                    "Auto trim converted %.6f %s → %s (~$%.2f)",
+                    units_to_liquidate,
+                    currency,
+                    target_currency,
+                    freed_usd,
+                )
+
+            trimmed_any = True
+            remaining_excess_usd = max(0.0, remaining_excess_usd - freed_usd)
+            max_liqs -= 1
+
+        if not trimmed_any:
+            return False
+
+        try:
+            self._reconcile_exchange_state()
+        except CriticalDataUnavailable:
+            raise
+        except Exception as exc:
+            logger.warning("Post-trim reconcile skipped: %s", exc)
+
+        try:
+            self.portfolio = self._init_portfolio_state()
+        except CriticalDataUnavailable:
+            raise
+        except Exception as exc:
+            logger.warning("Failed to refresh portfolio after trimming: %s", exc)
+
+        logger.info("Auto trim complete. Remaining excess exposure $%.2f", remaining_excess_usd)
+        return True
+
     def _auto_rebalance_for_trade(self, proposals: List[TradeProposal], deficit_usd: float) -> bool:
         """
         Automatically liquidate worst-performing position to raise capital.
