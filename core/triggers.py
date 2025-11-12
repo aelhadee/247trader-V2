@@ -226,6 +226,8 @@ class TriggerEngine:
         
         if not signals:
             signals = self._maybe_run_fallback_scan(asset_contexts, regime)
+        else:
+            self._no_trigger_streak = 0
 
         # Sort by strength × confidence
         signals.sort(key=lambda s: s.strength * s.confidence, reverse=True)
