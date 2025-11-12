@@ -1710,7 +1710,7 @@ class ExecutionEngine:
             
             # Extract fill details
             fills = result.get("fills") or []
-            filled_size, filled_price, fees = self._summarize_fills(fills)
+            filled_size, filled_price, fees, filled_value = self._summarize_fills(fills)
 
             # CRITICAL FIX: Market orders don't have fills in initial response
             # Poll order status first, then fetch fills when terminal
@@ -1753,7 +1753,7 @@ class ExecutionEngine:
                     # Fall back to using preview price estimate
                     fills = []
 
-                filled_size, filled_price, fees = self._summarize_fills(fills)
+                filled_size, filled_price, fees, filled_value = self._summarize_fills(fills)
 
             ttl_canceled = False
             ttl_error: Optional[str] = None
@@ -1777,13 +1777,16 @@ class ExecutionEngine:
                         status = ttl_result.status
                     if ttl_result.fills is not None:
                         fills = ttl_result.fills
-                        filled_size, filled_price, fees = self._summarize_fills(fills)
+                        filled_size, filled_price, fees, filled_value = self._summarize_fills(fills)
                     if ttl_result.filled_size is not None:
                         filled_size = ttl_result.filled_size
                     if ttl_result.filled_price is not None:
                         filled_price = ttl_result.filled_price
                     if ttl_result.fees is not None:
                         fees = ttl_result.fees
+                    if ttl_result.fills is not None and ttl_result.filled_size is None:
+                        _, _, _, ttl_quote = self._summarize_fills(ttl_result.fills)
+                        filled_value = ttl_quote
 
                     ttl_canceled = ttl_result.canceled
                     ttl_error = ttl_result.error
@@ -1803,6 +1806,7 @@ class ExecutionEngine:
                 if preview.get("expected_fill_price"):
                     filled_price = preview["expected_fill_price"]
                     filled_size = size_usd / filled_price if filled_price > 0 else 0.0
+                    filled_value = filled_size * filled_price
                     logger.warning(
                         f"No fill data for {order_id}, using preview estimate: "
                         f"{filled_size:.6f} @ ${filled_price:.2f}"
@@ -1810,7 +1814,8 @@ class ExecutionEngine:
 
             # Update order state with fill details
             if filled_size > 0:
-                filled_value = filled_size * filled_price if filled_price > 0 else size_usd
+                if filled_value == 0 and filled_price > 0:
+                    filled_value = filled_size * filled_price
                 self.order_state_machine.update_fill(
                     client_order_id=client_order_id,
                     filled_size=filled_size,
@@ -1834,6 +1839,7 @@ class ExecutionEngine:
                 filled_size=filled_size,
                 filled_price=filled_price,
                 fees=fees,
+                filled_value=filled_value,
             )
             
             success_flag = True
