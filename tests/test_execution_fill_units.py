@@ -96,3 +96,56 @@ def test_reconcile_fills_records_fees(execution_engine, state_store):
     position = state["positions"]["ADA-USD"]
     assert position["fees_paid"] == pytest.approx(0.0125)
     assert position["base_qty"] == pytest.approx(5.0 / 0.55, rel=1e-6)
+
+
+def test_record_fill_updates_mark_values(state_store):
+    """StateStore should track mark-to-last-price values alongside cost basis."""
+    now = datetime.now(timezone.utc)
+
+    state_store.record_fill(
+        symbol="TEST-USD",
+        side="BUY",
+        filled_size=1.0,
+        fill_price=10.0,
+        fees=0.0,
+        timestamp=now,
+    )
+
+    state = state_store.load()
+    position = state["positions"]["TEST-USD"]
+    assert position["entry_value_usd"] == pytest.approx(10.0)
+    assert position["usd"] == pytest.approx(10.0)
+    assert position["last_fill_price"] == pytest.approx(10.0)
+
+    state_store.record_fill(
+        symbol="TEST-USD",
+        side="BUY",
+        filled_size=1.0,
+        fill_price=12.0,
+        fees=0.0,
+        timestamp=now,
+    )
+
+    state = state_store.load()
+    position = state["positions"]["TEST-USD"]
+    assert position["entry_value_usd"] == pytest.approx(22.0)
+    assert position["entry_price"] == pytest.approx(11.0)
+    assert position["usd"] == pytest.approx(24.0)
+    assert position["last_fill_price"] == pytest.approx(12.0)
+
+    state_store.record_fill(
+        symbol="TEST-USD",
+        side="SELL",
+        filled_size=1.0,
+        fill_price=8.0,
+        fees=0.0,
+        timestamp=now,
+    )
+
+    state = state_store.load()
+    position = state["positions"]["TEST-USD"]
+    assert position["quantity"] == pytest.approx(1.0)
+    assert position["entry_value_usd"] == pytest.approx(11.0)
+    assert position["entry_price"] == pytest.approx(11.0)
+    assert position["usd"] == pytest.approx(8.0)
+    assert position["last_fill_price"] == pytest.approx(8.0)
