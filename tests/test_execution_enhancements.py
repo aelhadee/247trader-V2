@@ -82,5 +82,3 @@ def test_execute_bypass_failed_order_cooldown():
 
     engine._execute_live.assert_called_once()
     assert result.success is True
-
-*** End File
