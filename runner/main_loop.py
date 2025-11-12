@@ -295,6 +295,71 @@ class TradingLoop:
         with open(path) as f:
             return yaml.safe_load(f)
     
+    def _apply_auto_loosen(self) -> None:
+        """
+        Auto-loosen trigger thresholds by one notch after prolonged zero-proposal period.
+        
+        Applies ONE of the following adjustments (chosen based on current values):
+        - 15m threshold: -0.3%
+        - 60m threshold: -0.5%
+        - min_conviction: -0.02
+        
+        IMPORTANT: This modifies policy.yaml on disk and requires bot restart to take effect.
+        This is intentional to prevent runtime calibration drift.
+        """
+        policy_path = self.config_dir / "policy.yaml"
+        
+        try:
+            # Load current policy
+            with open(policy_path, 'r') as f:
+                policy = yaml.safe_load(f)
+            
+            # Determine which adjustment to apply
+            triggers = policy.get("triggers", {})
+            price_move = triggers.get("price_move", {})
+            pct_15m = price_move.get("pct_15m", 3.0)
+            pct_60m = price_move.get("pct_60m", 5.0)
+            
+            strategy = policy.get("strategy", {})
+            min_conviction = strategy.get("min_conviction_to_propose", 0.38)
+            
+            # Apply the most impactful adjustment
+            if pct_15m >= 2.5:  # Loosen 15m threshold
+                new_pct_15m = pct_15m - 0.3
+                price_move["pct_15m"] = new_pct_15m
+                logger.warning(f"Auto-loosened 15m threshold: {pct_15m:.1f}% → {new_pct_15m:.1f}%")
+            elif pct_60m >= 4.5:  # Loosen 60m threshold
+                new_pct_60m = pct_60m - 0.5
+                price_move["pct_60m"] = new_pct_60m
+                logger.warning(f"Auto-loosened 60m threshold: {pct_60m:.1f}% → {new_pct_60m:.1f}%")
+            elif min_conviction >= 0.32:  # Loosen conviction
+                new_conviction = min_conviction - 0.02
+                strategy["min_conviction_to_propose"] = new_conviction
+                logger.warning(f"Auto-loosened min_conviction: {min_conviction:.2f} → {new_conviction:.2f}")
+            else:
+                logger.warning("Auto-loosen triggered but all thresholds already at minimum safe levels")
+                return
+            
+            # Write updated policy back to disk
+            with open(policy_path, 'w') as f:
+                yaml.dump(policy, f, default_flow_style=False, sort_keys=False)
+            
+            logger.warning("=" * 80)
+            logger.warning("AUTO-LOOSEN APPLIED - RESTART BOT TO APPLY CHANGES")
+            logger.warning("Modified: config/policy.yaml")
+            logger.warning("=" * 80)
+            
+            # Send alert if enabled
+            if self.alerts.is_enabled():
+                self.alerts.send(
+                    severity="warning",
+                    summary="Auto-loosen triggered",
+                    details=f"Zero proposals for 20 cycles. Loosened thresholds in policy.yaml. Restart bot to apply."
+                )
+            
+        except Exception as e:
+            logger.error(f"Failed to apply auto-loosen: {e}")
+    
     def _init_portfolio_state(self) -> PortfolioState:
         """Initialize portfolio state from state store"""
         state = self.state_store.load()
