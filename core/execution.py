@@ -112,6 +112,9 @@ class ExecutionEngine:
         self.failed_order_cooldown_seconds = int(execution_config.get(
             "failed_order_cooldown_seconds", 0
         ))
+        self.convert_api_retry_seconds = int(execution_config.get(
+            "convert_api_retry_seconds", 900
+        ))
 
         # Track last failure by symbol to avoid retry spam
         self._last_fail = {}
@@ -132,6 +135,7 @@ class ExecutionEngine:
         self.client_order_prefix = self._sanitize_client_prefix(str(raw_prefix))
         self._convert_denylist: Set[Tuple[str, str]] = set()
         self._convert_api_disabled = False
+        self._convert_api_disabled_at: Optional[datetime] = None
         self._convert_api_last_error: Optional[str] = None
 
         logger.info(
