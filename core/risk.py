@@ -226,78 +226,153 @@ class RiskEngine:
             RiskCheckResult with approved proposals or rejection reason
         """
         logger.info(f"Running risk checks on {len(proposals)} proposals (regime={regime})")
+
+        proposal_rejections: Dict[str, List[str]] = {}
+
+        def _merge_rejections(source: Optional[Dict[str, List[str]]]) -> None:
+            if not source:
+                return
+            for symbol, reasons in source.items():
+                if not symbol:
+                    continue
+                bucket = proposal_rejections.setdefault(symbol, [])
+                for reason in reasons or []:
+                    if reason and reason not in bucket:
+                        bucket.append(reason)
         
         # CRITICAL: Handle empty proposals correctly
         if not proposals:
             return RiskCheckResult(
                 approved=True,
                 reason="No proposals to evaluate",
-                approved_proposals=[]
+                approved_proposals=[],
+                proposal_rejections=proposal_rejections,
             )
         
         # 0. Circuit breakers (fail closed on data/exchange issues)
         result = self._check_circuit_breakers(portfolio, regime)
         if not result.approved:
-            return result
+            _merge_rejections(getattr(result, "proposal_rejections", None))
+            return RiskCheckResult(
+                approved=False,
+                reason=result.reason,
+                violated_checks=result.violated_checks,
+                proposal_rejections=proposal_rejections,
+            )
         
         # 0b. Exchange product status (block degraded markets)
+        original_symbols = [proposal.symbol for proposal in proposals]
         proposals = self._filter_degraded_products(proposals)
+        if len(proposals) < len(original_symbols):
+            filtered_symbols = set(original_symbols) - {proposal.symbol for proposal in proposals}
+            if filtered_symbols:
+                _merge_rejections({symbol: ["exchange_product_status"] for symbol in filtered_symbols})
         if not proposals:
             return RiskCheckResult(
                 approved=False,
                 reason="All proposals filtered by exchange product status restrictions",
-                violated_checks=["exchange_product_status"]
+                violated_checks=["exchange_product_status"],
+                proposal_rejections=proposal_rejections,
             )
         
         # 1. Kill switch
         result = self._check_kill_switch()
         if not result.approved:
-            return result
+            _merge_rejections(getattr(result, "proposal_rejections", None))
+            return RiskCheckResult(
+                approved=False,
+                reason=result.reason,
+                violated_checks=result.violated_checks,
+                proposal_rejections=proposal_rejections,
+            )
         
         # 2. Daily stop loss
         result = self._check_daily_stop(portfolio)
         if not result.approved:
-            return result
+            return RiskCheckResult(
+                approved=False,
+                reason=result.reason,
+                violated_checks=result.violated_checks,
+                proposal_rejections=proposal_rejections,
+            )
         
         # 2b. Weekly stop loss
         result = self._check_weekly_stop(portfolio)
         if not result.approved:
-            return result
+            return RiskCheckResult(
+                approved=False,
+                reason=result.reason,
+                violated_checks=result.violated_checks,
+                proposal_rejections=proposal_rejections,
+            )
         
         # 3. Max drawdown
         result = self._check_max_drawdown(portfolio)
         if not result.approved:
-            return result
+            return RiskCheckResult(
+                approved=False,
+                reason=result.reason,
+                violated_checks=result.violated_checks,
+                proposal_rejections=proposal_rejections,
+            )
         
         # 3b. Global at-risk limit (existing + proposed)
         result = self._check_global_at_risk(proposals, portfolio)
         if not result.approved:
-            return result
+            return RiskCheckResult(
+                approved=False,
+                reason=result.reason,
+                violated_checks=result.violated_checks,
+                proposal_rejections=proposal_rejections,
+            )
         
         # 4. Trade frequency
         result = self._check_trade_frequency(proposals, portfolio)
         if not result.approved:
-            return result
+            return RiskCheckResult(
+                approved=False,
+                reason=result.reason,
+                violated_checks=result.violated_checks,
+                proposal_rejections=proposal_rejections,
+            )
         
         # 4b. Consecutive loss cooldown
         result = self._check_loss_cooldown(portfolio)
         if not result.approved:
-            return result
+            return RiskCheckResult(
+                approved=False,
+                reason=result.reason,
+                violated_checks=result.violated_checks,
+                proposal_rejections=proposal_rejections,
+            )
         
         # 4c. Max open positions (spec requirement)
         result = self._check_max_open_positions(proposals, portfolio)
         if not result.approved:
-            return result
+            _merge_rejections(result.proposal_rejections)
+            return RiskCheckResult(
+                approved=False,
+                reason=result.reason,
+                violated_checks=result.violated_checks,
+                proposal_rejections=proposal_rejections,
+            )
         if result.filtered_proposals is not None:
+            _merge_rejections(result.proposal_rejections)
             proposals = result.filtered_proposals
         
         # 5. Per-symbol cooldowns (filter proposals)
+        cooled_original = [proposal.symbol for proposal in proposals]
         proposals = self._filter_cooled_symbols(proposals)
+        if len(proposals) < len(cooled_original):
+            cooled_out = set(cooled_original) - {proposal.symbol for proposal in proposals}
+            if cooled_out:
+                _merge_rejections({symbol: ["per_symbol_cooldown"] for symbol in cooled_out})
         if not proposals:
             return RiskCheckResult(
                 approved=False,
                 reason="All proposals filtered by per-symbol cooldowns",
-                violated_checks=["per_symbol_cooldown"]
+                violated_checks=["per_symbol_cooldown"],
+                proposal_rejections=proposal_rejections,
             )
         
         # 6. Position sizing (per proposal)
@@ -310,26 +385,38 @@ class RiskEngine:
                 approved_proposals.append(proposal)
             else:
                 violated.extend(result.violated_checks)
+                reasons = result.violated_checks or ([result.reason] if result.reason else [])
+                if reasons:
+                    _merge_rejections({proposal.symbol: reasons})
                 logger.debug(f"Rejected {proposal.symbol}: {result.reason}")
         
         if not approved_proposals:
             return RiskCheckResult(
                 approved=False,
                 reason="All proposals violated risk constraints",
-                violated_checks=violated
+                violated_checks=violated,
+                proposal_rejections=proposal_rejections,
             )
         
         # 7. Cluster limits
         result = self._check_cluster_limits(approved_proposals, portfolio)
         if not result.approved:
-            return result
+            _merge_rejections(result.proposal_rejections)
+            return RiskCheckResult(
+                approved=False,
+                reason=result.reason,
+                violated_checks=result.violated_checks,
+                proposal_rejections=proposal_rejections,
+            )
+        _merge_rejections(result.proposal_rejections)
         
         logger.info(f"Risk checks passed: {len(approved_proposals)}/{len(proposals)} proposals approved")
         
         return RiskCheckResult(
             approved=True,
             violated_checks=violated if violated else [],
-            approved_proposals=approved_proposals  # Return filtered list
+            approved_proposals=approved_proposals,
+            proposal_rejections=proposal_rejections,
         )
     
     def _check_kill_switch(self) -> RiskCheckResult:
