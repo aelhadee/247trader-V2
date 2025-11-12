@@ -82,6 +82,14 @@ tiers:
       max_allocation_pct: 20.0
       max_spread_bps: 35  # Tightened from 60 → 35 bps to reduce hidden slippage
       min_24h_volume_usd: 30000000  # Raised from 20M → 30M for better resilience
+      # Near-threshold override: Allow $28.5M–$30M if ALL strict rules pass
+      near_threshold_override:
+        enable: true
+        lower_mult: 0.95              # 95% of floor = $28.5M
+        max_spread_bps: 30            # Tighter than normal T2 (35 bps)
+        require_depth_mult: 12        # Depth ≥ 12× order notional within ±0.5%
+        min_listing_age_days: 30      # Must be established (not new)
+        slippage_budget_bps: 35       # Must pass global slippage budget
     filters:
     - volume_spike
     - trend_strength
