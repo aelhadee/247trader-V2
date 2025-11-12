@@ -1081,12 +1081,12 @@ class RiskEngine:
         else:
             cooldown_minutes = self.risk_config.get("per_symbol_cooldown_minutes", 30)
         
-    # Set cooldown (use timezone-aware datetime to match is_cooldown_active check)
-    cooldown_until = datetime.now(timezone.utc) + timedelta(minutes=cooldown_minutes)
+        # Set cooldown (use timezone-aware datetime to match is_cooldown_active check)
+        cooldown_until = datetime.now(timezone.utc) + timedelta(minutes=cooldown_minutes)
         state.setdefault("cooldowns", {})[symbol] = cooldown_until.isoformat()
-        
+
         state_store.save(state)
-        
+
         logger.info(
             f"Applied {cooldown_minutes}min cooldown to {symbol} "
             f"({'stop-loss' if is_stop_loss else 'loss'})"
