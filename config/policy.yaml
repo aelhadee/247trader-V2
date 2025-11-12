@@ -65,6 +65,15 @@ liquidity:
   min_24h_volume_usd: 8_000_000     # $8M minimum (unified policy)
   max_spread_bps: 80                # 0.80% max spread (unified policy)
   min_depth_20bps_usd: 10_000       # $10K depth within 20bps (broader universe, monitor slippage)
+  
+  # Size-aware depth requirement (depth must be ≥ N× order notional)
+  require_depth_mult: 10            # Depth within ±0.5% must be ≥ 10× order notional
+  
+  # Tier-specific depth floors (NOT hard requirements if depth_mult passes)
+  min_depth_floor_usd:
+    T1: 50_000                      # $50K floor for T1 (was $100K - loosened)
+    T2: 25_000                      # $25K floor for T2
+    T3: 10_000                      # $10K floor for T3
 
 triggers:
   # Direction filter (long-only strategy)
