@@ -1594,6 +1594,8 @@ class ExecutionEngine:
             # Assume maker for post-only, taker for market orders
             is_maker = (order_type == "limit_post_only")
             
+            product_metadata: Optional[Dict[str, Any]] = None
+
             # Enforce product constraints (increments, min size, fee-adjusted rounding)
             if current_price > 0:
                 constraints = self.enforce_product_constraints(symbol, size_usd, current_price, is_maker=is_maker)
@@ -1618,6 +1620,13 @@ class ExecutionEngine:
                     fee_adj_note = " (fee-adjusted)" if constraints.get("fee_adjusted") else " (constraints)"
                     logger.info(f"Adjusted order size ${size_usd:.4f} → ${adjusted_size:.4f} for {symbol}{fee_adj_note}")
                     size_usd = adjusted_size
+
+                product_metadata = constraints.get("metadata") or product_metadata
+            else:
+                try:
+                    product_metadata = self.exchange.get_product_metadata(symbol)
+                except Exception as metadata_exc:  # pragma: no cover - defensive
+                    logger.debug("Failed to fetch product metadata for %s: %s", symbol, metadata_exc)
             
             # Preview first
             preview = self.preview_order(symbol, side, size_usd, skip_liquidity_checks=skip_liquidity_checks)
