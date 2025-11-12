@@ -17,7 +17,7 @@ NOTE2: ALWAYS PROCEED WITH what you think is the best approach based on your exp
 
 NOTE3: ALWAYS CREATE A TODO LIST AND TRACK IT UNTIL all tasks are done.
  
-DO NOT AS
+DO NOT ASK THE USER
 ---
 
 # 247trader‑v2 Copilot Guide
