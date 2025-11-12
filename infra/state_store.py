@@ -492,8 +492,8 @@ class StateStore:
             Updated state with positions and PnL
         """
         state = self.load()
-    positions = state.setdefault("positions", {})
-    managed_positions = state.setdefault("managed_positions", {})
+        positions = state.setdefault("positions", {})
+        managed_positions = state.setdefault("managed_positions", {})
         
         side_upper = side.upper()
         total_pnl = 0.0  # Initialize for event logging
