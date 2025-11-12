@@ -1348,7 +1348,23 @@ class TradingLoop:
                         return
                     
                     if result.success:
-                        logger.info(f"✅ Trade executed: {proposal.symbol} - Order ID: {result.order_id}")
+                        if result.filled_size and result.filled_size > 0:
+                            logger.info(
+                                "✅ Order filled: %s %.6f @ $%.2f (route=%s, order_id=%s)",
+                                proposal.symbol,
+                                result.filled_size,
+                                result.filled_price,
+                                result.route,
+                                result.order_id,
+                            )
+                        else:
+                            logger.info(
+                                "🕒 Order accepted: %s %s (route=%s, order_id=%s)",
+                                proposal.side,
+                                proposal.symbol,
+                                result.route,
+                                result.order_id,
+                            )
                         final_orders.append(result)
                     else:
                         logger.warning(f"⚠️ Trade failed: {proposal.symbol} - {result.error}")
