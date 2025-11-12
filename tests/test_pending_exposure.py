@@ -311,6 +311,107 @@ def test_multiple_pending_buys_aggregate_correctly(risk_engine):
     assert "max_total_at_risk" in result.violated_checks or "global_exposure" in result.violated_checks or "max_total_at_risk_pct" in result.violated_checks
 
 
+def test_exchange_open_orders_count_when_state_missing(policy_config):
+    """Open orders from the exchange should reduce headroom even if state is stale."""
+
+    exchange = Mock()
+    exchange.list_open_orders.return_value = [
+        {
+            "product_id": "BTC-USD",
+            "side": "BUY",
+            "order_configuration": {
+                "limit_limit_gtc": {
+                    "base_size": "0.03",
+                    "limit_price": "20000.0",
+                }
+            },
+        }
+    ]
+
+    risk_engine = RiskEngine(policy=policy_config, exchange=exchange)
+
+    portfolio = PortfolioState(
+        account_value_usd=10_000.0,
+        open_positions={
+            "ETH-USD": {"usd": 700.0},
+        },
+        daily_pnl_pct=0.0,
+        max_drawdown_pct=0.0,
+        trades_today=0,
+        trades_this_hour=0,
+        consecutive_losses=0,
+        last_loss_time=None,
+        current_time=datetime.now(timezone.utc),
+        weekly_pnl_pct=0.0,
+        pending_orders={"buy": {}, "sell": {}},
+    )
+
+    proposal = TradeProposal(
+        symbol="SOL-USD",
+        side="buy",
+        size_pct=6.0,
+        confidence=0.8,
+        reason="test",
+    )
+
+    result = risk_engine.check_all([proposal], portfolio)
+
+    assert not result.approved
+    assert any(
+        "max_total_at_risk" in check or "max_total_at_risk_pct" in check for check in result.violated_checks
+    )
+    exchange.list_open_orders.assert_called_once()
+
+
+def test_open_orders_not_double_counted(policy_config):
+    """Pending exposure from state should not be double-counted with open orders."""
+
+    exchange = Mock()
+    exchange.list_open_orders.return_value = [
+        {
+            "product_id": "BTC-USD",
+            "side": "BUY",
+            "order_configuration": {
+                "limit_limit_gtc": {
+                    "base_size": "0.01",
+                    "limit_price": "50000.0",
+                }
+            },
+        }
+    ]
+
+    risk_engine = RiskEngine(policy=policy_config, exchange=exchange)
+
+    portfolio = PortfolioState(
+        account_value_usd=10_000.0,
+        open_positions={
+            "ETH-USD": {"usd": 500.0},
+        },
+        daily_pnl_pct=0.0,
+        max_drawdown_pct=0.0,
+        trades_today=0,
+        trades_this_hour=0,
+        consecutive_losses=0,
+        last_loss_time=None,
+        current_time=datetime.now(timezone.utc),
+        weekly_pnl_pct=0.0,
+        pending_orders={"buy": {"BTC-USD": 500.0}, "sell": {}},
+    )
+
+    proposal = TradeProposal(
+        symbol="SOL-USD",
+        side="buy",
+        size_pct=5.0,
+        confidence=0.8,
+        reason="test",
+    )
+
+    result = risk_engine.check_all([proposal], portfolio)
+
+    assert result.approved, f"Should approve when exposure equals cap: {result.reason}"
+    exchange.list_open_orders.assert_called_once()
+
+
 def test_integration_with_main_loop_state_hydration():
     """
     Integration test: Verify _build_pending_orders_from_state works correctly.
