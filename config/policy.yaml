@@ -12,6 +12,7 @@ risk:
   max_position_size_pct: 5.0  # 5% of NLV per coin
   max_per_asset_pct: 5.0      # Alias for spec compatibility
   min_position_size_pct: 0.5
+  max_open_positions: 12      # Hard cap on concurrently held tickers (alias for strategy setting)
   
   # Per-theme limits (cluster exposure)
   max_per_theme_pct:
@@ -124,7 +125,7 @@ strategy:
     tier3: 0.005                    # 0.5% NLV per Tier3 (if/when used)
 
   max_open_positions: 12            # cap simultaneous distinct holdings (raised from 8)
-  max_new_positions_per_cycle: 3    # limit new tickers per cycle to stay within capacity buffers
+  max_new_positions_per_cycle: 1    # limit new tickers per cycle to stay within capacity buffers
   prefer_add_to_existing: true      # prioritize adds to existing holdings before opening fresh names
 
   # Require at least this conviction from rules to emit a proposal
@@ -221,7 +222,7 @@ execution:
   
   # Order types
   default_order_type: "limit_post_only"  # Phase 1: conservative
-  min_notional_usd: 10.0                 # Execution floor for gross order size
+  min_notional_usd: 9.0                  # Execution floor for gross order size
   # Auto-convert USD → USDC to honor preferred quote (when needed for BUYs)
   auto_convert_preferred_quote: false
   # Clamp tiny trades up to the minimum notional to avoid rejects
