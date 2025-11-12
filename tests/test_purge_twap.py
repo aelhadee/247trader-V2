@@ -2,8 +2,6 @@ import datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from core.execution import ExecutionResult
 from runner.main_loop import TradingLoop
 
@@ -14,7 +12,6 @@ def _make_quote(price: float = 1.0):
     return SimpleNamespace(mid=price, bid=price, ask=price, timestamp=now)
 
 
-@pytest.mark.usefixtures("tmp_path")
 def test_purge_liquidation_uses_maker_limit_orders():
     """Purge liquidation should route via maker TWAP with slippage guardrails."""
     loop = TradingLoop.__new__(TradingLoop)
