@@ -114,6 +114,14 @@ class RulesEngine:
             f"min_conviction={self.min_conviction_default}"
         )
     
+    def _min_conviction_threshold(self, regime: str) -> float:
+        regime_key = (regime or "").lower()
+        if isinstance(self.min_conviction_by_regime, dict):
+            threshold = self.min_conviction_by_regime.get(regime_key)
+            if threshold is not None:
+                return threshold
+        return self.min_conviction_default
+
     def propose_trades(self, 
                       universe: UniverseSnapshot,
                       triggers: List[TriggerSignal],
