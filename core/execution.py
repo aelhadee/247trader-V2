@@ -11,7 +11,7 @@ submissions on network retries.
 import uuid
 import hashlib
 import time
-from decimal import Decimal, InvalidOperation, ROUND_DOWN
+from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional, Tuple, Set
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
