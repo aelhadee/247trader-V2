@@ -517,10 +517,10 @@ class StateStore:
         side_upper = (side or "").upper()
         total_pnl_dec = Decimal("0")
 
-        size_float = float(size_dec)
-        price_float = float(price_dec)
-        notional_float = float(notional_dec)
-        fees_float = float(fees_dec)
+    size_float = float(size_dec)
+    price_float = float(price_dec)
+    notional_float = float(notional_dec)
+    fees_float = float(fees_dec)
 
         if side_upper == "BUY":
             managed_positions[symbol] = True
@@ -538,6 +538,7 @@ class StateStore:
 
                 pos["quantity"] = float(new_qty_dec)
                 pos["units"] = float(new_qty_dec)
+                pos["base_qty"] = float(new_qty_dec)
                 pos["entry_price"] = float(new_entry_price_dec)
                 pos["entry_value_usd"] = float(total_value_dec)
                 pos["usd_value"] = float(total_value_dec)
@@ -558,6 +559,7 @@ class StateStore:
                     "side": "BUY",
                     "quantity": size_float,
                     "units": size_float,
+                    "base_qty": size_float,
                     "entry_price": price_float,
                     "entry_value_usd": notional_float,
                     "usd_value": notional_float,
@@ -627,6 +629,7 @@ class StateStore:
             else:
                 pos["quantity"] = remaining_qty
                 pos["units"] = remaining_qty
+                pos["base_qty"] = remaining_qty
                 entry_value_usd = remaining_qty * entry_price
                 pos["entry_value_usd"] = entry_value_usd
                 pos["usd_value"] = entry_value_usd
