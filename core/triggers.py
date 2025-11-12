@@ -174,6 +174,19 @@ class TriggerEngine:
         signals.sort(key=lambda s: s.strength * s.confidence, reverse=True)
         
         logger.info(f"Found {len(signals)} triggers")
+        
+        # Log top 5 triggers for visibility
+        for i, sig in enumerate(signals[:5]):
+            logger.info(
+                f"  Trigger #{i+1}: {sig.symbol} {sig.trigger_type} "
+                f"strength={sig.strength:.2f} conf={sig.confidence:.2f} "
+                f"price_chg={sig.price_change_pct:.2f}% vol_ratio={sig.volume_ratio:.2f}x"
+                if sig.volume_ratio else
+                f"  Trigger #{i+1}: {sig.symbol} {sig.trigger_type} "
+                f"strength={sig.strength:.2f} conf={sig.confidence:.2f} "
+                f"price_chg={sig.price_change_pct or 0.0:.2f}%"
+            )
+        
         return signals
     
     def _validate_price_outlier(self, symbol: str, candles: List[OHLCV]) -> Optional[str]:
