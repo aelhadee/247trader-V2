@@ -1416,7 +1416,8 @@ class ExecutionEngine:
                      max_slippage_bps: Optional[float],
                      force_order_type: Optional[str] = None,
                      skip_liquidity_checks: bool = False,
-                     tier: Optional[int] = None) -> ExecutionResult:
+                     tier: Optional[int] = None,
+                     bypass_slippage_budget: bool = False) -> ExecutionResult:
         """
         Execute real order on Coinbase.
         """
