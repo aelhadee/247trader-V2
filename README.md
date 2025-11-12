@@ -49,11 +49,11 @@ Clean architecture trading bot for Coinbase Advanced Trade.
 | Trade Frequency | ✅ 100% | 10/day, 4/hour limits | Enforced by risk engine |
 | Cooldowns | ✅ 100% | 3 losses = 60 min pause | State tracked |
 | LIVE Confirmation | ✅ 100% | Requires typing "YES" | In run_live.sh |
-| **Optional Components** | ⏳ 0% | Not Started | Intentionally deferred |
+| **Optional Components** | ⏳ 40% | Partially Implemented | Some features working |
 | AI Layer (M1/M2/M3) | 🔲 0% | Not implemented | Optional per architecture |
 | Audit Log (SQLite) | 🔲 0% | Not implemented | State store sufficient for now |
-| Cluster Exposure | 🔲 0% | Config only | Not enforced yet |
-| Orderbook Depth | 🔲 0% | Not implemented | Spread checks only |
+| Cluster Exposure | ✅ 100% | Config enforced | RiskEngine checks cluster limits |
+| Orderbook Depth | ✅ 100% | Enforced | ExecutionEngine preview checks 2× depth |
 | Regime Detection | 🔲 0% | Not implemented | Hardcoded "chop" for now |
 
 **What's Working**:
