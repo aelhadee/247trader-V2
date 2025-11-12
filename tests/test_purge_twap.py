@@ -83,6 +83,8 @@ def test_purge_liquidation_uses_maker_limit_orders():
     execution_result = ExecutionResult(
         success=True,
         order_id="order-123",
+        symbol="BAD-USD",
+        side="SELL",
         filled_size=0.0,
         filled_price=0.0,
         fees=0.0,
@@ -165,6 +167,8 @@ def test_purge_retries_after_cancelled_slice():
         ExecutionResult(
             success=True,
             order_id="order-1",
+            symbol="BAD-USD",
+            side="SELL",
             filled_size=0.0,
             filled_price=0.0,
             fees=0.0,
@@ -174,6 +178,8 @@ def test_purge_retries_after_cancelled_slice():
         ExecutionResult(
             success=True,
             order_id="order-2",
+            symbol="BAD-USD",
+            side="SELL",
             filled_size=0.0,
             filled_price=0.0,
             fees=0.0,
