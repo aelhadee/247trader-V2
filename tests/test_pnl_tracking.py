@@ -49,9 +49,8 @@ class TestPositionTracking:
         assert pos["entry_price"] == 50000.0
         assert pos["entry_value_usd"] == 500.0  # 0.01 * 50000
         assert pos["fees_paid"] == 10.0
-
-    managed = state.get("managed_positions", {})
-    assert managed.get("BTC-USD") is True
+        managed = state.get("managed_positions", {})
+        assert managed.get("BTC-USD") is True
     
     def test_sell_closes_position_and_calculates_pnl(self):
         """SELL order closes position and calculates realized PnL"""
@@ -80,8 +79,8 @@ class TestPositionTracking:
         
         # Position should be closed
         assert "BTC-USD" not in positions
-    managed = state.get("managed_positions", {})
-    assert "BTC-USD" not in managed
+        managed = state.get("managed_positions", {})
+        assert "BTC-USD" not in managed
         
         # PnL should be recorded
         pnl_today = state.get("pnl_today", 0.0)
@@ -126,9 +125,8 @@ class TestPositionTracking:
         # PnL for 0.01 BTC = (51000 - 50000) * 0.01 - 10 (exit fees) - 10 (proportional entry fees)
         # = 10 - 10 - 10 = -10
         assert pnl_today == pytest.approx(-10.0, abs=0.01)
-
-    managed = state.get("managed_positions", {})
-    assert managed.get("BTC-USD") is True
+        managed = state.get("managed_positions", {})
+        assert managed.get("BTC-USD") is True
     
     def test_loss_position_calculates_negative_pnl(self):
         """Losing trade calculates negative PnL"""
