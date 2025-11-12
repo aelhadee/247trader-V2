@@ -79,6 +79,7 @@ class RulesEngine:
         
         # Extract strategy parameters from policy.yaml
         strategy_cfg = self.policy.get("strategy", {})
+        self.liquidity_policy = self.policy.get("liquidity", {})
         
         # Tier-based position sizing (spec requirement)
         base_position_pct = strategy_cfg.get("base_position_pct", {})
