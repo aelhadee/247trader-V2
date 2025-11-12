@@ -27,12 +27,15 @@ class RiskCheckResult:
     violated_checks: List[str] = None
     approved_proposals: Optional[List] = None  # Filtered list of approved proposals
     filtered_proposals: Optional[List] = None  # Optional filtered proposal set for downstream stages
+    proposal_rejections: Optional[Dict[str, List[str]]] = None  # Map of symbol → rejection reasons
     
     def __post_init__(self):
         if self.violated_checks is None:
             self.violated_checks = []
         if self.approved_proposals is None:
             self.approved_proposals = []
+        if self.proposal_rejections is None:
+            self.proposal_rejections = {}
 
 
 @dataclass
