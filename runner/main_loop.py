@@ -1433,11 +1433,15 @@ class TradingLoop:
                 error_msg = result.get('error', 'Unknown error') if isinstance(result, dict) else str(result)
                 logger.warning(f"❌ Liquidation failed: {error_msg}")
 
-                logger.info(f"Attempting to sell {worst['currency']} via market order...")
+                logger.info(f"Attempting to liquidate {worst['currency']} via maker TWAP...")
+                pair = f"{worst['currency']}-USD"
+                tier = self._infer_tier_from_config(pair) or 3
                 return self._sell_via_market_order(
                     worst['currency'],
                     worst['balance'],
-                    usd_target=usd_needed * 1.05
+                    usd_target=usd_needed * 1.05,
+                    tier=tier,
+                    preferred_pair=pair,
                 )
                 
         except CriticalDataUnavailable:
