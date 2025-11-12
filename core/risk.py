@@ -631,35 +631,167 @@ class RiskEngine:
         """
         # Get max_open_positions from strategy section in policy.yaml
         strategy_cfg = self.policy.get("strategy", {})
-        max_open = strategy_cfg.get("max_open_positions", 8)
-        
-        current_open = len(portfolio.open_positions)
-        
-        # Count how many NEW positions would be created (only BUY proposals for symbols we don't have)
-        new_positions = sum(
-            1 for p in proposals 
-            if p.side == "BUY" and p.symbol not in portfolio.open_positions
+        max_open = int(strategy_cfg.get("max_open_positions", 8) or 0)
+        max_new_cycle_raw = strategy_cfg.get("max_new_positions_per_cycle")
+        prefer_adds = bool(strategy_cfg.get("prefer_add_to_existing", True))
+
+        # Determine which symbols are currently meaningful open positions (ignore dust)
+        min_trade_usd = float(self.risk_config.get("min_trade_notional_usd", 0.0) or 0.0)
+        value_threshold = max(min_trade_usd * 0.25, 1e-6)
+
+        active_symbols = {
+            symbol for symbol in portfolio.open_positions
+            if portfolio.get_position_usd(symbol) > value_threshold
+        }
+
+        current_open = len(active_symbols)
+        capacity = max_open - current_open
+
+        if capacity <= 0:
+            filtered = [
+                proposal for proposal in proposals
+                if not ((proposal.side or "BUY").upper() == "BUY" and proposal.symbol not in active_symbols)
+            ]
+            if not filtered:
+                logger.warning(
+                    "Max open positions saturated: %d/%d (no capacity for new positions)",
+                    current_open,
+                    max_open,
+                )
+                return RiskCheckResult(
+                    approved=False,
+                    reason=f"Max open positions saturated: {current_open}/{max_open}",
+                    violated_checks=["max_open_positions"],
+                )
+
+            if len(filtered) != len(proposals):
+                logger.info(
+                    "Max open positions saturated: trimmed %d new proposals, %d retained",
+                    len(proposals) - len(filtered),
+                    len(filtered),
+                )
+            return RiskCheckResult(approved=True, filtered_proposals=filtered)
+
+        max_new_allowed = capacity
+        if max_new_cycle_raw is not None:
+            try:
+                max_new_allowed = min(max_new_allowed, int(max_new_cycle_raw))
+            except (TypeError, ValueError):
+                logger.warning("Invalid max_new_positions_per_cycle value: %s", max_new_cycle_raw)
+
+        if max_new_allowed <= 0:
+            max_new_allowed = 0
+
+        # Build list of BUY proposals that would open new symbols
+        candidate_new = []
+        retained = []
+        for idx, proposal in enumerate(proposals):
+            side = (proposal.side or "BUY").upper()
+            symbol = proposal.symbol
+
+            if side != "BUY" or symbol in active_symbols:
+                retained.append((idx, proposal))
+                continue
+
+            candidate_new.append(
+                (
+                    idx,
+                    proposal,
+                    float(getattr(proposal, "confidence", 0.0) or 0.0),
+                    getattr(proposal, "tier", 99) or 99,
+                )
+            )
+
+        if not candidate_new:
+            logger.debug(
+                "Max open positions check passed: %d/%d (no new openings requested)",
+                current_open,
+                max_open,
+            )
+            return RiskCheckResult(approved=True)
+
+        if max_new_allowed <= 0:
+            logger.info(
+                "Max open positions: rejecting %d new proposals due to zero remaining slots",
+                len(candidate_new),
+            )
+            filtered = [proposal for _, proposal in retained]
+            if not filtered:
+                return RiskCheckResult(
+                    approved=False,
+                    reason="Max open positions leave no room for new trades",
+                    violated_checks=["max_open_positions"],
+                )
+            return RiskCheckResult(approved=True, filtered_proposals=filtered)
+
+        if len(candidate_new) <= max_new_allowed:
+            total_would_be = current_open + len(candidate_new)
+            logger.debug(
+                "Max open positions check passed: %d/%d (new=%d, slots=%d)",
+                total_would_be,
+                max_open,
+                len(candidate_new),
+                max_new_allowed,
+            )
+            return RiskCheckResult(approved=True)
+
+        # Select highest-priority new proposals within capacity
+        sort_key = (
+            (lambda item: (
+                0 if not prefer_adds else 0,  # placeholder for readability
+                -item[2],
+                item[3],
+                item[0],
+            ))
         )
-        
-        total_would_be = current_open + new_positions
-        
-        if total_would_be > max_open:
+
+        ranked_new = sorted(candidate_new, key=lambda item: (-item[2], item[3], item[0]))
+        selected_indices = {idx for idx, _, _, _ in ranked_new[:max_new_allowed]}
+
+        filtered: List[TradeProposal] = []
+        opened = 0
+        active_snapshot = set(active_symbols)
+
+        for idx, proposal in enumerate(proposals):
+            side = (proposal.side or "BUY").upper()
+            symbol = proposal.symbol
+
+            if side != "BUY":
+                filtered.append(proposal)
+                continue
+
+            if symbol in active_snapshot:
+                filtered.append(proposal)
+                continue
+
+            if idx not in selected_indices:
+                continue
+
+            filtered.append(proposal)
+            opened += 1
+            active_snapshot.add(symbol)
+
+        if not filtered:
             logger.warning(
-                f"Max open positions would be exceeded: {total_would_be} > {max_open} "
-                f"(current: {current_open} + new: {new_positions})"
+                "Max open positions enforcement trimmed all proposals (requested=%d, allowed=%d)",
+                len(candidate_new),
+                max_new_allowed,
             )
             return RiskCheckResult(
                 approved=False,
-                reason=f"Max open positions limit: {total_would_be} would exceed {max_open}",
-                violated_checks=["max_open_positions"]
+                reason="Max open positions filter dropped all proposals",
+                violated_checks=["max_open_positions"],
             )
-        
-        logger.debug(
-            f"Max open positions check passed: {total_would_be}/{max_open} "
-            f"(current: {current_open} + new: {new_positions})"
+
+        logger.info(
+            "Max open positions enforcement trimmed %d new symbols (allowed=%d, current=%d, max=%d)",
+            len(candidate_new) - opened,
+            max_new_allowed,
+            current_open,
+            max_open,
         )
-        
-        return RiskCheckResult(approved=True)
+
+        return RiskCheckResult(approved=True, filtered_proposals=filtered)
     
     def _filter_cooled_symbols(self, proposals: List[TradeProposal]) -> List[TradeProposal]:
         """
