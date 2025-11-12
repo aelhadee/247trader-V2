@@ -16,6 +16,7 @@ This module implements Phase 1: Core skeleton (no AI, DRY_RUN only)
 """
 
 import json
+import math
 import time
 import signal
 import yaml
@@ -23,6 +24,7 @@ from typing import Any, Dict, List, Optional
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import logging
+from uuid import uuid4
 
 from core.exchange_coinbase import CoinbaseExchange
 from core.exceptions import CriticalDataUnavailable
@@ -34,6 +36,7 @@ from core.execution import ExecutionEngine, ExecutionResult
 from infra.alerting import AlertService, AlertSeverity
 from infra.state_store import StateStore
 from core.audit_log import AuditLogger
+from core.order_state import OrderStatus
 
 logger = logging.getLogger(__name__)
 
