@@ -8,7 +8,7 @@
 #   ./run_live.sh --loop     # Run continuously (15min intervals)
 #   ./run_live.sh --paper    # Run in PAPER mode instead
 #
-
+clear
 set -e  # Exit on error
 set -u  # Exit on undefined variable
 
