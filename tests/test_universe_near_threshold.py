@@ -42,6 +42,7 @@ def test_volume_near_threshold_override_allows_asset():
         total_depth_usd=150_000.0,
         bid_levels=5,
         ask_levels=5,
+        timestamp=datetime.now(timezone.utc),
     )
 
     global_cfg = {
@@ -78,6 +79,7 @@ def test_depth_near_threshold_override_allows_asset():
         total_depth_usd=95_000.0,
         bid_levels=4,
         ask_levels=4,
+        timestamp=datetime.now(timezone.utc),
     )
 
     global_cfg = {
