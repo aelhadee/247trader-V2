@@ -37,11 +37,12 @@ from core.execution import ExecutionEngine
 def test_summarize_fills_uses_quote_when_base_mismatch(fill, expected_base, expected_quote):
     """Fill aggregation should reconcile mismatched size vs quote amounts."""
 
-    total_size, avg_price, total_fees = ExecutionEngine._summarize_fills([fill])
+    total_size, avg_price, total_fees, total_quote = ExecutionEngine._summarize_fills([fill])
 
     assert total_size == pytest.approx(expected_base)
     assert avg_price == pytest.approx(expected_quote / expected_base)
     assert total_fees == pytest.approx(float(fill["commission"]))
+    assert total_quote == pytest.approx(float(expected_quote))
 
 
 def test_summarize_fills_accumulates_multiple_rows():
@@ -60,8 +61,9 @@ def test_summarize_fills_accumulates_multiple_rows():
         },
     ]
 
-    total_size, avg_price, total_fees = ExecutionEngine._summarize_fills(fills)
+    total_size, avg_price, total_fees, total_quote = ExecutionEngine._summarize_fills(fills)
 
     assert total_size == pytest.approx(0.75)
     assert avg_price == pytest.approx(100.0)
     assert total_fees == pytest.approx(0.075)
+    assert total_quote == pytest.approx(75.0)
