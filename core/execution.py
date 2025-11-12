@@ -263,6 +263,8 @@ class ExecutionEngine:
         """Return True if convert API should be attempted for the pair."""
 
         pair = (from_currency.upper(), to_currency.upper())
+        if self._convert_api_disabled:
+            return False
         return pair not in self._convert_denylist
     
     def estimate_fee(self, size_usd: float, is_maker: bool = True) -> float:
