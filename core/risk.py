@@ -422,8 +422,24 @@ class RiskEngine:
                 proposal_rejections=proposal_rejections,
             )
         
+        pending_state_map = self._build_pending_buy_map(portfolio)
+        open_order_pending_map = self._collect_open_order_buys()
+        combined_pending_map = self._combine_pending_maps(pending_state_map, open_order_pending_map)
+        pending_buy_override = sum(combined_pending_map.values()) if combined_pending_map else None
+
+        if pending_buy_override:
+            logger.debug(
+                "Pending buy exposure override applied: $%.2f across %d symbol(s)",
+                pending_buy_override,
+                len(combined_pending_map),
+            )
+
         # 3b. Global at-risk limit (existing + proposed)
-        result = self._check_global_at_risk(proposals, portfolio)
+        result = self._check_global_at_risk(
+            proposals,
+            portfolio,
+            pending_buy_override_usd=pending_buy_override,
+        )
         if not result.approved:
             return RiskCheckResult(
                 approved=False,
@@ -453,7 +469,11 @@ class RiskEngine:
             )
         
         # 4c. Max open positions (spec requirement)
-        result = self._check_max_open_positions(proposals, portfolio)
+        result = self._check_max_open_positions(
+            proposals,
+            portfolio,
+            pending_notional_map=combined_pending_map,
+        )
         if not result.approved:
             _merge_rejections(result.proposal_rejections)
             return RiskCheckResult(
@@ -486,7 +506,12 @@ class RiskEngine:
         violated = []
 
         for proposal in proposals:
-            result = self._check_position_size(proposal, portfolio, regime)
+            result = self._check_position_size(
+                proposal,
+                portfolio,
+                regime,
+                pending_notional_map=combined_pending_map,
+            )
             if result.approved:
                 approved_proposals.append(proposal)
             else:
@@ -505,7 +530,11 @@ class RiskEngine:
             )
         
         # 7. Cluster limits
-        result = self._check_cluster_limits(approved_proposals, portfolio)
+        result = self._check_cluster_limits(
+            approved_proposals,
+            portfolio,
+            pending_notional_map=combined_pending_map,
+        )
         if not result.approved:
             _merge_rejections(result.proposal_rejections)
             return RiskCheckResult(
