@@ -643,6 +643,141 @@ class TriggerEngine:
         
         return None
     
+    def _compute_reversal_confirmations(self, symbol: str,
+                                        candles_1h: List[OHLCV]) -> Tuple[Dict[str, bool], Dict[str, float]]:
+        """Evaluate configured reversal confirmation rules for conviction boosts."""
+        qualifiers: Dict[str, bool] = {}
+        metrics: Dict[str, float] = {}
+
+        if not self.reversal_confirm_config:
+            return qualifiers, metrics
+
+        config = self.reversal_confirm_config
+        candles_5m: List[OHLCV] = []
+
+        if any(config.get(key) for key in [
+            "close_above_vwap_5m",
+            "rsi_cross_up_50",
+            "min_bounce_from_low_pct"
+        ]):
+            try:
+                candles_5m = self.exchange.get_ohlcv(symbol, interval="5m", limit=60)
+            except Exception as exc:  # pragma: no cover - network noise handled upstream
+                logger.debug(
+                    f"{symbol}: reversal confirmation 5m candles unavailable: {exc}"
+                )
+                candles_5m = []
+
+        last_close = 0.0
+        if candles_5m:
+            last_close = candles_5m[-1].close
+        elif candles_1h:
+            last_close = candles_1h[-1].close
+
+        if config.get("close_above_vwap_5m"):
+            vwap = self._calculate_vwap(candles_5m[-12:]) if candles_5m else None
+            if vwap:
+                qualifiers["reversal_close_above_vwap_5m"] = last_close > vwap
+                metrics["reversal_vwap_5m"] = vwap
+            else:
+                qualifiers["reversal_close_above_vwap_5m"] = False
+
+        if config.get("higher_low_vs_prev"):
+            pivot_lows = self._find_recent_pivot_lows(candles_1h)
+            if len(pivot_lows) >= 2:
+                last_low = pivot_lows[-1]
+                prev_low = pivot_lows[-2]
+                qualifiers["reversal_higher_low"] = last_low.low > prev_low.low
+                metrics["reversal_last_pivot_low"] = last_low.low
+                metrics["reversal_prev_pivot_low"] = prev_low.low
+            else:
+                qualifiers["reversal_higher_low"] = False
+
+        if config.get("rsi_cross_up_50"):
+            closes = [c.close for c in candles_5m] if candles_5m else [c.close for c in candles_1h]
+            rsi_series = self._calculate_rsi_series(closes, period=14)
+            if len(rsi_series) >= 2:
+                prev_rsi, curr_rsi = rsi_series[-2], rsi_series[-1]
+                qualifiers["reversal_rsi_cross_50"] = prev_rsi <= 50.0 and curr_rsi > 50.0
+                metrics["reversal_rsi"] = curr_rsi
+                metrics["reversal_rsi_prev"] = prev_rsi
+            else:
+                qualifiers["reversal_rsi_cross_50"] = False
+
+        if config.get("min_bounce_from_low_pct"):
+            threshold = float(config.get("min_bounce_from_low_pct", 0.0))
+            recent_candles = candles_5m[-36:] if candles_5m else candles_1h[-12:]
+            if recent_candles:
+                recent_low = min((c.low for c in recent_candles if c.low > 0), default=0.0)
+                if recent_low > 0 and last_close > 0:
+                    bounce_pct = (last_close - recent_low) / recent_low * 100.0
+                    qualifiers["reversal_bounce_confirmed"] = bounce_pct >= threshold
+                    metrics["reversal_bounce_pct"] = bounce_pct
+                else:
+                    qualifiers["reversal_bounce_confirmed"] = False
+            else:
+                qualifiers["reversal_bounce_confirmed"] = False
+
+        return qualifiers, metrics
+
+    def _calculate_vwap(self, candles: List[OHLCV]) -> Optional[float]:
+        if not candles:
+            return None
+        numerator = 0.0
+        denominator = 0.0
+        for candle in candles:
+            typical_price = (candle.high + candle.low + candle.close) / 3.0
+            numerator += typical_price * candle.volume
+            denominator += candle.volume
+        if denominator <= 0:
+            return None
+        return numerator / denominator
+
+    def _find_recent_pivot_lows(self, candles: List[OHLCV], lookback: int = 48,
+                                 window: int = 2) -> List[OHLCV]:
+        if not candles:
+            return []
+        pivots: List[OHLCV] = []
+        start = max(0, len(candles) - lookback)
+        for idx in range(start + window, len(candles) - window):
+            low_value = candles[idx].low
+            if all(low_value <= candles[idx - offset].low for offset in range(1, window + 1)) and \
+               all(low_value < candles[idx + offset].low for offset in range(1, window + 1)):
+                pivots.append(candles[idx])
+        return pivots[-3:]
+
+    def _calculate_rsi_series(self, closes: List[float], period: int = 14) -> List[float]:
+        if len(closes) < period + 1:
+            return []
+
+        gains = []
+        losses = []
+        for i in range(1, len(closes)):
+            delta = closes[i] - closes[i - 1]
+            gains.append(max(delta, 0.0))
+            losses.append(abs(min(delta, 0.0)))
+
+        avg_gain = sum(gains[:period]) / period
+        avg_loss = sum(losses[:period]) / period
+
+        rsis: List[float] = []
+        if avg_loss == 0:
+            rsis.append(100.0)
+        else:
+            rs = avg_gain / avg_loss if avg_loss else float("inf")
+            rsis.append(100.0 - (100.0 / (1.0 + rs)))
+
+        for idx in range(period, len(gains)):
+            avg_gain = ((avg_gain * (period - 1)) + gains[idx]) / period
+            avg_loss = ((avg_loss * (period - 1)) + losses[idx]) / period
+            if avg_loss == 0:
+                rsis.append(100.0)
+            else:
+                rs = avg_gain / avg_loss if avg_loss else float("inf")
+                rsis.append(100.0 - (100.0 / (1.0 + rs)))
+
+        return rsis
+
     def _check_momentum(self, asset: UniverseAsset, candles: List[OHLCV],
                        regime: str) -> Optional[TriggerSignal]:
         """
