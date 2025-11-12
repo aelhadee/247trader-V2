@@ -449,6 +449,58 @@ class UniverseManager:
         # TODO: Implement event detection
         # For now, return empty list
         return []
+
+    def _apply_near_threshold_override(
+        self,
+        *,
+        symbol: str,
+        tier: int,
+        metric: str,
+        metric_value: float,
+        floor: float,
+    ) -> bool:
+        """Apply global near-threshold tolerance if within configured band."""
+
+        cfg = self._near_threshold_cfg
+        if not cfg.get("override_enabled", False):
+            return False
+
+        tolerance_pct = float(cfg.get("tolerance_pct", 0.1) or 0.0)
+        if tolerance_pct < 0:
+            tolerance_pct = 0.0
+
+        threshold = floor * (1.0 - tolerance_pct)
+        if metric_value < threshold:
+            return False
+
+        tier_key = f"tier{tier}"
+        max_overrides = cfg.get("max_overrides_per_tier")
+
+        if isinstance(max_overrides, int) and max_overrides >= 0:
+            used = self._near_threshold_usage.get(tier_key, 0)
+            if used >= max_overrides:
+                logger.debug(
+                    "%s near-threshold override skipped: tier %s cap reached (%d/%d)",
+                    symbol,
+                    tier_key,
+                    used,
+                    max_overrides,
+                )
+                return False
+            self._near_threshold_usage[tier_key] = used + 1
+        else:
+            self._near_threshold_usage[tier_key] = self._near_threshold_usage.get(tier_key, 0) + 1
+
+        logger.info(
+            "OVERRIDE: %s included via near-threshold (%s=$%.0f floor=$%.0f tol=%.0f%% tier=%d)",
+            symbol,
+            metric,
+            metric_value,
+            floor,
+            tolerance_pct * 100.0,
+            tier,
+        )
+        return True
     
     def _check_liquidity(self, quote: Quote, orderbook, 
                          global_config: dict, tier_config: dict, tier: int = 3) -> Tuple[bool, Optional[str]]:
