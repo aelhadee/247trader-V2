@@ -659,7 +659,9 @@ class RiskEngine:
             normalized = pending_symbol if '-' in pending_symbol else f"{pending_symbol}-USD"
             pending_symbols.add(normalized)
 
+        pending_new_count = 0
         if pending_symbols:
+            pending_new_count = len(pending_symbols - existing_active)
             active_symbols |= pending_symbols
 
         current_open = len(active_symbols)
@@ -672,9 +674,10 @@ class RiskEngine:
             ]
             if not filtered:
                 logger.warning(
-                    "Max open positions saturated: %d/%d (no capacity for new positions)",
+                    "Max open positions saturated: %d/%d (pending_new=%d)",
                     current_open,
                     max_open,
+                    pending_new_count,
                 )
                 return RiskCheckResult(
                     approved=False,
@@ -684,9 +687,10 @@ class RiskEngine:
 
             if len(filtered) != len(proposals):
                 logger.info(
-                    "Max open positions saturated: trimmed %d new proposals, %d retained",
+                    "Max open positions saturated: trimmed %d new proposals, %d retained (pending_new=%d)",
                     len(proposals) - len(filtered),
                     len(filtered),
+                    pending_new_count,
                 )
             return RiskCheckResult(approved=True, filtered_proposals=filtered)
 
@@ -795,13 +799,14 @@ class RiskEngine:
                 violated_checks=["max_open_positions"],
             )
 
-        logger.info(
-            "Max open positions enforcement trimmed %d new symbols (allowed=%d, current=%d, max=%d)",
-            len(candidate_new) - opened,
-            max_new_allowed,
-            current_open,
-            max_open,
-        )
+            logger.info(
+                "Max open positions enforcement trimmed %d new symbols (allowed=%d, current=%d/%d, pending_new=%d)",
+                len(candidate_new) - opened,
+                max_new_allowed,
+                current_open,
+                max_open,
+                pending_new_count,
+            )
 
         return RiskCheckResult(approved=True, filtered_proposals=filtered)
     
