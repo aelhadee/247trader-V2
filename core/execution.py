@@ -914,6 +914,7 @@ class ExecutionEngine:
                 )
 
         self._convert_denylist.discard(pair)
+        self._convert_api_disabled_at = None
         self._convert_api_last_error = None
 
         return {
