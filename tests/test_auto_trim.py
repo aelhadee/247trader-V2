@@ -34,6 +34,7 @@ def test_auto_trim_to_risk_cap_converts_excess_exposure():
         min_notional_usd=5.0,
         get_liquidation_candidates=MagicMock(return_value=[candidate]),
         convert_asset=MagicMock(return_value={"success": True}),
+        can_convert=MagicMock(return_value=True),
     )
 
     loop.portfolio = PortfolioState(
