@@ -1450,57 +1450,324 @@ class TradingLoop:
             logger.error(f"Auto-rebalance failed: {e}")
             return False
     
-    def _sell_via_market_order(self, currency: str, balance: float, usd_target: Optional[float] = None) -> bool:
+    def _sell_via_market_order(
+        self,
+        currency: str,
+        balance: float,
+        usd_target: Optional[float] = None,
+        tier: Optional[int] = None,
+        preferred_pair: Optional[str] = None,
+    ) -> bool:
         """
-        Fallback: Sell asset via market order (e.g., XRP-USD) instead of Convert API.
-        
-        Args:
-            currency: Asset to sell (e.g., "HBAR")
-            balance: Amount of asset to sell (in units, not USD)
-            usd_target: Optional USD amount to raise
-            
-        Returns:
-            True if sell succeeded, False otherwise
+        Liquidate a position using maker-only TWAP (Time-Weighted Average Price) slices.
+
+        This replaces the legacy market-order purge path with a safer post-only flow that
+        respects slippage budgets, quote freshness, and depth checks. Orders are sliced
+        into configurable USD notional chunks and refreshed on a fixed cadence.
         """
-        try:
-            # Try to find a trading pair for this asset
-            pair = f"{currency}-USD"
-            
-            logger.info(f"Trying to sell {balance:.2f} {currency} via {pair} market order...")
-            
-            # Get current price to convert units to USD value
+        if balance <= 0:
+            logger.debug("TWAP purge skipped: zero balance for %s", currency)
+            return True
+
+        if self.mode != "LIVE":
+            logger.info(
+                "%s mode: would TWAP liquidate %.6f %s (~%s target) using maker slices",
+                self.mode,
+                balance,
+                currency,
+                f"${usd_target:.2f}" if usd_target else "full position",
+            )
+            return True
+
+        pm_cfg = self.policy_config.get("portfolio_management", {})
+        purge_cfg = pm_cfg.get("purge_execution", {})
+
+        slice_usd = float(purge_cfg.get("slice_usd", 15.0))
+        replace_seconds = float(purge_cfg.get("replace_seconds", 20.0))
+        max_duration = float(purge_cfg.get("max_duration_seconds", 180.0))
+        poll_interval = float(purge_cfg.get("poll_interval_seconds", 2.0))
+        max_slices = int(purge_cfg.get("max_slices", 20))
+        max_residual = float(purge_cfg.get("max_residual_usd", self.executor.min_notional_usd))
+
+        slice_usd = max(slice_usd, self.executor.min_notional_usd)
+        poll_interval = max(0.2, poll_interval)
+
+        # Determine candidate trading pairs (USD preferred, USDC fallback)
+        candidates = []
+        for candidate in (preferred_pair, f"{currency}-USD", f"{currency}-USDC"):
+            if candidate and candidate not in candidates:
+                candidates.append(candidate)
+
+        quote = None
+        pair = None
+        for candidate in candidates:
+            try:
+                quote = self.exchange.get_quote(candidate)
+                pair = candidate
+                break
+            except CriticalDataUnavailable:
+                raise
+            except Exception as exc:
+                logger.debug("TWAP: quote fetch failed for %s: %s", candidate, exc)
+
+        if not quote or not pair:
+            logger.error("TWAP: unable to determine liquidation pair for %s", currency)
+            return False
+
+        tier = tier or self._infer_tier_from_config(pair) or 3
+
+        bid_price = max(quote.bid, 0.0)
+        if bid_price <= 0:
+            logger.warning("TWAP: invalid bid price %.8f for %s", bid_price, pair)
+            return False
+
+        gross_value = balance * bid_price
+        target_value_usd = gross_value if usd_target is None else min(gross_value, usd_target)
+        if target_value_usd <= 0:
+            logger.info("TWAP: nothing to liquidate for %s (target=$%.2f)", currency, target_value_usd)
+            return True
+
+        logger.info(
+            "TWAP purge start: %.6f %s (~$%.2f) via %s (tier T%d, slice=$%.2f, replace=%.1fs)",
+            balance,
+            currency,
+            target_value_usd,
+            pair,
+            tier,
+            slice_usd,
+            replace_seconds,
+        )
+
+        start_time = time.monotonic()
+        total_filled_usd = 0.0
+        total_filled_units = 0.0
+        total_fees = 0.0
+        attempt = 0
+
+        while total_filled_usd + 1e-6 < target_value_usd:
+            if attempt >= max_slices:
+                logger.warning("TWAP: reached max slices (%d) for %s", max_slices, pair)
+                break
+            if (time.monotonic() - start_time) >= max_duration:
+                logger.warning("TWAP: exceeded max duration %.1fs for %s", max_duration, pair)
+                break
+
+            attempt += 1
+
             try:
                 quote = self.exchange.get_quote(pair)
-                size_usd = balance * quote.mid
-                if usd_target:
-                    size_usd = min(size_usd, usd_target)
-            except Exception as e:
-                logger.error(f"Failed to get quote for {pair}: {e}")
-                return False
-            
-            logger.info(f"Estimated value: ${size_usd:.2f} USD")
-            
-            result = self.executor.execute(
-                symbol=pair,
-                side="SELL",
-                size_usd=size_usd,
-                # Purge must bypass post-only default
-                force_order_type="market",
-                # Skip depth/spread checks for excluded/ineligible liquidation
-                skip_liquidity_checks=True
+            except CriticalDataUnavailable:
+                raise
+            except Exception as exc:
+                logger.warning("TWAP: failed to refresh quote for %s: %s", pair, exc)
+                break
+
+            ask_price = max(quote.ask, 0.0)
+            if ask_price <= 0:
+                logger.warning("TWAP: invalid ask price %.8f for %s", ask_price, pair)
+                break
+
+            remaining_usd = max(target_value_usd - total_filled_usd, 0.0)
+            remaining_units = max(balance - total_filled_units, 0.0)
+            max_affordable_usd = remaining_units * ask_price
+
+            slice_notional = min(slice_usd, remaining_usd, max_affordable_usd)
+            if slice_notional < self.executor.min_notional_usd:
+                if total_filled_usd == 0:
+                    logger.warning(
+                        "TWAP: requested liquidation $%.2f below minimum notional $%.2f for %s",
+                        slice_notional,
+                        self.executor.min_notional_usd,
+                        pair,
+                    )
+                    return False
+                logger.info(
+                    "TWAP: residual $%.2f below minimum notional $%.2f, stopping",
+                    slice_notional,
+                    self.executor.min_notional_usd,
+                )
+                break
+
+            client_order_id = f"purge_{uuid4().hex[:18]}"
+
+            try:
+                result = self.executor.execute(
+                    symbol=pair,
+                    side="SELL",
+                    size_usd=slice_notional,
+                    client_order_id=client_order_id,
+                    force_order_type="limit_post_only",
+                    skip_liquidity_checks=False,
+                    tier=tier,
+                )
+            except CriticalDataUnavailable:
+                raise
+            except Exception as exc:
+                logger.warning("TWAP: execution error on slice %d for %s: %s", attempt, pair, exc)
+                break
+
+            if not result.success:
+                logger.warning(
+                    "TWAP: slice %d for %s failed (%s)",
+                    attempt,
+                    pair,
+                    result.error,
+                )
+                break
+
+            filled_value, filled_units, fees, _, status = self._await_twap_slice(
+                pair=pair,
+                order_id=result.order_id,
+                client_order_id=client_order_id,
+                slice_target_usd=slice_notional,
+                replace_seconds=replace_seconds,
+                poll_interval=poll_interval,
             )
-            
-            if result.success:
-                logger.info(f"✅ Sold {currency} via {pair}: ${result.filled_size * result.filled_price:.2f}")
-                self.portfolio = self._init_portfolio_state()
-                return True
-            else:
-                logger.warning(f"❌ Market order failed for {pair}: {result.error}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Market order sell failed: {e}")
+
+            total_filled_usd += filled_value
+            total_fees += fees
+            total_filled_units += filled_units
+
+            if filled_value <= 0:
+                logger.info(
+                    "TWAP: slice %d for %s produced no fill (status=%s); stopping",
+                    attempt,
+                    pair,
+                    status,
+                )
+                break
+
+            logger.info(
+                "TWAP slice %d: filled %.6f %s (~$%.2f), fees=$%.2f, status=%s",
+                attempt,
+                filled_units,
+                currency,
+                filled_value,
+                fees,
+                status,
+            )
+
+        residual = max(target_value_usd - total_filled_usd, 0.0)
+        if residual > max_residual:
+            logger.warning(
+                "TWAP: residual ~$%.2f for %s exceeds threshold $%.2f", residual, pair, max_residual
+            )
             return False
+
+        if total_filled_usd <= 0:
+            logger.warning("TWAP: no fills recorded for %s liquidation", pair)
+            return False
+
+        logger.info(
+            "✅ TWAP liquidation complete: sold %.6f %s (~$%.2f) via %d slices, fees=$%.2f, residual=$%.2f",
+            total_filled_units,
+            currency,
+            total_filled_usd,
+            attempt,
+            total_fees,
+            residual,
+        )
+        self.portfolio = self._init_portfolio_state()
+        return True
+
+    def _await_twap_slice(
+        self,
+        pair: str,
+        order_id: Optional[str],
+        client_order_id: str,
+        slice_target_usd: float,
+        replace_seconds: float,
+        poll_interval: float,
+    ) -> Tuple[float, float, float, List[Dict[str, Any]], str]:
+        """Poll order status for a TWAP slice and aggregate fills."""
+        if not order_id:
+            logger.warning("TWAP: missing order_id for client %s", client_order_id)
+            return 0.0, 0.0, 0.0, [], "missing_order"
+
+        terminal_states = {"FILLED", "DONE", "CANCELED", "CANCELLED", "EXPIRED", "FAILED"}
+        deadline = time.monotonic() + max(replace_seconds, 1.0)
+        last_status = None
+
+        while time.monotonic() < deadline:
+            try:
+                status = self.exchange.get_order_status(order_id)
+            except CriticalDataUnavailable:
+                raise
+            except Exception as exc:
+                logger.debug("TWAP: status poll failed for %s: %s", order_id, exc)
+                status = None
+
+            if status:
+                last_status = status.get("status") or last_status
+                if (last_status or "").upper() in terminal_states:
+                    break
+
+            time.sleep(poll_interval)
+
+        if not last_status or (last_status.upper() not in terminal_states):
+            try:
+                self.exchange.cancel_order(order_id)
+                last_status = "CANCELED"
+            except Exception as exc:
+                logger.warning("TWAP: cancel failed for %s: %s", order_id, exc)
+                last_status = "CANCEL_FAILED"
+
+        try:
+            fills = self.exchange.list_fills(order_id=order_id, product_id=pair) or []
+        except CriticalDataUnavailable:
+            raise
+        except Exception as exc:
+            logger.debug("TWAP: list_fills failed for %s: %s", order_id, exc)
+            fills = []
+
+        filled_units = 0.0
+        filled_value = 0.0
+        fees = 0.0
+        for fill in fills:
+            try:
+                size = float(fill.get("size") or 0.0)
+                price = float(fill.get("price") or 0.0)
+                fee = float(fill.get("commission") or fill.get("fee") or 0.0)
+            except Exception:
+                continue
+
+            filled_units += size
+            filled_value += size * price
+            fees += fee
+
+        osm = getattr(self.executor, "order_state_machine", None)
+        if osm:
+            if filled_units > 0:
+                osm.update_fill(
+                    client_order_id=client_order_id,
+                    filled_size=filled_units,
+                    filled_value=filled_value,
+                    fees=fees,
+                    fills=fills,
+                )
+            else:
+                try:
+                    osm.transition(client_order_id, OrderStatus.CANCELED, error="twap_timeout_no_fill")
+                except Exception:
+                    pass
+
+        closer = getattr(self.executor, "_close_order_in_state_store", None)
+        if closer:
+            status_payload = {
+                "order_id": order_id,
+                "client_order_id": client_order_id,
+                "filled_size": filled_units,
+                "filled_value": filled_value,
+                "fees": fees,
+                "status": (last_status or "unknown").lower(),
+                "slice_target_usd": slice_target_usd,
+            }
+            try:
+                closer(client_order_id, status_payload["status"], status_payload)
+            except Exception as exc:
+                logger.debug("TWAP: state store close failed for %s: %s", order_id, exc)
+
+        return filled_value, filled_units, fees, fills, last_status or "unknown"
     
     def run_forever(self, interval_seconds: int = 300):
         """
