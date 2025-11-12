@@ -1397,6 +1397,24 @@ class ExecutionEngine:
             
             # Coinbase response structure varies; best-effort parsing
             fills = result.get("fills", [])
+            
+            # CRITICAL FIX: Market orders don't have fills in initial response
+            # Poll the fills endpoint for market orders to get actual execution details
+            if not fills and order_type == "market" and order_id:
+                logger.info(f"Market order placed, polling for fills: {order_id}")
+                try:
+                    import time
+                    # Wait briefly for fill to propagate (market orders fill instantly)
+                    time.sleep(0.5)
+                    
+                    # Fetch fills from exchange
+                    fills = self.exchange.get_fills(order_id=order_id)
+                    logger.info(f"Retrieved {len(fills)} fills for order {order_id}")
+                except Exception as poll_err:
+                    logger.warning(f"Failed to poll fills for {order_id}: {poll_err}")
+                    # Fall back to using preview price estimate
+                    fills = []
+            
             if fills:
                 for fill in fills:
                     filled_size += float(fill.get("size", 0))
@@ -1404,6 +1422,17 @@ class ExecutionEngine:
                     fees += float(fill.get("fee", 0))
                 if filled_size > 0:
                     filled_price /= filled_size
+            
+            # If still no fills data (rare), use preview estimate as fallback
+            if filled_size == 0.0 and filled_price == 0.0:
+                # Use preview price as best estimate
+                if preview.get("expected_fill_price"):
+                    filled_price = preview["expected_fill_price"]
+                    filled_size = size_usd / filled_price if filled_price > 0 else 0.0
+                    logger.warning(
+                        f"No fill data for {order_id}, using preview estimate: "
+                        f"{filled_size:.6f} @ ${filled_price:.2f}"
+                    )
             
             # Update order state with fill details
             if filled_size > 0:
