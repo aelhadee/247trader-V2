@@ -43,6 +43,7 @@ def _build_engine(exchange: Mock, ttl_seconds: int = 1) -> ExecutionEngine:
     }
 
     exchange.read_only = False
+    exchange.get_accounts.return_value = []
     exchange.list_accounts.return_value = []
     exchange.list_balances.return_value = []
     engine = ExecutionEngine(mode="LIVE", exchange=exchange, policy=policy)
