@@ -11,6 +11,7 @@
 - Freshness: for library advice or ecosystem changes, check last 60–90 days.
 - Output format for bigger tasks: TL;DR → Findings → Risks → Improvements (ICE: Impact/Confidence/Effort) → Recommendation (Go/No-Go %) → Caveats/tips.
 
+NOTE: after edits, run `git add -A && git commit -m "updates summary" && git push origin main`
 ---
 
 # 247trader‑v2 Copilot Guide
