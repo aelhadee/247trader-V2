@@ -1046,7 +1046,7 @@ class RiskEngine:
     def record_api_success(self):
         """Record successful API call for circuit breaker tracking"""
         self._api_error_count = 0
-        self._last_api_success = datetime.utcnow()
+        self._last_api_success = datetime.now(timezone.utc)
         logger.debug("API success recorded, error counter reset")
     
     def record_api_error(self):
@@ -1056,7 +1056,7 @@ class RiskEngine:
     
     def record_rate_limit(self):
         """Record rate limit hit for circuit breaker tracking"""
-        self._last_rate_limit_time = datetime.utcnow()
+        self._last_rate_limit_time = datetime.now(timezone.utc)
         logger.warning("Rate limit hit recorded")
     
     def apply_symbol_cooldown(self, symbol: str, is_stop_loss: bool = False):
@@ -1081,9 +1081,8 @@ class RiskEngine:
         else:
             cooldown_minutes = self.risk_config.get("per_symbol_cooldown_minutes", 30)
         
-        # Set cooldown (use timezone-aware datetime to match is_cooldown_active check)
-        from datetime import timezone
-        cooldown_until = datetime.now(timezone.utc) + timedelta(minutes=cooldown_minutes)
+    # Set cooldown (use timezone-aware datetime to match is_cooldown_active check)
+    cooldown_until = datetime.now(timezone.utc) + timedelta(minutes=cooldown_minutes)
         state.setdefault("cooldowns", {})[symbol] = cooldown_until.isoformat()
         
         state_store.save(state)
