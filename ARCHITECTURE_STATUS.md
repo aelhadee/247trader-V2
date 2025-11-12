@@ -940,3 +940,103 @@ Bounded tweaks to `min_conviction`, `pct_change_15m`, etc., with cooldowns, dead
 
 
 #### LONG SHOT
+Totally doable—and sane—*as long as the AI only touches soft knobs and never your hard safety rails* (slippage budget, max quote age, depth multiple, min notional). Think of it as: **news → event score → “tighten/loosen” recommendation → small, time-boxed nudges.**
+
+# What “AI reads news and proposes tighten/loosen” looks like
+
+## 1) Structured news → event score
+
+* **Ingest & dedupe:** RSS/APIs/Twitter lists → cluster by URL/title/ticker.
+* **Classify event type:** {exploit, chain halt, listing/delisting, regulatory, ETF/ETP, mainnet upgrade, treasury/buyback, exchange outage, stablecoin de-peg, partnership, macro}.
+* **Score** (0–1): `impact = sentiment × novelty × credibility`, where
+
+  * **Sentiment** ∈ [-1,1] (directional),
+  * **Novelty** ∈ [0,1] (age, exclusivity),
+  * **Credibility** ∈ [0,1] (primary sources > press; on-chain proof boosts).
+* **Confidence gates:** ≥2 independent reputable sources or one primary source (filing, blog, on-chain). On-chain verif bumps impact.
+
+## 2) Map event score → risk action (tighten/loosen)
+
+**Hard rails never change.** AI only proposes bounded moves to:
+
+* `min_conviction_by_regime[chop]` (±0.01 steps)
+* `pct_change_15m` and `pct_change_60m` (±0.1% steps)
+* `vol_ratio_1h` (±0.1 steps)
+* `max_triggers_per_cycle` (±1 step within [3,8])
+* `size_multiplier` per tier (e.g., 0.75× when tightening; 1.0× default; 1.25× max on loosening)
+* override zone **enable/disable** (never loosen spread caps; you may **tighten** them)
+
+### Event → Action policy (single-user, Coinbase-only)
+
+* **Critical negative (exploit/chain halt/solvency, stablecoin de-peg < $0.985 for ≥60m):**
+  `action = FREEZE`: size_multiplier=0, max_triggers=0, cancel non-reducing orders; resume only after cooldown + confirm.
+* **Material negative (regulatory action, delisting, major outage):**
+  `TIGHTEN_STRONG` (TTL 6–12h): +0.02 to min_conviction, +0.2% to pct_change_15m, −2 max_triggers, disable override zone for affected assets/sector.
+* **Material positive (ETF approval, mainnet upgrade successful, on-chain buyback):**
+  `LOOSEN_LIGHT` (TTL 2–6h): −0.01 min_conviction, −0.1% pct_change_15m, +1 max_triggers, size_multiplier=1.1× for **affected assets only**.
+* **Exchange listing (Coinbase)**:
+  `WATCHLIST_LOOSEN` (TTL 2–4h): allow in universe if spread/depth excellent; keep conviction gate unchanged.
+* **Noise/rumor or single low-cred source:**
+  `NO_CHANGE` (log rationale).
+
+## 3) Controls so it doesn’t whipsaw you
+
+* **Cooldown & dead-band:** after any change, lock tuner for 10 cycles; require metrics to cross back through a dead-band before reversing.
+* **TTL & decay:** every proposal expires (e.g., 2–12h). Parameters drift back to baseline linearly.
+* **Daily delta cap:** total absolute movement per knob per 24h is capped (e.g., ≤0.03 on min_conviction).
+* **Utilization guard:** if cycle util >70% for 3 windows, *only tighten* (never loosen).
+* **Auto-revert:** if slippage violation rate worsens by >1 percentage point vs prior window, revert last change.
+* **Human-in-the-loop toggle:** “auto-apply” for minor changes; “ask to confirm” for strong tighten/any freeze.
+
+## 4) Minimal config (drop-in)
+
+```yaml
+news_tuner:
+  enabled: true
+  ttl_minutes: { tighten_light: 180, tighten_strong: 720, loosen_light: 180 }
+  bounds:
+    min_conviction_chop: {min: 0.30, max: 0.38, step: 0.01}
+    pct_change_15m:      {min: 0.016, max: 0.024, step: 0.001}
+    pct_change_60m:      {min: 0.035, max: 0.060, step: 0.001}
+    vol_ratio_1h:        {min: 1.7,   max: 2.1,   step: 0.1}
+    max_triggers:        {min: 3,     max: 8,     step: 1}
+    size_multiplier:     {min: 0.75,  max: 1.25,  step: 0.05}
+  hard_rails:
+    slippage_budget_bps: {T1:20, T2:35, T3:60}
+    quote_age_s: 5
+    depth_mult_min: 10
+  actions:
+    FREEZE:          {max_triggers: 0, size_multiplier: 0.0}
+    TIGHTEN_STRONG:  {min_conviction:+0.02, pct_change_15m:+0.002, max_triggers:-2, override_zone:false}
+    TIGHTEN_LIGHT:   {min_conviction:+0.01, pct_change_15m:+0.001, max_triggers:-1}
+    LOOSEN_LIGHT:    {min_conviction:-0.01, pct_change_15m:-0.001, max_triggers:+1, size_multiplier:+0.05}
+  confirm_strong_actions: true   # require your approval for FREEZE/TIGHTEN_STRONG
+```
+
+## 5) Pseudocode (how AI proposes)
+
+```python
+def propose_adjustment(events, metrics, params):
+    e = highest_confidence(events)  # class + impact + confidence
+    if e.class in {"exploit","chain_halt","solvency","stablecoin_depeg"} and e.impact>0.7:
+        return Action("FREEZE", reason=e)
+    if e.class in {"regulatory","delisting","exchange_outage"} and e.impact>0.6:
+        return Action("TIGHTEN_STRONG", reason=e)
+    if e.class in {"etf_approval","mainnet_upgrade","buyback"} and e.impact>0.6:
+        return Action("LOOSEN_LIGHT", reason=e, scope=e.affected_assets)
+    return Action("NO_CHANGE")
+```
+
+## 6) Caveats, tricks, gotchas
+
+* **Don’t** let news loosen spread caps or slippage budgets—those are non-negotiable.
+* **Scope changes to affected assets/sectors** whenever possible (ETH news shouldn’t loosen DOGE rules).
+* **Require confirmation + multi-source** for anything that tightens strongly or freezes.
+* **TTL everything.** Good headlines go stale fast; your parameters should auto-decay back.
+* **Log the why** (event → action), so you can audit and roll back dumb moves.
+
+---
+
+**Bottom line:** yes—AI can read news and *propose* “tighten” or “loosen.” Keep it **bounded**, **time-boxed**, **multi-sourced**, and never touch the **hard safety rails**. You approve the big moves; the bot auto-handles small nudges and then decays back.
+
+**Tldr:** Use AI to classify/score news, map to a small set of **tighten/loosen** actions (within strict bounds), apply for a limited time, and auto-revert. Hard rails never change; strong actions require your OK.
