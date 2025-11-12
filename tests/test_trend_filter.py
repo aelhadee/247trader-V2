@@ -195,3 +195,7 @@ def test_conviction_breakdown_includes_weights():
     assert pytest.approx(breakdown["confidence_component"], rel=1e-6) == (
         breakdown["confidence_weight"] * breakdown["confidence_value"]
     )
+    assert "trigger_score" in breakdown
+    assert pytest.approx(breakdown["trigger_score"], rel=1e-6) == (
+        trigger.strength * trigger.confidence
+    )
