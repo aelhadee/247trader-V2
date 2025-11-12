@@ -161,15 +161,21 @@ class RulesEngine:
                 # Apply minimum conviction threshold (spec requirement)
                 if proposal.confidence >= self.min_conviction_to_propose:
                     proposals.append(proposal)
-                    logger.debug(
-                        f"Proposal: {proposal.side} {proposal.symbol} "
-                        f"size={proposal.size_pct:.1f}% conf={proposal.confidence:.2f}"
+                    logger.info(
+                        f"✓ Proposal: {proposal.side} {proposal.symbol} "
+                        f"size={proposal.size_pct:.1f}% conf={proposal.confidence:.2f} reason='{proposal.reason}'"
                     )
                 else:
-                    logger.debug(
-                        f"Rejected proposal: {proposal.symbol} conf={proposal.confidence:.2f} "
-                        f"< min_conviction={self.min_conviction_to_propose}"
+                    logger.info(
+                        f"✗ Rejected: {proposal.symbol} conf={proposal.confidence:.2f} "
+                        f"< min_conviction={self.min_conviction_to_propose} reason='{proposal.reason}'"
                     )
+            else:
+                # Log why no proposal was created
+                logger.debug(
+                    f"No proposal for trigger: {trigger.symbol} type={trigger.trigger_type} "
+                    f"(failed rule logic checks)"
+                )
         
         logger.info(
             f"Generated {len(proposals)} trade proposals "
