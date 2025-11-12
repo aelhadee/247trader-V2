@@ -637,18 +637,23 @@ class TradingLoop:
             
             # Extract order details
             side = order_data.get("side", "").lower()  # "buy" or "sell"
-            symbol = order_data.get("symbol", "")
+            symbol = order_data.get("symbol") or order_data.get("product_id") or ""
+            if symbol and '-' not in symbol:
+                symbol = f"{symbol}-USD"
             
             # Calculate notional value
             # For BUY: use order_value or (size * price)
             # For SELL: we don't count sell orders toward buy exposure
             if side == "buy":
-                notional_usd = float(order_data.get("order_value_usd", 0.0))
-                
-                # Fallback: calculate from size * price if order_value not stored
+                notional_usd = float(order_data.get("order_value_usd", 0.0) or 0.0)
+
+                # Fallbacks: quote_size_usd > size*price
                 if notional_usd == 0.0:
-                    size = float(order_data.get("size", 0.0))
-                    price = float(order_data.get("price", 0.0))
+                    notional_usd = float(order_data.get("quote_size_usd", 0.0) or 0.0)
+
+                if notional_usd == 0.0:
+                    size = float(order_data.get("size", 0.0) or 0.0)
+                    price = float(order_data.get("price", 0.0) or 0.0)
                     notional_usd = size * price
                 
                 if symbol and notional_usd > 0:
@@ -656,10 +661,12 @@ class TradingLoop:
             
             elif side == "sell":
                 # Track sell orders separately (not counted in buy exposure)
-                notional_usd = float(order_data.get("order_value_usd", 0.0))
+                notional_usd = float(order_data.get("order_value_usd", 0.0) or 0.0)
                 if notional_usd == 0.0:
-                    size = float(order_data.get("size", 0.0))
-                    price = float(order_data.get("price", 0.0))
+                    notional_usd = float(order_data.get("quote_size_usd", 0.0) or 0.0)
+                if notional_usd == 0.0:
+                    size = float(order_data.get("size", 0.0) or 0.0)
+                    price = float(order_data.get("price", 0.0) or 0.0)
                     notional_usd = size * price
                 
                 if symbol and notional_usd > 0:
