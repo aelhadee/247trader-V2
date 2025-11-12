@@ -407,10 +407,16 @@ class RiskEngine:
             )
             # Alert on drawdown breach
             if self.alert_service:
-                self.alert_service.send_alert(
-                    message=f"Max drawdown exceeded: {portfolio.max_drawdown_pct:.2f}%",
+                from infra.alerting import AlertSeverity
+                self.alert_service.notify(
                     severity=AlertSeverity.CRITICAL,
-                    tags=["risk", "drawdown"]
+                    title="🚨 Max Drawdown Breached",
+                    message=f"Drawdown exceeded {max_dd_pct}% threshold",
+                    context={
+                        "max_drawdown_pct": round(portfolio.max_drawdown_pct, 2),
+                        "threshold": max_dd_pct,
+                        "nav": round(portfolio.nav, 2)
+                    }
                 )
             return RiskCheckResult(
                 approved=False,
