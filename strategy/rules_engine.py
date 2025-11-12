@@ -87,12 +87,30 @@ class RulesEngine:
         self.tier3_base_size = base_position_pct.get("tier3", 0.005) * 100
         
         # Minimum conviction threshold (spec requirement)
-        self.min_conviction_to_propose = strategy_cfg.get("min_conviction_to_propose", 0.5)
+        self.min_conviction_default = strategy_cfg.get("min_conviction_to_propose", 0.5)
+        self.min_conviction_by_regime = strategy_cfg.get("min_conviction_by_regime", {})
+
+        # Conviction weighting (strength/confidence + quality boosts)
+        conviction_cfg = strategy_cfg.get("conviction_weights", {})
+        self.conviction_weights = {
+            "base": conviction_cfg.get("base", 0.0),
+            "strength": conviction_cfg.get("trigger_strength", 0.5),
+            "confidence": conviction_cfg.get("trigger_confidence", 0.3),
+        }
+        self.conviction_quality_boosts = conviction_cfg.get("quality_boosts", {})
+
+        # Canary trade config
+        self.canary_cfg = strategy_cfg.get("canary", {"enabled": False})
+        self.canary_tier_whitelist = {
+            1 if tier.upper() == "T1" else 2
+            for tier in self.canary_cfg.get("require_tier_in", [])
+            if tier.upper() in {"T1", "T2"}
+        }
         
         logger.info(
             f"Initialized RulesEngine with tier sizing: "
             f"T1={self.tier1_base_size:.1f}%, T2={self.tier2_base_size:.1f}%, T3={self.tier3_base_size:.1f}% | "
-            f"min_conviction={self.min_conviction_to_propose}"
+            f"min_conviction={self.min_conviction_default}"
         )
     
     def propose_trades(self, 
