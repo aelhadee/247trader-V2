@@ -65,9 +65,6 @@ liquidity:
   min_24h_volume_usd: 8_000_000     # $8M minimum (unified policy)
   max_spread_bps: 80                # 0.80% max spread (unified policy)
   min_depth_20bps_usd: 10_000       # $10K depth within 20bps (broader universe, monitor slippage)
-
-triggers:
-  # Price-move based triggers
   price_move:
     pct_15m: 3.0                    # abs move >= 3.0% in 15m
     pct_60m: 5.0                    # abs move >= 5.0% in 60m
