@@ -67,3 +67,26 @@ def test_summarize_fills_accumulates_multiple_rows():
     assert avg_price == pytest.approx(100.0)
     assert total_fees == pytest.approx(0.075)
     assert total_quote == pytest.approx(75.0)
+
+
+def test_summarize_fills_quantizes_with_metadata():
+    metadata = {
+        "base_increment": "0.0001",
+        "price_increment": "0.01",
+    }
+
+    fills = [
+        {
+            "size": "1.23456789",
+            "price": "100.123456",
+            "commission": "0.0105",
+        }
+    ]
+
+    total_size, avg_price, total_fees, total_quote = ExecutionEngine._summarize_fills(fills, metadata)
+
+    assert total_size == pytest.approx(1.2345)
+    assert avg_price == pytest.approx(100.12)
+    assert total_fees == pytest.approx(0.0105)
+    # Cost should remain close to original notional within rounding tolerance
+    assert total_quote == pytest.approx(123.318839, rel=1e-6)
