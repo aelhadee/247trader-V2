@@ -2555,14 +2555,47 @@ class ExecutionEngine:
                 # Extract fill details
                 order_id = fill.get("order_id")
                 product_id = fill.get("product_id", "")
-                price = float(fill.get("price", 0))
-                size = float(fill.get("size", 0))
-                commission = float(fill.get("commission", 0))
-                side = fill.get("side", "").upper()
+                side = (fill.get("side", "") or "").upper()
                 trade_time = fill.get("trade_time", "")
-                
+
+                # Extract robust fill metrics (handles quote-sized market orders)
+                base_size, avg_price, fees_value, quote_value = self._summarize_fills([fill])
+
+                raw_size = fill.get("size")
+                if base_size <= 0 and raw_size is not None:
+                    try:
+                        base_size = float(raw_size)
+                    except (TypeError, ValueError):
+                        base_size = 0.0
+
+                raw_price = fill.get("price") or fill.get("average_price")
+                if avg_price <= 0 and raw_price is not None:
+                    try:
+                        avg_price = float(raw_price)
+                    except (TypeError, ValueError):
+                        avg_price = 0.0
+
+                raw_quote = fill.get("size_in_quote") or fill.get("quote_size") or fill.get("filled_value")
+                if quote_value <= 0 and raw_quote is not None:
+                    try:
+                        quote_value = float(raw_quote)
+                    except (TypeError, ValueError):
+                        quote_value = 0.0
+
+                if base_size > 0 and avg_price <= 0 and quote_value > 0:
+                    avg_price = quote_value / base_size
+
+                if quote_value <= 0 and base_size > 0 and avg_price > 0:
+                    quote_value = base_size * avg_price
+
+                if fees_value <= 0:
+                    try:
+                        fees_value = float(fill.get("commission", 0.0) or 0.0)
+                    except (TypeError, ValueError):
+                        fees_value = 0.0
+
                 # Track fees
-                total_fees += commission
+                total_fees += fees_value
                 
                 # Track fills by symbol
                 fills_by_symbol[product_id] = fills_by_symbol.get(product_id, 0) + 1
@@ -2584,12 +2617,20 @@ class ExecutionEngine:
                         self.state_store.record_fill(
                             symbol=product_id,
                             side=side,
-                            filled_size=size,
-                            fill_price=price,
-                            fees=commission,
-                            timestamp=fill_timestamp
+                            filled_size=base_size,
+                            fill_price=avg_price,
+                            fees=fees_value,
+                            timestamp=fill_timestamp,
+                            notional_usd=quote_value,
                         )
-                        logger.debug(f"Recorded fill for PnL: {product_id} {side} {size} @ {price}")
+                        logger.debug(
+                            "Recorded fill for PnL: %s %s base=%.8f price=%.8f notional=%.8f",
+                            product_id,
+                            side,
+                            base_size,
+                            avg_price,
+                            quote_value,
+                        )
                     except Exception as e:
                         logger.debug(f"Could not record fill for PnL tracking: {e}")
                         # Continue processing other fills
