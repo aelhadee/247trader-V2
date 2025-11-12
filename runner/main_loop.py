@@ -868,6 +868,29 @@ class TradingLoop:
             else:
                 self.portfolio.pending_orders = pending_orders
 
+            try:
+                trimmed = self._auto_trim_to_risk_cap()
+            except CriticalDataUnavailable as data_exc:
+                self._abort_cycle_due_to_data(
+                    cycle_started,
+                    data_exc.source,
+                    str(data_exc.original) if data_exc.original else None,
+                )
+                return
+
+            if trimmed:
+                try:
+                    pending_orders = self._get_open_order_exposure()
+                except CriticalDataUnavailable as data_exc:
+                    self._abort_cycle_due_to_data(
+                        cycle_started,
+                        data_exc.source,
+                        str(data_exc.original) if data_exc.original else None,
+                    )
+                    return
+                else:
+                    self.portfolio.pending_orders = pending_orders
+
             # Step 1: Build universe
             logger.info("Step 1: Building universe...")
             universe = self.universe_mgr.get_universe(regime=self.current_regime)
