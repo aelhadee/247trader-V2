@@ -74,9 +74,9 @@ class ExecutionEngine:
         self.order_state_machine = get_order_state_machine()
         
         # Load limits from policy or use defaults
-        execution_config = self.policy.get("execution", {})
-        microstructure_config = self.policy.get("microstructure", {})
-        risk_config = self.policy.get("risk", {})
+    execution_config = self.policy.get("execution", {})
+    microstructure_config = self.policy.get("microstructure", {})
+    risk_config = self.policy.get("risk", {})
     portfolio_config = self.policy.get("portfolio_management", {})
         
         self.max_slippage_bps = microstructure_config.get("max_expected_slippage_bps", 50.0)
