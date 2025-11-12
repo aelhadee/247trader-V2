@@ -359,6 +359,9 @@ class TradingLoop:
         daily_pnl_pct = _pct(pnl_today_usd)
         weekly_pnl_pct = _pct(pnl_week_usd)
 
+        # CRITICAL: Hydrate pending_orders from open_orders to count toward risk caps
+        pending_orders = self._build_pending_orders_from_state(state)
+        
         return PortfolioState(
             account_value_usd=account_value_usd,
             open_positions=positions,
@@ -371,7 +374,7 @@ class TradingLoop:
             # Use timezone-aware UTC to avoid deprecation warning
             current_time=datetime.now(timezone.utc),
             weekly_pnl_pct=weekly_pnl_pct,
-            pending_orders={},
+            pending_orders=pending_orders,
         )
 
     @staticmethod
