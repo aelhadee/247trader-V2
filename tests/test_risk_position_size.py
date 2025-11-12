@@ -47,7 +47,7 @@ def risk_engine():
 
 
 def test_existing_position_can_be_topped_up_when_no_pending(risk_engine):
-    portfolio = _portfolio(open_usd=500.0, pending_buy=0.0)
+    portfolio = _portfolio(open_usd=400.0, pending_buy=0.0)
     proposal = TradeProposal(symbol="XLM-USD", side="BUY", size_pct=1.0, confidence=0.6, reason="test")
 
     result = risk_engine._check_position_size(proposal, portfolio, "chop")
