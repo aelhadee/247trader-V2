@@ -1975,41 +1975,83 @@ class ExecutionEngine:
             return 0.0
 
     @staticmethod
-    def _summarize_fills(fills: Optional[List[Dict[str, Any]]]) -> Tuple[float, float, float]:
-        """Aggregate fill data into size, average price, and total fees."""
+    def _summarize_fills(
+        fills: Optional[List[Dict[str, Any]]]
+    ) -> Tuple[float, float, float, float]:
+        """Aggregate fill data into size, average price, total fees, and quote notional."""
 
         if not fills:
-            return 0.0, 0.0, 0.0
+            return 0.0, 0.0, 0.0, 0.0
 
-        total_size = 0.0
-        total_value = 0.0
-        total_fees = 0.0
+        total_base = Decimal("0")
+        total_quote = Decimal("0")
+        total_fees = Decimal("0")
+
+        def _to_decimal(*values: Any) -> Decimal:
+            for value in values:
+                if value is None:
+                    continue
+                try:
+                    dec = Decimal(str(value))
+                except (InvalidOperation, TypeError, ValueError):
+                    continue
+                if dec != 0:
+                    return dec
+            return Decimal("0")
 
         for fill in fills:
-            try:
-                size = float(fill.get("size", 0.0) or 0.0)
-            except (TypeError, ValueError):
-                size = 0.0
+            base_size = _to_decimal(
+                fill.get("size"),
+                fill.get("base_size"),
+                fill.get("filled_size"),
+            )
+            quote_size = _to_decimal(
+                fill.get("size_in_quote"),
+                fill.get("quote_size"),
+                fill.get("filled_value"),
+            )
+            price = _to_decimal(fill.get("price"))
+            fee = _to_decimal(
+                fill.get("commission"),
+                fill.get("fee"),
+            )
 
-            try:
-                price = float(fill.get("price", 0.0) or 0.0)
-            except (TypeError, ValueError):
-                price = 0.0
+            # Derive missing components where possible
+            if price > 0 and quote_size == 0 and base_size > 0:
+                quote_size = (base_size * price)
+            elif price > 0 and base_size == 0 and quote_size > 0:
+                base_size = (quote_size / price)
 
-            try:
-                fee = float(fill.get("commission", fill.get("fee", 0.0)) or 0.0)
-            except (TypeError, ValueError):
-                fee = 0.0
-
-            if size <= 0 or price <= 0:
+            if base_size == 0 or price == 0:
                 continue
 
-            total_size += size
-            total_value += size * price
+            if quote_size == 0:
+                quote_size = base_size * price
+
+            expected_quote = base_size * price
+            mismatch = abs(expected_quote - quote_size)
+            tolerance = max(Decimal("0.01"), quote_size * Decimal("0.005"))
+
+            if mismatch > tolerance and price > 0:
+                logger.warning(
+                    "FILL_UNITS_MISMATCH base=%s price=%s expected_quote=%s quote=%s",
+                    base_size,
+                    price,
+                    expected_quote,
+                    quote_size,
+                )
+                base_size = quote_size / price
+                expected_quote = quote_size
+
+            total_base += base_size
+            total_quote += expected_quote
             total_fees += fee
 
-        avg_price = total_value / total_size if total_size > 0 else 0.0
-        return total_size, avg_price, total_fees
+        if total_base <= 0:
+            return 0.0, 0.0, float(total_fees), float(total_quote)
+
+        avg_price = (total_quote / total_base) if total_base > 0 else Decimal("0")
+        return float(total_base), float(avg_price), float(total_fees), float(total_quote)
 
     @staticmethod
     def _order_key(client_order_id: Optional[str], order_id: Optional[str]) -> Optional[str]:
