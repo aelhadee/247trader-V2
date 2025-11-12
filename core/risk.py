@@ -376,8 +376,9 @@ class RiskEngine:
             )
         
         # 6. Position sizing (per proposal)
-        approved_proposals = []
-        violated = []
+    approved_proposals = []
+    violated = []
+    cluster_rejections: Dict[str, List[str]] = {}
         
         for proposal in proposals:
             result = self._check_position_size(proposal, portfolio, regime)
@@ -1049,6 +1050,7 @@ class RiskEngine:
                             f"(current: {cluster_exposure[cluster]:.1f}% + proposed: {proposal.size_pct:.1f}%)"
                         )
                         violated.append(reason)
+                        cluster_rejections.setdefault(proposal.symbol, []).append("cluster_limit")
                         logger.warning(f"Rejected {proposal.symbol}: {reason}")
                         continue
                     
@@ -1061,7 +1063,8 @@ class RiskEngine:
             return RiskCheckResult(
                 approved=False,
                 reason="All proposals would violate theme/cluster limits",
-                violated_checks=violated
+                violated_checks=violated,
+                proposal_rejections=cluster_rejections,
             )
         
         # Update proposals list to only include approved ones
@@ -1070,7 +1073,7 @@ class RiskEngine:
         
         logger.debug(f"Cluster limits passed: {len(approved_proposals)}/{len(proposals) + len(violated)} approved")
         
-        return RiskCheckResult(approved=True, violated_checks=violated)
+    return RiskCheckResult(approved=True, violated_checks=violated, proposal_rejections=cluster_rejections)
     
     def adjust_proposal_size(self, proposal: TradeProposal,
                             portfolio: PortfolioState,
