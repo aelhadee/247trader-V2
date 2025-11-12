@@ -131,6 +131,9 @@ class ExecutionEngine:
         self.failed_order_cooldown_seconds = int(execution_config.get(
             "failed_order_cooldown_seconds", 0
         ))
+        self.post_only_ttl_seconds = int(execution_config.get(
+            "post_only_ttl_seconds", 0
+        ) or 0)
         self.convert_api_retry_seconds = int(execution_config.get(
             "convert_api_retry_seconds", 900
         ))
@@ -162,6 +165,7 @@ class ExecutionEngine:
             f"quotes={self.preferred_quotes}, auto_convert={self.auto_convert_preferred_quote}, "
             f"clamp_small_trades={self.clamp_small_trades}, maker_fee={self.maker_fee_bps}bps, "
             f"taker_fee={self.taker_fee_bps}bps, max_quote_age={self.max_quote_age_seconds}s, "
+            f"post_only_ttl={self.post_only_ttl_seconds}s, "
             f"slippage_budget=[T1:{self.slippage_budget_t1_bps}, T2:{self.slippage_budget_t2_bps}, T3:{self.slippage_budget_t3_bps}]bps)"
         )
     
