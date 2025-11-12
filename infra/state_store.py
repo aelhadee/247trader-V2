@@ -630,7 +630,7 @@ class StateStore:
                 managed_positions.pop(symbol, None)
                 logger.info("Fully closed %s position", symbol)
             else:
-                mark_value_usd = remaining_qty * price_float
+                mark_value_usd = remaining_qty * price_float if price_float > 0 else entry_value_usd
                 pos["quantity"] = remaining_qty
                 pos["units"] = remaining_qty
                 pos["base_qty"] = remaining_qty
