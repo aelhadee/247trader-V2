@@ -441,9 +441,16 @@ class UniverseManager:
         return []
     
     def _check_liquidity(self, quote: Quote, orderbook, 
-                         global_config: dict, tier_config: dict) -> Tuple[bool, Optional[str]]:
+                         global_config: dict, tier_config: dict, tier: int = 3) -> Tuple[bool, Optional[str]]:
         """
         Check if asset passes liquidity requirements.
+        
+        Args:
+            quote: Price quote
+            orderbook: Order book data
+            global_config: Global liquidity config
+            tier_config: Tier-specific config
+            tier: Tier number (1, 2, or 3) for depth requirements
         
         Returns:
             (eligible, reason_if_not)
@@ -464,10 +471,16 @@ class UniverseManager:
         if quote.spread_bps > max_spread:
             return False, f"Spread {quote.spread_bps:.1f}bps > {max_spread}bps"
         
-        # Depth check
-        min_depth = global_config.get("min_orderbook_depth_usd", 10_000)
-        if orderbook.total_depth_usd < min_depth:
-            return False, f"Depth ${orderbook.total_depth_usd:,.0f} < ${min_depth:,.0f}"
+        # Depth check (tier-specific)
+        # Try tier-specific depth first, fallback to legacy global
+        depth_key = f"min_orderbook_depth_usd_t{tier}"
+        min_depth_tier = global_config.get(depth_key)
+        if min_depth_tier is None:
+            # Fallback to legacy global setting
+            min_depth_tier = global_config.get("min_orderbook_depth_usd", 10_000)
+        
+        if orderbook.total_depth_usd < min_depth_tier:
+            return False, f"Depth ${orderbook.total_depth_usd:,.0f} < ${min_depth_tier:,.0f} (T{tier})"
         
         return True, None
     
