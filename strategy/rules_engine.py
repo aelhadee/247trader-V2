@@ -8,7 +8,7 @@ This is your baseline. Must be profitable WITHOUT AI.
 AI (M1/M2/M3) can only adjust/veto, never create.
 """
 
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
 import logging
@@ -476,7 +476,7 @@ class RulesEngine:
             return self.tier2_base_size
     
     def _calculate_conviction(self, trigger: TriggerSignal, asset: UniverseAsset,
-                              proposal: TradeProposal) -> (float, Dict[str, float]):
+                              proposal: TradeProposal) -> Tuple[float, Dict[str, float]]:
         weights = self.conviction_weights
         base_component = weights.get("base", 0.0)
         strength_component = weights.get("strength", 0.5) * trigger.strength
