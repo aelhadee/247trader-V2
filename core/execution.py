@@ -2388,7 +2388,14 @@ class ExecutionEngine:
             if status_after in terminal_states or has_fill_after:
                 fills = self.exchange.list_fills(order_id=order_id) or latest_fills
                 size, price, total_fees, total_quote = self._summarize_fills(fills)
-                if already_resolved and status_after in {"CANCELED", "CANCELLED", "EXPIRED"} and client_order_id:
+                if size and size > 0 and status_after in {"CANCELED", "CANCELLED", "EXPIRED"}:
+                    status_after = "FILLED"
+
+                if (
+                    already_resolved
+                    and status_after in {"CANCELED", "CANCELLED", "EXPIRED"}
+                    and client_order_id
+                ):
                     try:
                         self.order_state_machine.transition(
                             client_order_id,
@@ -2398,8 +2405,6 @@ class ExecutionEngine:
                     except Exception as exc:  # pragma: no cover - defensive
                         logger.debug("Order state transition failed after 404 cancel: %s", exc)
 
-                if size and size > 0 and status_after in {"CANCELED", "CANCELLED", "EXPIRED"}:
-                    status_after = "FILLED"
                 return PostOnlyTTLResult(
                     triggered=True,
                     canceled=status_after in {"CANCELED", "CANCELLED", "EXPIRED"},
