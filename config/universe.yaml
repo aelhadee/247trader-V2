@@ -29,6 +29,9 @@ exclusions:
   - DAI-USD
   - BUSD-USD
   - PUMP-USD  # No liquidity / trading halted
+  # Memecoins with no fundamental value (high volatility, gambling tokens)
+  - USELESS-USD
+  - FARTCOIN-USD
   red_flags:
   - recent_exploit
   - regulatory_action
