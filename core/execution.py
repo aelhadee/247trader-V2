@@ -1558,10 +1558,18 @@ class ExecutionEngine:
                 is_maker = (order_type == "limit_post_only")
                 fee_bps = self.maker_fee_bps if is_maker else self.taker_fee_bps
                 total_cost_bps = est_slippage_bps + fee_bps
-                
+
                 slippage_budget = self._get_slippage_budget(tier)
-                
-                if total_cost_bps > slippage_budget:
+
+                if bypass_slippage_budget:
+                    logger.debug(
+                        "Bypassing slippage budget for %s T%d (cost %.1fbps exceeds %.1fbps)",
+                        symbol,
+                        tier,
+                        total_cost_bps,
+                        slippage_budget,
+                    )
+                elif total_cost_bps > slippage_budget:
                     logger.warning(
                         f"Slippage budget exceeded for {symbol} T{tier}: "
                         f"{total_cost_bps:.1f}bps (slippage {est_slippage_bps:.1f} + fees {fee_bps:.1f}) "
