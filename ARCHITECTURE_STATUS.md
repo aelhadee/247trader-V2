@@ -937,3 +937,6 @@ Bounded tweaks to `min_conviction`, `pct_change_15m`, etc., with cooldowns, dead
 * **Defer** Bayesian/RL until you have a backtester/simulator.
 
 **Tldr:** The current proposal is **not AI**—it’s a bounded, rule-based controller. If you want AI, add a **contextual bandit** that makes tiny, reversible adjustments inside strict safety rails, with shadow → canary → full rollout.
+
+
+#### LONG SHOT
