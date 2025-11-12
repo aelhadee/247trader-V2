@@ -46,9 +46,13 @@ def _parse_trade_time(payload: dict) -> Optional[datetime]:
 
 
 def _aggregate_fills(fills: Iterable[dict]) -> Optional[Dict[str, Decimal]]:
-    base_total = Decimal("0")
-    notional_total = Decimal("0")
+    buy_base = Decimal("0")
+    buy_usd = Decimal("0")
+    sell_base = Decimal("0")
+    sell_usd = Decimal("0")
     fee_total = Decimal("0")
+    last_price: Optional[Decimal] = None
+    last_time: Optional[datetime] = None
 
     for fill in fills:
         price = _as_decimal(fill.get("price"))
@@ -62,30 +66,46 @@ def _aggregate_fills(fills: Iterable[dict]) -> Optional[Dict[str, Decimal]]:
             if quote_size is not None and quote_size > 0:
                 size = quote_size / price
 
-        if size is None or size == 0:
+        if size is None or size <= 0:
             continue
 
         side = (fill.get("side") or "BUY").upper()
-        signed_size = size if side == "BUY" else -size
+        trade_dt = _parse_trade_time(fill)
+        if trade_dt and (last_time is None or trade_dt > last_time):
+            last_time = trade_dt
+            last_price = price
 
-        base_total += signed_size
-        notional_total += signed_size * price
+        if side == "BUY":
+            buy_base += size
+            buy_usd += size * price
+        else:
+            sell_base += size
+            sell_usd += size * price
 
         fee = _as_decimal(fill.get("commission") or fill.get("fee"))
         if fee:
             fee_total += fee
 
-    if base_total == 0:
+    net_base = buy_base - sell_base
+    if net_base <= 0:
         return None
 
-    avg_price = notional_total / base_total
-    exposure = base_total * avg_price
+    avg_buy_price = (buy_usd / buy_base) if buy_base > 0 else Decimal("0")
+    valuation_price = last_price or avg_buy_price
+    if valuation_price <= 0:
+        valuation_price = avg_buy_price or Decimal("0")
+
+    net_usd_cost = avg_buy_price * net_base if avg_buy_price > 0 else Decimal("0")
+    mark_to_market = net_base * valuation_price if valuation_price > 0 else net_usd_cost
 
     return {
-        "base_qty": base_total.copy_abs(),
-        "avg_price": avg_price,
-        "usd": exposure,
+        "net_base": net_base,
+        "avg_buy_price": avg_buy_price,
+        "usd_cost": net_usd_cost,
+        "usd_mark": mark_to_market,
         "fees": fee_total,
+        "last_price": valuation_price,
+        "last_time": last_time,
     }
 
 
@@ -124,36 +144,50 @@ def rebuild_positions(
     removed = 0
 
     for symbol, symbol_fills in fills_by_symbol.items():
-        summary = _aggregate_fills(symbol_fills)
+        # Sort fills oldest->newest for deterministic processing and last price tracking
+        symbol_fills_sorted = sorted(
+            symbol_fills,
+            key=lambda item: _parse_trade_time(item) or datetime.min.replace(tzinfo=timezone.utc),
+        )
+        summary = _aggregate_fills(symbol_fills_sorted)
         if not summary:
             if symbol in positions:
                 removed += 1
                 positions.pop(symbol, None)
             continue
 
-        base_qty = float(summary["base_qty"])
-        avg_price = float(summary["avg_price"])
-        usd_value = float(summary["usd"].copy_abs())
-        fees_paid = float(summary["fees"])
+        net_base = summary["net_base"]
+        base_qty = float(net_base.copy_abs())
+        avg_price = float(summary["avg_buy_price"]) if summary["avg_buy_price"] else 0.0
+        usd_cost = float(summary["usd_cost"]) if summary["usd_cost"] else 0.0
+        usd_mark = float(summary["usd_mark"]) if summary["usd_mark"] else usd_cost
+        fees_paid = float(summary["fees"]) if summary["fees"] else 0.0
+        last_price = float(summary["last_price"]) if summary["last_price"] else avg_price
+        last_fill_time = summary["last_time"].isoformat() if summary["last_time"] else None
 
         entry = positions.get(symbol, {})
+        now_iso = datetime.now(timezone.utc).isoformat()
+        is_long = net_base > 0
         entry.update(
             {
-                "side": "BUY" if base_qty >= 0 else "SELL",
-                "quantity": abs(base_qty),
-                "units": abs(base_qty),
-                "base_qty": abs(base_qty),
-                "entry_price": abs(avg_price),
-                "entry_value_usd": usd_value,
-                "usd_value": usd_value,
-                "usd": usd_value,
+                "side": "BUY" if is_long else "SELL",
+                "quantity": base_qty,
+                "units": base_qty,
+                "base_qty": base_qty,
+                "entry_price": avg_price,
+                "entry_value_usd": usd_cost,
+                "usd_value": usd_mark,
+                "usd": usd_mark,
                 "fees_paid": fees_paid,
-                "last_updated": datetime.now(timezone.utc).isoformat(),
+                "last_updated": now_iso,
+                "last_fill_price": last_price,
                 "rebuild_source": "fills",
             }
         )
+        if last_fill_time:
+            entry["last_fill_time"] = last_fill_time
         if "entry_time" not in entry:
-            entry["entry_time"] = entry["last_updated"]
+            entry["entry_time"] = now_iso
         positions[symbol] = entry
         updated += 1
 
