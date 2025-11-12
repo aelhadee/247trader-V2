@@ -822,8 +822,9 @@ class RiskEngine:
         """Check if position size is within limits"""
         violated = []
 
-        existing_position_usd = portfolio.get_position_usd(proposal.symbol)
-        pending_buy_usd = portfolio.get_pending_notional_usd("buy", proposal.symbol)
+    existing_position_usd = portfolio.get_position_usd(proposal.symbol)
+    pending_buy_usd = portfolio.get_pending_notional_usd("buy", proposal.symbol)
+    allow_adds_when_over_cap = bool(self.risk_config.get("allow_adds_when_over_cap", True))
 
         def _pct(value_usd: float) -> float:
             try:
@@ -846,6 +847,8 @@ class RiskEngine:
         # CRITICAL FIX: Check combined exposure (existing + pending + proposed) for BUY orders
         # This ensures pending orders count toward per-symbol cap
         side_upper = proposal.side.upper() if proposal.side else "BUY"
+        is_existing_position = existing_position_usd > 0.0
+
         if side_upper == "BUY":
             combined_pct = existing_exposure_pct + proposal.size_pct
             if combined_pct > max_pos_pct:
@@ -862,9 +865,8 @@ class RiskEngine:
         
         # Check if already have position
         allow_pyramid = self.sizing_config.get("allow_pyramiding", False)
-        if proposal.symbol in portfolio.open_positions:
-            # Check pyramiding rules
-            if not allow_pyramid:
+        if is_existing_position:
+            if not allow_pyramid and not (side_upper == "BUY" and allow_adds_when_over_cap and pending_buy_usd <= 0):
                 violated.append(f"already_have_position ({proposal.symbol})")
 
         # Pending orders count toward pyramiding guard as well
