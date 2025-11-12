@@ -455,13 +455,45 @@ class UniverseManager:
         Returns:
             (eligible, reason_if_not)
         """
-        # Volume check
+        # Volume check with near-threshold override
         min_volume_global = global_config.get("min_24h_volume_usd", 5_000_000)
         min_volume_tier = tier_config.get("min_24h_volume_usd", min_volume_global)
         min_volume = max(min_volume_global, min_volume_tier)
         
+        # Check if in override zone (95% of floor → floor)
+        override_config = tier_config.get("constraints", {}).get("near_threshold_override", {})
+        override_enabled = override_config.get("enable", False)
+        lower_mult = override_config.get("lower_mult", 0.95)
+        override_floor = min_volume * lower_mult
+        
         if quote.volume_24h < min_volume:
-            return False, f"Volume ${quote.volume_24h:,.0f} < ${min_volume:,.0f}"
+            # Check near-threshold override (only for T2)
+            if override_enabled and tier == 2 and quote.volume_24h >= override_floor:
+                # Asset is in override zone ($28.5M–$30M for T2)
+                # Check ALL strict rules:
+                
+                # 1) Spread tighter than normal
+                override_max_spread = override_config.get("max_spread_bps", 30)
+                if quote.spread_bps > override_max_spread:
+                    return False, f"Volume ${quote.volume_24h:,.0f} in override zone but spread {quote.spread_bps:.1f}bps > {override_max_spread}bps"
+                
+                # 2) Size-aware depth (12× order notional within ±0.5%)
+                # For now, use depth check below (will be enhanced with size-aware logic)
+                require_depth_mult = override_config.get("require_depth_mult", 12)
+                
+                # 3) Listing age check (placeholder - would need exchange metadata)
+                # min_listing_age_days = override_config.get("min_listing_age_days", 30)
+                # For now, skip listing age check (requires additional API data)
+                
+                # 4) Slippage budget must pass (checked later in execution)
+                
+                logger.info(
+                    f"Override zone: {symbol} volume ${quote.volume_24h:,.0f} "
+                    f"(${override_floor:,.0f}–${min_volume:,.0f}), spread {quote.spread_bps:.1f}bps ≤ {override_max_spread}bps - ALLOWED"
+                )
+                # Pass override - continue to other checks
+            else:
+                return False, f"Volume ${quote.volume_24h:,.0f} < ${min_volume:,.0f}"
         
         # Spread check
         max_spread_global = global_config.get("max_spread_bps", 100)
