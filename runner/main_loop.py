@@ -1187,10 +1187,26 @@ class TradingLoop:
             if value_usd < min_value:
                 continue
 
+            asset = None
+            if hasattr(universe, "get_asset"):
+                try:
+                    asset = universe.get_asset(symbol)
+                except Exception:
+                    asset = None
+
+            tier = asset.tier if asset else self._infer_tier_from_config(symbol)
+            tier = tier or 3
+
             tag = "excluded" if is_excluded else "ineligible"
             logger.info(f"Purge: selling {balance:.6f} {currency} ({tag}), ~${value_usd:.2f}")
 
-            if self._sell_via_market_order(currency, balance):
+            if self._sell_via_market_order(
+                currency,
+                balance,
+                usd_target=value_usd,
+                tier=tier,
+                preferred_pair=symbol,
+            ):
                 liquidations += 1
             else:
                 logger.warning(f"Purge sell failed for {symbol}")
