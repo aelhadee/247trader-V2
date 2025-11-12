@@ -529,7 +529,13 @@ class UniverseManager:
         max_spread = min(max_spread_global, max_spread_tier)
         
         if quote.spread_bps > max_spread:
+            logger.debug(
+                f"{quote.symbol}: spread check FAIL - "
+                f"{quote.spread_bps:.1f}bps > {max_spread}bps (T{tier})"
+            )
             return False, f"Spread {quote.spread_bps:.1f}bps > {max_spread}bps"
+        
+        logger.debug(f"{quote.symbol}: spread check PASS - {quote.spread_bps:.1f}bps ≤ {max_spread}bps")
         
         # Depth check (tier-specific)
         # Try tier-specific depth first, fallback to legacy global
