@@ -60,6 +60,14 @@ class PortfolioState:
     weekly_pnl_pct: float = 0.0
     pending_orders: Optional[Dict[str, Dict[str, float]]] = None
     
+    @property
+    def nav(self) -> float:
+        """
+        Net Asset Value (NAV) for alert messages.
+        Alias for account_value_usd for backward compatibility.
+        """
+        return self.account_value_usd
+    
     def get_position_usd(self, symbol: str) -> float:
         """Get USD value of a position (enforces schema)"""
         pos = self.open_positions.get(symbol, {})
