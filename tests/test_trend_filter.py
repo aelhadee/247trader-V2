@@ -64,7 +64,7 @@ def _make_trigger_engine(trend_cfg):
     exchange = MagicMock()
 
     with patch("core.triggers.get_exchange", return_value=exchange):
-        with patch("core.triggers.yaml.safe_load", side_effect=[signals_payload, policy_payload]):
+        with patch("yaml.safe_load", side_effect=[signals_payload, policy_payload]):
             engine = TriggerEngine()
 
     return engine, exchange
