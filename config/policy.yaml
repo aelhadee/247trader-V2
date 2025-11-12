@@ -130,7 +130,7 @@ circuit_breakers:
   # ATR volatility filter (reduce false signals in low-vol chop)
   enable_atr_filter: true            # Skip low-volatility assets (tight ranges = noise)
   atr_lookback_periods: 14           # Period for ATR calculation
-  atr_min_multiplier: 1.2            # Current ATR must be >= 1.2x median ATR (last 7 days)
+  atr_min_multiplier: 1.1            # Current ATR must be >= 1.1x median ATR (was 1.2x - loosened for chop)
   
   # Volatility circuit breaker
   max_realized_volatility_pct: 150   # Halt if realized vol > 150% annualized
