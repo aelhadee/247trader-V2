@@ -384,6 +384,15 @@ class TriggerEngine:
         # Calculate volatility for sizing
         volatility = self._calculate_volatility(candles)
         
+        # CRITICAL FIX: Calculate price change for rules engine
+        # _rule_volume_spike requires price_change_pct to determine trade direction
+        price_change_pct = None
+        if len(candles) >= 2:
+            prev_close = candles[-2].close
+            current_close = candles[-1].close
+            if prev_close > 0:
+                price_change_pct = ((current_close - prev_close) / prev_close) * 100.0
+        
         return TriggerSignal(
             symbol=asset.symbol,
             trigger_type="volume_spike",
@@ -393,7 +402,8 @@ class TriggerEngine:
             timestamp=datetime.utcnow(),
             current_price=candles[-1].close,
             volume_ratio=volume_ratio,
-            volatility=volatility
+            volatility=volatility,
+            price_change_pct=price_change_pct
         )
     
     def _check_breakout(self, asset: UniverseAsset, 
