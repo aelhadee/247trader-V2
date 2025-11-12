@@ -39,8 +39,8 @@ def test_summarize_fills_uses_quote_when_base_mismatch(fill, expected_base, expe
 
     total_size, avg_price, total_fees, total_quote = ExecutionEngine._summarize_fills([fill])
 
-    assert total_size == pytest.approx(expected_base)
-    assert avg_price == pytest.approx(expected_quote / expected_base)
+    assert total_size == pytest.approx(float(expected_base))
+    assert avg_price == pytest.approx(float(expected_quote / expected_base))
     assert total_fees == pytest.approx(float(fill["commission"]))
     assert total_quote == pytest.approx(float(expected_quote))
 
