@@ -68,6 +68,7 @@ def test_reconcile_fills_uses_base_units(execution_engine, state_store):
     position = positions["XLM-USD"]
 
     assert position["quantity"] == pytest.approx(float(base_expected))
+    assert position["base_qty"] == pytest.approx(float(base_expected))
     assert position["entry_price"] == pytest.approx(float(price))
     assert position["entry_value_usd"] == pytest.approx(float(quote_notional))
     assert summary["fills_processed"] == 1
@@ -94,3 +95,4 @@ def test_reconcile_fills_records_fees(execution_engine, state_store):
     state = state_store.load()
     position = state["positions"]["ADA-USD"]
     assert position["fees_paid"] == pytest.approx(0.0125)
+    assert position["base_qty"] == pytest.approx(5.0 / 0.55, rel=1e-6)
