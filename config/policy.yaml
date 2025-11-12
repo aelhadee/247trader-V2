@@ -279,7 +279,7 @@ portfolio_management:
   # Automatically trim portfolio back under global risk cap before evaluating new trades
   auto_trim_to_risk_cap: true
   # Buffer below the hard cap to avoid thrash when exposure hovers near the threshold (percent of NAV)
-  trim_target_buffer_pct: 1.0
+  trim_target_buffer_pct: 10.0
   # Allowable margin over the cap before triggering forced trimming (percent of NAV)
   trim_tolerance_pct: 0.25
   # Minimum USD value for liquidation attempts when trimming exposure
