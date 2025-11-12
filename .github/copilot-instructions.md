@@ -12,7 +12,7 @@
 - Output format for bigger tasks: TL;DR → Findings → Risks → Improvements (ICE: Impact/Confidence/Effort) → Recommendation (Go/No-Go %) → Caveats/tips.
 
 NOTE: after edits, run `git add -A && git commit -m "updates summary" && git push origin main`
-
+NOTE2: 
 ---
 
 # 247trader‑v2 Copilot Guide
