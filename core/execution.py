@@ -1254,7 +1254,7 @@ class ExecutionEngine:
         
         # Cooldown: skip if this symbol recently failed
         if not bypass_failed_order_cooldown and self.failed_order_cooldown_seconds > 0:
-            now = datetime.utcnow().timestamp()
+            now = datetime.now(timezone.utc).timestamp()
             last = self._last_fail.get(symbol.split('-')[0], 0)
             if last and (now - last) < self.failed_order_cooldown_seconds:
                 return ExecutionResult(
@@ -1789,7 +1789,7 @@ class ExecutionEngine:
             # Record failure for cooldown
             try:
                 base_sym = symbol.split('-')[0] if '-' in symbol else symbol
-                self._last_fail[base_sym] = datetime.utcnow().timestamp()
+                self._last_fail[base_sym] = datetime.now(timezone.utc).timestamp()
             except Exception:
                 pass
             order_type = force_order_type or ("limit_post_only" if self.limit_post_only else "market")
