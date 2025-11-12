@@ -57,7 +57,7 @@ class PostOnlyTTLResult:
     status: Optional[str] = None
     fills: Optional[List[Dict[str, Any]]] = None
     filled_size: Optional[float] = None
-    filled_price: Optional[float]] = None
+    filled_price: Optional[float] = None
     fees: Optional[float] = None
     error: Optional[str] = None
 
