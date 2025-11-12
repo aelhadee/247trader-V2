@@ -251,6 +251,7 @@ execution:
   
   # Order management
   cancel_after_seconds: 60          # cancel resting orders if not filled
+  post_only_ttl_seconds: 4          # cancel post-only orders quickly if unfilled
   partial_fill_min_pct: 0.25        # ignore fills <25% when assessing success
   
   # Limit order behavior
