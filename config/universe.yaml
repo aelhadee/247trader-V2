@@ -37,10 +37,14 @@ exclusions:
   temporary_ban_hours: 168
 liquidity:
   max_quote_staleness_seconds: 60
-  max_spread_bps: 80           # align with policy (broadened)
-  min_24h_volume_usd: 8000000  # align with policy (broadened)
-  min_orderbook_depth_usd: 10000  # align with policy (broadened depth)
-  min_depth_20bps_usd: 10000  # Min depth within 20bps
+  max_spread_bps: 80           # Global max (tier-specific limits tighter)
+  min_24h_volume_usd: 8000000  # Baseline minimum
+  # Size-aware depth requirements by tier (10× order notional rule)
+  min_orderbook_depth_usd_t1: 100000  # Tier 1: $100k per side minimum
+  min_orderbook_depth_usd_t2: 25000   # Tier 2: $25k per side minimum
+  min_orderbook_depth_usd_t3: 10000   # Tier 3: $10k per side minimum
+  min_orderbook_depth_usd: 10000  # Legacy fallback (still used in code)
+  min_depth_20bps_usd: 10000  # Min depth within 20bps (legacy)
   # min_exchanges_listed / required_exchanges omitted for now (Coinbase-only)
 regime_modifiers:
   bear:
