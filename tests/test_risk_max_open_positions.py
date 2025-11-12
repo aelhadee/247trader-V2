@@ -180,6 +180,7 @@ def test_check_all_surfaces_proposal_rejections(base_policy):
             "min_trade_notional_usd": 10.0,
             "max_open_positions": 1,
             "allow_adds_when_over_cap": True,
+            "max_position_size_pct": 8.0,
         },
         "strategy": {
             **base_policy["strategy"],
