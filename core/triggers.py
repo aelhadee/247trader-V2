@@ -255,6 +255,106 @@ class TriggerEngine:
         
         return None  # Valid price data
     
+    def _calculate_atr_pct(self, candles: List[OHLCV], period: int = 14) -> float:
+        """
+        Calculate Average True Range as percentage of price.
+        
+        ATR measures volatility. Low ATR = tight range = chop.
+        
+        Args:
+            candles: OHLCV data
+            period: Lookback period (default 14)
+            
+        Returns:
+            ATR as percentage of current price
+        """
+        if len(candles) < period + 1:
+            return 0.0
+        
+        true_ranges = []
+        for i in range(-period, 0):
+            high = candles[i].high
+            low = candles[i].low
+            prev_close = candles[i-1].close
+            
+            # True Range = max of:
+            # 1) Current High - Current Low
+            # 2) |Current High - Previous Close|
+            # 3) |Current Low - Previous Close|
+            tr = max(
+                high - low,
+                abs(high - prev_close),
+                abs(low - prev_close)
+            )
+            true_ranges.append(tr)
+        
+        # Average True Range
+        atr = sum(true_ranges) / len(true_ranges)
+        
+        # Express as percentage of current price
+        current_price = candles[-1].close
+        if current_price <= 0:
+            return 0.0
+        
+        atr_pct = (atr / current_price) * 100.0
+        return atr_pct
+    
+    def _check_atr_filter(self, symbol: str, candles: List[OHLCV]) -> Optional[str]:
+        """
+        Check if asset passes ATR volatility filter.
+        
+        Returns rejection reason if fails, None if passes.
+        
+        Filters out low-volatility chop/tight ranges where signals
+        tend to be false positives.
+        
+        Per policy.yaml circuit_breakers:
+        - enable_atr_filter: enable/disable
+        - atr_lookback_periods: period for ATR calculation (default 14)
+        - atr_min_multiplier: minimum ATR vs median (default 1.2x)
+        """
+        if not self.enable_atr_filter:
+            return None  # Filter disabled
+        
+        # Need sufficient data
+        if len(candles) < self.atr_lookback * 2:
+            return None  # Insufficient data, skip filter
+        
+        # Calculate current ATR
+        current_atr_pct = self._calculate_atr_pct(candles, self.atr_lookback)
+        
+        # Calculate median ATR over last 7 days (168 hours)
+        atr_samples = []
+        for i in range(-168, -self.atr_lookback):
+            if i + self.atr_lookback < 0:
+                # Calculate ATR for this window
+                window = candles[i:i+self.atr_lookback+1]
+                if len(window) >= self.atr_lookback + 1:
+                    atr_pct = self._calculate_atr_pct(window, self.atr_lookback)
+                    atr_samples.append(atr_pct)
+        
+        if not atr_samples:
+            return None  # Can't calculate median
+        
+        # Calculate median
+        sorted_samples = sorted(atr_samples)
+        median_atr_pct = sorted_samples[len(sorted_samples) // 2]
+        
+        # Check if current ATR meets minimum threshold
+        if median_atr_pct <= 0:
+            return None  # Invalid median
+        
+        atr_ratio = current_atr_pct / median_atr_pct
+        
+        if atr_ratio < self.atr_min_multiplier:
+            return (
+                f"Low volatility: ATR {current_atr_pct:.2f}% "
+                f"({atr_ratio:.2f}x median {median_atr_pct:.2f}%, "
+                f"need {self.atr_min_multiplier:.1f}x)"
+            )
+        
+        return None  # Passes filter
+    
     def _calculate_volatility(self, candles: List[OHLCV]) -> float:
         """
         Calculate annualized volatility from hourly returns.
