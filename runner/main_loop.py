@@ -1806,17 +1806,17 @@ class TradingLoop:
         pm_cfg = self.policy_config.get("portfolio_management", {})
         purge_cfg = pm_cfg.get("purge_execution", {})
 
-    slice_usd = float(purge_cfg.get("slice_usd", 15.0))
-    replace_seconds = float(purge_cfg.get("replace_seconds", 20.0))
-    max_duration = float(purge_cfg.get("max_duration_seconds", 180.0))
-    poll_interval = float(purge_cfg.get("poll_interval_seconds", 2.0))
-    max_slices = int(purge_cfg.get("max_slices", 20))
-    max_residual = float(purge_cfg.get("max_residual_usd", self.executor.min_notional_usd))
-    max_consecutive_no_fill = int(purge_cfg.get("max_consecutive_no_fill", 3))
+        slice_usd = float(purge_cfg.get("slice_usd", 15.0))
+        replace_seconds = float(purge_cfg.get("replace_seconds", 20.0))
+        max_duration = float(purge_cfg.get("max_duration_seconds", 180.0))
+        poll_interval = float(purge_cfg.get("poll_interval_seconds", 2.0))
+        max_slices = int(purge_cfg.get("max_slices", 20))
+        max_residual = float(purge_cfg.get("max_residual_usd", self.executor.min_notional_usd))
+        max_consecutive_no_fill = int(purge_cfg.get("max_consecutive_no_fill", 3))
 
         slice_usd = max(slice_usd, self.executor.min_notional_usd)
         poll_interval = max(0.2, poll_interval)
-    max_consecutive_no_fill = max(1, max_consecutive_no_fill)
+        max_consecutive_no_fill = max(1, max_consecutive_no_fill)
 
         # Determine candidate trading pairs (USD preferred, USDC fallback)
         candidates = []
@@ -1870,9 +1870,9 @@ class TradingLoop:
         total_fees = 0.0
         attempt = 0
 
-    consecutive_no_fill = 0
+        consecutive_no_fill = 0
 
-    while total_filled_usd + 1e-6 < target_value_usd:
+        while total_filled_usd + 1e-6 < target_value_usd:
             if attempt >= max_slices:
                 logger.warning("TWAP: reached max slices (%d) for %s", max_slices, pair)
                 break
