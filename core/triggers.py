@@ -8,7 +8,7 @@ Inspired by Jesse's clean strategy lifecycle and Freqtrade's indicator patterns.
 """
 
 from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 import logging
 
@@ -34,6 +34,8 @@ class TriggerSignal:
     price_change_pct: Optional[float] = None
     technical_score: Optional[float] = None
     volatility: Optional[float] = None  # Annualized volatility for sizing
+    qualifiers: Dict[str, bool] = field(default_factory=dict)
+    metrics: Dict[str, float] = field(default_factory=dict)
 
 
 class TriggerEngine:
