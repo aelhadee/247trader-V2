@@ -2139,14 +2139,17 @@ class TradingLoop:
 
         return filled_value, filled_units, fees, fills, last_status or "unknown"
     
-    def run_forever(self, interval_seconds: int = 300):
+    def run_forever(self, interval_seconds: Optional[float] = None):
         """
         Run trading loop continuously with time-aware sleep.
         
         Args:
             interval_seconds: Seconds between cycle starts
         """
-        logger.info(f"Starting continuous loop (interval={interval_seconds}s)")
+        configured_interval = float(interval_seconds) if interval_seconds else (self.loop_interval_seconds or 300.0)
+        configured_interval = max(configured_interval, 1.0)
+
+        logger.info(f"Starting continuous loop (interval={configured_interval}s)")
         
         while self._running:
             start = time.monotonic()
@@ -2155,12 +2158,12 @@ class TradingLoop:
             
             # Add ±10% jitter to avoid synchronized bursts
             import random
-            jitter = random.uniform(-0.1, 0.1) * interval_seconds
-            base_sleep = interval_seconds - elapsed
+            jitter = random.uniform(-0.1, 0.1) * configured_interval
+            base_sleep = configured_interval - elapsed
             sleep_for = max(1.0, base_sleep + jitter)
             
             # Auto-backoff if cycle utilization > 70%
-            utilization = elapsed / interval_seconds
+            utilization = elapsed / configured_interval
             if utilization > 0.7:
                 backoff = 15.0
                 sleep_for += backoff
