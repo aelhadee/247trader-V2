@@ -10,6 +10,7 @@ submissions on network retries.
 
 import uuid
 import hashlib
+import time
 from typing import Any, Dict, List, Optional, Tuple, Set
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
@@ -45,6 +46,20 @@ class ExecutionResult:
             self.timestamp = datetime.now(timezone.utc)
         if self.side:
             self.side = self.side.upper()
+
+
+@dataclass
+class PostOnlyTTLResult:
+    """Outcome of post-only TTL enforcement."""
+
+    triggered: bool
+    canceled: bool = False
+    status: Optional[str] = None
+    fills: Optional[List[Dict[str, Any]]] = None
+    filled_size: Optional[float] = None
+    filled_price: Optional[float]] = None
+    fees: Optional[float] = None
+    error: Optional[str] = None
 
 
 class ExecutionEngine:
