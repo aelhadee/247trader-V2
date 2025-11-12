@@ -43,6 +43,9 @@ class RiskConfig(BaseModel):
     per_symbol_cooldown_minutes: int = Field(ge=0, description="Per-symbol cooldown (minutes)")
     per_symbol_cooldown_after_stop: int = Field(ge=0, description="Cooldown after stop-loss (minutes)")
     min_trade_notional_usd: float = Field(gt=0, description="Minimum trade size USD")
+    dust_threshold_usd: float = Field(default=0.0, ge=0, description="Positions below this USD value are treated as dust")
+    allow_adds_when_over_cap: bool = Field(default=True, description="Allow add-ons to existing positions when caps are saturated")
+    count_open_orders_in_cap: bool = Field(default=True, description="Count open buy orders toward max position cap")
     stop_loss_pct: float = Field(gt=0, le=100, description="Stop loss %")
     take_profit_pct: float = Field(gt=0, description="Take profit %")
     count_external_positions: bool = Field(default=True, description="Count non-managed holdings toward exposure cap")
@@ -129,6 +132,10 @@ class ExecutionConfig(BaseModel):
     cancel_after_seconds: int = Field(ge=0, description="Cancel stale orders after (seconds)")
     post_only_ttl_seconds: int = Field(ge=0, description="Cancel post-only orders after (seconds)")
     post_trade_reconcile_wait_seconds: float = Field(ge=0, description="Wait after trade (seconds)")
+    min_notional_usd: float = Field(default=0.0, ge=0, description="Execution-layer minimum notional (USD)")
+    cancel_retry_backoff_ms: List[int] = Field(default_factory=list, description="Retry backoff schedule for cancel attempts (milliseconds)")
+    promote_to_taker_if_budget_allows: bool = Field(default=False, description="Promote to taker orders when total cost fits budget")
+    taker_promotion_requirements: Dict[str, float] = Field(default_factory=dict, description="Requirements for taker promotion decisions")
 
 
 class DataConfig(BaseModel):
