@@ -12,7 +12,7 @@
 - Output format for bigger tasks: TL;DR → Findings → Risks → Improvements (ICE: Impact/Confidence/Effort) → Recommendation (Go/No-Go %) → Caveats/tips.
 
 
-NOTE2: you can check ./reference_code/.. (freqtrade, hummingbot, jesse, Superlagos) for inspiration on best practices in crypto trading bots and reference implementations.
+NOTE: you can check ./reference_code/.. (freqtrade, hummingbot, jesse, Superlagos) for inspiration on best practices in crypto trading bots and reference implementations.
 ---
 
 # 247trader‑v2 Copilot Guide
