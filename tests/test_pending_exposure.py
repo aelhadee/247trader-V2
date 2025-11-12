@@ -87,10 +87,9 @@ def test_pending_buy_order_counts_toward_total_exposure(risk_engine):
     proposal = TradeProposal(
         symbol="SOL-USD",
         side="buy",
-        base_size_usd=900.0,  # 9% of NAV
-        conviction=0.8,
-        reason="test",
-        tier="tier1"
+        size_pct=9.0,  # 9% of NAV = $900
+        confidence=0.8,
+        reason="test"
     )
     
     result = risk_engine.check_all(portfolio, [proposal])
