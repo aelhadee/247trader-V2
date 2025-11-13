@@ -266,6 +266,57 @@ class ExecutionEngine:
         logger.debug(f"Quote freshness OK for {symbol}: {age_seconds:.1f}s old")
         return None
     
+    def _quantize_price(self, price: float, increment: str, cushion_ticks: int = 0) -> str:
+        """
+        Floor price to product increment with optional maker cushion.
+        
+        Args:
+            price: Raw price value
+            increment: Price increment from product spec (e.g. "0.01")
+            cushion_ticks: Number of ticks to subtract for maker cushion (default 0)
+            
+        Returns:
+            Quantized price as string
+        """
+        try:
+            p_step = Decimal(increment)
+            p_dec = Decimal(str(price))
+            # Floor to increment
+            quantized = (p_dec // p_step) * p_step
+            # Apply cushion (subtract ticks for BUY, add ticks for SELL handled by caller)
+            if cushion_ticks > 0:
+                quantized = quantized - (p_step * cushion_ticks)
+            # Ensure non-negative
+            if quantized < 0:
+                quantized = Decimal(0)
+            return format(quantized, 'f')
+        except (InvalidOperation, ValueError) as e:
+            logger.warning(f"Price quantization failed: {e}, returning raw")
+            return str(price)
+    
+    def _quantize_size(self, size: float, increment: str) -> str:
+        """
+        Floor size to product base increment.
+        
+        Args:
+            size: Raw size value
+            increment: Base increment from product spec (e.g. "0.1")
+            
+        Returns:
+            Quantized size as string
+        """
+        try:
+            s_step = Decimal(increment)
+            s_dec = Decimal(str(size))
+            quantized = (s_dec // s_step) * s_step
+            # Ensure non-negative
+            if quantized < 0:
+                quantized = Decimal(0)
+            return format(quantized, 'f')
+        except (InvalidOperation, ValueError) as e:
+            logger.warning(f"Size quantization failed: {e}, returning raw")
+            return str(size)
+    
     @staticmethod
     def _sanitize_client_prefix(prefix: str) -> str:
         """Ensure client order prefix is lowercase and ASCII-safe."""
