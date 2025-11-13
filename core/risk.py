@@ -811,6 +811,30 @@ class RiskEngine:
                 proposal_rejections=proposal_rejections,
             )
         
+        proposals, caps_rejections, degrade_count = self._apply_caps_to_proposals(
+            proposals,
+            portfolio,
+            pending_notional_map=combined_pending_map,
+        )
+        _merge_rejections(caps_rejections)
+
+        if not proposals:
+            return RiskCheckResult(
+                approved=False,
+                reason="All proposals blocked by exposure caps",
+                violated_checks=["exposure_caps"],
+                proposal_rejections=proposal_rejections,
+            )
+
+        if degrade_count > 0:
+            logger.info(
+                "Exposure caps degraded %d proposal(s); snapshot=%s",
+                degrade_count,
+                self.last_caps_snapshot,
+            )
+        elif self.last_caps_snapshot:
+            logger.debug("Exposure caps snapshot: %s", self.last_caps_snapshot)
+
         # 6. Position sizing (per proposal)
         approved_proposals = []
         violated = []
