@@ -565,7 +565,7 @@ class ExecutionEngine:
         Terminal states: rejected, canceled, failed, filled
         """
         logger.debug(f"Order terminal: {client_order_id} {symbol} {side} → {status}")
-        self._clear_pending_marker(symbol, side, client_order_id)
+        self._clear_pending_marker(symbol, side, client_order_id=client_order_id)
         
         # Transition order state machine if needed
         status_upper = status.upper()
