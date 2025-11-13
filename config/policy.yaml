@@ -40,11 +40,12 @@ risk:
   managed_position_tag: "247trader"  # Tag applied to client order IDs for managed trades
   external_exposure_buffer_pct: 5.0  # Allow this % of external holdings as buffer before counting
   
-  # Per-asset limits
-  max_position_size_pct: 5.0  # 5% of NLV per coin
-  max_per_asset_pct: 5.0      # Alias for spec compatibility
+  # Per-asset limits (DYNAMIC based on profile - see profiles section above)
+  # Active profile: day_trader
+  max_position_size_pct: 7.0  # T1: 7% of NLV per coin (day_trader profile)
+  max_per_asset_pct: 7.0      # Alias for spec compatibility
   min_position_size_pct: 0.5
-  max_open_positions: 12      # Hard cap on concurrently held tickers (alias for strategy setting)
+  max_open_positions: 12      # Hard cap on concurrently held tickers
   
   # Per-theme limits (cluster exposure)
   max_per_theme_pct:
