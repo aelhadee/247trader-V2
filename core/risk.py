@@ -39,6 +39,17 @@ class RiskCheckResult:
 
 
 @dataclass
+class CapAllocationResult:
+    """Outcome of caps-based resizing for a proposal."""
+
+    approved: bool
+    reason: Optional[str]
+    assigned_usd: float
+    min_bump_applied: bool = False
+    degraded: bool = False
+
+
+@dataclass
 class PortfolioState:
     """
     Snapshot of portfolio state for risk checks.
