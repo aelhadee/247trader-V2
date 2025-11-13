@@ -2584,6 +2584,13 @@ class ExecutionEngine:
                 self.sync_open_orders_snapshot(remote_orders)
             except Exception as exc:
                 logger.debug("Open order snapshot sync failed: %s", exc)
+            
+            # Backfill pending markers from open orders
+            try:
+                self._backfill_pending_markers(remote_orders)
+            except Exception as exc:
+                logger.debug("Pending marker backfill failed: %s", exc)
+            
             self.state_store.purge_expired_pending()
 
         for tracked in active_orders:
