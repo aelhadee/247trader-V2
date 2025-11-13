@@ -708,6 +708,29 @@ class CoinbaseExchange:
         metadata = self.get_product_metadata(product_id)
         return bool(metadata and metadata.get("status", "").lower() != "offline")
     
+    def get_product_spec(self, product_id: str) -> dict:
+        """
+        Get product specification (increments, lot sizes, min notionals).
+        
+        Returns dict with:
+            - quote_increment: minimum price tick (e.g. "0.01")
+            - base_increment: minimum size tick (e.g. "0.00000001")
+            - min_market_funds: minimum order notional (e.g. "5")
+            - status: product status ("online", "offline")
+        
+        Returns empty dict if product not found.
+        """
+        metadata = self.get_product_metadata(product_id)
+        if not metadata:
+            return {}
+        
+        return {
+            "quote_increment": metadata.get("quote_increment") or metadata.get("price_increment") or "0.01",
+            "base_increment": metadata.get("base_increment") or "0.00000001",
+            "min_market_funds": metadata.get("min_market_funds") or "5",
+            "status": metadata.get("status", ""),
+        }
+    
     def preview_order(self, product_id: str, side: str, quote_size_usd: float) -> dict:
         """
         Preview an order without placing it (dry-run).
