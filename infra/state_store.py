@@ -8,6 +8,7 @@ Ported from v1 with enhancements for v2 architecture.
 import json
 import os
 import tempfile
+import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, Optional, Tuple, List
