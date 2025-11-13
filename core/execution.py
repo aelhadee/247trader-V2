@@ -2741,12 +2741,40 @@ class ExecutionEngine:
         live_identifiers: Set[str] = set()
         remote_orders: List[Dict[str, Any]] = []
         
+        # Purge expired entries from recently-canceled cache
+        self._purge_expired_recently_canceled()
+        
         # Fetch open orders from exchange
         try:
             remote_orders = self.exchange.list_open_orders()
         except Exception as exc:
             logger.debug("Open order fetch failed during reconciliation: %s", exc)
             return  # Early exit if fetch fails
+        
+        # Filter out orders that were recently canceled (Coinbase eventual consistency)
+        filtered_remote_orders = []
+        for remote in remote_orders or []:
+            order_id = remote.get("order_id") or remote.get("id")
+            client_id = remote.get("client_order_id") or remote.get("client_order_id_v2")
+            
+            # Check if this order was recently canceled
+            is_recently_canceled = (
+                (order_id and order_id in self._recently_canceled) or
+                (client_id and client_id in self._recently_canceled)
+            )
+            
+            if is_recently_canceled:
+                logger.debug(
+                    "Filtering out recently-canceled order %s (%s) from remote_orders (API eventual consistency)",
+                    order_id or "?",
+                    client_id or "?",
+                )
+                continue
+            
+            filtered_remote_orders.append(remote)
+
+        # Use filtered list for rest of processing
+        remote_orders = filtered_remote_orders
 
         # Build set of live order IDs from exchange
         for remote in remote_orders or []:
