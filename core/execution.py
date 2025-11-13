@@ -511,7 +511,10 @@ class ExecutionEngine:
         return "+".join(parts)
 
     def _adaptive_maker_ttl(self, quote, attempt_index: int) -> int:
-        """Derive TTL for maker attempt using spread-aware heuristic."""
+        """
+        Derive TTL for maker attempt using spread-aware heuristic.
+        Adds ±1s random jitter to avoid synchronized cancels.
+        """
 
         if self.maker_max_ttl_seconds <= 0:
             return 0
@@ -538,6 +541,11 @@ class ExecutionEngine:
             decay = self.maker_reprice_decay if 0 < self.maker_reprice_decay < 1 else 0.7
             ttl = int(round(ttl * decay))
             ttl = max(ttl, self.maker_retry_min_ttl_seconds)
+
+        # Add ±1s random jitter to avoid synchronized cancels across cycles
+        import random
+        jitter = random.uniform(-1.0, 1.0)
+        ttl = int(round(ttl + jitter))
 
         return max(ttl, 1)
     
