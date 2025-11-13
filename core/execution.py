@@ -406,6 +406,130 @@ class ExecutionEngine:
         fee_bps = self.maker_fee_bps if is_maker else self.taker_fee_bps
         fee_rate = fee_bps / 10000.0
         return target_net_usd / (1.0 - fee_rate)
+
+    def _build_execution_plan(self, force_order_type: Optional[str], size_usd: float) -> List[Dict[str, Any]]:
+        """Construct ordered execution attempts respecting maker/taker preferences."""
+
+        plan: List[Dict[str, Any]] = []
+        forced = (force_order_type or "").lower()
+        small_market = (
+            self.small_order_market_threshold_usd
+            and size_usd <= self.small_order_market_threshold_usd
+        )
+
+        if forced == "market":
+            plan.append({"order_type": "market", "mode": "forced"})
+            return plan
+
+        if forced == "limit_post_only":
+            attempts = max(1, self.maker_max_reprices + 1)
+            for attempt in range(attempts):
+                plan.append({"order_type": "limit_post_only", "mode": "forced", "attempt": attempt})
+            return plan
+
+        use_maker = bool(self.maker_first) and not small_market
+
+        if use_maker:
+            attempts = max(1, self.maker_max_reprices + 1)
+            for attempt in range(attempts):
+                plan.append({"order_type": "limit_post_only", "mode": "maker", "attempt": attempt})
+            if self.taker_fallback_enabled:
+                plan.append({"order_type": "market", "mode": "fallback"})
+        else:
+            plan.append({"order_type": "market", "mode": "primary"})
+
+        return plan
+
+    def _describe_execution_plan(self, plan: List[Dict[str, Any]]) -> str:
+        """Return compact string summary for logging."""
+
+        parts: List[str] = []
+        maker_steps = [step for step in plan if step.get("order_type") == "limit_post_only"]
+        fallback_steps = [step for step in plan if step.get("mode") == "fallback"]
+
+        if maker_steps:
+            count = len(maker_steps)
+            parts.append(f"maker_x{count}")
+        for step in plan:
+            if step.get("order_type") == "market" and step.get("mode") == "forced":
+                parts.append("market_forced")
+        if fallback_steps:
+            parts.append("taker_fallback")
+        if not parts:
+            parts.append("market")
+        return "+".join(parts)
+
+    def _adaptive_maker_ttl(self, quote, attempt_index: int) -> int:
+        """Derive TTL for maker attempt using spread-aware heuristic."""
+
+        if self.maker_max_ttl_seconds <= 0:
+            return 0
+
+        spread_bps = 0.0
+        if quote is not None:
+            try:
+                spread_bps = float(getattr(quote, "spread_bps", 0.0) or 0.0)
+            except (TypeError, ValueError):
+                spread_bps = 0.0
+
+        if spread_bps <= 2.0:
+            ttl = 6
+        elif spread_bps <= 5.0:
+            ttl = 9
+        else:
+            ttl = 12
+
+        ttl = min(ttl, self.maker_max_ttl_seconds)
+
+        if attempt_index == 0:
+            ttl = max(ttl, self.maker_first_min_ttl_seconds)
+        else:
+            decay = self.maker_reprice_decay if 0 < self.maker_reprice_decay < 1 else 0.7
+            ttl = int(round(ttl * decay))
+            ttl = max(ttl, self.maker_retry_min_ttl_seconds)
+
+        return max(ttl, 1)
+
+    def _taker_slippage_budget(self, tier: Optional[int]) -> Optional[float]:
+        if not self.taker_slippage_bps_per_tier:
+            return None
+
+        key = f"T{tier}" if tier is not None else None
+        raw = None
+        if key and key in self.taker_slippage_bps_per_tier:
+            raw = self.taker_slippage_bps_per_tier.get(key)
+        elif tier is not None and str(tier) in self.taker_slippage_bps_per_tier:
+            raw = self.taker_slippage_bps_per_tier.get(str(tier))
+        else:
+            raw = self.taker_slippage_bps_per_tier.get("default")
+
+        if raw is None:
+            return None
+
+        try:
+            budget = float(raw)
+        except (TypeError, ValueError):
+            return None
+
+        return budget if budget > 0 else None
+
+    def _is_taker_slippage_allowed(self, estimated_slippage_bps: float, tier: Optional[int]) -> bool:
+        budget = self._taker_slippage_budget(tier)
+        if budget is None:
+            return True
+        try:
+            return float(estimated_slippage_bps) <= budget
+        except (TypeError, ValueError):
+            return False
+
+    @staticmethod
+    def _should_retry_maker(result: ExecutionResult) -> bool:
+        if result.success:
+            return False
+        if not result.error:
+            return False
+        text = result.error.lower()
+        return "post-only order canceled" in text
     
     def get_min_gross_size(self, is_maker: bool = True) -> float:
         """
