@@ -557,18 +557,23 @@ class RiskEngine:
         prioritized = sorted(indexed, key=lambda item: getattr(item[1], "confidence", 0.0), reverse=True)
 
         for idx, proposal in prioritized:
+            side = (proposal.side or "").upper() or "BUY"
+            if side != "BUY":
+                approved_indices[idx] = proposal
+                continue
+
             allocation = self._resize_proposal_to_caps(proposal, snapshot)
             if allocation.approved:
                 nav = snapshot["nav"]
                 assigned_usd = allocation.assigned_usd
-                proposal.annotations["risk_assigned_usd"] = round(assigned_usd, 2)
+                proposal.metadata["risk_assigned_usd"] = round(assigned_usd, 2)
                 proposal.metadata["risk_notional_usd"] = assigned_usd
 
                 if allocation.degraded:
-                    proposal.annotations["risk_degraded"] = True
+                    proposal.metadata["risk_degraded"] = True
                     degrade_count += 1
                 if allocation.min_bump_applied:
-                    proposal.annotations["risk_min_bump"] = True
+                    proposal.metadata["risk_min_bump"] = True
 
                 if nav > 0:
                     proposal.size_pct = (assigned_usd / nav) * 100.0
