@@ -540,6 +540,36 @@ class ExecutionEngine:
             ttl = max(ttl, self.maker_retry_min_ttl_seconds)
 
         return max(ttl, 1)
+    
+    def _clear_pending_marker(self, symbol: str, side: str, client_order_id: Optional[str] = None):
+        """Clear pending marker for a symbol/side/client_order_id."""
+        if self.state_store:
+            try:
+                self.state_store.clear_pending(symbol, side, coid=client_order_id)
+                logger.debug(f"Cleared pending marker for {symbol} {side} (coid={client_order_id})")
+            except Exception as e:
+                logger.warning(f"Failed to clear pending marker for {symbol}: {e}")
+    
+    def _on_order_terminal(self, symbol: str, side: str, client_order_id: str, status: str):
+        """
+        Called when an order reaches a terminal state.
+        Clears pending markers and updates order state machine.
+        
+        Terminal states: rejected, canceled, failed, filled
+        """
+        logger.debug(f"Order terminal: {client_order_id} {symbol} {side} → {status}")
+        self._clear_pending_marker(symbol, side, client_order_id)
+        
+        # Transition order state machine if needed
+        status_upper = status.upper()
+        if status_upper == "REJECTED":
+            self.order_state_machine.transition(client_order_id, OrderStatus.REJECTED)
+        elif status_upper == "CANCELED" or status_upper == "CANCELLED":
+            self.order_state_machine.transition(client_order_id, OrderStatus.CANCELLED)
+        elif status_upper == "FAILED":
+            self.order_state_machine.transition(client_order_id, OrderStatus.FAILED)
+        elif status_upper == "FILLED":
+            self.order_state_machine.transition(client_order_id, OrderStatus.FILLED)
 
     def _taker_slippage_budget(self, tier: Optional[int]) -> Optional[float]:
         if not self.taker_slippage_bps_per_tier:
