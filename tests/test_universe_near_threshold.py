@@ -52,10 +52,11 @@ def test_volume_near_threshold_override_allows_asset():
     }
     tier_cfg = {}
 
-    eligible, reason = manager._check_liquidity(quote, orderbook, global_cfg, tier_cfg, tier=1)
+    eligible, reason, eligibility_reason = manager._check_liquidity(quote, orderbook, global_cfg, tier_cfg, tier=1)
 
     assert eligible
     assert reason is None
+    assert eligibility_reason == "override_volume"
     assert manager._near_threshold_usage["tier1"] == 1
 
 
@@ -89,8 +90,9 @@ def test_depth_near_threshold_override_allows_asset():
     }
     tier_cfg = {}
 
-    eligible, reason = manager._check_liquidity(quote, orderbook, global_cfg, tier_cfg, tier=1)
+    eligible, reason, eligibility_reason = manager._check_liquidity(quote, orderbook, global_cfg, tier_cfg, tier=1)
 
     assert eligible
     assert reason is None
+    assert eligibility_reason == "override_depth"
     assert manager._near_threshold_usage["tier1"] == 1
