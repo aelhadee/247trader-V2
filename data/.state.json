@@ -12,13 +12,13 @@
       "available": 49.46209573,
       "hold": 0.0,
       "total": 49.46209573,
-      "usd_value": 14.29034138783295
+      "usd_value": 14.297340274378746
     },
     "ADA": {
       "available": 25.19157643,
       "hold": 0.0,
       "total": 25.19157643,
-      "usd_value": 14.119878589015
+      "usd_value": 14.1261764831225
     },
     "BONK": {
       "available": 2048613.0,
@@ -30,61 +30,61 @@
       "available": 80.0,
       "hold": 0.0,
       "total": 80.0,
-      "usd_value": 1.16348
+      "usd_value": 1.1650800000000001
     },
     "UNI": {
       "available": 1.093593,
       "hold": 0.0,
       "total": 1.093593,
-      "usd_value": 8.749290796499999
+      "usd_value": 8.7525715755
     },
     "AERO": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.09960850000000002
+      "usd_value": 0.09963050000000001
     },
     "FET": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.031395
+      "usd_value": 0.031405
     },
     "WLFI": {
       "available": 78.5,
       "hold": 0.0,
       "total": 78.5,
-      "usd_value": 11.62114
+      "usd_value": 11.6097575
     },
     "HBAR": {
       "available": 909.4,
       "hold": 0.0,
       "total": 909.4,
-      "usd_value": 162.705301
+      "usd_value": 162.714395
     },
     "ZK": {
       "available": 0.21905562,
       "hold": 0.0,
       "total": 0.21905562,
-      "usd_value": 0.0109166368227
+      "usd_value": 0.0109188273789
     },
     "DOGE": {
       "available": 145.6,
       "hold": 0.0,
       "total": 145.6,
-      "usd_value": 25.389
+      "usd_value": 25.390456
     },
     "XRP": {
       "available": 7.306266,
       "hold": 0.0,
       "total": 7.306266,
-      "usd_value": 18.0424585737
+      "usd_value": 18.0512260929
     },
     "BTC": {
       "available": 0.00068841,
       "hold": 0.0,
       "total": 0.00068841,
-      "usd_value": 70.33622307795
+      "usd_value": 70.37065046205
     }
   },
   "managed_positions": {},
@@ -872,38 +872,10 @@
       "2025-11-13T04:44:39.694815+00:00"
     ]
   },
-  "last_reconcile_at": "2025-11-13T05:28:49.744525+00:00",
+  "last_reconcile_at": "2025-11-13T05:29:53.749152+00:00",
   "last_reset_date": "2025-11-13",
   "last_reset_hour": 5,
   "events": [
-    {
-      "at": "2025-11-13T04:46:25.915780+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 3,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-13T04:46:30.685754+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 1,
-      "closed": [
-        "378d866b-0f73-4717-be51-a9dc93f7499f",
-        "247trader_coid_d82aeafa5e3b308d"
-      ],
-      "created": []
-    },
-    {
-      "at": "2025-11-13T04:46:34.764186+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 3,
-      "closed": [],
-      "created": [
-        "378d866b-0f73-4717-be51-a9dc93f7499f",
-        "247trader_coid_d82aeafa5e3b308d"
-      ]
-    },
     {
       "at": "2025-11-13T04:47:21.291049+00:00",
       "event": "reconcile",
@@ -1697,6 +1669,28 @@
       "open_orders": 0,
       "closed": [],
       "created": []
+    },
+    {
+      "at": "2025-11-13T05:29:53.749152+00:00",
+      "event": "reconcile",
+      "positions": 13,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-13T05:29:58.098255+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-13T05:30:02.101887+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
     }
   ],
   "high_water_mark": 538.2423030124753,
@@ -1704,5 +1698,5 @@
   "auto_tune_applied": false,
   "zero_proposal_cycles": 0,
   "auto_loosen_applied": false,
-  "last_open_orders_sync": "2025-11-13T05:28:58.114387+00:00"
+  "last_open_orders_sync": "2025-11-13T05:30:02.101887+00:00"
 }
