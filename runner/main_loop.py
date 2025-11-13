@@ -1670,6 +1670,13 @@ class TradingLoop:
             raise CriticalDataUnavailable("open_orders", exc) from exc
 
         for order in orders:
+            # Filter out ghost orders that were recently canceled (API eventual consistency)
+            order_id = order.get("order_id")
+            client_id = order.get("client_order_id")
+            if self.executor.is_recently_canceled(order_id=order_id, client_order_id=client_id):
+                logger.debug("Skipping recently-canceled ghost order: %s", order_id or client_id)
+                continue
+
             product = order.get("product_id") or ""
             if '-' not in product:
                 continue
