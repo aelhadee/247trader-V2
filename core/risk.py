@@ -560,6 +560,8 @@ class RiskEngine:
             return proposals, {}, 0
 
         snapshot = self._build_caps_snapshot(portfolio, pending_notional_map)
+        # Set snapshot early so _log_risk_reject() has it during the loop
+        self.last_caps_snapshot = self._summarize_caps_snapshot(snapshot)
 
         approved_indices: Dict[int, TradeProposal] = {}
         rejection_map: Dict[str, List[str]] = {}
