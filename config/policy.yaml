@@ -346,10 +346,14 @@ portfolio_management:
     slice_usd: 15.0               # Notional per maker slice
     replace_seconds: 45           # Reprice cadence for resting orders
     max_duration_seconds: 240     # Bail after 4 minutes of attempts
-    poll_interval_seconds: 2.0    # Order status polling cadence
+    poll_interval_seconds: 2.0    # Order status polling cadency
     max_slices: 24                # Safety cap on number of slices per purge
     max_residual_usd: 5.0         # Allowable leftover notional before flagging failure
-    max_consecutive_no_fill: 3    # Retry cancelled slices up to this many times before aborting
+    max_consecutive_no_fill: 2    # Retry cancelled slices up to this many times before taker fallback (was 3)
+    # Aggressive purge mode for illiquid junk
+    allow_taker_fallback: true    # After max_consecutive_no_fill failures, use taker/market to force completion
+    taker_fallback_threshold_usd: 50.0  # Only use aggressive mode for positions < $50
+    taker_max_slippage_bps: 100   # Allow 1% slippage for forced purge (vs normal 20-60bps)
 
 twap:
   replace_seconds: 45
