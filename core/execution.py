@@ -2314,6 +2314,17 @@ class ExecutionEngine:
             except (InvalidOperation, ValueError):
                 return value
 
+        base_increment = _as_decimal(product_metadata.get("base_increment")) if product_metadata else None
+        price_increment = None
+        quote_increment = None
+        if product_metadata:
+            price_increment = _as_decimal(
+                product_metadata.get("price_increment") or product_metadata.get("quote_increment")
+            )
+            quote_increment = _as_decimal(product_metadata.get("quote_increment"))
+
+        mismatch_tolerance = base_increment if base_increment and base_increment > 0 else Decimal("0.00000001")
+
         total_base = Decimal("0")
         total_quote = Decimal("0")
         total_fees = Decimal("0")
@@ -2328,19 +2339,29 @@ class ExecutionEngine:
             quote_size = _first_decimal(fill, ("size_in_quote", "quote_size", "filled_value"))
             fee = _first_decimal(fill, ("commission", "fee", "fee_amount")) or Decimal("0")
 
-            if (base_size is None or base_size <= 0) and quote_size is not None and quote_size > 0:
-                base_size = quote_size / price
-
-            if base_size is None or base_size <= 0:
-                continue
-
-            cost = price * base_size
-            total_base += base_size
-            total_quote += cost
-            total_fees += fee
+            effective_base = base_size
+            effective_quote = None
 
             if quote_size is not None and quote_size > 0:
+                implied_base = quote_size / price
+                if effective_base is None or effective_base <= 0:
+                    effective_base = implied_base
+                else:
+                    diff = abs(effective_base - implied_base)
+                    if diff > mismatch_tolerance:
+                        effective_base = implied_base
+                effective_quote = quote_size
                 reported_quote_total += quote_size
+
+            if effective_base is None or effective_base <= 0:
+                continue
+
+            if effective_quote is None:
+                effective_quote = price * effective_base
+
+            total_base += effective_base
+            total_quote += effective_quote
+            total_fees += fee
 
         if total_base <= 0:
             return 0.0, 0.0, float(total_fees), float(total_quote)
@@ -2348,15 +2369,6 @@ class ExecutionEngine:
         avg_price = total_quote / total_base
 
         # Quantize results using product metadata (if available)
-        base_increment = _as_decimal(product_metadata.get("base_increment")) if product_metadata else None
-        price_increment = None
-        quote_increment = None
-        if product_metadata:
-            price_increment = _as_decimal(
-                product_metadata.get("price_increment") or product_metadata.get("quote_increment")
-            )
-            quote_increment = _as_decimal(product_metadata.get("quote_increment"))
-
         quantized_base = _quantize(total_base, base_increment)
         if quantized_base > 0:
             total_base = quantized_base
