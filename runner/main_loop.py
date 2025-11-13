@@ -1225,6 +1225,7 @@ class TradingLoop:
                 return
             
             # Avoid stacking buys while there are outstanding orders for the same base asset
+            # Use pending_buy_notional from portfolio snapshot (aggregated from open_orders)
             pending_buy_notional = (pending_orders or {}).get("buy", {})
             filtered = []
             for proposal in proposals:
@@ -1237,14 +1238,8 @@ class TradingLoop:
                         f"Skipping proposal for {proposal.symbol}: ${pending_buy_notional.get(base, 0.0):.2f} already pending"
                     )
                     continue
-                if (
-                    proposal.side.upper() == "BUY"
-                    and self.state_store.has_pending(proposal.symbol, "buy")
-                ):
-                    logger.info(
-                        f"Skip {proposal.symbol}: pending buy marker active (fast guard)"
-                    )
-                    continue
+                # Note: removed "fast guard" short-circuit - let RiskEngine see true state
+                # and make the decision based on actual live orders after reconciliation
                 filtered.append(proposal)
 
             if not filtered:
