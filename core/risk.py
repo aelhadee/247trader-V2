@@ -7,7 +7,7 @@ Pattern: Freqtrade-style protections + custom policy enforcement
 NO component (rules, AI, or human) can violate these.
 """
 
-from typing import List, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from collections import Counter, defaultdict
