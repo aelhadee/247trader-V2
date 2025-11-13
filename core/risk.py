@@ -1445,13 +1445,24 @@ class RiskEngine:
         effective_pending_usd = pending_buy_usd
         allow_adds_when_over_cap = bool(self.risk_config.get("allow_adds_when_over_cap", True))
 
+        risk_cfg = self.risk_config
+        dust_threshold = float(risk_cfg.get("dust_threshold_usd", 0.0) or 0.0)
+        allow_pyramid_config = bool(self.sizing_config.get("allow_pyramiding", False) or risk_cfg.get("allow_pyramiding", False))
+        pyramid_cooldown = int(risk_cfg.get("pyramid_cooldown_seconds", 0) or 0)
+        max_adds_per_day = int(risk_cfg.get("max_adds_per_asset_per_day", 0) or 0)
+
+        if 0 < existing_position_usd < dust_threshold:
+            existing_position_usd = 0.0
+        if 0 < pending_buy_usd < dust_threshold:
+            effective_pending_usd = 0.0
+
         def _pct(value_usd: float) -> float:
             try:
                 return (value_usd / portfolio.account_value_usd) * 100 if portfolio.account_value_usd > 0 else 0.0
             except ZeroDivisionError:
                 return 0.0
 
-        existing_exposure_pct = _pct(existing_position_usd + effective_pending_usd)
+    existing_exposure_pct = _pct(existing_position_usd + effective_pending_usd)
         
         # Get base limits
         max_pos_pct = self.risk_config.get("max_position_size_pct", 5.0)
@@ -1468,6 +1479,39 @@ class RiskEngine:
         side_upper = proposal.side.upper() if proposal.side else "BUY"
         is_existing_position = existing_position_usd > 0.0
 
+        pyramid_allowed_for_symbol = allow_pyramid_config and side_upper == "BUY" and is_existing_position
+        pyramid_block_reason: Optional[str] = None
+
+        if pyramid_allowed_for_symbol:
+            state_store = getattr(self, "_state_store", None)
+            if state_store is None:
+                try:
+                    from infra.state_store import get_state_store  # Local import to avoid circular dependencies
+
+                    state_store = get_state_store()
+                    self._state_store = state_store
+                except Exception:
+                    state_store = None
+
+            now = portfolio.current_time or datetime.now(timezone.utc)
+
+            if state_store and pyramid_cooldown > 0:
+                last_fill = state_store.get_last_fill_time(proposal.symbol, side_upper)
+                if last_fill and (now - last_fill).total_seconds() < pyramid_cooldown:
+                    pyramid_allowed_for_symbol = False
+                    pyramid_block_reason = f"pyramid_cooldown ({proposal.symbol})"
+
+            if state_store and pyramid_allowed_for_symbol and max_adds_per_day > 0:
+                since = now - timedelta(hours=24)
+                fill_count = state_store.get_fill_count_since(proposal.symbol, side_upper, since)
+                if fill_count >= max_adds_per_day:
+                    pyramid_allowed_for_symbol = False
+                    pyramid_block_reason = f"pyramid_daily_limit ({proposal.symbol})"
+
+            if pyramid_allowed_for_symbol:
+                # Pending orders still count, but don't block simply because position exists
+                is_existing_position = False
+
         if side_upper == "BUY":
             combined_pct = existing_exposure_pct + proposal.size_pct
             if combined_pct > max_pos_pct:
@@ -1483,14 +1527,12 @@ class RiskEngine:
             violated.append(f"position_size_too_small ({proposal.size_pct:.1f}% < {min_pos_pct:.1f}%)")
         
         # Check if already have position
-        allow_pyramid = self.sizing_config.get("allow_pyramiding", False)
-        if is_existing_position:
-            if not allow_pyramid and not (side_upper == "BUY" and allow_adds_when_over_cap and effective_pending_usd <= 0):
-                violated.append(f"already_have_position ({proposal.symbol})")
+        if not pyramid_allowed_for_symbol and is_existing_position:
+            violated.append(pyramid_block_reason or f"already_have_position ({proposal.symbol})")
 
-        # Pending orders count toward pyramiding guard as well
-        if not allow_pyramid and effective_pending_usd > 0 and side_upper == "BUY":
-            violated.append(f"pending_buy_exists ({proposal.symbol})")
+        if effective_pending_usd > 0 and side_upper == "BUY":
+            if not pyramid_allowed_for_symbol:
+                violated.append(f"pending_buy_exists ({proposal.symbol})")
         
         if violated:
             return RiskCheckResult(
