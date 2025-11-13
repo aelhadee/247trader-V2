@@ -822,8 +822,12 @@ class CoinbaseExchange:
             resp = self._req("POST", "/orders/cancel", body, authenticated=True)
             return resp
         except Exception as e:
+            message = str(e)
+            if "404" in message or "not found" in message.lower():
+                logger.info("Cancel order %s returned 404/not-found; treating as already closed", order_id)
+                return {"success": False, "error": "not_found", "order_id": order_id}
             logger.error(f"Cancel order failed {order_id}: {e}")
-            return {"success": False, "error": str(e), "order_id": order_id}
+            return {"success": False, "error": message, "order_id": order_id}
 
     def cancel_orders(self, order_ids: List[str]) -> dict:
         """Batch cancel multiple orders (if supported)."""
