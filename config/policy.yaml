@@ -393,6 +393,9 @@ ai:
   max_cost_per_cycle_usd: 2.0
 
 governance:
+  # Live trading safety gate (dead man's switch)
+  live_trading_enabled: true  # Set to false to disable LIVE order execution without code changes
+  
   # Decision logging
   require_decision_reasoning: true
   min_reasoning_length: 50
