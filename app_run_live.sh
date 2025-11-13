@@ -11,7 +11,7 @@
 clear
 set -e  # Exit on error
 set -u  # Exit on undefined variable
-
+export CB_API_SECRET_FILE="/Users/ahmed/coding-stuff/trader/cb_api.json"
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'

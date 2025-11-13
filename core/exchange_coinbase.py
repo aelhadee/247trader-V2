@@ -835,15 +835,30 @@ class CoinbaseExchange:
             return []
 
     def cancel_order(self, order_id: str) -> dict:
-        """Cancel a single order by ID."""
+        """Cancel a single order by ID using batch_cancel endpoint."""
         if self.read_only:
             logger.info(f"READ_ONLY: would cancel order {order_id}")
             return {"success": False, "read_only": True}
         try:
             self._rate_limit("cancel_order")
-            body = {"order_id": order_id}
-            resp = self._req("POST", "/orders/cancel", body, authenticated=True)
-            return resp
+            # Coinbase API uses batch_cancel endpoint for single orders too
+            body = {"order_ids": [order_id]}
+            resp = self._req("POST", "/orders/batch_cancel", body, authenticated=True)
+            
+            # Parse batch response - returns {"results": [{"success": bool, "order_id": str, ...}]}
+            results = resp.get("results", [])
+            if results and len(results) > 0:
+                result = results[0]
+                if result.get("success"):
+                    logger.info(f"Successfully canceled order {order_id}")
+                    return {"success": True, "order_id": order_id}
+                else:
+                    failure_reason = result.get("failure_reason", "unknown")
+                    logger.warning(f"Cancel order {order_id} failed: {failure_reason}")
+                    return {"success": False, "error": failure_reason, "order_id": order_id}
+            else:
+                logger.warning(f"Cancel order {order_id} returned empty results")
+                return {"success": False, "error": "empty_response", "order_id": order_id}
         except Exception as e:
             message = str(e)
             if "404" in message or "not found" in message.lower():
