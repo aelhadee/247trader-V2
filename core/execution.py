@@ -176,6 +176,11 @@ class ExecutionEngine:
         # Track last failure by symbol to avoid retry spam
         self._last_fail = {}
 
+        # Track recently-canceled orders to prevent Coinbase API eventual consistency from re-adding them
+        # Dict[order_id_or_client_id, cancel_timestamp]
+        self._recently_canceled: Dict[str, float] = {}
+        self._recently_canceled_ttl_seconds = 60.0  # 60s grace period
+
         # Quote staleness threshold from policy
         self.max_quote_age_seconds = microstructure_config.get("max_quote_age_seconds", 30)
 

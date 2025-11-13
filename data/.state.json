@@ -12,79 +12,79 @@
       "available": 49.46209573,
       "hold": 0.0,
       "total": 49.46209573,
-      "usd_value": 14.226065394431817
+      "usd_value": 14.285246791972762
     },
     "ADA": {
       "available": 25.19157643,
       "hold": 0.0,
       "total": 25.19157643,
-      "usd_value": 14.017852704473501
+      "usd_value": 14.030448492688501
     },
     "BONK": {
       "available": 2048613.0,
       "hold": 0.0,
       "total": 2048613.0,
-      "usd_value": 25.167210704999995
+      "usd_value": 25.228669095
     },
     "PENGU": {
       "available": 1116.0,
       "hold": 0.0,
       "total": 1116.0,
-      "usd_value": 16.154657999999998
+      "usd_value": 16.200414
     },
     "UNI": {
       "available": 1.093593,
       "hold": 0.0,
       "total": 1.093593,
-      "usd_value": 8.7241381575
+      "usd_value": 8.733980494499999
     },
     "AERO": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.09899050000000001
+      "usd_value": 0.099458
     },
     "FET": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.03111
+      "usd_value": 0.031115
     },
     "WLFI": {
       "available": 78.5,
       "hold": 0.0,
       "total": 78.5,
-      "usd_value": 11.2918325
+      "usd_value": 11.295364999999999
     },
     "HBAR": {
       "available": 909.4,
       "hold": 0.0,
       "total": 909.4,
-      "usd_value": 161.404859
+      "usd_value": 161.22297899999998
     },
     "ZK": {
       "available": 0.01905562,
       "hold": 873.3,
       "total": 873.31905562,
-      "usd_value": 43.329724944586296
+      "usd_value": 43.4519896123731
     },
     "DOGE": {
       "available": 145.6,
       "hold": 0.0,
       "total": 145.6,
-      "usd_value": 25.289991999999998
+      "usd_value": 25.298000000000002
     },
     "XRP": {
       "available": 0.00812,
       "hold": 0.0,
       "total": 0.00812,
-      "usd_value": 0.01999753
+      "usd_value": 0.020021078
     },
     "BTC": {
       "available": 0.00068841,
       "hold": 0.0,
       "total": 0.00068841,
-      "usd_value": 70.10767095794999
+      "usd_value": 70.12596201165
     }
   },
   "managed_positions": {},
@@ -994,20 +994,159 @@
       "first_seen": "2025-11-13T04:11:47.588099+00:00",
       "updated_at": "2025-11-13T04:11:47.588099+00:00",
       "closed_at": "2025-11-13T04:11:48.041315+00:00"
+    },
+    {
+      "order_id": "6d3264c0-9b73-4521-98b0-a497a1fcf2ef",
+      "client_order_id": "378d866b-0f73-4717-be51-a9dc93f7499f",
+      "product_id": "ZK-USD",
+      "side": "sell",
+      "status": "closed",
+      "quote_size_usd": 46.817612999999994,
+      "base_size": 873.3,
+      "filled_size": 0.0,
+      "filled_value": 0.0,
+      "created_time": "2025-11-11T06:05:42.206556Z",
+      "first_seen": "2025-11-13T04:12:48.311481+00:00",
+      "updated_at": "2025-11-13T04:12:48.311481+00:00",
+      "closed_at": "2025-11-13T04:12:48.784811+00:00"
+    },
+    {
+      "order_id": "f8908fce-36de-4c71-813c-c4e6e7787e42",
+      "client_order_id": "247trader_coid_d82aeafa5e3b308d",
+      "product_id": "XRP-USD",
+      "side": "buy",
+      "status": "closed",
+      "quote_size_usd": 9.035819076,
+      "base_size": 3.78908,
+      "filled_size": 0.0,
+      "filled_value": 0.0,
+      "created_time": "2025-11-13T00:24:38.654165Z",
+      "first_seen": "2025-11-13T04:12:48.311481+00:00",
+      "updated_at": "2025-11-13T04:12:48.311481+00:00",
+      "closed_at": "2025-11-13T04:12:48.784811+00:00"
+    },
+    {
+      "order_id": "6d3264c0-9b73-4521-98b0-a497a1fcf2ef",
+      "client_order_id": "378d866b-0f73-4717-be51-a9dc93f7499f",
+      "product_id": "ZK-USD",
+      "side": "sell",
+      "status": "closed",
+      "quote_size_usd": 46.817612999999994,
+      "base_size": 873.3,
+      "filled_size": 0.0,
+      "filled_value": 0.0,
+      "created_time": "2025-11-11T06:05:42.206556Z",
+      "first_seen": "2025-11-13T04:13:53.289298+00:00",
+      "updated_at": "2025-11-13T04:13:53.289298+00:00",
+      "closed_at": "2025-11-13T04:13:53.798127+00:00"
+    },
+    {
+      "order_id": "f8908fce-36de-4c71-813c-c4e6e7787e42",
+      "client_order_id": "247trader_coid_d82aeafa5e3b308d",
+      "product_id": "XRP-USD",
+      "side": "buy",
+      "status": "closed",
+      "quote_size_usd": 9.035819076,
+      "base_size": 3.78908,
+      "filled_size": 0.0,
+      "filled_value": 0.0,
+      "created_time": "2025-11-13T00:24:38.654165Z",
+      "first_seen": "2025-11-13T04:13:53.289298+00:00",
+      "updated_at": "2025-11-13T04:13:53.289298+00:00",
+      "closed_at": "2025-11-13T04:13:53.798127+00:00"
+    },
+    {
+      "order_id": "6d3264c0-9b73-4521-98b0-a497a1fcf2ef",
+      "client_order_id": "378d866b-0f73-4717-be51-a9dc93f7499f",
+      "product_id": "ZK-USD",
+      "side": "sell",
+      "status": "closed",
+      "quote_size_usd": 46.817612999999994,
+      "base_size": 873.3,
+      "filled_size": 0.0,
+      "filled_value": 0.0,
+      "created_time": "2025-11-11T06:05:42.206556Z",
+      "first_seen": "2025-11-13T04:14:50.807743+00:00",
+      "updated_at": "2025-11-13T04:14:50.807743+00:00",
+      "closed_at": "2025-11-13T04:14:51.338591+00:00"
+    },
+    {
+      "order_id": "f8908fce-36de-4c71-813c-c4e6e7787e42",
+      "client_order_id": "247trader_coid_d82aeafa5e3b308d",
+      "product_id": "XRP-USD",
+      "side": "buy",
+      "status": "closed",
+      "quote_size_usd": 9.035819076,
+      "base_size": 3.78908,
+      "filled_size": 0.0,
+      "filled_value": 0.0,
+      "created_time": "2025-11-13T00:24:38.654165Z",
+      "first_seen": "2025-11-13T04:14:50.807743+00:00",
+      "updated_at": "2025-11-13T04:14:50.807743+00:00",
+      "closed_at": "2025-11-13T04:14:51.338591+00:00"
+    },
+    {
+      "order_id": "6d3264c0-9b73-4521-98b0-a497a1fcf2ef",
+      "client_order_id": "378d866b-0f73-4717-be51-a9dc93f7499f",
+      "product_id": "ZK-USD",
+      "side": "sell",
+      "status": "closed",
+      "quote_size_usd": 46.817612999999994,
+      "base_size": 873.3,
+      "filled_size": 0.0,
+      "filled_value": 0.0,
+      "created_time": "2025-11-11T06:05:42.206556Z",
+      "first_seen": "2025-11-13T04:15:47.283060+00:00",
+      "updated_at": "2025-11-13T04:15:47.283060+00:00",
+      "closed_at": "2025-11-13T04:15:47.867844+00:00"
+    },
+    {
+      "order_id": "f8908fce-36de-4c71-813c-c4e6e7787e42",
+      "client_order_id": "247trader_coid_d82aeafa5e3b308d",
+      "product_id": "XRP-USD",
+      "side": "buy",
+      "status": "closed",
+      "quote_size_usd": 9.035819076,
+      "base_size": 3.78908,
+      "filled_size": 0.0,
+      "filled_value": 0.0,
+      "created_time": "2025-11-13T00:24:38.654165Z",
+      "first_seen": "2025-11-13T04:15:47.283060+00:00",
+      "updated_at": "2025-11-13T04:15:47.283060+00:00",
+      "closed_at": "2025-11-13T04:15:47.867844+00:00"
+    },
+    {
+      "order_id": "6d3264c0-9b73-4521-98b0-a497a1fcf2ef",
+      "client_order_id": "378d866b-0f73-4717-be51-a9dc93f7499f",
+      "product_id": "ZK-USD",
+      "side": "sell",
+      "status": "closed",
+      "quote_size_usd": 46.817612999999994,
+      "base_size": 873.3,
+      "filled_size": 0.0,
+      "filled_value": 0.0,
+      "created_time": "2025-11-11T06:05:42.206556Z",
+      "first_seen": "2025-11-13T04:16:45.821852+00:00",
+      "updated_at": "2025-11-13T04:16:45.821852+00:00",
+      "closed_at": "2025-11-13T04:16:46.428996+00:00"
+    },
+    {
+      "order_id": "f8908fce-36de-4c71-813c-c4e6e7787e42",
+      "client_order_id": "247trader_coid_d82aeafa5e3b308d",
+      "product_id": "XRP-USD",
+      "side": "buy",
+      "status": "closed",
+      "quote_size_usd": 9.035819076,
+      "base_size": 3.78908,
+      "filled_size": 0.0,
+      "filled_value": 0.0,
+      "created_time": "2025-11-13T00:24:38.654165Z",
+      "first_seen": "2025-11-13T04:16:45.821852+00:00",
+      "updated_at": "2025-11-13T04:16:45.821852+00:00",
+      "closed_at": "2025-11-13T04:16:46.428996+00:00"
     }
   ],
-  "pending_markers": {
-    "XRP-USD:BUY:247trader_coid_d82aeafa5e3b308d": {
-      "product_id": "XRP-USD",
-      "base": "XRP",
-      "side": "BUY",
-      "client_order_id": "247trader_coid_d82aeafa5e3b308d",
-      "order_id": "f8908fce-36de-4c71-813c-c4e6e7787e42",
-      "notional_usd": 9.035819076,
-      "since": "2025-11-13T04:09:47.063555+00:00",
-      "expires_at": "2025-11-13T04:12:47.063555+00:00"
-    }
-  },
+  "pending_markers": {},
   "last_fill_times": {
     "XLM-USD:BUY": "2025-11-13T03:40:26.897545+00:00",
     "PENGU-USD:BUY": "2025-11-13T03:42:53.133219+00:00",
@@ -1027,136 +1166,10 @@
       "2025-11-13T03:43:44.580342+00:00"
     ]
   },
-  "last_reconcile_at": "2025-11-13T04:11:39.459938+00:00",
+  "last_reconcile_at": "2025-11-13T04:16:37.886776+00:00",
   "last_reset_date": "2025-11-13",
   "last_reset_hour": 4,
   "events": [
-    {
-      "at": "2025-11-13T00:46:03.752574+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 3,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-13T00:46:12.545529+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 3,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-13T03:11:41.139773+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 3,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-13T03:11:49.528560+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 3,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-13T03:32:46.252985+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 2,
-      "orders_closed": [
-        "247trader_coid_7ac7038053ba5a22"
-      ],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-13T03:32:54.799416+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 2,
-      "closed": [
-        "247trader_coid_7ac7038053ba5a22"
-      ],
-      "created": []
-    },
-    {
-      "at": "2025-11-13T03:38:44.993137+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 2,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-13T03:38:53.204749+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 2,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-13T03:39:52.242376+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 2,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-13T03:39:56.433209+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 2,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-13T03:40:05.009188+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 2,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-13T03:40:05.184753+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 2,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-13T03:40:27.560600+00:00",
-      "event": "fill",
-      "symbol": "XLM-USD",
-      "side": "BUY"
-    },
-    {
-      "at": "2025-11-13T03:40:26.897545+00:00",
-      "event": "fill",
-      "symbol": "XLM-USD",
-      "side": "BUY",
-      "quantity": 31.52161931,
-      "price": 0.286665,
-      "notional_usd": 9.03614499950115,
-      "fees": 0.0542168699970069,
-      "pnl": null,
-      "mark_price": 0.286665
-    },
-    {
-      "at": "2025-11-13T03:40:28.262545+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 2,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-13T03:42:13.662456+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 2,
-      "closed": [],
-      "created": []
-    },
     {
       "at": "2025-11-13T03:42:17.894157+00:00",
       "event": "reconcile",
@@ -1817,6 +1830,168 @@
         "247trader_coid_d82aeafa5e3b308d"
       ],
       "created": []
+    },
+    {
+      "at": "2025-11-13T04:12:39.868292+00:00",
+      "event": "reconcile",
+      "positions": 13,
+      "open_orders": 2,
+      "orders_closed": [],
+      "orders_seen": [
+        "378d866b-0f73-4717-be51-a9dc93f7499f",
+        "247trader_coid_d82aeafa5e3b308d"
+      ]
+    },
+    {
+      "at": "2025-11-13T04:12:48.311481+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 2,
+      "closed": [],
+      "created": [
+        "378d866b-0f73-4717-be51-a9dc93f7499f",
+        "247trader_coid_d82aeafa5e3b308d"
+      ]
+    },
+    {
+      "at": "2025-11-13T04:12:48.784811+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [
+        "378d866b-0f73-4717-be51-a9dc93f7499f",
+        "247trader_coid_d82aeafa5e3b308d"
+      ],
+      "created": []
+    },
+    {
+      "at": "2025-11-13T04:13:41.322390+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-13T04:13:45.192788+00:00",
+      "event": "reconcile",
+      "positions": 13,
+      "open_orders": 2,
+      "orders_closed": [],
+      "orders_seen": [
+        "378d866b-0f73-4717-be51-a9dc93f7499f",
+        "247trader_coid_d82aeafa5e3b308d"
+      ]
+    },
+    {
+      "at": "2025-11-13T04:13:53.289298+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 2,
+      "closed": [],
+      "created": [
+        "378d866b-0f73-4717-be51-a9dc93f7499f",
+        "247trader_coid_d82aeafa5e3b308d"
+      ]
+    },
+    {
+      "at": "2025-11-13T04:13:53.798127+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [
+        "378d866b-0f73-4717-be51-a9dc93f7499f",
+        "247trader_coid_d82aeafa5e3b308d"
+      ],
+      "created": []
+    },
+    {
+      "at": "2025-11-13T04:14:42.532460+00:00",
+      "event": "reconcile",
+      "positions": 13,
+      "open_orders": 2,
+      "orders_closed": [],
+      "orders_seen": [
+        "378d866b-0f73-4717-be51-a9dc93f7499f",
+        "247trader_coid_d82aeafa5e3b308d"
+      ]
+    },
+    {
+      "at": "2025-11-13T04:14:50.807743+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 2,
+      "closed": [],
+      "created": [
+        "378d866b-0f73-4717-be51-a9dc93f7499f",
+        "247trader_coid_d82aeafa5e3b308d"
+      ]
+    },
+    {
+      "at": "2025-11-13T04:14:51.338591+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [
+        "378d866b-0f73-4717-be51-a9dc93f7499f",
+        "247trader_coid_d82aeafa5e3b308d"
+      ],
+      "created": []
+    },
+    {
+      "at": "2025-11-13T04:15:38.268054+00:00",
+      "event": "reconcile",
+      "positions": 13,
+      "open_orders": 2,
+      "orders_closed": [],
+      "orders_seen": [
+        "378d866b-0f73-4717-be51-a9dc93f7499f",
+        "247trader_coid_d82aeafa5e3b308d"
+      ]
+    },
+    {
+      "at": "2025-11-13T04:15:47.283060+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 2,
+      "closed": [],
+      "created": [
+        "378d866b-0f73-4717-be51-a9dc93f7499f",
+        "247trader_coid_d82aeafa5e3b308d"
+      ]
+    },
+    {
+      "at": "2025-11-13T04:15:47.867844+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [
+        "378d866b-0f73-4717-be51-a9dc93f7499f",
+        "247trader_coid_d82aeafa5e3b308d"
+      ],
+      "created": []
+    },
+    {
+      "at": "2025-11-13T04:16:37.886776+00:00",
+      "event": "reconcile",
+      "positions": 13,
+      "open_orders": 2,
+      "orders_closed": [],
+      "orders_seen": [
+        "378d866b-0f73-4717-be51-a9dc93f7499f",
+        "247trader_coid_d82aeafa5e3b308d"
+      ]
+    },
+    {
+      "at": "2025-11-13T04:16:45.821852+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 2,
+      "closed": [],
+      "created": [
+        "378d866b-0f73-4717-be51-a9dc93f7499f",
+        "247trader_coid_d82aeafa5e3b308d"
+      ]
+    },
+    {
+      "at": "2025-11-13T04:16:46.428996+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [
+        "378d866b-0f73-4717-be51-a9dc93f7499f",
+        "247trader_coid_d82aeafa5e3b308d"
+      ],
+      "created": []
     }
   ],
   "high_water_mark": 538.2423030124753,
@@ -1824,5 +1999,5 @@
   "auto_tune_applied": false,
   "zero_proposal_cycles": 0,
   "auto_loosen_applied": false,
-  "last_open_orders_sync": "2025-11-13T04:11:48.041315+00:00"
+  "last_open_orders_sync": "2025-11-13T04:16:46.428996+00:00"
 }
