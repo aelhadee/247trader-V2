@@ -1527,7 +1527,12 @@ class RiskEngine:
             violated.append(f"position_size_too_small ({proposal.size_pct:.1f}% < {min_pos_pct:.1f}%)")
         
         # Check if already have position
-        if not pyramid_allowed_for_symbol and is_existing_position:
+        if (
+            side_upper == "BUY"
+            and not pyramid_allowed_for_symbol
+            and is_existing_position
+            and not allow_adds_when_over_cap
+        ):
             violated.append(pyramid_block_reason or f"already_have_position ({proposal.symbol})")
 
         if effective_pending_usd > 0 and side_upper == "BUY":
