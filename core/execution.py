@@ -2852,13 +2852,21 @@ class ExecutionEngine:
                 continue
             self._resolve_and_finalize_missing_order(tracked)
 
-    def _cancel_stale_orders_batch(self, stale_orders: List[Dict[str, Any]]) -> None:
-        """Cancel multiple stale orders and update state atomically."""
+    def _cancel_stale_orders_batch(self, stale_orders: List[Dict[str, Any]], on_exchange: bool = True) -> None:
+        """
+        Cancel multiple stale orders and update state atomically.
+        
+        Args:
+            stale_orders: List of stale order dicts
+            on_exchange: If True, actually call exchange API to cancel (for remote orders).
+                        If False, just clean up local state (for local-only stale orders).
+        """
         if not stale_orders:
             return
         
         logger.warning(
-            "STALE_ORDER_CLEANUP: Canceling %d order(s) older than %.1f min",
+            "STALE_ORDER_CLEANUP: %s %d order(s) older than %.1f min",
+            "Canceling" if on_exchange else "Cleaning",
             len(stale_orders),
             self.MAX_ORDER_AGE_SECONDS / 60,
         )
@@ -2871,71 +2879,49 @@ class ExecutionEngine:
             product_id = stale["product_id"]
             
             logger.info(
-                "STALE_ORDER_CANCEL: %s %s order %s age=%.1fmin created=%s",
+                "STALE_ORDER_%s: %s %s order %s age=%.1fmin created=%s",
+                "CANCEL" if on_exchange else "CLEANUP",
                 product_id,
                 stale.get("side", "?"),
-                order_id,
+                order_id or "?",
                 stale["age_minutes"],
                 stale.get("created_time", "?"),
             )
             
             try:
-                result = self.exchange.cancel_order(order_id)
-                
-                # Count as success whether cancel succeeded or order already gone (404)
-                # Both cases mean the order is no longer blocking capacity
-                is_already_closed = (
-                    isinstance(result, dict) and 
-                    (result.get("error") == "not_found" or result.get("success") is False)
-                )
-                
-                if is_already_closed:
-                    logger.debug(
-                        "Stale order %s already closed/filled (404) - clearing state",
-                        order_id,
+                if on_exchange and order_id:
+                    result = self.exchange.cancel_order(order_id)
+                    
+                    # Count as success whether cancel succeeded or order already gone (404)
+                    is_already_closed = (
+                        isinstance(result, dict) and 
+                        (result.get("error") == "not_found" or result.get("success") is False)
                     )
+                    
+                    if is_already_closed:
+                        logger.debug(
+                            "Stale order %s already closed/filled (404) - clearing state",
+                            order_id,
+                        )
                 
                 canceled_count += 1
                 
                 # Clear pending marker and transition state regardless of 404
-                # (order is gone from exchange, so local state must reflect that)
-                if self.state_store and product_id:
-                    client_id = stale.get("client_order_id")
-                    base = product_id.split('-')[0] if '-' in product_id else product_id
-                    side = (stale.get("side") or "").upper()
-                    
-                    if side in ("BUY", "SELL") and client_id:
-                        self.state_store.clear_pending(base, side, client_id)
-                        logger.debug(
-                            "Cleared pending marker for stale order: %s %s %s",
-                            base,
-                            side,
-                            client_id,
-                        )
-                    
-                    # Transition order state machine if tracked
-                    if client_id:
-                        try:
-                            self.order_state_machine.transition(
-                                client_id,
-                                OrderStatus.CANCELED,
-                                reason="stale_order_cleanup",
-                            )
-                        except Exception:
-                            pass  # Order may not be tracked
+                self._cleanup_order_state(stale)
                 
             except Exception as cancel_exc:
                 failed_count += 1
                 logger.warning(
                     "Stale order cancel failed for %s %s: %s",
                     product_id,
-                    order_id,
+                    order_id or "?",
                     cancel_exc,
                 )
         
         if canceled_count > 0:
             logger.info(
-                "STALE_ORDER_CLEANUP: Canceled %d/%d stale orders (freed capacity)",
+                "STALE_ORDER_CLEANUP: %s %d/%d stale orders (freed capacity)",
+                "Canceled" if on_exchange else "Cleaned",
                 canceled_count,
                 len(stale_orders),
             )
@@ -2946,6 +2932,55 @@ class ExecutionEngine:
                 failed_count,
                 len(stale_orders),
             )
+
+    def _cleanup_stale_local_orders(self, stale_orders: List[Dict[str, Any]]) -> None:
+        """Clean up orders that are stale in local state but already gone from exchange."""
+        logger.warning(
+            "STALE_LOCAL_CLEANUP: Removing %d stale order(s) from local state (already gone from exchange)",
+            len(stale_orders),
+        )
+        
+        for stale in stale_orders:
+            logger.info(
+                "STALE_LOCAL_CLEANUP: %s %s order %s age=%.1fmin (not on exchange)",
+                stale.get("product_id", "?"),
+                stale.get("side", "?"),
+                stale.get("order_id", "?"),
+                stale["age_minutes"],
+            )
+            
+            # Clear pending markers and state
+            self._cleanup_order_state(stale)
+    
+    def _cleanup_order_state(self, order_info: Dict[str, Any]) -> None:
+        """Clear pending markers and transition order state for a canceled/stale order."""
+        if not self.state_store:
+            return
+        
+        product_id = order_info.get("product_id")
+        client_id = order_info.get("client_order_id")
+        side = (order_info.get("side") or "").upper()
+        
+        if product_id and side in ("BUY", "SELL") and client_id:
+            base = product_id.split('-')[0] if '-' in product_id else product_id
+            self.state_store.clear_pending(base, side, client_id)
+            logger.debug(
+                "Cleared pending marker for stale order: %s %s %s",
+                base,
+                side,
+                client_id,
+            )
+        
+        # Transition order state machine if tracked
+        if client_id:
+            try:
+                self.order_state_machine.transition(
+                    client_id,
+                    OrderStatus.CANCELED,
+                    reason="stale_order_cleanup",
+                )
+            except Exception:
+                pass  # Order may not be tracked
 
     @staticmethod
     def _order_key(client_order_id: Optional[str], order_id: Optional[str]) -> Optional[str]:
