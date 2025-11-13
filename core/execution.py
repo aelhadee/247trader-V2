@@ -2142,6 +2142,8 @@ class ExecutionEngine:
                         OrderStatus.REJECTED,
                         rejection_reason=error_msg,
                     )
+                    # Clear pending marker on rejection
+                    self._on_order_terminal(symbol, side, attempt_client_order_id, "rejected")
                     raise ValueError(error_msg)
 
                 self.order_state_machine.transition(
