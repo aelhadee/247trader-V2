@@ -1518,11 +1518,11 @@ class RiskEngine:
             combined_pct = existing_exposure_pct + proposal.size_pct
             if combined_pct > max_pos_pct:
                 violated.append(
-                    f"position_size_with_pending ({combined_pct:.1f}% > {max_pos_pct:.1f}% including pending buys)"
+                    f"position_size_with_pending ({combined_pct:.2f}% > {max_pos_pct:.1f}% cap including pending)"
                 )
         # For SELL orders, just check the proposal size alone
         elif proposal.size_pct > max_pos_pct:
-            violated.append(f"position_size_too_large ({proposal.size_pct:.1f}% > {max_pos_pct:.1f}%)")
+            violated.append(f"position_size_too_large ({proposal.size_pct:.2f}% > {max_pos_pct:.1f}% cap)")
         
         # Check min
         if proposal.size_pct < min_pos_pct:
