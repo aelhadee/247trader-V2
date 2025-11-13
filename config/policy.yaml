@@ -1,6 +1,38 @@
 # 247trader-v2 Policy Configuration
 # Hard constraints that NO component (rules, AI, or human) can violate
 
+# Trading Profile Selection
+# Profiles adjust risk tolerance for different account sizes and trading styles
+profile: day_trader  # Options: swing_trader, day_trader
+
+# Profile Definitions (applied to risk/strategy sections below)
+profiles:
+  swing_trader:
+    # Conservative swing trading for larger accounts ($2K+)
+    min_conviction: 0.34
+    tier_sizing:
+      T1: 0.020   # 2.0% of NAV per T1 asset
+      T2: 0.012   # 1.2% of NAV per T2 asset
+      T3: 0.005   # 0.5% of NAV per T3 asset
+    max_position_pct:
+      T1: 0.040   # 4.0% cap per T1 asset (2x base)
+      T2: 0.030   # 3.0% cap per T2 asset (2.5x base)
+      T3: 0.020   # 2.0% cap per T3 asset (4x base)
+    min_trade_notional: 9.0  # Higher floor for precision
+    
+  day_trader:
+    # Active day trading for smaller accounts ($300-$1K)
+    min_conviction: 0.30    # Lower bar → more setups convert
+    tier_sizing:
+      T1: 0.030   # 3.0% of NAV per T1 asset (50% larger)
+      T2: 0.018   # 1.8% of NAV per T2 asset (50% larger)
+      T3: 0.007   # 0.7% of NAV per T3 asset (40% larger)
+    max_position_pct:
+      T1: 0.070   # 7.0% cap per T1 asset (~2.3x base, more room to add)
+      T2: 0.045   # 4.5% cap per T2 asset (~2.5x base)
+      T3: 0.025   # 2.5% cap per T3 asset (~3.5x base)
+    min_trade_notional: 5.0  # Lower floor for small accounts
+
 risk:
   # Global exposure limits
   max_total_at_risk_pct: 95.0  # 95% of NLV in active risk positions
