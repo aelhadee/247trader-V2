@@ -1999,13 +1999,93 @@ class ExecutionEngine:
                     route=f"live_{order_type}",
                 )
 
-                result = self.exchange.place_order(
-                    product_id=symbol,
-                    side=side.lower(),
-                    quote_size_usd=size_usd,
-                    client_order_id=attempt_client_order_id,
-                    order_type=order_type,
-                )
+                # Post-only retry logic: handle INVALID_LIMIT_PRICE_POST_ONLY with wider cushion
+                maker_cushion_ticks = 1  # Start with 1-tick cushion
+                post_only_retry_count = 0
+                max_post_only_retries = 1  # Allow 1 retry with wider cushion
+                result = None
+                
+                while post_only_retry_count <= max_post_only_retries:
+                    try:
+                        result = self.exchange.place_order(
+                            product_id=symbol,
+                            side=side.lower(),
+                            quote_size_usd=size_usd,
+                            client_order_id=attempt_client_order_id,
+                            order_type=order_type,
+                            maker_cushion_ticks=maker_cushion_ticks if use_maker else 0,
+                        )
+                        
+                        # Check for post-only error
+                        if (
+                            use_maker
+                            and not result.get("success")
+                            and result.get("error_response", {}).get("error") == "INVALID_LIMIT_PRICE_POST_ONLY"
+                            and post_only_retry_count < max_post_only_retries
+                        ):
+                            # Retry with wider cushion
+                            post_only_retry_count += 1
+                            maker_cushion_ticks += 1
+                            logger.warning(
+                                "Post-only error on attempt %d for %s, retrying with %d-tick cushion",
+                                post_only_retry_count,
+                                symbol,
+                                maker_cushion_ticks,
+                            )
+                            time.sleep(0.1)  # Small delay before retry
+                            continue
+                        else:
+                            # Success or different error - exit retry loop
+                            break
+                    except Exception as place_exc:
+                        logger.error("Order placement exception: %s", place_exc)
+                        result = {"success": False, "error": str(place_exc)}
+                        break
+                
+                # If post-only retries exhausted and still failing, attempt taker fallback
+                if (
+                    use_maker
+                    and not result.get("success")
+                    and result.get("error_response", {}).get("error") == "INVALID_LIMIT_PRICE_POST_ONLY"
+                ):
+                    logger.warning(
+                        "Post-only retries exhausted for %s, attempting IOC taker fallback within slippage budget",
+                        symbol,
+                    )
+                    # Clear pending marker for failed post-only
+                    self._clear_pending_marker(symbol, side, attempt_client_order_id)
+                    
+                    # Check if taker is allowed by slippage budget
+                    if self._is_taker_slippage_allowed(est_slippage_bps, tier):
+                        taker_total_cost = est_slippage_bps + self.taker_fee_bps
+                        slippage_budget = self._get_slippage_budget(tier) if tier is not None else None
+                        
+                        if slippage_budget is None or taker_total_cost <= slippage_budget:
+                            logger.info(
+                                "Taker fallback: placing IOC order for %s @ %.1f bps total cost (slippage %.1f + fee %.1f)",
+                                symbol,
+                                taker_total_cost,
+                                est_slippage_bps,
+                                self.taker_fee_bps,
+                            )
+                            # Place IOC taker order
+                            result = self.exchange.place_order(
+                                product_id=symbol,
+                                side=side.lower(),
+                                quote_size_usd=size_usd,
+                                client_order_id=attempt_client_order_id,
+                                order_type="market",
+                            )
+                            order_type = "market"  # Update for logging
+                            use_maker = False
+                        else:
+                            logger.warning(
+                                "Taker fallback blocked: total cost %.1f bps exceeds budget %.1f bps",
+                                taker_total_cost,
+                                slippage_budget,
+                            )
+                    else:
+                        logger.warning("Taker fallback blocked: slippage %.1f bps not allowed", est_slippage_bps)
 
                 route = f"live_{order_type}"
                 logger.info("Order response: %s", result)
