@@ -106,7 +106,35 @@
       "filled_value": 0.0,
       "created_time": "2025-11-13T04:28:41.358166Z",
       "first_seen": "2025-11-13T04:37:18.758242+00:00",
-      "updated_at": "2025-11-13T04:56:19.107587+00:00"
+      "updated_at": "2025-11-13T04:56:23.063568+00:00"
+    },
+    "378d866b-0f73-4717-be51-a9dc93f7499f": {
+      "order_id": "6d3264c0-9b73-4521-98b0-a497a1fcf2ef",
+      "client_order_id": "378d866b-0f73-4717-be51-a9dc93f7499f",
+      "product_id": "ZK-USD",
+      "side": "sell",
+      "status": "open",
+      "quote_size_usd": 46.817612999999994,
+      "base_size": 873.3,
+      "filled_size": 0.0,
+      "filled_value": 0.0,
+      "created_time": "2025-11-11T06:05:42.206556Z",
+      "first_seen": "2025-11-13T04:56:23.063568+00:00",
+      "updated_at": "2025-11-13T04:56:23.063568+00:00"
+    },
+    "247trader_coid_d82aeafa5e3b308d": {
+      "order_id": "f8908fce-36de-4c71-813c-c4e6e7787e42",
+      "client_order_id": "247trader_coid_d82aeafa5e3b308d",
+      "product_id": "XRP-USD",
+      "side": "buy",
+      "status": "open",
+      "quote_size_usd": 9.035819076,
+      "base_size": 3.78908,
+      "filled_size": 0.0,
+      "filled_value": 0.0,
+      "created_time": "2025-11-13T00:24:38.654165Z",
+      "first_seen": "2025-11-13T04:56:23.063568+00:00",
+      "updated_at": "2025-11-13T04:56:23.063568+00:00"
     }
   },
   "recent_orders": [
@@ -891,13 +919,6 @@
   "last_reset_date": "2025-11-13",
   "last_reset_hour": 4,
   "events": [
-    {
-      "at": "2025-11-13T04:07:43.219519+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 2,
-      "closed": [],
-      "created": []
-    },
     {
       "at": "2025-11-13T04:07:43.640624+00:00",
       "event": "open_orders_sync",
@@ -1818,6 +1839,16 @@
         "247trader_coid_d82aeafa5e3b308d"
       ],
       "created": []
+    },
+    {
+      "at": "2025-11-13T04:56:23.063568+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 3,
+      "closed": [],
+      "created": [
+        "378d866b-0f73-4717-be51-a9dc93f7499f",
+        "247trader_coid_d82aeafa5e3b308d"
+      ]
     }
   ],
   "high_water_mark": 538.2423030124753,
@@ -1825,5 +1856,5 @@
   "auto_tune_applied": false,
   "zero_proposal_cycles": 0,
   "auto_loosen_applied": false,
-  "last_open_orders_sync": "2025-11-13T04:56:19.107587+00:00"
+  "last_open_orders_sync": "2025-11-13T04:56:23.063568+00:00"
 }

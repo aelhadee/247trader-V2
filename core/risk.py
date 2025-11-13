@@ -621,20 +621,37 @@ class RiskEngine:
         
         # Add context for below_min_after_caps rejections
         if code == "below_min_after_caps" and details:
-            requested = details.get("requested_usd", 0)
-            assigned = details.get("assigned_usd", 0)
+            requested = details.get("requested_usd", 0)  # Original request from rules
+            assigned = details.get("assigned_usd", 0)    # What caps could provide
+            min_notional = snapshot.get("min_notional_usd", 0) if snapshot else 0
+            
             if requested > 0 and assigned > 0:
-                shortage = requested - assigned
-                logger.warning(
-                    "RISK_REJECT %s %s reason=%s (want $%.2f, only $%.2f available, short $%.2f) - "
-                    "symbol near per-asset cap; consider closing position to free capacity",
-                    proposal.symbol,
-                    (proposal.side or "").upper(),
-                    code,
-                    requested,
-                    assigned,
-                    shortage,
-                )
+                # If min_notional is involved, show all three values for clarity
+                if min_notional > 0 and assigned < min_notional:
+                    logger.warning(
+                        "RISK_REJECT %s %s reason=%s (rules want $%.2f, cap allows $%.2f, but min_notional requires $%.2f) - "
+                        "insufficient capacity for minimum trade size; consider closing position to free $%.2f",
+                        proposal.symbol,
+                        (proposal.side or "").upper(),
+                        code,
+                        requested,
+                        assigned,
+                        min_notional,
+                        min_notional - assigned,
+                    )
+                else:
+                    # Standard below_min message
+                    shortage = requested - assigned
+                    logger.warning(
+                        "RISK_REJECT %s %s reason=%s (want $%.2f, only $%.2f available, short $%.2f) - "
+                        "symbol near per-asset cap; consider closing position to free capacity",
+                        proposal.symbol,
+                        (proposal.side or "").upper(),
+                        code,
+                        requested,
+                        assigned,
+                        shortage,
+                    )
                 return
         
         logger.warning(
