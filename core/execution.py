@@ -179,6 +179,9 @@ class ExecutionEngine:
         # Quote staleness threshold from policy
         self.max_quote_age_seconds = microstructure_config.get("max_quote_age_seconds", 30)
 
+        # Stale order management - cancel orders older than this threshold to free capacity
+        self.MAX_ORDER_AGE_SECONDS = int(execution_config.get("max_order_age_seconds", 1800))  # 30 min default
+
         # Slippage budgets by tier (slippage + fees must be < budget)
         self.slippage_budget_t1_bps = execution_config.get("slippage_budget_t1_bps", 20.0)
         self.slippage_budget_t2_bps = execution_config.get("slippage_budget_t2_bps", 35.0)
