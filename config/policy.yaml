@@ -235,6 +235,19 @@ execution:
   # Order types
   default_order_type: "limit_post_only"  # Phase 1: conservative
   min_notional_usd: 9.0                  # Execution floor for gross order size
+  maker_first: true                      # Try maker route before taker
+  maker_max_reprices: 1                  # Single reprice before fallback
+  maker_max_ttl_sec: 12                  # Upper bound for maker TTL (seconds)
+  maker_first_min_ttl_sec: 6             # First attempt TTL never below 6s
+  maker_retry_min_ttl_sec: 3             # Reprice attempts minimum TTL
+  maker_reprice_decay: 0.7               # Subsequent TTL multiplier
+  taker_fallback: true                   # Allow taker IOC fallback within budget
+  prefer_ioc: true                       # Use IOC for taker fallback
+  taker_max_slippage_bps:
+    T1: 20
+    T2: 40
+    T3: 60
+    default: 60
   # Auto-convert USD → USDC to honor preferred quote (when needed for BUYs)
   auto_convert_preferred_quote: false
   # Clamp tiny trades up to the minimum notional to avoid rejects
@@ -269,11 +282,11 @@ execution:
   
   # Order management
   cancel_after_seconds: 60          # cancel resting orders if not filled
-  post_only_ttl_seconds: 4          # cancel post-only orders quickly if unfilled
+  post_only_ttl_seconds: 12         # legacy override (maker_max_ttl_sec now primary)
   partial_fill_min_pct: 0.25        # ignore fills <25% when assessing success
   
   # Limit order behavior
-  limit_offset_bps: 5               # Post limit 5bps inside mid
+  limit_offset_bps: 0               # Join top-of-book (peg)
   limit_timeout_seconds: 30
   
   # Post-trade confirmation
