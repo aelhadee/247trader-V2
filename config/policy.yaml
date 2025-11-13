@@ -44,6 +44,9 @@ risk:
   dust_threshold_usd: 3.0  # Holdings below this USD value do not consume a slot
   allow_adds_when_over_cap: true  # Permit topping up existing symbols even if cap reached
   count_open_orders_in_cap: true  # Treat pending buy orders as occupying slots
+  allow_pyramiding: true
+  pyramid_cooldown_seconds: 300
+  max_adds_per_asset_per_day: 2
   
   # Hard stops per position
   stop_loss_pct: 8.0
@@ -64,7 +67,7 @@ position_sizing:
   max_order_usd: 10000.0
   
     # Pyramid rules
-  allow_pyramiding: false
+  allow_pyramiding: true
   max_pyramid_positions: 2
 
 liquidity:
