@@ -2909,6 +2909,7 @@ class ExecutionEngine:
         
         for stale in stale_orders:
             order_id = stale["order_id"]
+            client_id = stale.get("client_order_id")
             product_id = stale["product_id"]
             
             logger.info(
@@ -2938,6 +2939,13 @@ class ExecutionEngine:
                         )
                 
                 canceled_count += 1
+                
+                # Add to recently-canceled cache to prevent API re-adding (eventual consistency)
+                now = time.time()
+                if order_id:
+                    self._recently_canceled[order_id] = now
+                if client_id:
+                    self._recently_canceled[client_id] = now
                 
                 # Clear pending marker and transition state regardless of 404
                 self._cleanup_order_state(stale)
