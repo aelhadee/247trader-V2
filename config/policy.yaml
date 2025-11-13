@@ -72,8 +72,9 @@ risk:
   per_symbol_cooldown_minutes: 30  # Wait 30min after any loss on a symbol
   per_symbol_cooldown_after_stop: 60  # Wait 60min after stop-loss hit
   
-  # Minimum trade size
-  min_trade_notional_usd: 5  # Skip dust (lowered for very small account)
+  # Minimum trade size (DYNAMIC based on profile)
+  # Active profile: day_trader → min_trade_notional = $5.00
+  min_trade_notional_usd: 5  # Lowered for small accounts (day_trader profile)
   dust_threshold_usd: 3.0  # Holdings below this USD value do not consume a slot
   allow_adds_when_over_cap: true  # Permit topping up existing symbols even if cap reached
   count_open_orders_in_cap: true  # Treat pending buy orders as occupying slots
