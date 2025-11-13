@@ -1020,6 +1020,14 @@ class TradingLoop:
                 )
                 return
 
+            # Reconcile exchange state and purge expired pending markers BEFORE building portfolio
+            # This ensures pending_markers are cleared before being read into PortfolioState
+            try:
+                self.executor.reconcile_open_orders()
+                self.state_store.purge_expired_pending()
+            except Exception as exc:
+                logger.debug("Cycle reconciliation skipped: %s", exc)
+
             # Refresh portfolio snapshot now that state store has authoritative data
             try:
                 self.portfolio = self._init_portfolio_state()
@@ -1042,14 +1050,6 @@ class TradingLoop:
                 return
             else:
                 self.portfolio.pending_orders = pending_orders
-
-            # Reconcile exchange state and purge expired pending markers BEFORE proposal filtering
-            # This ensures pending state is truthful and prevents false "fast guard" rejections
-            try:
-                self.executor.reconcile_open_orders()
-                self.state_store.purge_expired_pending()
-            except Exception as exc:
-                logger.debug("Cycle reconciliation skipped: %s", exc)
 
             try:
                 trimmed = self._auto_trim_to_risk_cap()
