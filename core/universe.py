@@ -616,7 +616,7 @@ class UniverseManager:
                 f"{quote.symbol}: spread check FAIL - "
                 f"{quote.spread_bps:.1f}bps > {max_spread}bps (T{tier})"
             )
-            return False, f"Spread {quote.spread_bps:.1f}bps > {max_spread}bps"
+            return False, f"Spread {quote.spread_bps:.1f}bps > {max_spread}bps", None
         
         logger.debug(f"{quote.symbol}: spread check PASS - {quote.spread_bps:.1f}bps ≤ {max_spread}bps")
         
