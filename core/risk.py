@@ -226,6 +226,12 @@ class RiskEngine:
         
         logger.info("Initialized RiskEngine with policy constraints and circuit breakers")
 
+    @staticmethod
+    def _normalize_symbol(symbol: str) -> str:
+        if not symbol:
+            return symbol
+        return symbol if "-" in symbol else f"{symbol}-USD"
+
     def _build_pending_buy_map(self, portfolio: PortfolioState) -> Dict[str, float]:
         """Normalize pending BUY orders keyed by fully-qualified symbol."""
 
