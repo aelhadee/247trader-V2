@@ -2743,23 +2743,54 @@ class ExecutionEngine:
             logger.debug("Open order fetch failed during reconciliation: %s", exc)
             return  # Early exit if fetch fails
 
-        if not remote_orders:
-            # No open orders - just reconcile tracked orders
-            if self.state_store:
-                try:
-                    self.sync_open_orders_snapshot([])
-                    self.state_store.purge_expired_pending()
-                except Exception as exc:
-                    logger.debug("Empty snapshot sync failed: %s", exc)
-            
-            active_orders = self.order_state_machine.get_active_orders()
-            for tracked in active_orders:
-                self._resolve_and_finalize_missing_order(tracked)
-            return
+        # Build set of live order IDs from exchange
+        for remote in remote_orders or []:
+            order_id = remote.get("order_id") or remote.get("id")
+            client_id = remote.get("client_order_id") or remote.get("client_order_id_v2")
+            if order_id:
+                live_identifiers.add(order_id)
+            if client_id:
+                live_identifiers.add(client_id)
 
-        # Process orders: identify stale, build live_identifiers
+        # Check for stale orders in local state that aren't on exchange
         now_utc = datetime.now(timezone.utc)
-        stale_orders: List[Dict[str, Any]] = []
+        stale_local_orders: List[Dict[str, Any]] = []
+        
+        if self.state_store:
+            local_open = self.state_store.load().get("open_orders", {})
+            
+            for key, local_order in local_open.items():
+                order_id = local_order.get("order_id")
+                client_id = local_order.get("client_order_id")
+                created_str = local_order.get("created_time")
+                
+                # Check if order exists on exchange
+                is_on_exchange = (
+                    (order_id and order_id in live_identifiers) or
+                    (client_id and client_id in live_identifiers)
+                )
+                
+                # If not on exchange and has created_time, check if stale
+                if not is_on_exchange and created_str:
+                    try:
+                        created_dt = datetime.fromisoformat(created_str.replace('Z', '+00:00'))
+                        age_seconds = (now_utc - created_dt).total_seconds()
+                        
+                        if age_seconds > self.MAX_ORDER_AGE_SECONDS:
+                            stale_local_orders.append({
+                                "order_id": order_id,
+                                "client_order_id": client_id,
+                                "product_id": local_order.get("product_id"),
+                                "side": local_order.get("side"),
+                                "age_minutes": age_seconds / 60,
+                                "created_time": created_str,
+                                "state_key": key,
+                            })
+                    except (ValueError, TypeError):
+                        pass  # Treat unparseable dates as fresh
+
+        # Process stale orders in remote list (still on exchange, need to cancel)
+        stale_remote_orders: List[Dict[str, Any]] = []
         fresh_orders: List[Dict[str, Any]] = []
         
         for remote in remote_orders:
@@ -2767,7 +2798,6 @@ class ExecutionEngine:
             if not order_id:
                 continue
                 
-            # Check if order is stale
             created_str = remote.get("created_time")
             is_stale = False
             
@@ -2778,7 +2808,7 @@ class ExecutionEngine:
                     
                     if age_seconds > self.MAX_ORDER_AGE_SECONDS:
                         is_stale = True
-                        stale_orders.append({
+                        stale_remote_orders.append({
                             "order_id": order_id,
                             "client_order_id": remote.get("client_order_id") or remote.get("client_order_id_v2"),
                             "product_id": remote.get("product_id"),
@@ -2787,19 +2817,18 @@ class ExecutionEngine:
                             "created_time": created_str,
                         })
                 except (ValueError, TypeError):
-                    pass  # Treat unparseable dates as fresh to be safe
+                    pass  # Treat unparseable dates as fresh
             
             if not is_stale:
                 fresh_orders.append(remote)
-                client_id = remote.get("client_order_id") or remote.get("client_order_id_v2")
-                if order_id:
-                    live_identifiers.add(order_id)
-                if client_id:
-                    live_identifiers.add(client_id)
 
-        # Cancel stale orders in batch
-        if stale_orders:
-            self._cancel_stale_orders_batch(stale_orders)
+        # Cancel stale orders still on exchange
+        if stale_remote_orders:
+            self._cancel_stale_orders_batch(stale_remote_orders, on_exchange=True)
+
+        # Clean up stale orders in local state (already gone from exchange)
+        if stale_local_orders:
+            self._cleanup_stale_local_orders(stale_local_orders)
 
         # Sync only fresh orders to state store
         if self.state_store:
