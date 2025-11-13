@@ -240,10 +240,13 @@ execution:
   min_notional_usd: 9.0                  # Execution floor for gross order size
   maker_first: true                      # Try maker route before taker
   maker_max_reprices: 1                  # Single reprice before fallback
-  maker_max_ttl_sec: 30                  # Upper bound for maker TTL (seconds) - increased for better fill rates
-  maker_first_min_ttl_sec: 20            # First attempt TTL never below 20s
-  maker_retry_min_ttl_sec: 10            # Reprice attempts minimum TTL
+  # Normal trading TTLs (T1/T2 liquid pairs)
+  maker_max_ttl_sec: 15                  # Upper bound for maker TTL - balanced for 60s cycles
+  maker_first_min_ttl_sec: 12            # First attempt TTL (gives ~2-3 book refreshes)
+  maker_retry_min_ttl_sec: 8             # Reprice attempts minimum TTL
   maker_reprice_decay: 0.7               # Subsequent TTL multiplier
+  # Purge-specific TTLs (T3 illiquid junk) - see portfolio_management.purge_execution
+  purge_maker_ttl_sec: 25                # Longer TTL for purge to improve fill rate on thin books
   taker_fallback: true                   # Allow taker IOC fallback within budget
   prefer_ioc: true                       # Use IOC for taker fallback
   taker_max_slippage_bps:
