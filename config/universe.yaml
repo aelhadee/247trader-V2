@@ -21,15 +21,20 @@ clusters:
     - SHIB-USD
     - PEPE-USD
   enabled: true
-  # No limits here – use risk.max_per_theme_pct in policy.yaml as single source of truth
+eligibility_hysteresis:
+  enable: true
+  volume_24h:
+    cycles_confirm_enter: 3
+    cycles_confirm_exit: 3
+    enter_mult: 1.0
+    exit_mult: 0.95
 exclusions:
   never_trade:
   - USDT-USD
   - USDC-USD
   - DAI-USD
   - BUSD-USD
-  - PUMP-USD  # No liquidity / trading halted
-  # Memecoins with no fundamental value (high volatility, gambling tokens)
+  - PUMP-USD
   - USELESS-USD
   - FARTCOIN-USD
   red_flags:
@@ -40,15 +45,13 @@ exclusions:
   temporary_ban_hours: 168
 liquidity:
   max_quote_staleness_seconds: 60
-  max_spread_bps: 80           # Global max (tier-specific limits tighter)
-  min_24h_volume_usd: 8000000  # Baseline minimum
-  # Size-aware depth requirements by tier (10× order notional rule)
-  min_orderbook_depth_usd_t1: 100000  # Tier 1: $100k per side minimum
-  min_orderbook_depth_usd_t2: 25000   # Tier 2: $25k per side minimum
-  min_orderbook_depth_usd_t3: 10000   # Tier 3: $10k per side minimum
-  min_orderbook_depth_usd: 10000  # Legacy fallback (still used in code)
-  min_depth_20bps_usd: 10000  # Min depth within 20bps (legacy)
-  # min_exchanges_listed / required_exchanges omitted for now (Coinbase-only)
+  max_spread_bps: 80
+  min_24h_volume_usd: 8000000
+  min_depth_20bps_usd: 10000
+  min_orderbook_depth_usd: 10000
+  min_orderbook_depth_usd_t1: 100000
+  min_orderbook_depth_usd_t2: 25000
+  min_orderbook_depth_usd_t3: 10000
 regime_modifiers:
   bear:
     tier_1_multiplier: 1.0
@@ -57,34 +60,24 @@ regime_modifiers:
   bull:
     tier_1_multiplier: 1.0
     tier_2_multiplier: 1.2
-    tier_3_multiplier: 0.0  # Tier 3 off until AI/news layer exists
+    tier_3_multiplier: 0.0
   chop:
     tier_1_multiplier: 1.0
     tier_2_multiplier: 0.8
-    tier_3_multiplier: 0.0  # Tier 3 off
+    tier_3_multiplier: 0.0
   crash:
     tier_1_multiplier: 0.0
     tier_2_multiplier: 0.0
     tier_3_multiplier: 0.0
-  # Regime-based volume floor scalers (optional enhancement)
   volume_floor_scalers:
-    bull: 0.90    # Lower floor in bull (27M for T2)
-    chop: 1.00    # Normal floor in chop (30M for T2)
-    bear: 1.20    # Higher floor in bear (36M for T2)
-
-# Eligibility hysteresis (prevents thrashing near thresholds)
-eligibility_hysteresis:
-  enable: true
-  volume_24h:
-    cycles_confirm_enter: 3   # Must stay ≥ threshold for 3 cycles to enter
-    cycles_confirm_exit: 3    # Must stay < threshold for 3 cycles to exit
-    enter_mult: 1.00          # Enter at floor or override zone + rules
-    exit_mult: 0.95           # Exit after 3 cycles below 95% of floor
+    bear: 1.2
+    bull: 0.9
+    chop: 1.0
 tiers:
   tier_1_core:
     constraints:
       max_allocation_pct: 40.0
-      max_spread_bps: 20  # Tightened from 30 → 20 bps for blue chips
+      max_spread_bps: 20
       min_24h_volume_usd: 50000000
     refresh: weekly
     symbols:
@@ -94,16 +87,15 @@ tiers:
   tier_2_rotational:
     constraints:
       max_allocation_pct: 20.0
-      max_spread_bps: 35  # Tightened from 60 → 35 bps to reduce hidden slippage
-      min_24h_volume_usd: 30000000  # Raised from 20M → 30M for better resilience
-      # Near-threshold override: Allow $28.5M–$30M if ALL strict rules pass
+      max_spread_bps: 35
+      min_24h_volume_usd: 30000000
       near_threshold_override:
         enable: true
-        lower_mult: 0.95              # 95% of floor = $28.5M
-        max_spread_bps: 30            # Tighter than normal T2 (35 bps)
-        require_depth_mult: 12        # Depth ≥ 12× order notional within ±0.5%
-        min_listing_age_days: 30      # Must be established (not new)
-        slippage_budget_bps: 35       # Must pass global slippage budget
+        lower_mult: 0.95
+        max_spread_bps: 30
+        min_listing_age_days: 30
+        require_depth_mult: 12
+        slippage_budget_bps: 35
     filters:
     - volume_spike
     - trend_strength
@@ -123,13 +115,12 @@ tiers:
     - XLM-USD
     - HBAR-USD
   tier_3_event_driven:
-    # Keep defined for future AI/news layer, but effectively off in Phase 1
     constraints:
       max_allocation_pct: 10.0
-      max_spread_bps: 60  # Tightened from 100 → 60 bps for when T3 enabled
-      min_24h_volume_usd: 5000000
       max_drawdown_pct: 15.0
       max_hold_period_hours: 72
+      max_spread_bps: 60
+      min_24h_volume_usd: 5000000
     event_types_allowed:
     - major_exchange_listing
     - mainnet_launch
@@ -139,13 +130,6 @@ tiers:
     refresh: hourly
     require_verification: true
 universe:
-  method: dynamic_discovery
-  max_universe_size: 30
-  refresh_interval_hours: 24
-  near_threshold:
-    override_enabled: true
-    tolerance_pct: 0.10
-    max_overrides_per_tier: 2
   dynamic_config:
     max_spread_bps: 80
     min_price_usd: 0.01
@@ -153,5 +137,12 @@ universe:
     tier1_min_volume_usd: 80000000
     tier2_max_symbols: 20
     tier2_min_volume_usd: 8000000
-    tier3_max_symbols: 0           # off for now
+    tier3_max_symbols: 0
     tier3_min_volume_usd: 5000000
+  max_universe_size: 30
+  method: dynamic_discovery
+  near_threshold:
+    max_overrides_per_tier: 2
+    override_enabled: true
+    tolerance_pct: 0.1
+  refresh_interval_hours: 24

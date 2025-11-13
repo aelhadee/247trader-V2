@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from collections import Counter, defaultdict
+from collections.abc import Iterable
 import logging
 
 from strategy.rules_engine import TradeProposal
@@ -264,7 +265,18 @@ class RiskEngine:
             logger.debug("Open order fetch failed: %s", exc)
             return exposures
 
-        for order in orders or []:
+        if not orders:
+            return exposures
+
+        if isinstance(orders, dict):
+            iterable_orders = orders.values()
+        elif isinstance(orders, Iterable):
+            iterable_orders = orders
+        else:  # Defensive: handle mocks or unexpected payloads gracefully
+            logger.debug("Open order payload not iterable: type=%s", type(orders))
+            return exposures
+
+        for order in iterable_orders:
             product = order.get("product_id") or ""
             if "-" not in product:
                 continue
