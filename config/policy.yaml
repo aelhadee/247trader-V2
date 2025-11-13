@@ -240,9 +240,9 @@ execution:
   min_notional_usd: 9.0                  # Execution floor for gross order size
   maker_first: true                      # Try maker route before taker
   maker_max_reprices: 1                  # Single reprice before fallback
-  maker_max_ttl_sec: 12                  # Upper bound for maker TTL (seconds)
-  maker_first_min_ttl_sec: 6             # First attempt TTL never below 6s
-  maker_retry_min_ttl_sec: 3             # Reprice attempts minimum TTL
+  maker_max_ttl_sec: 30                  # Upper bound for maker TTL (seconds) - increased for better fill rates
+  maker_first_min_ttl_sec: 20            # First attempt TTL never below 20s
+  maker_retry_min_ttl_sec: 10            # Reprice attempts minimum TTL
   maker_reprice_decay: 0.7               # Subsequent TTL multiplier
   taker_fallback: true                   # Allow taker IOC fallback within budget
   prefer_ioc: true                       # Use IOC for taker fallback
