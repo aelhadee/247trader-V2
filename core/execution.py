@@ -1656,25 +1656,25 @@ class ExecutionEngine:
         """
         if self.exchange.read_only:
             raise ValueError("Cannot execute LIVE orders with read_only exchange")
-        
+
         logger.warning(f"LIVE: Executing {side} ${size_usd:.2f} of {symbol}")
+
         generated_client_order_id = False
-
-        # Generate deterministic client order ID for idempotency
         if not client_order_id:
-            client_order_id = self.generate_client_order_id(symbol, side, size_usd)
+            base_client_order_id = self.generate_client_order_id(symbol, side, size_usd)
             generated_client_order_id = True
+        else:
+            base_client_order_id = client_order_id
 
-        # Abort duplicate submissions when we already track an open order
         if (
             self.state_store
             and not generated_client_order_id
-            and client_order_id
-            and self.state_store.has_open_order(client_order_id)
+            and base_client_order_id
+            and self.state_store.has_open_order(base_client_order_id)
         ):
             logger.warning(
                 "Duplicate submission detected for client_order_id=%s; skipping execution",
-                client_order_id,
+                base_client_order_id,
             )
             return ExecutionResult(
                 success=False,
@@ -1688,60 +1688,21 @@ class ExecutionEngine:
                 route="skipped_duplicate",
                 error="duplicate_client_order",
             )
-        
-        # Create order state
-        self.order_state_machine.create_order(
-            client_order_id=client_order_id,
-            symbol=symbol,
-            side=side,
-            size_usd=size_usd,
-            route="live"
-        )
+
+        plan = self._build_execution_plan(force_order_type, size_usd)
+        if not plan:
+            plan = [{"order_type": "market", "mode": "primary"}]
+
+        active_client_order_id = base_client_order_id
 
         try:
-            # Get current price for constraint enforcement
+            quote = None
+            current_price = 0.0
             try:
                 quote = self.exchange.get_quote(symbol)
-                
-                # Validate quote freshness
                 staleness_error = self._validate_quote_freshness(quote, symbol)
                 if staleness_error:
-                    logger.warning(f"Stale quote rejected in _execute_live: {staleness_error}")
-                    return ExecutionResult(
-                        success=False,
-                        order_id=None,
-                        filled_size=0.0,
-                        filled_price=0.0,
-                        fees=0.0,
-                        slippage_bps=0.0,
-                        route="live_rejected",
-                        error=staleness_error
-                    )
-                
-                current_price = quote.mid
-            except Exception as e:
-                logger.warning(f"Failed to get quote for {symbol}: {e}")
-                current_price = 0
-            
-            # Determine order type early (needed for fee calculation in constraints)
-            if force_order_type:
-                order_type = force_order_type
-            else:
-                if self.small_order_market_threshold_usd and size_usd <= self.small_order_market_threshold_usd:
-                    order_type = "market"
-                else:
-                    order_type = "limit_post_only" if self.limit_post_only else "market"
-            
-            # Assume maker for post-only, taker for market orders
-            is_maker = (order_type == "limit_post_only")
-            
-            product_metadata: Optional[Dict[str, Any]] = None
-
-            # Enforce product constraints (increments, min size, fee-adjusted rounding)
-            if current_price > 0:
-                constraints = self.enforce_product_constraints(symbol, size_usd, current_price, is_maker=is_maker)
-                if not constraints.get("success"):
-                    logger.warning(f"Product constraints failed for {symbol}: {constraints.get('error')}")
+                    logger.warning("Stale quote rejected in _execute_live: %s", staleness_error)
                     return ExecutionResult(
                         success=False,
                         order_id=None,
@@ -1752,14 +1713,48 @@ class ExecutionEngine:
                         fees=0.0,
                         slippage_bps=0.0,
                         route="live_rejected",
-                        error=constraints.get("error", "Product constraints failed")
+                        error=staleness_error,
                     )
-                
-                # Use adjusted size if constraints modified it
+                current_price = quote.mid
+            except Exception as quote_exc:
+                logger.warning("Failed to get quote for %s: %s", symbol, quote_exc)
+                current_price = 0.0
+
+            first_is_maker = plan[0].get("order_type") == "limit_post_only"
+
+            product_metadata: Optional[Dict[str, Any]] = None
+            if current_price > 0:
+                constraints = self.enforce_product_constraints(
+                    symbol,
+                    size_usd,
+                    current_price,
+                    is_maker=first_is_maker,
+                )
+                if not constraints.get("success"):
+                    logger.warning("Product constraints failed for %s: %s", symbol, constraints.get("error"))
+                    return ExecutionResult(
+                        success=False,
+                        order_id=None,
+                        symbol=symbol,
+                        side=side,
+                        filled_size=0.0,
+                        filled_price=0.0,
+                        fees=0.0,
+                        slippage_bps=0.0,
+                        route="live_rejected",
+                        error=constraints.get("error", "Product constraints failed"),
+                    )
+
                 adjusted_size = constraints.get("adjusted_size_usd", size_usd)
                 if adjusted_size != size_usd:
                     fee_adj_note = " (fee-adjusted)" if constraints.get("fee_adjusted") else " (constraints)"
-                    logger.info(f"Adjusted order size ${size_usd:.4f} → ${adjusted_size:.4f} for {symbol}{fee_adj_note}")
+                    logger.info(
+                        "Adjusted order size $%.4f → $%.4f for %s%s",
+                        size_usd,
+                        adjusted_size,
+                        symbol,
+                        fee_adj_note,
+                    )
                     size_usd = adjusted_size
 
                 product_metadata = constraints.get("metadata") or product_metadata
@@ -1768,9 +1763,17 @@ class ExecutionEngine:
                     product_metadata = self.exchange.get_product_metadata(symbol)
                 except Exception as metadata_exc:  # pragma: no cover - defensive
                     logger.debug("Failed to fetch product metadata for %s: %s", symbol, metadata_exc)
-            
-            # Preview first
-            preview = self.preview_order(symbol, side, size_usd, skip_liquidity_checks=skip_liquidity_checks)
+
+            plan = self._build_execution_plan(force_order_type, size_usd)
+            if not plan:
+                plan = [{"order_type": "market", "mode": "primary"}]
+
+            preview = self.preview_order(
+                symbol,
+                side,
+                size_usd,
+                skip_liquidity_checks=skip_liquidity_checks,
+            )
             if not preview.get("success"):
                 return ExecutionResult(
                     success=False,
@@ -1782,12 +1785,18 @@ class ExecutionEngine:
                     fees=0.0,
                     slippage_bps=0.0,
                     route="live_market_ioc",
-                    error=preview.get("error", "Preview failed")
+                    error=preview.get("error", "Preview failed"),
                 )
-            
-            # Check slippage
-            max_slip = max_slippage_bps or self.max_slippage_bps
-            if preview.get("estimated_slippage_bps", 0) > max_slip:
+
+            if isinstance(max_slippage_bps, str):
+                try:
+                    max_slippage_bps = float(max_slippage_bps)
+                except (TypeError, ValueError):
+                    max_slippage_bps = None
+
+            max_slip = max_slippage_bps if max_slippage_bps is not None else self.max_slippage_bps
+            est_slippage_bps = float(preview.get("estimated_slippage_bps", 0.0) or 0.0)
+            if est_slippage_bps > max_slip:
                 return ExecutionResult(
                     success=False,
                     order_id=None,
@@ -1796,262 +1805,379 @@ class ExecutionEngine:
                     filled_size=0.0,
                     filled_price=0.0,
                     fees=0.0,
-                    slippage_bps=preview["estimated_slippage_bps"],
+                    slippage_bps=est_slippage_bps,
                     route="live_market_ioc",
-                    error=f"Slippage {preview['estimated_slippage_bps']:.1f}bps exceeds max {max_slip}bps"
+                    error=f"Slippage {est_slippage_bps:.1f}bps exceeds max {max_slip}bps",
                 )
-            
-            # Check slippage budget (tier-specific: estimated_slippage + fees)
-            if tier is not None:
-                est_slippage_bps = preview.get("estimated_slippage_bps", 0.0)
-                # Use appropriate fee based on order type
-                is_maker = (order_type == "limit_post_only")
-                fee_bps = self.maker_fee_bps if is_maker else self.taker_fee_bps
-                total_cost_bps = est_slippage_bps + fee_bps
 
-                slippage_budget = self._get_slippage_budget(tier)
+            maker_total_cost_bps = self.maker_fee_bps
+            taker_total_cost_bps = est_slippage_bps + self.taker_fee_bps
+            slippage_budget = self._get_slippage_budget(tier) if tier is not None else None
 
-                if bypass_slippage_budget:
-                    logger.debug(
-                        "Bypassing slippage budget for %s T%d (cost %.1fbps exceeds %.1fbps)",
-                        symbol,
-                        tier,
-                        total_cost_bps,
-                        slippage_budget,
-                    )
-                elif total_cost_bps > slippage_budget:
+            if (
+                plan
+                and not bypass_slippage_budget
+                and slippage_budget is not None
+                and maker_total_cost_bps > slippage_budget
+            ):
+                maker_steps = [step for step in plan if step.get("order_type") == "limit_post_only"]
+                if maker_steps:
                     logger.warning(
-                        f"Slippage budget exceeded for {symbol} T{tier}: "
-                        f"{total_cost_bps:.1f}bps (slippage {est_slippage_bps:.1f} + fees {fee_bps:.1f}) "
-                        f"> budget {slippage_budget:.1f}bps"
+                        "Maker cost %.1fbps exceeds T%s budget %.1fbps; skipping maker attempts for %s",
+                        maker_total_cost_bps,
+                        tier if tier is not None else "?",
+                        slippage_budget,
+                        symbol,
                     )
-                    return ExecutionResult(
-                        success=False,
-                        order_id=None,
-                        symbol=symbol,
-                        side=side,
-                        filled_size=0.0,
-                        filled_price=0.0,
-                        fees=0.0,
-                        slippage_bps=est_slippage_bps,
-                        route="live_rejected_budget",
-                        error=f"Total cost {total_cost_bps:.1f}bps exceeds T{tier} budget {slippage_budget:.1f}bps"
-                    )
-            
-            # Place order (order_type already determined above for fee calculation)
-            result = self.exchange.place_order(
-                product_id=symbol,
-                side=side.lower(),
-                quote_size_usd=size_usd,
-                client_order_id=client_order_id,
-                order_type=order_type
-            )
-            
-            route = f"live_{order_type}"
-            
-            # Log full response for debugging
-            logger.info(f"Order response: {result}")
-            
-            # Parse result
-            order_id = result.get("order_id") or result.get("success_response", {}).get("order_id")
-            status = (
-                result.get("status")
-                or result.get("success_response", {}).get("status")
-                or "open"
-            )
-            
-            # Check if order actually succeeded
-            if not order_id and not result.get("success"):
-                error_msg = f"Order placement failed: {result.get('error', 'Unknown error')}"
-                # Transition to REJECTED or FAILED
-                self.order_state_machine.transition(
-                    client_order_id,
-                    OrderStatus.REJECTED,
-                    rejection_reason=error_msg
-                )
-                raise ValueError(error_msg)
-            
-            # Transition to OPEN
-            self.order_state_machine.transition(
-                client_order_id,
-                OrderStatus.OPEN,
-                order_id=order_id
-            )
-            
-            # Extract fill details
-            fills = result.get("fills") or []
-            filled_size, filled_price, fees, filled_value = self._summarize_fills(fills, product_metadata)
-
-            # CRITICAL FIX: Market orders don't have fills in initial response
-            # Poll order status first, then fetch fills when terminal
-            if not fills and order_type == "market" and order_id:
-                logger.info(f"Market order placed, polling for status then fills: {order_id}")
-                try:
-                    # Poll order status until terminal (FILLED/CANCELLED/EXPIRED/FAILED)
-                    max_attempts = 10
-                    poll_interval = 0.5  # 500ms
-                    terminal_states = {"FILLED", "CANCELLED", "EXPIRED", "FAILED"}
-
-                    order_status = None
-                    for attempt in range(max_attempts):
-                        time.sleep(poll_interval)
-
-                        order_status = self.exchange.get_order_status(order_id)
-                        if not order_status:
-                            logger.warning(f"Attempt {attempt+1}: No order status for {order_id}")
-                            continue
-
-                        status = order_status.get("status", "UNKNOWN")
-                        filled_size_so_far = float(order_status.get("filled_size", 0))
-
-                        logger.debug(
-                            f"Attempt {attempt+1}: order {order_id} status={status}, "
-                            f"filled_size={filled_size_so_far}"
+                    plan = [step for step in plan if step.get("order_type") != "limit_post_only"]
+                    if not plan:
+                        return ExecutionResult(
+                            success=False,
+                            order_id=None,
+                            symbol=symbol,
+                            side=side,
+                            filled_size=0.0,
+                            filled_price=0.0,
+                            fees=0.0,
+                            slippage_bps=est_slippage_bps,
+                            route="live_rejected_budget",
+                            error=(
+                                f"Maker cost {maker_total_cost_bps:.1f}bps exceeds T{tier} budget {slippage_budget:.1f}bps"
+                                if tier is not None
+                                else f"Maker cost {maker_total_cost_bps:.1f}bps exceeds slippage budget {slippage_budget:.1f}bps"
+                            ),
                         )
 
-                        if status in terminal_states:
-                            logger.info(f"Order {order_id} reached terminal state: {status}")
-                            break
+            plan_summary = self._describe_execution_plan(plan)
+            logger.info(
+                "EXEC_PLAN %s %s usd=%.2f tier=%s plan=%s",
+                symbol,
+                side.upper(),
+                size_usd,
+                tier if tier is not None else "na",
+                plan_summary,
+            )
 
-                    # Now fetch fills (they should be available after status is terminal)
-                    time.sleep(0.2)  # Brief wait for fills to propagate
-                    fills = self.exchange.list_fills(order_id=order_id) or []
-                    logger.info(f"Retrieved {len(fills)} fills for order {order_id}")
+            attempt_index = 0
+            last_result: Optional[ExecutionResult] = None
 
-                except Exception as poll_err:
-                    logger.warning(f"Failed to poll status/fills for {order_id}: {poll_err}")
-                    # Fall back to using preview price estimate
-                    fills = []
+            for step_idx, step in enumerate(plan):
+                order_type = step.get("order_type", "market")
+                use_maker = order_type == "limit_post_only"
+                mode = step.get("mode", "primary")
+                attempt_label = step.get("attempt", attempt_index)
+                attempt_client_order_id = (
+                    base_client_order_id if attempt_index == 0 else f"{base_client_order_id}_r{attempt_index}"
+                )
+                attempt_index += 1
+                active_client_order_id = attempt_client_order_id
 
-                filled_size, filled_price, fees, filled_value = self._summarize_fills(fills, product_metadata)
+                ttl_seconds = 0
+                ttl_quote = quote if use_maker and attempt_index == 1 else None
+                if use_maker:
+                    if ttl_quote is None:
+                        try:
+                            ttl_quote = self.exchange.get_quote(symbol)
+                        except Exception as ttl_exc:
+                            ttl_quote = quote
+                            logger.debug("Maker TTL quote fetch failed for %s: %s", symbol, ttl_exc)
+                    ttl_seconds = self._adaptive_maker_ttl(
+                        ttl_quote,
+                        attempt_label if isinstance(attempt_label, int) else attempt_index - 1,
+                    )
+                    if ttl_quote is not None:
+                        quote = ttl_quote
+                else:
+                    if not self._is_taker_slippage_allowed(est_slippage_bps, tier):
+                        error_msg = (
+                            f"Estimated slippage {est_slippage_bps:.1f}bps exceeds taker slippage budget"
+                        )
+                        logger.warning("Skipping taker route for %s: %s", symbol, error_msg)
+                        return ExecutionResult(
+                            success=False,
+                            order_id=None,
+                            symbol=symbol,
+                            side=side,
+                            filled_size=0.0,
+                            filled_price=0.0,
+                            fees=0.0,
+                            slippage_bps=est_slippage_bps,
+                            route="live_taker_blocked",
+                            error=error_msg,
+                        )
+                    if (
+                        not bypass_slippage_budget
+                        and slippage_budget is not None
+                        and taker_total_cost_bps > slippage_budget
+                    ):
+                        budget_msg = (
+                            f"Total cost {taker_total_cost_bps:.1f}bps exceeds T{tier} budget {slippage_budget:.1f}bps"
+                            if tier is not None
+                            else f"Total cost {taker_total_cost_bps:.1f}bps exceeds slippage budget {slippage_budget:.1f}bps"
+                        )
+                        logger.warning("Skipping taker route for %s: %s", symbol, budget_msg)
+                        return ExecutionResult(
+                            success=False,
+                            order_id=None,
+                            symbol=symbol,
+                            side=side,
+                            filled_size=0.0,
+                            filled_price=0.0,
+                            fees=0.0,
+                            slippage_bps=est_slippage_bps,
+                            route="live_rejected_budget",
+                            error=budget_msg,
+                        )
 
-            ttl_canceled = False
-            ttl_error: Optional[str] = None
+                logger.info(
+                    "EXEC_ATTEMPT %s %s attempt=%s type=%s client_id=%s ttl=%s mode=%s",
+                    symbol,
+                    side.upper(),
+                    attempt_label,
+                    order_type,
+                    attempt_client_order_id,
+                    ttl_seconds if use_maker else "na",
+                    mode,
+                )
 
-            if order_type == "limit_post_only" and self.post_only_ttl_seconds > 0:
-                ttl_result = self._handle_post_only_ttl(
-                    order_id=order_id,
-                    client_order_id=client_order_id,
+                self.order_state_machine.create_order(
+                    client_order_id=attempt_client_order_id,
                     symbol=symbol,
                     side=side,
-                    current_status=status,
-                    initial_fills=fills,
+                    size_usd=size_usd,
+                    route=f"live_{order_type}",
+                )
+
+                result = self.exchange.place_order(
+                    product_id=symbol,
+                    side=side.lower(),
+                    quote_size_usd=size_usd,
+                    client_order_id=attempt_client_order_id,
+                    order_type=order_type,
+                )
+
+                route = f"live_{order_type}"
+                logger.info("Order response: %s", result)
+
+                order_id = result.get("order_id") or result.get("success_response", {}).get("order_id")
+                status = (
+                    result.get("status")
+                    or result.get("success_response", {}).get("status")
+                    or "open"
+                )
+
+                if not order_id and not result.get("success"):
+                    error_msg = f"Order placement failed: {result.get('error', 'Unknown error')}"
+                    self.order_state_machine.transition(
+                        attempt_client_order_id,
+                        OrderStatus.REJECTED,
+                        rejection_reason=error_msg,
+                    )
+                    raise ValueError(error_msg)
+
+                self.order_state_machine.transition(
+                    attempt_client_order_id,
+                    OrderStatus.OPEN,
+                    order_id=order_id,
+                )
+
+                fills = result.get("fills") or []
+                filled_size, filled_price, fees, filled_value = self._summarize_fills(fills, product_metadata)
+
+                if not fills and order_type == "market" and order_id:
+                    logger.info("Market order placed, polling for status then fills: %s", order_id)
+                    try:
+                        max_attempts = 10
+                        poll_interval = 0.5
+                        terminal_states = {"FILLED", "CANCELLED", "EXPIRED", "FAILED"}
+                        for attempt in range(max_attempts):
+                            time.sleep(poll_interval)
+                            order_status = self.exchange.get_order_status(order_id)
+                            if not order_status:
+                                logger.warning("Attempt %d: No order status for %s", attempt + 1, order_id)
+                                continue
+                            status = order_status.get("status", "UNKNOWN")
+                            filled_size_so_far = float(order_status.get("filled_size", 0))
+                            logger.debug(
+                                "Attempt %d: order %s status=%s filled_size=%.6f",
+                                attempt + 1,
+                                order_id,
+                                status,
+                                filled_size_so_far,
+                            )
+                            if status in terminal_states:
+                                logger.info("Order %s reached terminal state: %s", order_id, status)
+                                break
+                        time.sleep(0.2)
+                        fills = self.exchange.list_fills(order_id=order_id) or []
+                        logger.info("Retrieved %d fills for order %s", len(fills), order_id)
+                    except Exception as poll_err:
+                        logger.warning("Failed to poll status/fills for %s: %s", order_id, poll_err)
+                        fills = []
+                    filled_size, filled_price, fees, filled_value = self._summarize_fills(fills, product_metadata)
+
+                ttl_canceled = False
+                ttl_error: Optional[str] = None
+
+                if use_maker and ttl_seconds > 0:
+                    ttl_result = self._handle_post_only_ttl(
+                        order_id=order_id,
+                        client_order_id=attempt_client_order_id,
+                        symbol=symbol,
+                        side=side,
+                        current_status=status,
+                        initial_fills=fills,
+                        filled_size=filled_size,
+                        filled_price=filled_price,
+                        fees=fees,
+                        ttl_seconds=ttl_seconds,
+                    )
+
+                    if ttl_result.triggered:
+                        if ttl_result.status:
+                            status = ttl_result.status
+                        if ttl_result.fills is not None:
+                            fills = ttl_result.fills
+                            filled_size, filled_price, fees, filled_value = self._summarize_fills(fills, product_metadata)
+                        if ttl_result.filled_size is not None:
+                            filled_size = ttl_result.filled_size
+                        if ttl_result.filled_price is not None:
+                            filled_price = ttl_result.filled_price
+                        if ttl_result.fees is not None:
+                            fees = ttl_result.fees
+                        if filled_size and filled_price:
+                            filled_value = filled_size * filled_price
+                        if ttl_result.filled_value is not None:
+                            filled_value = ttl_result.filled_value
+                        if ttl_result.fills is not None and ttl_result.filled_size is None:
+                            _, _, _, ttl_quote_value = self._summarize_fills(ttl_result.fills, product_metadata)
+                            filled_value = ttl_quote_value
+
+                        ttl_canceled = ttl_result.canceled
+                        ttl_error = ttl_result.error
+
+                        if ttl_result.canceled:
+                            result["ttl_cancelled"] = True
+                            if filled_size > 0:
+                                route = "live_limit_post_only_ttl_partial"
+                            else:
+                                route = "live_limit_post_only_timeout"
+                        elif ttl_result.error:
+                            result["ttl_warning"] = ttl_result.error
+
+                if filled_size == 0.0 and filled_price == 0.0 and not ttl_canceled:
+                    if preview.get("expected_fill_price"):
+                        filled_price = preview["expected_fill_price"]
+                        filled_size = size_usd / filled_price if filled_price > 0 else 0.0
+                        filled_value = filled_size * filled_price
+                        logger.warning(
+                            "No fill data for %s; using preview estimate %.6f @ $%.6f",
+                            order_id,
+                            filled_size,
+                            filled_price,
+                        )
+
+                if filled_size > 0:
+                    if filled_value == 0 and filled_price > 0:
+                        filled_value = filled_size * filled_price
+                    self.order_state_machine.update_fill(
+                        client_order_id=attempt_client_order_id,
+                        filled_size=filled_size,
+                        filled_value=filled_value,
+                        fees=fees,
+                        fills=fills,
+                    )
+
+                actual_slippage = est_slippage_bps
+
+                self._update_state_store_after_execution(
+                    symbol=symbol,
+                    side=side,
+                    size_usd=size_usd,
+                    client_order_id=attempt_client_order_id,
+                    order_id=order_id,
+                    status=status,
+                    route=route,
+                    result_payload=result,
+                    fills=fills,
                     filled_size=filled_size,
                     filled_price=filled_price,
                     fees=fees,
-                    ttl_seconds=self.post_only_ttl_seconds,
-                )
-
-                if ttl_result.triggered:
-                    if ttl_result.status:
-                        status = ttl_result.status
-                    if ttl_result.fills is not None:
-                        fills = ttl_result.fills
-                        filled_size, filled_price, fees, filled_value = self._summarize_fills(fills, product_metadata)
-                    if ttl_result.filled_size is not None:
-                        filled_size = ttl_result.filled_size
-                    if ttl_result.filled_price is not None:
-                        filled_price = ttl_result.filled_price
-                    if ttl_result.fees is not None:
-                        fees = ttl_result.fees
-                    if filled_size and filled_price:
-                        filled_value = filled_size * filled_price
-                    if ttl_result.filled_value is not None:
-                        filled_value = ttl_result.filled_value
-                    if ttl_result.fills is not None and ttl_result.filled_size is None:
-                        _, _, _, ttl_quote = self._summarize_fills(ttl_result.fills, product_metadata)
-                        filled_value = ttl_quote
-
-                    ttl_canceled = ttl_result.canceled
-                    ttl_error = ttl_result.error
-
-                    if ttl_result.canceled:
-                        result["ttl_cancelled"] = True
-                        if filled_size > 0:
-                            route = "live_limit_post_only_ttl_partial"
-                        else:
-                            route = "live_limit_post_only_timeout"
-                    elif ttl_result.error:
-                        result["ttl_warning"] = ttl_result.error
-
-            # If still no fills data (rare), use preview estimate as fallback
-            if filled_size == 0.0 and filled_price == 0.0 and not ttl_canceled:
-                # Use preview price as best estimate
-                if preview.get("expected_fill_price"):
-                    filled_price = preview["expected_fill_price"]
-                    filled_size = size_usd / filled_price if filled_price > 0 else 0.0
-                    filled_value = filled_size * filled_price
-                    logger.warning(
-                        f"No fill data for {order_id}, using preview estimate: "
-                        f"{filled_size:.6f} @ ${filled_price:.2f}"
-                    )
-
-            # Update order state with fill details
-            if filled_size > 0:
-                if filled_value == 0 and filled_price > 0:
-                    filled_value = filled_size * filled_price
-                self.order_state_machine.update_fill(
-                    client_order_id=client_order_id,
-                    filled_size=filled_size,
                     filled_value=filled_value,
+                )
+
+                success_flag = True
+                error_message = None
+                if use_maker and ttl_canceled and filled_size == 0.0:
+                    success_flag = False
+                    error_message = ttl_error or f"Post-only order canceled after {ttl_seconds}s TTL without fill"
+
+                if mode == "fallback" and route.startswith("live_market"):
+                    route = f"{route}_fallback"
+
+                exec_result = ExecutionResult(
+                    success=success_flag,
+                    order_id=order_id,
+                    symbol=symbol,
+                    side=side,
+                    filled_size=filled_size,
+                    filled_price=filled_price,
                     fees=fees,
-                    fills=fills
+                    slippage_bps=actual_slippage,
+                    route=route,
+                    error=error_message,
                 )
 
-            actual_slippage = preview.get("estimated_slippage_bps", 0)
-
-            self._update_state_store_after_execution(
-                symbol=symbol,
-                side=side,
-                size_usd=size_usd,
-                client_order_id=client_order_id,
-                order_id=order_id,
-                status=status,
-                route=route,
-                result_payload=result,
-                fills=fills,
-                filled_size=filled_size,
-                filled_price=filled_price,
-                fees=fees,
-                filled_value=filled_value,
-            )
-            
-            success_flag = True
-            error_message = None
-            if ttl_canceled and filled_size == 0.0:
-                success_flag = False
-                error_message = ttl_error or (
-                    f"Post-only order canceled after {self.post_only_ttl_seconds}s TTL without fill"
+                logger.info(
+                    "EXEC_RESULT %s %s success=%s route=%s filled=%.6f error=%s",
+                    symbol,
+                    side.upper(),
+                    exec_result.success,
+                    exec_result.route,
+                    exec_result.filled_size,
+                    exec_result.error,
                 )
+
+                if exec_result.success:
+                    return exec_result
+
+                last_result = exec_result
+
+                if use_maker and self._should_retry_maker(exec_result):
+                    continue
+
+            if last_result is not None:
+                return last_result
 
             return ExecutionResult(
-                success=success_flag,
-                order_id=order_id,
+                success=False,
+                order_id=None,
                 symbol=symbol,
                 side=side,
-                filled_size=filled_size,
-                filled_price=filled_price,
-                fees=fees,
-                slippage_bps=actual_slippage,
-                route=route,
-                error=error_message,
+                filled_size=0.0,
+                filled_price=0.0,
+                fees=0.0,
+                slippage_bps=est_slippage_bps,
+                route="live_no_plan",
+                error="Execution plan exhausted without fill",
             )
-            
+
         except Exception as e:
             logger.error(f"Live execution failed: {e}")
-            # Transition to FAILED
-            self.order_state_machine.transition(
-                client_order_id,
-                OrderStatus.FAILED,
-                error=str(e)
-            )
-            # Record failure for cooldown
+            try:
+                self.order_state_machine.transition(
+                    active_client_order_id,
+                    OrderStatus.FAILED,
+                    error=str(e),
+                )
+            except Exception:
+                pass
             try:
                 base_sym = symbol.split('-')[0] if '-' in symbol else symbol
                 self._last_fail[base_sym] = datetime.now(timezone.utc).timestamp()
             except Exception:
                 pass
-            order_type = force_order_type or ("limit_post_only" if self.limit_post_only else "market")
+            fallback_type = force_order_type or ("limit_post_only" if self.limit_post_only else "market")
             return ExecutionResult(
                 success=False,
                 order_id=None,
@@ -2061,8 +2187,8 @@ class ExecutionEngine:
                 filled_price=0.0,
                 fees=0.0,
                 slippage_bps=0.0,
-                route=f"live_{order_type}",
-                error=str(e)
+                route=f"live_{fallback_type}",
+                error=str(e),
             )
 
     def _ensure_preferred_quote_liquidity(self, required_usd: float, preferred_quote: str = "USDC") -> bool:
