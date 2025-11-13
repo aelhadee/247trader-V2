@@ -272,7 +272,9 @@ execution:
   
   # Order types
   default_order_type: "limit_post_only"  # Phase 1: conservative
-  min_notional_usd: 9.0                  # Execution floor for gross order size
+  # Execution minimum (DYNAMIC based on profile)
+  # Active profile: day_trader → min_notional = $5.00 (allows smaller conviction-scaled trades)
+  min_notional_usd: 5.0                  # Execution floor for gross order size (day_trader profile)
   maker_first: true                      # Try maker route before taker
   maker_max_reprices: 1                  # Single reprice before fallback
   # Normal trading TTLs (T1/T2 liquid pairs)
