@@ -618,6 +618,25 @@ class RiskEngine:
         """Emit structured risk rejection log message."""
 
         snapshot = getattr(self, "last_caps_snapshot", None)
+        
+        # Add context for below_min_after_caps rejections
+        if code == "below_min_after_caps" and details:
+            requested = details.get("requested_usd", 0)
+            assigned = details.get("assigned_usd", 0)
+            if requested > 0 and assigned > 0:
+                shortage = requested - assigned
+                logger.warning(
+                    "RISK_REJECT %s %s reason=%s (want $%.2f, only $%.2f available, short $%.2f) - "
+                    "symbol near per-asset cap; consider closing position to free capacity",
+                    proposal.symbol,
+                    (proposal.side or "").upper(),
+                    code,
+                    requested,
+                    assigned,
+                    shortage,
+                )
+                return
+        
         logger.warning(
             "RISK_REJECT %s %s reason=%s details=%s caps=%s",
             proposal.symbol,
