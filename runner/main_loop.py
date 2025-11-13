@@ -632,9 +632,30 @@ class TradingLoop:
         Without this, we can over-allocate while orders are working.
         """
         pending = {"buy": {}, "sell": {}}
+
+        try:
+            self.state_store.purge_expired_pending()
+        except Exception:
+            pass
         
         open_orders = state.get("open_orders", {})
         if not open_orders:
+            # Even without tracked open orders, pending markers may exist
+            markers = state.get("pending_markers", {})
+            for record in markers.values():
+                if not isinstance(record, dict):
+                    continue
+                if (record.get("side") or "").upper() != "BUY":
+                    continue
+                product_id = record.get("product_id") or record.get("base")
+                if not product_id:
+                    continue
+                if "-" not in product_id:
+                    product_id = f"{product_id}-USD"
+                notional = record.get("notional_usd")
+                if notional is None or notional <= 0:
+                    notional = self.executor.min_notional_usd
+                pending["buy"][product_id] = max(pending["buy"].get(product_id, 0.0), float(notional))
             return pending
         
         for order_id, order_data in open_orders.items():
@@ -677,6 +698,24 @@ class TradingLoop:
                 
                 if symbol and notional_usd > 0:
                     pending["sell"][symbol] = pending["sell"].get(symbol, 0.0) + notional_usd
+
+        # Merge lightweight pending markers to avoid losing exposure when cancels occur mid-cycle
+        markers = state.get("pending_markers", {})
+        for record in markers.values():
+            if not isinstance(record, dict):
+                continue
+            side = (record.get("side") or "").upper()
+            if side != "BUY":
+                continue
+            product_id = record.get("product_id") or record.get("base")
+            if not product_id:
+                continue
+            if "-" not in product_id:
+                product_id = f"{product_id}-USD"
+            notional = record.get("notional_usd")
+            if notional is None or notional <= 0:
+                notional = self.executor.min_notional_usd
+            pending["buy"][product_id] = max(pending["buy"].get(product_id, 0.0), float(notional))
         
         logger.debug(f"Pending orders from state: buy={pending['buy']}, sell={pending['sell']}")
         return pending
