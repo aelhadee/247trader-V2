@@ -2480,7 +2480,7 @@ class TradingLoop:
         Args:
             interval_seconds: Seconds between cycle starts
         """
-        configured_interval = float(interval_seconds) if interval_seconds else (self.loop_interval_seconds or 300.0)
+        configured_interval = float(interval_seconds) if interval_seconds else (self.loop_interval_seconds or 60.0)
         configured_interval = max(configured_interval, 1.0)
 
         logger.info(f"Starting continuous loop (interval={configured_interval}s)")
