@@ -892,7 +892,7 @@ class RiskEngine:
             )
         _merge_rejections(result.proposal_rejections)
         
-        logger.info(f"Risk checks passed: {len(approved_proposals)}/{len(proposals)} proposals approved")
+        logger.info(f"Risk checks passed: {len(approved_proposals)}/{original_proposal_count} proposals approved")
         
         return RiskCheckResult(
             approved=True,
