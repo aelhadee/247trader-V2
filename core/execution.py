@@ -2963,10 +2963,10 @@ class ExecutionEngine:
         
         if product_id and side in ("BUY", "SELL") and client_id:
             base = product_id.split('-')[0] if '-' in product_id else product_id
-            self.state_store.clear_pending(base, side, client_id)
+            self.state_store.clear_pending(product_id, side, client_order_id=client_id)
             logger.debug(
                 "Cleared pending marker for stale order: %s %s %s",
-                base,
+                product_id,
                 side,
                 client_id,
             )
