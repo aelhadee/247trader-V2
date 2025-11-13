@@ -746,14 +746,14 @@ class RiskEngine:
         
         # Use portfolio.pending_orders which has already been filtered for ghost orders
         # No need to fetch from exchange again - that would bypass ghost order filtering
-        pending_state_map = self._build_pending_buy_map(portfolio)
-        pending_buy_override = sum(pending_state_map.values()) if pending_state_map else None
+        combined_pending_map = self._build_pending_buy_map(portfolio)
+        pending_buy_override = sum(combined_pending_map.values()) if combined_pending_map else None
 
         if pending_buy_override:
             logger.debug(
                 "Pending buy exposure from portfolio: $%.2f across %d symbol(s)",
                 pending_buy_override,
-                len(pending_state_map),
+                len(combined_pending_map),
             )
 
         # 3b. Global at-risk limit (existing + proposed)
