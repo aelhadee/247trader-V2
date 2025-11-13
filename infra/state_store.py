@@ -31,6 +31,9 @@ DEFAULT_STATE = {
     "cash_balances": {},  # quote currency -> available
     "open_orders": {},  # client_order_id/order_id -> metadata
     "recent_orders": [],  # bounded history of closed/canceled orders
+    "pending_markers": {},  # lightweight pending flags with TTL
+    "last_fill_times": {},  # symbol:side -> ISO timestamp of last fill
+    "fill_history": {},  # symbol:side -> bounded list of fill timestamps
     "last_reconcile_at": None,
     "last_reset_date": None,
     "last_reset_hour": None,
@@ -53,6 +56,10 @@ class StateStore:
     - Thread-safe operations
     """
     
+    PENDING_TTL_SECONDS = 120
+    MAX_PENDING_HISTORY = 200
+    MAX_FILL_HISTORY = 100
+
     def __init__(self, state_file: Optional[str] = None):
         """
         Initialize state store.
@@ -71,6 +78,17 @@ class StateStore:
         
         self._state = None
         logger.info(f"Initialized StateStore at {self.state_file}")
+
+    @staticmethod
+    def _normalize_symbol(symbol: str) -> str:
+        if not symbol:
+            return symbol
+        return symbol if "-" in symbol else f"{symbol}-USD"
+
+    @staticmethod
+    def _fill_key(symbol: str, side: str) -> str:
+        normalized = StateStore._normalize_symbol(symbol)
+        return f"{normalized}:{(side or '').upper()}"
     
     def load(self) -> Dict[str, Any]:
         """
@@ -269,6 +287,8 @@ class StateStore:
         if entry is None:
             return False, {}
 
+        self._purge_expired_pending(state)
+
         ts = (timestamp or datetime.now(timezone.utc)).isoformat()
         entry.update(details or {})
         entry["status"] = status
@@ -291,6 +311,138 @@ class StateStore:
             state["events"] = state["events"][-100:]
         self.save(state)
         return True, entry
+
+    def purge_expired_pending(self) -> None:
+        state = self.load()
+        removed = self._purge_expired_pending(state)
+        if removed:
+            self.save(state)
+
+    def _pending_bucket(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        return state.setdefault("pending_markers", {})
+
+    def _purge_expired_pending(self, state: Dict[str, Any]) -> List[str]:
+        bucket = self._pending_bucket(state)
+        if not bucket:
+            return []
+
+        now = datetime.now(timezone.utc)
+        removed: List[str] = []
+        for key, record in list(bucket.items()):
+            expires_at = record.get("expires_at")
+            if not expires_at:
+                continue
+            try:
+                expiry = datetime.fromisoformat(expires_at)
+            except Exception:
+                expiry = now - timedelta(seconds=1)
+            if expiry <= now:
+                bucket.pop(key, None)
+                removed.append(key)
+
+        return removed
+
+    def set_pending(
+        self,
+        product_id: str,
+        side: str,
+        *,
+        client_order_id: Optional[str] = None,
+        order_id: Optional[str] = None,
+        notional_usd: Optional[float] = None,
+        ttl_seconds: Optional[int] = None,
+    ) -> None:
+        if not product_id or not side:
+            return
+
+        state = self.load()
+        bucket = self._pending_bucket(state)
+        self._purge_expired_pending(state)
+
+        normalized = self._normalize_symbol(product_id)
+        side_upper = side.upper()
+        ttl = int(ttl_seconds if ttl_seconds else self.PENDING_TTL_SECONDS)
+        ttl = max(ttl, 1)
+        now = datetime.now(timezone.utc)
+        expires = now + timedelta(seconds=ttl)
+
+        key = f"{normalized}:{side_upper}:{client_order_id or order_id or uuid.uuid4().hex}"
+        bucket[key] = {
+            "product_id": normalized,
+            "base": normalized.split("-", 1)[0],
+            "side": side_upper,
+            "client_order_id": client_order_id,
+            "order_id": order_id,
+            "notional_usd": float(notional_usd) if notional_usd else None,
+            "since": now.isoformat(),
+            "expires_at": expires.isoformat(),
+        }
+
+        if len(bucket) > self.MAX_PENDING_HISTORY:
+            # Drop oldest entries to keep bounded size
+            oldest = sorted(
+                bucket.items(),
+                key=lambda item: item[1].get("since", ""),
+            )[:-self.MAX_PENDING_HISTORY]
+            for pending_key, _ in oldest:
+                bucket.pop(pending_key, None)
+
+        self.save(state)
+
+    def clear_pending(
+        self,
+        product_id: str,
+        side: str,
+        *,
+        client_order_id: Optional[str] = None,
+        order_id: Optional[str] = None,
+    ) -> None:
+        state = self.load()
+        bucket = self._pending_bucket(state)
+        if not bucket:
+            return
+
+        self._purge_expired_pending(state)
+
+        normalized = self._normalize_symbol(product_id)
+        base = normalized.split("-", 1)[0]
+        side_upper = side.upper()
+
+        removed = False
+        for key, record in list(bucket.items()):
+            if record.get("side") != side_upper:
+                continue
+            if record.get("product_id") == normalized or record.get("base") == base:
+                if client_order_id and record.get("client_order_id") and record.get("client_order_id") != client_order_id:
+                    continue
+                if order_id and record.get("order_id") and record.get("order_id") != order_id:
+                    continue
+                bucket.pop(key, None)
+                removed = True
+
+        if removed:
+            self.save(state)
+
+    def has_pending(self, product_id: str, side: str) -> bool:
+        state = self.load()
+        bucket = self._pending_bucket(state)
+        if not bucket:
+            return False
+
+        removed = self._purge_expired_pending(state)
+        if removed:
+            self.save(state)
+
+        normalized = self._normalize_symbol(product_id)
+        base = normalized.split("-", 1)[0]
+        side_upper = side.upper()
+
+        for record in bucket.values():
+            if record.get("side") != side_upper:
+                continue
+            if record.get("product_id") == normalized or record.get("base") == base:
+                return True
+        return False
 
     def has_open_order(self, key: str) -> bool:
         """Return True if an order key is currently tracked as open."""
