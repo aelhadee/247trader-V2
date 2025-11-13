@@ -326,6 +326,289 @@ class RiskEngine:
                 combined[symbol] = notional
         return combined
 
+    def _build_caps_snapshot(
+        self,
+        portfolio: PortfolioState,
+        pending_notional_map: Optional[Dict[str, float]],
+    ) -> Dict[str, Any]:
+        """Construct snapshot of remaining caps and exposure state."""
+
+        nav = max(float(portfolio.account_value_usd or 0.0), 0.0)
+        max_pos_pct = float(self.risk_config.get("max_position_size_pct", 5.0) or 0.0)
+        total_limit_pct = float(self.risk_config.get("max_total_at_risk_pct", 100.0) or 0.0)
+
+        risk_min = float(self.risk_config.get("min_trade_notional_usd", 0.0) or 0.0)
+        exec_min = float(self.execution_config.get("min_notional_usd", 0.0) or 0.0)
+        min_trade_notional = max(risk_min, exec_min)
+
+        default_per_asset_limit_usd = (max_pos_pct / 100.0) * nav if nav > 0 else 0.0
+
+        exposures_by_symbol: Dict[str, float] = {}
+        for symbol in portfolio.open_positions.keys():
+            normalized = self._normalize_symbol(symbol)
+            usd_value = portfolio.get_position_usd(symbol)
+            if usd_value <= 0:
+                continue
+            exposures_by_symbol[normalized] = exposures_by_symbol.get(normalized, 0.0) + usd_value
+
+        if pending_notional_map:
+            for symbol, value in pending_notional_map.items():
+                normalized = self._normalize_symbol(symbol)
+                try:
+                    usd_value = float(value)
+                except (TypeError, ValueError):
+                    continue
+                if usd_value <= 0:
+                    continue
+                exposures_by_symbol[normalized] = exposures_by_symbol.get(normalized, 0.0) + usd_value
+
+        per_asset_limits = {symbol: default_per_asset_limit_usd for symbol in exposures_by_symbol}
+        per_asset_used = dict(exposures_by_symbol)
+
+        max_per_theme_pct = self.risk_config.get("max_per_theme_pct", {}) or {}
+        cluster_limits: Dict[str, float] = {}
+        cluster_used: Dict[str, float] = {}
+        if max_per_theme_pct:
+            for cluster, pct in max_per_theme_pct.items():
+                try:
+                    pct_float = float(pct)
+                except (TypeError, ValueError):
+                    continue
+                cluster_limits[cluster] = (pct_float / 100.0) * nav if nav > 0 else 0.0
+                cluster_used.setdefault(cluster, 0.0)
+
+            if self.universe_manager:
+                for symbol, usd_value in exposures_by_symbol.items():
+                    cluster = self.universe_manager.get_asset_cluster(symbol)
+                    if not cluster:
+                        continue
+                    cluster_used[cluster] = cluster_used.get(cluster, 0.0) + usd_value
+
+        pending_total = 0.0
+        if pending_notional_map:
+            for value in pending_notional_map.values():
+                try:
+                    pending_total += max(float(value), 0.0)
+                except (TypeError, ValueError):
+                    continue
+
+        managed_usd = portfolio.get_managed_exposure_usd()
+        external_usd = portfolio.get_external_exposure_usd()
+        counted_external_usd = 0.0
+        if self._count_external_positions:
+            buffer_usd = nav * (self._external_exposure_buffer_pct / 100.0)
+            counted_external_usd = max(external_usd - buffer_usd, 0.0)
+
+        total_limit_usd = (total_limit_pct / 100.0) * nav if nav > 0 else 0.0
+        total_used_usd = managed_usd + counted_external_usd + pending_total
+
+        snapshot = {
+            "nav": nav,
+            "max_pos_pct": max_pos_pct,
+            "defaults": {"per_asset_limit_usd": default_per_asset_limit_usd},
+            "per_asset_limits": per_asset_limits,
+            "per_asset_used": per_asset_used,
+            "cluster_limits": cluster_limits,
+            "cluster_used": cluster_used,
+            "total_limit_usd": total_limit_usd,
+            "total_used_usd": total_used_usd,
+            "min_notional_usd": min_trade_notional,
+            "allow_min_bump": self.allow_min_bump_in_risk,
+        }
+
+        return snapshot
+
+    def _resize_proposal_to_caps(
+        self,
+        proposal: TradeProposal,
+        snapshot: Dict[str, Any],
+    ) -> CapAllocationResult:
+        """Resize a proposal to fit remaining caps."""
+
+        nav = snapshot["nav"]
+        if nav <= 0:
+            return CapAllocationResult(False, "no_nav", 0.0, 0.0)
+
+        original_pct = max(float(getattr(proposal, "size_pct", 0.0) or 0.0), 0.0)
+        requested_usd_initial = nav * (original_pct / 100.0)
+        requested_usd = requested_usd_initial
+
+        min_notional = snapshot.get("min_notional_usd", 0.0)
+        allow_min_bump = snapshot.get("allow_min_bump", False)
+        min_bump_applied = False
+
+        if allow_min_bump and min_notional > 0 and requested_usd < min_notional:
+            requested_usd = min_notional
+            min_bump_applied = True
+
+        if requested_usd <= 0:
+            return CapAllocationResult(False, "non_positive_request", 0.0, requested_usd_initial)
+
+        symbol = self._normalize_symbol(proposal.symbol)
+
+        per_asset_limits = snapshot.setdefault("per_asset_limits", {})
+        per_asset_used = snapshot.setdefault("per_asset_used", {})
+
+        per_asset_limit = per_asset_limits.get(symbol)
+        if per_asset_limit is None:
+            per_asset_limit = snapshot["defaults"].get("per_asset_limit_usd", 0.0)
+            per_asset_limits[symbol] = per_asset_limit
+        per_asset_used_value = per_asset_used.get(symbol, 0.0)
+        per_asset_remaining = max(per_asset_limit - per_asset_used_value, 0.0)
+
+        cluster_remaining = None
+        cluster_name = None
+        cluster_limits = snapshot.get("cluster_limits", {})
+        cluster_used = snapshot.setdefault("cluster_used", {})
+        if cluster_limits and self.universe_manager:
+            cluster_name = self.universe_manager.get_asset_cluster(symbol)
+            if cluster_name:
+                cluster_limit = cluster_limits.get(cluster_name)
+                if cluster_limit is not None:
+                    cluster_used_value = cluster_used.get(cluster_name, 0.0)
+                    cluster_remaining = max(cluster_limit - cluster_used_value, 0.0)
+
+        total_remaining = max(snapshot.get("total_limit_usd", 0.0) - snapshot.get("total_used_usd", 0.0), 0.0)
+
+        cap_candidates = [per_asset_remaining, total_remaining]
+        if cluster_remaining is not None:
+            cap_candidates.append(cluster_remaining)
+
+        cap_usd = min(cap_candidates) if cap_candidates else requested_usd
+        if cap_usd <= 0:
+            return CapAllocationResult(False, "no_capacity", 0.0, requested_usd_initial)
+
+        assigned_usd = min(requested_usd, cap_usd)
+
+        required_floor = 0.0
+        if min_notional > 0:
+            if allow_min_bump or requested_usd_initial >= min_notional:
+                required_floor = min_notional
+            else:
+                required_floor = requested_usd_initial
+
+        if required_floor > 0 and assigned_usd + 1e-6 < required_floor:
+            return CapAllocationResult(False, "below_min_after_caps", assigned_usd, requested_usd_initial)
+
+        if assigned_usd <= 0:
+            return CapAllocationResult(False, "no_capacity", assigned_usd, requested_usd_initial)
+
+        snapshot["total_used_usd"] = snapshot.get("total_used_usd", 0.0) + assigned_usd
+        per_asset_used[symbol] = per_asset_used_value + assigned_usd
+        if cluster_name and cluster_remaining is not None:
+            cluster_used[cluster_name] = cluster_used.get(cluster_name, 0.0) + assigned_usd
+
+        degraded = assigned_usd + 1e-6 < requested_usd
+
+        return CapAllocationResult(
+            True,
+            None,
+            assigned_usd,
+            requested_usd_initial,
+            min_bump_applied=min_bump_applied,
+            degraded=degraded,
+        )
+
+    def _summarize_caps_snapshot(self, snapshot: Dict[str, Any]) -> Dict[str, Any]:
+        """Produce lightweight caps summary for logging."""
+
+        nav = snapshot.get("nav", 0.0)
+        total_limit_usd = snapshot.get("total_limit_usd", 0.0)
+        total_used_usd = snapshot.get("total_used_usd", 0.0)
+        per_asset_limits = snapshot.get("per_asset_limits", {})
+        per_asset_used = snapshot.get("per_asset_used", {})
+
+        per_asset_remaining = {
+            symbol: max(limit - per_asset_used.get(symbol, 0.0), 0.0)
+            for symbol, limit in per_asset_limits.items()
+        }
+
+        return {
+            "nav": round(nav, 2),
+            "total_limit_usd": round(total_limit_usd, 2),
+            "total_used_usd": round(total_used_usd, 2),
+            "total_remaining_usd": round(max(total_limit_usd - total_used_usd, 0.0), 2),
+            "min_notional_usd": round(snapshot.get("min_notional_usd", 0.0), 2),
+            "per_asset_remaining_usd": {
+                symbol: round(value, 2)
+                for symbol, value in per_asset_remaining.items()
+            },
+        }
+
+    def _apply_caps_to_proposals(
+        self,
+        proposals: List[TradeProposal],
+        portfolio: PortfolioState,
+        pending_notional_map: Optional[Dict[str, float]],
+    ) -> Tuple[List[TradeProposal], Dict[str, List[str]], int]:
+        """Resize proposals to fit caps, returning kept proposals and rejection map."""
+
+        if not proposals:
+            self.last_caps_snapshot = {}
+            return proposals, {}, 0
+
+        snapshot = self._build_caps_snapshot(portfolio, pending_notional_map)
+
+        approved_indices: Dict[int, TradeProposal] = {}
+        rejection_map: Dict[str, List[str]] = {}
+        degrade_count = 0
+
+        indexed = list(enumerate(proposals))
+        prioritized = sorted(indexed, key=lambda item: getattr(item[1], "confidence", 0.0), reverse=True)
+
+        for idx, proposal in prioritized:
+            allocation = self._resize_proposal_to_caps(proposal, snapshot)
+            if allocation.approved:
+                nav = snapshot["nav"]
+                assigned_usd = allocation.assigned_usd
+                proposal.annotations["risk_assigned_usd"] = round(assigned_usd, 2)
+                proposal.metadata["risk_notional_usd"] = assigned_usd
+
+                if allocation.degraded:
+                    proposal.annotations["risk_degraded"] = True
+                    degrade_count += 1
+                if allocation.min_bump_applied:
+                    proposal.annotations["risk_min_bump"] = True
+
+                if nav > 0:
+                    proposal.size_pct = (assigned_usd / nav) * 100.0
+                else:
+                    proposal.size_pct = 0.0
+
+                approved_indices[idx] = proposal
+            else:
+                reason_code = allocation.reason or "capacity"
+                rejection_map.setdefault(proposal.symbol, []).append(reason_code)
+                self._log_risk_reject(
+                    proposal,
+                    reason_code,
+                    requested_usd=round(allocation.requested_usd, 2),
+                    assigned_usd=round(allocation.assigned_usd, 2),
+                )
+
+        kept: List[TradeProposal] = []
+        for idx, proposal in indexed:
+            approved = approved_indices.get(idx)
+            if approved is not None:
+                kept.append(approved)
+
+        self.last_caps_snapshot = self._summarize_caps_snapshot(snapshot)
+
+        return kept, rejection_map, degrade_count
+
+    def _log_risk_reject(self, proposal: TradeProposal, code: str, **details) -> None:
+        """Emit structured risk rejection log message."""
+
+        snapshot = getattr(self, "last_caps_snapshot", None)
+        logger.warning(
+            "RISK_REJECT %s %s reason=%s details=%s caps=%s",
+            proposal.symbol,
+            (proposal.side or "").upper(),
+            code,
+            details or None,
+            snapshot,
+        )
+
     def _safe_mid_price(self, product: str) -> float:
         """Best-effort mid-price for exposure estimation (non-critical)."""
 
