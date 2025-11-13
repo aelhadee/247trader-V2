@@ -850,6 +850,9 @@ class StateStore:
         if not history:
             return 0
 
+        if since.tzinfo is None:
+            since = since.replace(tzinfo=timezone.utc)
+
         count = 0
         for iso_ts in history:
             try:
