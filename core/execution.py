@@ -2710,6 +2710,63 @@ class ExecutionEngine:
             except Exception as exc:
                 logger.warning("State store close_order failed for %s: %s", candidate, exc)
 
+    def _backfill_pending_markers(self, remote_orders: List[Dict[str, Any]]) -> None:
+        """Create pending markers from existing open orders during reconciliation."""
+        if not self.state_store:
+            return
+        
+        for order in remote_orders:
+            product_id = order.get("product_id") or order.get("symbol")
+            side = (order.get("side") or "").upper()
+            
+            if not product_id or side != "BUY":
+                continue
+            
+            # Check if marker already exists
+            if self.state_store.has_pending(product_id, side):
+                continue
+            
+            order_id = order.get("order_id") or order.get("id")
+            client_id = order.get("client_order_id") or order.get("client_order_id_v2")
+            
+            # Estimate notional
+            config = order.get("order_configuration") or {}
+            limit_conf = config.get("limit_limit_gtc") or config.get("limit_limit_gtc_post_only")
+            market_conf = config.get("market_market_ioc")
+            
+            notional = 0.0
+            if limit_conf:
+                try:
+                    base_size = float(limit_conf.get("base_size") or 0.0)
+                    limit_price = float(limit_conf.get("limit_price") or 0.0)
+                    if base_size > 0 and limit_price > 0:
+                        notional = base_size * limit_price
+                except (TypeError, ValueError):
+                    pass
+            elif market_conf:
+                try:
+                    notional = float(market_conf.get("quote_size") or 0.0)
+                except (TypeError, ValueError):
+                    pass
+            
+            if notional <= 0:
+                notional = self.min_notional_usd
+            
+            # Set pending marker with TTL
+            try:
+                ttl_hint = max(self.post_only_ttl_seconds * 2, 180) if self.post_only_ttl_seconds else 180
+                self.state_store.set_pending(
+                    product_id,
+                    side,
+                    client_order_id=client_id,
+                    order_id=order_id,
+                    notional_usd=notional,
+                    ttl_seconds=ttl_hint,
+                )
+                logger.debug(f"Backfilled pending marker for {product_id} BUY (${notional:.2f}, ttl={ttl_hint}s)")
+            except Exception as exc:
+                logger.debug("Pending marker backfill failed for %s: %s", product_id, exc)
+
     def _handle_post_only_ttl(
         self,
         *,
