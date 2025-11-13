@@ -167,11 +167,12 @@ triggers:
     max_hold_hours: 48
 
 strategy:
-  # Base target allocation per asset tier (fraction of NLV)
+  # Base target allocation per asset tier (DYNAMIC based on profile)
+  # Active profile: day_trader (3.0% / 1.8% / 0.7%)
   base_position_pct:
-    tier1: 0.02                     # 2% NLV per Tier1 (BTC, ETH, SOL, etc.)
-    tier2: 0.012                    # 1.2% NLV per Tier2 (ensures $5 min at ~$420 equity)
-    tier3: 0.005                    # 0.5% NLV per Tier3 (if/when used)
+    tier1: 0.030                    # 3.0% NLV per Tier1 (day_trader: larger for active trading)
+    tier2: 0.018                    # 1.8% NLV per Tier2 (day_trader: ensures $9+ at $500 NAV)
+    tier3: 0.007                    # 0.7% NLV per Tier3 (day_trader: slightly larger for activity)
 
   max_open_positions: 12            # cap simultaneous distinct holdings (raised from 8)
   max_new_positions_per_cycle: 1    # limit new tickers per cycle to stay within capacity buffers
