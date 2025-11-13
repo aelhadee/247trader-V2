@@ -1043,8 +1043,11 @@ class TradingLoop:
             else:
                 self.portfolio.pending_orders = pending_orders
 
+            # Reconcile exchange state and purge expired pending markers BEFORE proposal filtering
+            # This ensures pending state is truthful and prevents false "fast guard" rejections
             try:
                 self.executor.reconcile_open_orders()
+                self.state_store.purge_expired_pending()
             except Exception as exc:
                 logger.debug("Cycle reconciliation skipped: %s", exc)
 
