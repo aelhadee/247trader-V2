@@ -3245,17 +3245,17 @@ class ExecutionEngine:
                 client_id, order_state = matching_order
                 orders_updated.add(client_id)
                 
-                # Calculate fill value
-                fill_value = size * price
+                # Calculate fill value from extracted metrics
+                fill_value = base_size * avg_price if base_size > 0 and avg_price > 0 else 0.0
                 
                 # Update order state with fill details
                 current_filled = order_state.filled_size or 0.0
                 current_filled_value = order_state.filled_value or 0.0
                 current_fees = order_state.fees or 0.0
                 
-                new_filled_size = current_filled + size
+                new_filled_size = current_filled + base_size
                 new_filled_value = current_filled_value + fill_value
-                new_fees = current_fees + commission
+                new_fees = current_fees + fees_value
                 
                 # Store fill in order state
                 if not hasattr(order_state, 'fills') or order_state.fills is None:
