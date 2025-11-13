@@ -1401,6 +1401,21 @@ class TradingLoop:
             if self.mode == "DRY_RUN":
                 logger.info("DRY_RUN mode - no actual execution")
             else:
+                # Check governance flag (dead man's switch for LIVE trading)
+                governance_config = self.policy_config.get("governance", {})
+                live_trading_enabled = governance_config.get("live_trading_enabled", True)
+                
+                if self.mode == "LIVE" and not live_trading_enabled:
+                    logger.error(
+                        "🚨 LIVE TRADING DISABLED via governance.live_trading_enabled=false in policy.yaml"
+                    )
+                    self._log_no_trade(
+                        cycle_started,
+                        "governance_live_trading_disabled",
+                        "LIVE trading is disabled by governance flag in policy.yaml",
+                    )
+                    return
+                
                 # Execute each adjusted proposal
                 for proposal, size_usd in adjusted_proposals:
                     logger.info(f"Executing: {proposal.side} {proposal.symbol} (${size_usd:.2f})")
