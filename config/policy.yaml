@@ -99,12 +99,12 @@ liquidity:
 
 triggers:
   # Direction filter (long-only strategy)
-  only_upside: true                 # Ignore downward momentum (long-only)
+  only_upside: false                # Allow downside setups for mean reversion (still long-only execution)
   
   # Price-move based triggers (LOOSENED for chop regime)
   price_move:
-    pct_15m: 2.5                    # abs move >= 2.5% in 15m (was 3.0%)
-    pct_60m: 4.5                    # abs move >= 4.5% in 60m (was 5.0%)
+    pct_15m: 1.5                    # abs move >= 1.5% in 15m (was 2.5%)
+    pct_60m: 3.0                    # abs move >= 3.0% in 60m (was 4.5%)
 
   # Volume spike trigger
   volume_spike:
@@ -124,11 +124,16 @@ triggers:
     max_new_positions_per_cycle: 1
     allow_downside: true
 
+  mean_reversion:
+    stop_atr: 1.2
+    take_profit_atr: 1.8
+    max_hold_hours: 48
+
 strategy:
   # Base target allocation per asset tier (fraction of NLV)
   base_position_pct:
     tier1: 0.02                     # 2% NLV per Tier1 (BTC, ETH, SOL, etc.)
-    tier2: 0.01                     # 1% NLV per Tier2
+    tier2: 0.012                    # 1.2% NLV per Tier2 (ensures $5 min at ~$420 equity)
     tier3: 0.005                    # 0.5% NLV per Tier3 (if/when used)
 
   max_open_positions: 12            # cap simultaneous distinct holdings (raised from 8)
@@ -236,6 +241,7 @@ execution:
   clamp_small_trades: true
   # Use market orders instead of post-only limits for very small trades (to avoid repeated $5 failures)
   small_order_market_threshold_usd: 6.0
+  allow_min_bump_in_risk: true      # Let risk engine bump proposals up to min_notional
   
   # Post-trade reconciliation
   post_trade_reconcile_wait_seconds: 0.5  # Wait after trade before reconciling fills
