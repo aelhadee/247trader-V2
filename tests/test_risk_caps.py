@@ -124,4 +124,3 @@ def test_apply_caps_skips_sells_and_preserves_size(portfolio, base_policy):
     assert kept[0].size_pct == 7.5
     assert degraded == 0
     assert rejections == {}
-*** End Patch
