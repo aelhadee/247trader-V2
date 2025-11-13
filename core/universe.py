@@ -330,7 +330,7 @@ class UniverseManager:
                 orderbook = exchange.get_orderbook(symbol)
                 
                 # Check liquidity
-                eligible, reason = self._check_liquidity(
+                eligible, reason, eligibility_reason = self._check_liquidity(
                     quote, orderbook, liquidity_config, constraints, tier=1
                 )
                 
@@ -346,7 +346,8 @@ class UniverseManager:
                     spread_bps=quote.spread_bps,
                     depth_usd=orderbook.total_depth_usd,
                     eligible=eligible,
-                    ineligible_reason=reason
+                    ineligible_reason=reason,
+                    eligibility_reason=eligibility_reason,
                 )
                 
                 if eligible:
@@ -367,7 +368,8 @@ class UniverseManager:
                     spread_bps=20.0,  # Assume tight spread
                     depth_usd=1_000_000.0,  # Assume $1M depth
                     eligible=True,  # Mark as eligible in offline mode
-                    ineligible_reason=None
+                    ineligible_reason=None,
+                    eligibility_reason="fallback_offline",
                 )
                 assets.append(asset)
                 logger.info(f"Added {symbol} with fallback data (offline mode)")
@@ -399,7 +401,7 @@ class UniverseManager:
                 orderbook = exchange.get_orderbook(symbol)
                 
                 # Check liquidity
-                eligible, reason = self._check_liquidity(
+                eligible, reason, eligibility_reason = self._check_liquidity(
                     quote, orderbook, liquidity_config, constraints, tier=2
                 )
                 
@@ -433,7 +435,8 @@ class UniverseManager:
                     spread_bps=quote.spread_bps,
                     depth_usd=orderbook.total_depth_usd,
                     eligible=True,
-                    ineligible_reason=None
+                    ineligible_reason=None,
+                    eligibility_reason=eligibility_reason,
                 )
                 
                 assets.append(asset)
