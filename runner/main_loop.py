@@ -2257,6 +2257,66 @@ class TradingLoop:
                         status,
                         max_consecutive_no_fill,
                     )
+                    
+                    # Aggressive purge fallback: use taker/market for tiny junk positions
+                    allow_taker = purge_cfg.get("allow_taker_fallback", False)
+                    taker_threshold = float(purge_cfg.get("taker_fallback_threshold_usd", 50.0))
+                    taker_max_slippage = float(purge_cfg.get("taker_max_slippage_bps", 100))
+                    
+                    remaining_usd = max(target_value_usd - total_filled_usd, 0.0)
+                    
+                    if allow_taker and remaining_usd > 0 and remaining_usd <= taker_threshold:
+                        logger.warning(
+                            "TWAP: activating aggressive purge mode for %s (remaining=$%.2f < $%.2f threshold)",
+                            pair,
+                            remaining_usd,
+                            taker_threshold,
+                        )
+                        
+                        # Try one final taker/IOC order to force completion
+                        try:
+                            taker_client_id = f"purge_taker_{uuid4().hex[:14]}"
+                            logger.info(
+                                "TWAP: forcing taker sell ~$%.2f %s (max_slippage=%.1f%%)",
+                                remaining_usd,
+                                pair,
+                                taker_max_slippage / 100,
+                            )
+                            
+                            taker_result = self.executor.execute(
+                                symbol=pair,
+                                side="SELL",
+                                size_usd=remaining_usd,
+                                client_order_id=taker_client_id,
+                                force_order_type="limit_ioc",  # IOC to force immediate fill or cancel
+                                skip_liquidity_checks=True,
+                                tier=tier,
+                                bypass_slippage_budget=True,
+                                bypass_failed_order_cooldown=True,
+                            )
+                            
+                            if taker_result.success and taker_result.filled_usd > 0:
+                                total_filled_usd += taker_result.filled_usd
+                                total_filled_units += taker_result.filled_size
+                                total_fees += taker_result.total_fees
+                                logger.info(
+                                    "TWAP: taker fallback filled $%.2f (%.6f %s), total now $%.2f",
+                                    taker_result.filled_usd,
+                                    taker_result.filled_size,
+                                    currency,
+                                    total_filled_usd,
+                                )
+                                # Exit the loop - we forced completion
+                                break
+                            else:
+                                logger.warning(
+                                    "TWAP: taker fallback failed for %s: %s",
+                                    pair,
+                                    taker_result.error or "no fill",
+                                )
+                        except Exception as exc:
+                            logger.error("TWAP: taker fallback exception for %s: %s", pair, exc)
+                    
                     break
 
                 logger.info(
