@@ -3,7 +3,7 @@
 
 triggers:
   # Direction filter (long-only strategy)
-  only_upside: true  # Ignore downward momentum
+  only_upside: false  # Allow downside scans for mean reversion entries
   
   # Rate limiting
   max_triggers_per_cycle: 5  # Cap triggers to focus on quality
@@ -11,10 +11,10 @@ triggers:
   # Regime-aware trigger thresholds
   regime_thresholds:
     chop:
-      pct_change_15m: 2.0        # Realistic for BTC/ETH/SOL in chop (was 2.5%)
-      pct_change_60m: 4.0        # Sustained move threshold (was 4.5%)
-      volume_ratio_1h: 1.9       # Demand real interest
-      atr_filter_min_mult: 1.1   # ATR% >= 1.1× median (less restrictive)
+      pct_change_15m: 1.5        # Loose enough to surface signals in chop
+      pct_change_60m: 3.0        # Sustained move threshold tuned for chop
+      volume_ratio_1h: 1.8       # Slightly easier volume confirmation in chop
+      atr_filter_min_mult: 1.05  # Allow quieter tapes to pass ATR filter
     bull:
       pct_change_15m: 3.5        # Higher bar in bull (momentum expected)
       pct_change_60m: 7.0        # Strong sustained moves
@@ -40,6 +40,15 @@ triggers:
     slope_lookback_hours: 3           # Evaluate slope over last 3 hours
     min_slope_pct_per_hour: 0.05      # Require +0.05% per hour drift
   
+  # Mean reversion archetype (downside stretches with liquidity guardrails)
+  mean_reversion:
+    enabled: true
+    zscore_max: -1.2
+    lookback_hours: 24
+    min_liquidity_tier: T1
+    stop_atr: 1.2
+    take_profit_atr: 1.8
+
   # Legacy parameters (backward compatibility)
   volume_spike_min_ratio: 1.5
   volume_lookback_periods: 24
