@@ -22,7 +22,7 @@ from requests import exceptions as requests_exceptions
 from core.exchange_coinbase import CoinbaseExchange, get_exchange
 from core.exceptions import CriticalDataUnavailable
 from infra.state_store import StateStore
-from core.order_state import get_order_state_machine, OrderStatus
+from core.order_state import get_order_state_machine, OrderStatus, OrderState
 
 logger = logging.getLogger(__name__)
 
@@ -2390,6 +2390,173 @@ class ExecutionEngine:
                 )
 
         return float(total_base), float(avg_price), float(total_fees), float(total_quote)
+
+    def _map_exchange_status(self, status: Optional[str]) -> Optional[OrderStatus]:
+        if not status:
+            return None
+        normalized = status.upper()
+        if normalized in {"FILLED", "DONE", "DONEFORTHEDAY"}:
+            return OrderStatus.FILLED
+        if normalized in {"CANCELED", "CANCELLED", "EXPIRED", "CANCELLEDALL", "CANCELLED_PARTIAL"}:
+            return OrderStatus.CANCELED
+        if normalized in {"REJECTED"}:
+            return OrderStatus.REJECTED
+        if normalized in {"FAILED", "ERROR"}:
+            return OrderStatus.FAILED
+        if normalized in {"OPEN", "ACTIVE", "PENDING"}:
+            return OrderStatus.OPEN
+        if normalized in {"PARTIAL", "PARTIALLY_FILLED"}:
+            return OrderStatus.PARTIAL_FILL
+        return None
+
+    def _clear_pending_marker(
+        self,
+        symbol: Optional[str],
+        side: Optional[str],
+        *,
+        client_order_id: Optional[str] = None,
+        order_id: Optional[str] = None,
+    ) -> None:
+        if not self.state_store or not symbol or not side:
+            return
+        try:
+            self.state_store.clear_pending(
+                symbol,
+                side,
+                client_order_id=client_order_id,
+                order_id=order_id,
+            )
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.debug("Pending marker clear failed for %s: %s", symbol, exc)
+
+    def _resolve_and_finalize_missing_order(self, tracked: OrderState) -> None:
+        if tracked is None or tracked.is_terminal():
+            return
+
+        order_id = tracked.order_id
+        client_id = tracked.client_order_id
+        status_payload: Optional[Dict[str, Any]] = None
+        fills: List[Dict[str, Any]] = []
+
+        if order_id:
+            try:
+                status_payload = self.exchange.get_order_status(order_id)
+            except Exception as exc:
+                logger.debug("Order status fetch failed for %s: %s", order_id, exc)
+
+        resolved_status = self._map_exchange_status(
+            (status_payload or {}).get("status")
+        )
+
+        if not resolved_status and tracked.status:
+            resolved_status = self._map_exchange_status(tracked.status)
+
+        if resolved_status is None or resolved_status in {OrderStatus.OPEN, OrderStatus.PARTIAL_FILL}:
+            # Treat missing order as cancelled if we cannot confirm active status
+            resolved_status = OrderStatus.CANCELED
+
+        if status_payload:
+            fills = status_payload.get("fills") or []
+
+        if not fills and order_id:
+            try:
+                fills = self.exchange.list_fills(order_id=order_id)
+            except Exception as exc:
+                logger.debug("Fill fetch failed during reconciliation for %s: %s", order_id, exc)
+
+        filled_size = filled_value = fees = 0.0
+        filled_price = 0.0
+        if fills:
+            filled_size, filled_price, fees, filled_value = self._summarize_fills(fills)
+
+        key = self._order_key(client_id, order_id)
+        if key and self.state_store and resolved_status in {
+            OrderStatus.FILLED,
+            OrderStatus.CANCELED,
+            OrderStatus.EXPIRED,
+            OrderStatus.REJECTED,
+            OrderStatus.FAILED,
+        }:
+            details = {
+                "order_id": order_id,
+                "client_order_id": client_id,
+                "product_id": tracked.symbol,
+                "symbol": tracked.symbol,
+                "side": tracked.side,
+                "filled_size": filled_size,
+                "filled_value": filled_value,
+                "fees": fees,
+                "status": resolved_status.value,
+            }
+            self._close_order_in_state_store(key, resolved_status.value, details)
+
+        if client_id:
+            try:
+                self.order_state_machine.transition(
+                    client_id,
+                    resolved_status,
+                    order_id=order_id,
+                    allow_override=True,
+                )
+            except Exception as exc:
+                logger.debug("Order transition override failed for %s: %s", client_id, exc)
+
+            if filled_size > 0:
+                try:
+                    self.order_state_machine.update_fill(
+                        client_id,
+                        filled_size=filled_size,
+                        filled_value=filled_value,
+                        fees=fees,
+                        fills=fills if fills else None,
+                    )
+                except Exception as exc:
+                    logger.debug("Fill update failed during reconciliation for %s: %s", client_id, exc)
+
+        self._clear_pending_marker(
+            tracked.symbol,
+            tracked.side,
+            client_order_id=client_id,
+            order_id=order_id,
+        )
+
+    def reconcile_open_orders(self) -> None:
+        """Ensure local order state matches exchange by reconciling missing orders."""
+
+        active_orders = self.order_state_machine.get_active_orders()
+        if not active_orders:
+            if self.state_store:
+                self.state_store.purge_expired_pending()
+            return
+
+        live_identifiers: Set[str] = set()
+        remote_orders: List[Dict[str, Any]] = []
+
+        try:
+            remote_orders = self.exchange.list_open_orders()
+        except Exception as exc:
+            logger.debug("Open order fetch failed during reconciliation: %s", exc)
+
+        for remote in remote_orders or []:
+            order_id = remote.get("order_id") or remote.get("id")
+            client_id = remote.get("client_order_id") or remote.get("client_order_id_v2")
+            if order_id:
+                live_identifiers.add(order_id)
+            if client_id:
+                live_identifiers.add(client_id)
+
+        if self.state_store:
+            try:
+                self.sync_open_orders_snapshot(remote_orders)
+            except Exception as exc:
+                logger.debug("Open order snapshot sync failed: %s", exc)
+            self.state_store.purge_expired_pending()
+
+        for tracked in active_orders:
+            key = tracked.client_order_id or tracked.order_id
+            if key and key in live_identifiers:
+                continue
+            self._resolve_and_finalize_missing_order(tracked)
 
     @staticmethod
     def _order_key(client_order_id: Optional[str], order_id: Optional[str]) -> Optional[str]:
