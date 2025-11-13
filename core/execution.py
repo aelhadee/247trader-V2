@@ -518,15 +518,38 @@ class ExecutionEngine:
             parts.append("market")
         return "+".join(parts)
 
-    def _adaptive_maker_ttl(self, quote, attempt_index: int) -> int:
+    def _adaptive_maker_ttl(self, quote, attempt_index: int, client_order_id: str = None) -> int:
         """
         Derive TTL for maker attempt using spread-aware heuristic.
         Adds ±1s random jitter to avoid synchronized cancels.
+        
+        For purge orders (identified by client_order_id starting with 'purge_'),
+        uses longer TTL from purge_execution config to improve fill rates on illiquid junk.
         """
 
         if self.maker_max_ttl_seconds <= 0:
             return 0
 
+        # Check if this is a purge order - use special longer TTL
+        is_purge = client_order_id and client_order_id.startswith("purge_")
+        
+        if is_purge:
+            # Load purge-specific TTL from policy config
+            pm_cfg = self.policy.get("portfolio_management", {})
+            purge_cfg = pm_cfg.get("purge_execution", {})
+            
+            if attempt_index == 0:
+                ttl = int(purge_cfg.get("maker_first_ttl_sec", purge_cfg.get("maker_ttl_sec", 25)))
+            else:
+                ttl = int(purge_cfg.get("maker_retry_ttl_sec", 20))
+            
+            # Still respect overall max
+            ttl = min(ttl, max(self.maker_max_ttl_seconds, 30))  # Allow purge to exceed normal max up to 30s
+            
+            logger.debug(f"Purge order TTL: {ttl}s (attempt={attempt_index}, is_purge=True)")
+            return max(ttl, 1)
+
+        # Normal trading orders - use spread-based heuristic
         spread_bps = 0.0
         if quote is not None:
             try:
