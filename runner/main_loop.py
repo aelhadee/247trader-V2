@@ -169,6 +169,7 @@ class TradingLoop:
             self.policy_config, 
             universe_manager=self.universe_mgr,
             exchange=self.exchange,
+            state_store=self.state_store,
             alert_service=self.alerts  # CRITICAL: Wire alerts for safety notifications
         )
         self.executor = ExecutionEngine(
@@ -177,6 +178,11 @@ class TradingLoop:
             policy=self.policy_config,
             state_store=self.state_store,
         )
+
+        try:
+            self.executor.reconcile_open_orders()
+        except Exception as exc:
+            logger.debug("Initial open-order reconciliation skipped: %s", exc)
         
         # State
         self.portfolio = self._init_portfolio_state()
@@ -961,6 +967,11 @@ class TradingLoop:
         
         try:
             try:
+                self.state_store.purge_expired_pending()
+            except Exception as exc:
+                logger.debug("Pending purge skipped: %s", exc)
+
+            try:
                 self._reconcile_exchange_state()
             except CriticalDataUnavailable as data_exc:
                 self._abort_cycle_due_to_data(
@@ -1177,6 +1188,14 @@ class TradingLoop:
                 ):
                     logger.info(
                         f"Skipping proposal for {proposal.symbol}: ${pending_buy_notional.get(base, 0.0):.2f} already pending"
+                    )
+                    continue
+                if (
+                    proposal.side.upper() == "BUY"
+                    and self.state_store.has_pending(proposal.symbol, "buy")
+                ):
+                    logger.info(
+                        f"Skip {proposal.symbol}: pending buy marker active (fast guard)"
                     )
                     continue
                 filtered.append(proposal)
