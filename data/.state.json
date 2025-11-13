@@ -877,16 +877,6 @@
   "last_reset_hour": 5,
   "events": [
     {
-      "at": "2025-11-13T04:29:25.302635+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 1,
-      "closed": [
-        "378d866b-0f73-4717-be51-a9dc93f7499f",
-        "247trader_coid_d82aeafa5e3b308d"
-      ],
-      "created": []
-    },
-    {
       "at": "2025-11-13T04:34:30.918843+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
@@ -1757,6 +1747,13 @@
       "open_orders": 0,
       "closed": [],
       "created": []
+    },
+    {
+      "at": "2025-11-13T05:20:03.867926+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
     }
   ],
   "high_water_mark": 538.2423030124753,
@@ -1764,5 +1761,5 @@
   "auto_tune_applied": false,
   "zero_proposal_cycles": 0,
   "auto_loosen_applied": false,
-  "last_open_orders_sync": "2025-11-13T05:19:59.710559+00:00"
+  "last_open_orders_sync": "2025-11-13T05:20:03.867926+00:00"
 }
