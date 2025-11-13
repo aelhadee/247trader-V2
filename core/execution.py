@@ -156,6 +156,23 @@ class ExecutionEngine:
             execution_config.get("min_notional_usd", 0.0) or 0.0
         )
 
+        self.maker_first = bool(execution_config.get("maker_first", self.limit_post_only))
+        self.maker_max_reprices = max(0, int(execution_config.get("maker_max_reprices", 1) or 0))
+        self.maker_max_ttl_seconds = int(
+            execution_config.get("maker_max_ttl_sec", execution_config.get("post_only_ttl_seconds", 12) or 12)
+        )
+        self.maker_first_min_ttl_seconds = int(execution_config.get("maker_first_min_ttl_sec", 6) or 6)
+        self.maker_retry_min_ttl_seconds = int(execution_config.get("maker_retry_min_ttl_sec", 3) or 3)
+        self.maker_reprice_decay = float(execution_config.get("maker_reprice_decay", 0.7) or 0.7)
+        if self.post_only_ttl_seconds <= 0 and self.maker_max_ttl_seconds > 0:
+            self.post_only_ttl_seconds = self.maker_max_ttl_seconds
+        elif self.maker_max_ttl_seconds > 0:
+            self.post_only_ttl_seconds = self.maker_max_ttl_seconds
+
+        self.taker_fallback_enabled = bool(execution_config.get("taker_fallback", False))
+        self.taker_prefer_ioc = bool(execution_config.get("prefer_ioc", True))
+        self.taker_slippage_bps_per_tier = execution_config.get("taker_max_slippage_bps", {}) or {}
+
         # Track last failure by symbol to avoid retry spam
         self._last_fail = {}
 
