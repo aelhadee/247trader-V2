@@ -287,6 +287,7 @@ execution:
   cancel_after_seconds: 60          # cancel resting orders if not filled
   post_only_ttl_seconds: 12         # legacy override (maker_max_ttl_sec now primary)
   partial_fill_min_pct: 0.25        # ignore fills <25% when assessing success
+  max_order_age_seconds: 1800       # 30 min - auto-cancel stale orders to free capacity
   
   # Limit order behavior
   limit_offset_bps: 0               # Join top-of-book (peg)
