@@ -2993,6 +2993,22 @@ class ExecutionEngine:
             # Clear pending markers and state
             self._cleanup_order_state(stale)
     
+    def _purge_expired_recently_canceled(self) -> None:
+        """Remove entries from _recently_canceled that are older than TTL."""
+        now = time.time()
+        expired_keys = [
+            key for key, ts in self._recently_canceled.items()
+            if (now - ts) > self._recently_canceled_ttl_seconds
+        ]
+        for key in expired_keys:
+            del self._recently_canceled[key]
+        
+        if expired_keys:
+            logger.debug(
+                "Purged %d expired entries from recently-canceled cache",
+                len(expired_keys),
+            )
+    
     def _cleanup_order_state(self, order_info: Dict[str, Any]) -> None:
         """Clear pending markers and transition order state for a canceled/stale order."""
         if not self.state_store:
