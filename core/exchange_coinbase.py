@@ -868,7 +868,7 @@ class CoinbaseExchange:
             return {"success": False, "error": message, "order_id": order_id}
 
     def cancel_orders(self, order_ids: List[str]) -> dict:
-        """Batch cancel multiple orders (if supported)."""
+        """Batch cancel multiple orders."""
         if self.read_only:
             logger.info(f"READ_ONLY: would batch cancel {len(order_ids)} orders")
             return {"success": False, "read_only": True}
@@ -876,6 +876,13 @@ class CoinbaseExchange:
             self._rate_limit("cancel_orders")
             body = {"order_ids": order_ids}
             resp = self._req("POST", "/orders/batch_cancel", body, authenticated=True)
+            
+            # Parse results
+            results = resp.get("results", [])
+            success_count = sum(1 for r in results if r.get("success"))
+            failure_count = len(results) - success_count
+            
+            logger.info(f"Batch cancel: {success_count} succeeded, {failure_count} failed out of {len(order_ids)} requested")
             return resp
         except Exception as e:
             logger.error(f"Batch cancel failed: {e}")
