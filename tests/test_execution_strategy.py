@@ -79,4 +79,3 @@ def test_adaptive_ttl_respects_bounds(engine):
 def test_taker_slippage_budget_enforced(engine):
     assert not engine._is_taker_slippage_allowed(25.0, tier=1)
     assert engine._is_taker_slippage_allowed(35.0, tier=2)
-*** End Patch
