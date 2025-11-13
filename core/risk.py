@@ -611,8 +611,7 @@ class RiskEngine:
             if approved is not None:
                 kept.append(approved)
 
-        self.last_caps_snapshot = self._summarize_caps_snapshot(snapshot)
-
+        # Snapshot already set at start of method for consistent logging
         return kept, rejection_map, degrade_count
 
     def _log_risk_reject(self, proposal: TradeProposal, code: str, **details) -> None:
