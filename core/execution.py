@@ -2970,8 +2970,26 @@ class ExecutionEngine:
 
             if status_lower in terminal_statuses:
                 self._close_order_in_state_store(key, status_lower, payload)
+                self._clear_pending_marker(
+                    symbol,
+                    side,
+                    client_order_id=client_order_id,
+                    order_id=order_id,
+                )
             else:
                 self.state_store.record_open_order(key, payload)
+                try:
+                    ttl_hint = max(self.post_only_ttl_seconds * 2, 180) if self.post_only_ttl_seconds else 180
+                    self.state_store.set_pending(
+                        symbol,
+                        side,
+                        client_order_id=client_order_id,
+                        order_id=order_id,
+                        notional_usd=size_usd,
+                        ttl_seconds=ttl_hint,
+                    )
+                except Exception as exc:  # pragma: no cover - defensive
+                    logger.debug("Pending marker set failed for %s: %s", symbol, exc)
         except Exception as exc:
             logger.warning("State store update failed after execution: %s", exc)
     
