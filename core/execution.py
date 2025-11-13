@@ -2726,76 +2726,173 @@ class ExecutionEngine:
         )
 
     def reconcile_open_orders(self) -> None:
-        """Ensure local order state matches exchange by reconciling missing orders."""
-
+        """
+        Ensure local order state matches exchange by reconciling missing orders.
+        Also cancels stale orders older than MAX_ORDER_AGE to free capacity.
+        """
         live_identifiers: Set[str] = set()
         remote_orders: List[Dict[str, Any]] = []
-        MAX_ORDER_AGE_SECONDS = 1800  # 30 minutes - cancel stale orders to free capacity
-
+        
+        # Fetch open orders from exchange
         try:
             remote_orders = self.exchange.list_open_orders()
         except Exception as exc:
             logger.debug("Open order fetch failed during reconciliation: %s", exc)
+            return  # Early exit if fetch fails
 
-        # Cancel stale orders (older than threshold)
-        now_utc = datetime.now(timezone.utc)
-        for remote in remote_orders or []:
-            order_id = remote.get("order_id") or remote.get("id")
-            client_id = remote.get("client_order_id") or remote.get("client_order_id_v2")
-            product_id = remote.get("product_id")
+        if not remote_orders:
+            # No open orders - just reconcile tracked orders
+            if self.state_store:
+                try:
+                    self.sync_open_orders_snapshot([])
+                    self.state_store.purge_expired_pending()
+                except Exception as exc:
+                    logger.debug("Empty snapshot sync failed: %s", exc)
             
-            # Parse created_time to check order age
+            active_orders = self.order_state_machine.get_active_orders()
+            for tracked in active_orders:
+                self._resolve_and_finalize_missing_order(tracked)
+            return
+
+        # Process orders: identify stale, build live_identifiers
+        now_utc = datetime.now(timezone.utc)
+        stale_orders: List[Dict[str, Any]] = []
+        fresh_orders: List[Dict[str, Any]] = []
+        
+        for remote in remote_orders:
+            order_id = remote.get("order_id") or remote.get("id")
+            if not order_id:
+                continue
+                
+            # Check if order is stale
             created_str = remote.get("created_time")
-            if created_str and order_id:
+            is_stale = False
+            
+            if created_str:
                 try:
                     created_dt = datetime.fromisoformat(created_str.replace('Z', '+00:00'))
                     age_seconds = (now_utc - created_dt).total_seconds()
                     
-                    if age_seconds > MAX_ORDER_AGE_SECONDS:
-                        logger.warning(
-                            "STALE_ORDER_CANCEL: %s order %s is %.1f min old (created %s), canceling to free capacity",
-                            product_id, order_id, age_seconds / 60, created_str
-                        )
-                        try:
-                            self.exchange.cancel_order(order_id)
-                            # Clear pending marker immediately
-                            if self.state_store and product_id and client_id:
-                                base = product_id.split('-')[0] if '-' in product_id else product_id
-                                side = (remote.get("side") or "").upper()
-                                if side in ("BUY", "SELL"):
-                                    self.state_store.clear_pending(base, side, client_id)
-                        except Exception as cancel_exc:
-                            logger.debug("Stale order cancel failed for %s: %s", order_id, cancel_exc)
-                        continue  # Skip adding to live_identifiers since we canceled it
-                except (ValueError, TypeError) as parse_exc:
-                    logger.debug("Failed to parse order created_time '%s': %s", created_str, parse_exc)
+                    if age_seconds > self.MAX_ORDER_AGE_SECONDS:
+                        is_stale = True
+                        stale_orders.append({
+                            "order_id": order_id,
+                            "client_order_id": remote.get("client_order_id") or remote.get("client_order_id_v2"),
+                            "product_id": remote.get("product_id"),
+                            "side": remote.get("side"),
+                            "age_minutes": age_seconds / 60,
+                            "created_time": created_str,
+                        })
+                except (ValueError, TypeError):
+                    pass  # Treat unparseable dates as fresh to be safe
             
-            if order_id:
-                live_identifiers.add(order_id)
-            if client_id:
-                live_identifiers.add(client_id)
+            if not is_stale:
+                fresh_orders.append(remote)
+                client_id = remote.get("client_order_id") or remote.get("client_order_id_v2")
+                if order_id:
+                    live_identifiers.add(order_id)
+                if client_id:
+                    live_identifiers.add(client_id)
 
+        # Cancel stale orders in batch
+        if stale_orders:
+            self._cancel_stale_orders_batch(stale_orders)
+
+        # Sync only fresh orders to state store
         if self.state_store:
             try:
-                self.sync_open_orders_snapshot(remote_orders)
+                self.sync_open_orders_snapshot(fresh_orders)
             except Exception as exc:
                 logger.debug("Open order snapshot sync failed: %s", exc)
             
-            # Backfill pending markers from open orders
             try:
-                self._backfill_pending_markers(remote_orders)
+                self._backfill_pending_markers(fresh_orders)
             except Exception as exc:
                 logger.debug("Pending marker backfill failed: %s", exc)
             
             self.state_store.purge_expired_pending()
 
-        # Reconcile tracked orders
+        # Reconcile tracked orders against live identifiers
         active_orders = self.order_state_machine.get_active_orders()
         for tracked in active_orders:
             key = tracked.client_order_id or tracked.order_id
             if key and key in live_identifiers:
                 continue
             self._resolve_and_finalize_missing_order(tracked)
+
+    def _cancel_stale_orders_batch(self, stale_orders: List[Dict[str, Any]]) -> None:
+        """Cancel multiple stale orders and update state atomically."""
+        if not stale_orders:
+            return
+        
+        logger.warning(
+            "STALE_ORDER_CLEANUP: Canceling %d order(s) older than %.1f min",
+            len(stale_orders),
+            self.MAX_ORDER_AGE_SECONDS / 60,
+        )
+        
+        canceled_count = 0
+        failed_count = 0
+        
+        for stale in stale_orders:
+            order_id = stale["order_id"]
+            product_id = stale["product_id"]
+            
+            logger.info(
+                "STALE_ORDER_CANCEL: %s %s order %s age=%.1fmin created=%s",
+                product_id,
+                stale.get("side", "?"),
+                order_id,
+                stale["age_minutes"],
+                stale.get("created_time", "?"),
+            )
+            
+            try:
+                result = self.exchange.cancel_order(order_id)
+                canceled_count += 1
+                
+                # Clear pending marker and transition order state
+                if self.state_store and product_id:
+                    client_id = stale.get("client_order_id")
+                    base = product_id.split('-')[0] if '-' in product_id else product_id
+                    side = (stale.get("side") or "").upper()
+                    
+                    if side in ("BUY", "SELL") and client_id:
+                        self.state_store.clear_pending(base, side, client_id)
+                    
+                    # Transition order state machine if tracked
+                    if client_id:
+                        try:
+                            self.order_state_machine.transition(
+                                client_id,
+                                OrderStatus.CANCELED,
+                                reason="stale_order_cleanup",
+                            )
+                        except Exception:
+                            pass  # Order may not be tracked
+                
+            except Exception as cancel_exc:
+                failed_count += 1
+                logger.warning(
+                    "Stale order cancel failed for %s %s: %s",
+                    product_id,
+                    order_id,
+                    cancel_exc,
+                )
+        
+        if canceled_count > 0:
+            logger.info(
+                "STALE_ORDER_CLEANUP: Canceled %d/%d stale orders (freed capacity)",
+                canceled_count,
+                len(stale_orders),
+            )
+        
+        if failed_count > 0:
+            logger.warning(
+                "STALE_ORDER_CLEANUP: Failed to cancel %d/%d orders (may need manual intervention)",
+                failed_count,
+                len(stale_orders),
+            )
 
     @staticmethod
     def _order_key(client_order_id: Optional[str], order_id: Optional[str]) -> Optional[str]:
