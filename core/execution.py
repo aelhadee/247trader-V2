@@ -2090,7 +2090,7 @@ class ExecutionEngine:
                         symbol,
                     )
                     # Clear pending marker for failed post-only
-                    self._clear_pending_marker(symbol, side, attempt_client_order_id)
+                    self._clear_pending_marker(symbol, side, client_order_id=attempt_client_order_id)
                     
                     # Check if taker is allowed by slippage budget
                     if self._is_taker_slippage_allowed(est_slippage_bps, tier):
