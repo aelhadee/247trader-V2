@@ -2852,9 +2852,24 @@ class ExecutionEngine:
             
             try:
                 result = self.exchange.cancel_order(order_id)
+                
+                # Count as success whether cancel succeeded or order already gone (404)
+                # Both cases mean the order is no longer blocking capacity
+                is_already_closed = (
+                    isinstance(result, dict) and 
+                    (result.get("error") == "not_found" or result.get("success") is False)
+                )
+                
+                if is_already_closed:
+                    logger.debug(
+                        "Stale order %s already closed/filled (404) - clearing state",
+                        order_id,
+                    )
+                
                 canceled_count += 1
                 
-                # Clear pending marker and transition order state
+                # Clear pending marker and transition state regardless of 404
+                # (order is gone from exchange, so local state must reflect that)
                 if self.state_store and product_id:
                     client_id = stale.get("client_order_id")
                     base = product_id.split('-')[0] if '-' in product_id else product_id
@@ -2862,6 +2877,12 @@ class ExecutionEngine:
                     
                     if side in ("BUY", "SELL") and client_id:
                         self.state_store.clear_pending(base, side, client_id)
+                        logger.debug(
+                            "Cleared pending marker for stale order: %s %s %s",
+                            base,
+                            side,
+                            client_id,
+                        )
                     
                     # Transition order state machine if tracked
                     if client_id:
