@@ -522,9 +522,9 @@ class UniverseManager:
         Returns:
             (eligible, reason_if_not)
         """
-    eligibility_reason: Optional[str] = None
+        eligibility_reason: Optional[str] = None
 
-    # Volume check with tier and global near-threshold overrides
+        # Volume check with tier and global near-threshold overrides
         min_volume_global = global_config.get("min_24h_volume_usd", 5_000_000)
         min_volume_tier = tier_config.get("min_24h_volume_usd", min_volume_global)
         min_volume = max(min_volume_global, min_volume_tier)
