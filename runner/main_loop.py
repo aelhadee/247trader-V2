@@ -1674,7 +1674,12 @@ class TradingLoop:
             order_id = order.get("order_id")
             client_id = order.get("client_order_id")
             if self.executor.is_recently_canceled(order_id=order_id, client_order_id=client_id):
-                logger.debug("Skipping recently-canceled ghost order: %s", order_id or client_id)
+                logger.info(
+                    "GHOST_ORDER_FILTERED: %s %s order %s still in API list after cancel",
+                    order.get("product_id"),
+                    order.get("side"),
+                    order_id or client_id,
+                )
                 continue
 
             product = order.get("product_id") or ""
