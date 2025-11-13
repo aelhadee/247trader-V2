@@ -2784,35 +2784,14 @@ class ExecutionEngine:
         snapshot_post_cancel: Optional[Dict[str, Any]] = None
 
         for attempt in range(attempts):
-            try:
-                cancel_resp = self.exchange.cancel_order(order_id)
-            except Exception as exc:  # pragma: no cover - defensive
-                cancel_resp = {"success": False, "error": str(exc)}
-
-            cancel_error = cancel_resp.get("error") if isinstance(cancel_resp, dict) else None
-            cancel_success = bool(cancel_resp.get("success")) if isinstance(cancel_resp, dict) else False
-            already_resolved = False
-
-            if not cancel_success and cancel_error:
-                error_text = str(cancel_error).lower()
-                already_resolved = any(
-                    token in error_text
-                    for token in (
-                        "404",
-                        "not found",
-                        "already filled",
-                        "order completed",
-                        "unknown order",
-                        "does not exist",
-                    )
-                )
-
-                if already_resolved:
-                    logger.debug(
-                        "TTL cancel for %s returned %s; treating as already resolved",
-                        order_id,
-                        cancel_error,
-                    )
+            cancel_success = self._safe_cancel(
+                order_id,
+                product_id=symbol,
+                side=side,
+                client_order_id=client_order_id,
+            )
+            cancel_error = None if cancel_success else "cancel_failed"
+            already_resolved = cancel_success
 
             snapshot_post_cancel = self.exchange.get_order_status(order_id) or snapshot_post_cancel
             status_after = (snapshot_post_cancel or {}).get("status", latest_status).upper()
@@ -2865,7 +2844,7 @@ class ExecutionEngine:
             if already_resolved and status_after not in terminal_states and not has_fill_after:
                 status_after = "CANCELLED"
 
-            if status_after in terminal_states or has_fill_after:
+            if status_after in terminal_states or has_fill_after or already_resolved:
                 fills = self.exchange.list_fills(order_id=order_id) or latest_fills
                 size, price, total_fees, total_quote = self._summarize_fills(fills)
                 if size and size > 0 and status_after in {"CANCELED", "CANCELLED", "EXPIRED"}:
