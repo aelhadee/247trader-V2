@@ -2730,15 +2730,46 @@ class ExecutionEngine:
 
         live_identifiers: Set[str] = set()
         remote_orders: List[Dict[str, Any]] = []
+        MAX_ORDER_AGE_SECONDS = 1800  # 30 minutes - cancel stale orders to free capacity
 
         try:
             remote_orders = self.exchange.list_open_orders()
         except Exception as exc:
             logger.debug("Open order fetch failed during reconciliation: %s", exc)
 
+        # Cancel stale orders (older than threshold)
+        now_utc = datetime.now(timezone.utc)
         for remote in remote_orders or []:
             order_id = remote.get("order_id") or remote.get("id")
             client_id = remote.get("client_order_id") or remote.get("client_order_id_v2")
+            product_id = remote.get("product_id")
+            
+            # Parse created_time to check order age
+            created_str = remote.get("created_time")
+            if created_str and order_id:
+                try:
+                    created_dt = datetime.fromisoformat(created_str.replace('Z', '+00:00'))
+                    age_seconds = (now_utc - created_dt).total_seconds()
+                    
+                    if age_seconds > MAX_ORDER_AGE_SECONDS:
+                        logger.warning(
+                            "STALE_ORDER_CANCEL: %s order %s is %.1f min old (created %s), canceling to free capacity",
+                            product_id, order_id, age_seconds / 60, created_str
+                        )
+                        try:
+                            self.exchange.cancel_order(order_id)
+                            # Clear pending marker immediately
+                            if self.state_store and product_id and client_id:
+                                base = product_id.split('-')[0] if '-' in product_id else product_id
+                                side = (remote.get("side") or "").upper()
+                                if side in ("BUY", "SELL"):
+                                    self.state_store.clear_pending(base, side, client_id)
+                        except Exception as cancel_exc:
+                            logger.debug("Stale order cancel failed for %s: %s", order_id, cancel_exc)
+                        continue  # Skip adding to live_identifiers since we canceled it
+                except (ValueError, TypeError) as parse_exc:
+                    logger.debug("Failed to parse order created_time '%s': %s", created_str, parse_exc)
+            
             if order_id:
                 live_identifiers.add(order_id)
             if client_id:
