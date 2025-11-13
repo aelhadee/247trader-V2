@@ -1044,6 +1044,11 @@ class TradingLoop:
                 self.portfolio.pending_orders = pending_orders
 
             try:
+                self.executor.reconcile_open_orders()
+            except Exception as exc:
+                logger.debug("Cycle reconciliation skipped: %s", exc)
+
+            try:
                 trimmed = self._auto_trim_to_risk_cap()
             except CriticalDataUnavailable as data_exc:
                 self._abort_cycle_due_to_data(
