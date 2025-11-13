@@ -520,7 +520,7 @@ class UniverseManager:
             tier: Tier number (1, 2, or 3) for depth requirements
         
         Returns:
-            (eligible, reason_if_not)
+            Tuple[eligible_flag, ineligible_reason, eligibility_reason]
         """
         eligibility_reason: Optional[str] = None
 
