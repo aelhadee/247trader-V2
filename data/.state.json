@@ -12,79 +12,79 @@
       "available": 49.46209573,
       "hold": 0.0,
       "total": 49.46209573,
-      "usd_value": 14.285246791972762
+      "usd_value": 14.445602906329421
     },
     "ADA": {
       "available": 25.19157643,
       "hold": 0.0,
       "total": 25.19157643,
-      "usd_value": 14.030448492688501
+      "usd_value": 14.1211381678365
     },
     "BONK": {
       "available": 2048613.0,
       "hold": 0.0,
       "total": 2048613.0,
-      "usd_value": 25.228669095
+      "usd_value": 25.392558134999998
     },
     "PENGU": {
-      "available": 1116.0,
-      "hold": 0.0,
+      "available": 91.0,
+      "hold": 1025.0,
       "total": 1116.0,
-      "usd_value": 16.200414
+      "usd_value": 16.296390000000002
     },
     "UNI": {
       "available": 1.093593,
       "hold": 0.0,
       "total": 1.093593,
-      "usd_value": 8.733980494499999
+      "usd_value": 8.779911400500001
     },
     "AERO": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.099458
+      "usd_value": 0.0997635
     },
     "FET": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.031115
+      "usd_value": 0.031375
     },
     "WLFI": {
       "available": 78.5,
       "hold": 0.0,
       "total": 78.5,
-      "usd_value": 11.295364999999999
+      "usd_value": 11.4684575
     },
     "HBAR": {
       "available": 909.4,
       "hold": 0.0,
       "total": 909.4,
-      "usd_value": 161.22297899999998
+      "usd_value": 162.114191
     },
     "ZK": {
       "available": 0.01905562,
       "hold": 873.3,
       "total": 873.31905562,
-      "usd_value": 43.4519896123731
+      "usd_value": 43.6528529951657
     },
     "DOGE": {
       "available": 145.6,
       "hold": 0.0,
       "total": 145.6,
-      "usd_value": 25.298000000000002
+      "usd_value": 25.469808
     },
     "XRP": {
       "available": 0.00812,
       "hold": 0.0,
       "total": 0.00812,
-      "usd_value": 0.020021078
+      "usd_value": 0.020081165999999998
     },
     "BTC": {
       "available": 0.00068841,
       "hold": 0.0,
       "total": 0.00068841,
-      "usd_value": 70.12596201165
+      "usd_value": 70.36388339175
     }
   },
   "managed_positions": {},
@@ -93,7 +93,22 @@
     "USDT": 2.33462704,
     "USD": 110.56774029490279
   },
-  "open_orders": {},
+  "open_orders": {
+    "purge_352d5aedfb114abd85": {
+      "order_id": "14ed540a-b15f-4c9d-9431-68a4dc456c56",
+      "client_order_id": "purge_352d5aedfb114abd85",
+      "product_id": "PENGU-USD",
+      "side": "sell",
+      "status": "open",
+      "quote_size_usd": 14.97935,
+      "base_size": 1025.0,
+      "filled_size": 0.0,
+      "filled_value": 0.0,
+      "created_time": "2025-11-13T04:28:41.358166Z",
+      "first_seen": "2025-11-13T04:29:24.820329+00:00",
+      "updated_at": "2025-11-13T04:29:25.302635+00:00"
+    }
+  },
   "recent_orders": [
     {
       "order_id": "d0ea3286-337c-4a45-a4de-560678882de5",
@@ -1144,6 +1159,66 @@
       "first_seen": "2025-11-13T04:16:45.821852+00:00",
       "updated_at": "2025-11-13T04:16:45.821852+00:00",
       "closed_at": "2025-11-13T04:16:46.428996+00:00"
+    },
+    {
+      "order_id": "6d3264c0-9b73-4521-98b0-a497a1fcf2ef",
+      "client_order_id": "378d866b-0f73-4717-be51-a9dc93f7499f",
+      "product_id": "ZK-USD",
+      "side": "sell",
+      "status": "closed",
+      "quote_size_usd": 46.817612999999994,
+      "base_size": 873.3,
+      "filled_size": 0.0,
+      "filled_value": 0.0,
+      "created_time": "2025-11-11T06:05:42.206556Z",
+      "first_seen": "2025-11-13T04:28:27.277372+00:00",
+      "updated_at": "2025-11-13T04:28:27.277372+00:00",
+      "closed_at": "2025-11-13T04:28:27.478606+00:00"
+    },
+    {
+      "order_id": "f8908fce-36de-4c71-813c-c4e6e7787e42",
+      "client_order_id": "247trader_coid_d82aeafa5e3b308d",
+      "product_id": "XRP-USD",
+      "side": "buy",
+      "status": "closed",
+      "quote_size_usd": 9.035819076,
+      "base_size": 3.78908,
+      "filled_size": 0.0,
+      "filled_value": 0.0,
+      "created_time": "2025-11-13T00:24:38.654165Z",
+      "first_seen": "2025-11-13T04:28:27.277372+00:00",
+      "updated_at": "2025-11-13T04:28:27.277372+00:00",
+      "closed_at": "2025-11-13T04:28:27.478606+00:00"
+    },
+    {
+      "order_id": "6d3264c0-9b73-4521-98b0-a497a1fcf2ef",
+      "client_order_id": "378d866b-0f73-4717-be51-a9dc93f7499f",
+      "product_id": "ZK-USD",
+      "side": "sell",
+      "status": "closed",
+      "quote_size_usd": 46.817612999999994,
+      "base_size": 873.3,
+      "filled_size": 0.0,
+      "filled_value": 0.0,
+      "created_time": "2025-11-11T06:05:42.206556Z",
+      "first_seen": "2025-11-13T04:29:24.820329+00:00",
+      "updated_at": "2025-11-13T04:29:24.820329+00:00",
+      "closed_at": "2025-11-13T04:29:25.302635+00:00"
+    },
+    {
+      "order_id": "f8908fce-36de-4c71-813c-c4e6e7787e42",
+      "client_order_id": "247trader_coid_d82aeafa5e3b308d",
+      "product_id": "XRP-USD",
+      "side": "buy",
+      "status": "closed",
+      "quote_size_usd": 9.035819076,
+      "base_size": 3.78908,
+      "filled_size": 0.0,
+      "filled_value": 0.0,
+      "created_time": "2025-11-13T00:24:38.654165Z",
+      "first_seen": "2025-11-13T04:29:24.820329+00:00",
+      "updated_at": "2025-11-13T04:29:24.820329+00:00",
+      "closed_at": "2025-11-13T04:29:25.302635+00:00"
     }
   ],
   "pending_markers": {},
@@ -1166,85 +1241,10 @@
       "2025-11-13T03:43:44.580342+00:00"
     ]
   },
-  "last_reconcile_at": "2025-11-13T04:16:37.886776+00:00",
+  "last_reconcile_at": "2025-11-13T04:29:16.532327+00:00",
   "last_reset_date": "2025-11-13",
   "last_reset_hour": 4,
   "events": [
-    {
-      "at": "2025-11-13T03:42:17.894157+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 2,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-13T03:42:26.386196+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 2,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-13T03:42:26.522181+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 2,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-13T03:42:53.942724+00:00",
-      "event": "fill",
-      "symbol": "PENGU-USD",
-      "side": "BUY"
-    },
-    {
-      "at": "2025-11-13T03:42:53.133219+00:00",
-      "event": "fill",
-      "symbol": "PENGU-USD",
-      "side": "BUY",
-      "quantity": 618.0,
-      "price": 0.01464,
-      "notional_usd": 9.04752,
-      "fees": 0.05428512,
-      "pnl": null,
-      "mark_price": 0.01464
-    },
-    {
-      "at": "2025-11-13T03:40:26.897545+00:00",
-      "event": "fill",
-      "symbol": "XLM-USD",
-      "side": "BUY",
-      "quantity": 31.52161931,
-      "price": 0.286665,
-      "notional_usd": 9.03614499950115,
-      "fees": 0.0542168699970069,
-      "pnl": null,
-      "mark_price": 0.286665
-    },
-    {
-      "at": "2025-11-13T03:42:54.642684+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 2,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-13T03:43:28.267501+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 2,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-13T03:43:36.648939+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 2,
-      "closed": [],
-      "created": []
-    },
     {
       "at": "2025-11-13T03:43:36.799986+00:00",
       "event": "open_orders_sync",
@@ -1992,6 +1992,91 @@
         "247trader_coid_d82aeafa5e3b308d"
       ],
       "created": []
+    },
+    {
+      "at": "2025-11-13T04:19:40.117874+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-13T04:23:49.835815+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-13T04:28:15.210681+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-13T04:28:19.060103+00:00",
+      "event": "reconcile",
+      "positions": 13,
+      "open_orders": 2,
+      "orders_closed": [],
+      "orders_seen": [
+        "378d866b-0f73-4717-be51-a9dc93f7499f",
+        "247trader_coid_d82aeafa5e3b308d"
+      ]
+    },
+    {
+      "at": "2025-11-13T04:28:27.277372+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 2,
+      "closed": [],
+      "created": [
+        "378d866b-0f73-4717-be51-a9dc93f7499f",
+        "247trader_coid_d82aeafa5e3b308d"
+      ]
+    },
+    {
+      "at": "2025-11-13T04:28:27.478606+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [
+        "378d866b-0f73-4717-be51-a9dc93f7499f",
+        "247trader_coid_d82aeafa5e3b308d"
+      ],
+      "created": []
+    },
+    {
+      "at": "2025-11-13T04:29:16.532327+00:00",
+      "event": "reconcile",
+      "positions": 13,
+      "open_orders": 3,
+      "orders_closed": [],
+      "orders_seen": [
+        "378d866b-0f73-4717-be51-a9dc93f7499f",
+        "247trader_coid_d82aeafa5e3b308d",
+        "purge_352d5aedfb114abd85"
+      ]
+    },
+    {
+      "at": "2025-11-13T04:29:24.820329+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 3,
+      "closed": [],
+      "created": [
+        "378d866b-0f73-4717-be51-a9dc93f7499f",
+        "247trader_coid_d82aeafa5e3b308d",
+        "purge_352d5aedfb114abd85"
+      ]
+    },
+    {
+      "at": "2025-11-13T04:29:25.302635+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 1,
+      "closed": [
+        "378d866b-0f73-4717-be51-a9dc93f7499f",
+        "247trader_coid_d82aeafa5e3b308d"
+      ],
+      "created": []
     }
   ],
   "high_water_mark": 538.2423030124753,
@@ -1999,5 +2084,5 @@
   "auto_tune_applied": false,
   "zero_proposal_cycles": 0,
   "auto_loosen_applied": false,
-  "last_open_orders_sync": "2025-11-13T04:16:46.428996+00:00"
+  "last_open_orders_sync": "2025-11-13T04:29:25.302635+00:00"
 }

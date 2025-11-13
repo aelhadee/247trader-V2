@@ -557,15 +557,6 @@ class ExecutionEngine:
 
         return max(ttl, 1)
     
-    def _clear_pending_marker(self, symbol: str, side: str, client_order_id: Optional[str] = None):
-        """Clear pending marker for a symbol/side/client_order_id."""
-        if self.state_store:
-            try:
-                self.state_store.clear_pending(symbol, side, coid=client_order_id)
-                logger.debug(f"Cleared pending marker for {symbol} {side} (coid={client_order_id})")
-            except Exception as e:
-                logger.warning(f"Failed to clear pending marker for {symbol}: {e}")
-    
     def _on_order_terminal(self, symbol: str, side: str, client_order_id: str, status: str):
         """
         Called when an order reaches a terminal state.
