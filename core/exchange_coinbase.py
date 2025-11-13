@@ -846,9 +846,12 @@ class CoinbaseExchange:
             resp = self._req("POST", "/orders/batch_cancel", body, authenticated=True)
             
             # Parse batch response - returns {"results": [{"success": bool, "order_id": str, ...}]}
+            # NOTE: Coinbase API returns success=true even with failure_reason="UNKNOWN_CANCEL_FAILURE_REASON"
+            # This is expected behavior for orders that are already canceled/filled
             results = resp.get("results", [])
             if results and len(results) > 0:
                 result = results[0]
+                # Check success field (true means cancel request accepted)
                 if result.get("success"):
                     logger.info(f"Successfully canceled order {order_id}")
                     return {"success": True, "order_id": order_id}
