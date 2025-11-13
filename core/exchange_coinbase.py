@@ -1038,7 +1038,8 @@ class CoinbaseExchange:
     
     def place_order(self, product_id: str, side: str, quote_size_usd: float, 
                    client_order_id: Optional[str] = None, 
-                   order_type: str = "market") -> dict:
+                   order_type: str = "market",
+                   maker_cushion_ticks: int = 1) -> dict:
         """
         Place an order (market or limit).
         
@@ -1048,6 +1049,7 @@ class CoinbaseExchange:
             quote_size_usd: USD amount to trade
             client_order_id: Optional idempotency key
             order_type: "market" or "limit_post_only"
+            maker_cushion_ticks: Number of ticks inside bid/ask for maker orders (default 1)
             
         Returns:
             Order result with fill details
@@ -1062,25 +1064,39 @@ class CoinbaseExchange:
             if quote.bid <= 0 or quote.ask <= 0:
                 raise ValueError(f"No liquidity for {product_id}: bid={quote.bid}, ask={quote.ask}")
 
-            metadata = self.get_product_metadata(product_id)
-            base_inc = metadata.get("base_increment")
-            price_inc = metadata.get("price_increment")
+            spec = self.get_product_spec(product_id)
+            base_inc = spec.get("base_increment", "0.00000001")
+            price_inc = spec.get("quote_increment", "0.01")
 
+            # Calculate raw price and size
             if side.upper() == "BUY":
+                # BUY: place limit at bid, cushion down by N ticks
                 limit_price_raw = quote.bid
                 base_size_raw = quote_size_usd / limit_price_raw
+                # Apply cushion: subtract ticks from bid
+                from decimal import Decimal
+                p_step = Decimal(price_inc)
+                limit_price_quantized = (Decimal(str(limit_price_raw)) // p_step) * p_step - (p_step * maker_cushion_ticks)
+                price_fmt = format(max(limit_price_quantized, Decimal(0)), 'f')
             else:
+                # SELL: place limit at ask, cushion up by N ticks
                 limit_price_raw = quote.ask
                 base_size_raw = quote_size_usd / limit_price_raw
+                from decimal import Decimal
+                p_step = Decimal(price_inc)
+                limit_price_quantized = (Decimal(str(limit_price_raw)) // p_step) * p_step + (p_step * maker_cushion_ticks)
+                price_fmt = format(limit_price_quantized, 'f')
 
-            base_size_str = self._round_to_increment(base_size_raw, base_inc, product_id)
-            price_fmt = self._round_price(limit_price_raw, price_inc)
+            # Quantize size
+            from decimal import Decimal
+            s_step = Decimal(base_inc)
+            base_size_quantized = (Decimal(str(base_size_raw)) // s_step) * s_step
+            base_size_str = format(base_size_quantized, 'f')
 
             # Ensure rounded base size isn't zero or below increment
             try:
-                if base_inc:
-                    if float(base_size_str) < float(base_inc):
-                        raise ValueError("Order size below base increment")
+                if float(base_size_str) < float(base_inc):
+                    raise ValueError("Order size below base increment")
             except ValueError:
                 raise
             except Exception as e:
@@ -1090,7 +1106,6 @@ class CoinbaseExchange:
                 "order_configuration": {
                     "limit_limit_gtc": {
                         "base_size": base_size_str,
-                        # Use adaptive precision to avoid $0.00 rounding on micro-priced assets (e.g. PUMP)
                         "limit_price": price_fmt,
                         "post_only": True  # Critical: ensures maker-only
                     }
@@ -1101,7 +1116,7 @@ class CoinbaseExchange:
             }
             logger.warning(
                 f"PLACING LIMIT POST-ONLY ORDER: {side} {base_size_str} of {product_id} @ ${price_fmt} "
-                f"(bid={quote.bid:.8f}, ask={quote.ask:.8f})")
+                f"(bid={quote.bid:.8f}, ask={quote.ask:.8f}, cushion={maker_cushion_ticks} ticks)")
         else:
             # Market IOC order
             side_up = side.upper()
