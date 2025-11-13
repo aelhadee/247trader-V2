@@ -653,7 +653,8 @@ class RiskEngine:
         Returns:
             RiskCheckResult with approved proposals or rejection reason
         """
-        logger.info(f"Running risk checks on {len(proposals)} proposals (regime={regime})")
+        original_proposal_count = len(proposals)
+        logger.info(f"Running risk checks on {original_proposal_count} proposals (regime={regime})")
 
         proposal_rejections: Dict[str, List[str]] = {}
 
