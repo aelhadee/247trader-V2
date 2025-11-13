@@ -1462,7 +1462,7 @@ class RiskEngine:
             except ZeroDivisionError:
                 return 0.0
 
-    existing_exposure_pct = _pct(existing_position_usd + effective_pending_usd)
+        existing_exposure_pct = _pct(existing_position_usd + effective_pending_usd)
         
         # Get base limits
         max_pos_pct = self.risk_config.get("max_position_size_pct", 5.0)
