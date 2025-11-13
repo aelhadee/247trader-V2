@@ -10,7 +10,7 @@ NO component (rules, AI, or human) can violate these.
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from collections import defaultdict
+from collections import Counter, defaultdict
 import logging
 
 from strategy.rules_engine import TradeProposal
