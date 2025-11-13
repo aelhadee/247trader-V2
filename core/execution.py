@@ -1995,6 +1995,7 @@ class ExecutionEngine:
                     ttl_seconds = self._adaptive_maker_ttl(
                         ttl_quote,
                         attempt_label if isinstance(attempt_label, int) else attempt_index - 1,
+                        client_order_id=client_order_id,
                     )
                     if ttl_quote is not None:
                         quote = ttl_quote
