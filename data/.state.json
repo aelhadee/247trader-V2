@@ -12,79 +12,79 @@
       "available": 49.46209573,
       "hold": 0.0,
       "total": 49.46209573,
-      "usd_value": 14.445602906329421
+      "usd_value": 14.36488076609806
     },
     "ADA": {
       "available": 25.19157643,
       "hold": 0.0,
       "total": 25.19157643,
-      "usd_value": 14.1211381678365
+      "usd_value": 14.0631975420475
     },
     "BONK": {
       "available": 2048613.0,
       "hold": 0.0,
       "total": 2048613.0,
-      "usd_value": 25.392558134999998
+      "usd_value": 25.290127485000003
     },
     "PENGU": {
       "available": 91.0,
       "hold": 1025.0,
       "total": 1116.0,
-      "usd_value": 16.296390000000002
+      "usd_value": 16.194834
     },
     "UNI": {
       "available": 1.093593,
       "hold": 0.0,
       "total": 1.093593,
-      "usd_value": 8.779911400500001
+      "usd_value": 8.738901663
     },
     "AERO": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.0997635
+      "usd_value": 0.099511
     },
     "FET": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.031375
+      "usd_value": 0.031255
     },
     "WLFI": {
       "available": 78.5,
       "hold": 0.0,
       "total": 78.5,
-      "usd_value": 11.4684575
+      "usd_value": 11.514380000000001
     },
     "HBAR": {
       "available": 909.4,
       "hold": 0.0,
       "total": 909.4,
-      "usd_value": 162.114191
+      "usd_value": 161.87774700000003
     },
     "ZK": {
       "available": 0.01905562,
       "hold": 873.3,
       "total": 873.31905562,
-      "usd_value": 43.6528529951657
+      "usd_value": 43.6091870423847
     },
     "DOGE": {
       "available": 145.6,
       "hold": 0.0,
       "total": 145.6,
-      "usd_value": 25.469808
+      "usd_value": 25.401376
     },
     "XRP": {
       "available": 0.00812,
       "hold": 0.0,
       "total": 0.00812,
-      "usd_value": 0.020081165999999998
+      "usd_value": 0.02000971
     },
     "BTC": {
       "available": 0.00068841,
       "hold": 0.0,
       "total": 0.00068841,
-      "usd_value": 70.36388339175
+      "usd_value": 70.18984645964998
     }
   },
   "managed_positions": {},
@@ -105,8 +105,36 @@
       "filled_size": 0.0,
       "filled_value": 0.0,
       "created_time": "2025-11-13T04:28:41.358166Z",
-      "first_seen": "2025-11-13T04:29:24.820329+00:00",
-      "updated_at": "2025-11-13T04:29:25.302635+00:00"
+      "first_seen": "2025-11-13T04:37:18.758242+00:00",
+      "updated_at": "2025-11-13T04:37:31.430913+00:00"
+    },
+    "378d866b-0f73-4717-be51-a9dc93f7499f": {
+      "order_id": "6d3264c0-9b73-4521-98b0-a497a1fcf2ef",
+      "client_order_id": "378d866b-0f73-4717-be51-a9dc93f7499f",
+      "product_id": "ZK-USD",
+      "side": "sell",
+      "status": "open",
+      "quote_size_usd": 46.817612999999994,
+      "base_size": 873.3,
+      "filled_size": 0.0,
+      "filled_value": 0.0,
+      "created_time": "2025-11-11T06:05:42.206556Z",
+      "first_seen": "2025-11-13T04:37:31.430913+00:00",
+      "updated_at": "2025-11-13T04:37:31.430913+00:00"
+    },
+    "247trader_coid_d82aeafa5e3b308d": {
+      "order_id": "f8908fce-36de-4c71-813c-c4e6e7787e42",
+      "client_order_id": "247trader_coid_d82aeafa5e3b308d",
+      "product_id": "XRP-USD",
+      "side": "buy",
+      "status": "open",
+      "quote_size_usd": 9.035819076,
+      "base_size": 3.78908,
+      "filled_size": 0.0,
+      "filled_value": 0.0,
+      "created_time": "2025-11-13T00:24:38.654165Z",
+      "first_seen": "2025-11-13T04:37:31.430913+00:00",
+      "updated_at": "2025-11-13T04:37:31.430913+00:00"
     }
   },
   "recent_orders": [
@@ -1219,6 +1247,21 @@
       "first_seen": "2025-11-13T04:29:24.820329+00:00",
       "updated_at": "2025-11-13T04:29:24.820329+00:00",
       "closed_at": "2025-11-13T04:29:25.302635+00:00"
+    },
+    {
+      "order_id": "14ed540a-b15f-4c9d-9431-68a4dc456c56",
+      "client_order_id": "purge_352d5aedfb114abd85",
+      "product_id": "PENGU-USD",
+      "side": "sell",
+      "status": "closed",
+      "quote_size_usd": 14.97935,
+      "base_size": 1025.0,
+      "filled_size": 0.0,
+      "filled_value": 0.0,
+      "created_time": "2025-11-13T04:28:41.358166Z",
+      "first_seen": "2025-11-13T04:29:24.820329+00:00",
+      "updated_at": "2025-11-13T04:29:25.302635+00:00",
+      "closed_at": "2025-11-13T04:34:30.918843+00:00"
     }
   ],
   "pending_markers": {},
@@ -1241,59 +1284,10 @@
       "2025-11-13T03:43:44.580342+00:00"
     ]
   },
-  "last_reconcile_at": "2025-11-13T04:29:16.532327+00:00",
+  "last_reconcile_at": "2025-11-13T04:37:22.728750+00:00",
   "last_reset_date": "2025-11-13",
   "last_reset_hour": 4,
   "events": [
-    {
-      "at": "2025-11-13T03:43:36.799986+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 2,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-13T03:43:45.192946+00:00",
-      "event": "fill",
-      "symbol": "ADA-USD",
-      "side": "BUY"
-    },
-    {
-      "at": "2025-11-13T03:43:44.580342+00:00",
-      "event": "fill",
-      "symbol": "ADA-USD",
-      "side": "BUY",
-      "quantity": 16.11880128,
-      "price": 0.5606,
-      "notional_usd": 9.036199997568,
-      "fees": 0.054217199985408,
-      "pnl": null,
-      "mark_price": 0.5606
-    },
-    {
-      "at": "2025-11-13T03:42:53.133219+00:00",
-      "event": "fill",
-      "symbol": "PENGU-USD",
-      "side": "BUY",
-      "quantity": 618.0,
-      "price": 0.01464,
-      "notional_usd": 9.04752,
-      "fees": 0.05428512,
-      "pnl": null,
-      "mark_price": 0.01464
-    },
-    {
-      "at": "2025-11-13T03:40:26.897545+00:00",
-      "event": "fill",
-      "symbol": "XLM-USD",
-      "side": "BUY",
-      "quantity": 31.52161931,
-      "price": 0.286665,
-      "notional_usd": 9.03614499950115,
-      "fees": 0.0542168699970069,
-      "pnl": null,
-      "mark_price": 0.286665
-    },
     {
       "at": "2025-11-13T03:43:45.900371+00:00",
       "event": "reconcile",
@@ -2077,6 +2071,52 @@
         "247trader_coid_d82aeafa5e3b308d"
       ],
       "created": []
+    },
+    {
+      "at": "2025-11-13T04:34:30.918843+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [
+        "purge_352d5aedfb114abd85"
+      ],
+      "created": []
+    },
+    {
+      "at": "2025-11-13T04:37:18.758242+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 1,
+      "closed": [],
+      "created": [
+        "purge_352d5aedfb114abd85"
+      ]
+    },
+    {
+      "at": "2025-11-13T04:37:22.728750+00:00",
+      "event": "reconcile",
+      "positions": 13,
+      "open_orders": 3,
+      "orders_closed": [],
+      "orders_seen": [
+        "378d866b-0f73-4717-be51-a9dc93f7499f",
+        "247trader_coid_d82aeafa5e3b308d"
+      ]
+    },
+    {
+      "at": "2025-11-13T04:37:26.964748+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 1,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-13T04:37:31.430913+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 3,
+      "closed": [],
+      "created": [
+        "378d866b-0f73-4717-be51-a9dc93f7499f",
+        "247trader_coid_d82aeafa5e3b308d"
+      ]
     }
   ],
   "high_water_mark": 538.2423030124753,
@@ -2084,5 +2124,5 @@
   "auto_tune_applied": false,
   "zero_proposal_cycles": 0,
   "auto_loosen_applied": false,
-  "last_open_orders_sync": "2025-11-13T04:29:25.302635+00:00"
+  "last_open_orders_sync": "2025-11-13T04:37:31.430913+00:00"
 }

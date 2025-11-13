@@ -3000,6 +3000,25 @@ class ExecutionEngine:
                 len(expired_keys),
             )
     
+    def is_recently_canceled(self, order_id: Optional[str] = None, client_order_id: Optional[str] = None) -> bool:
+        """
+        Check if an order was recently canceled (within TTL window).
+        
+        This helps filter out ghost orders that may still appear in list_open_orders()
+        due to API eventual consistency.
+        
+        Args:
+            order_id: Exchange order ID
+            client_order_id: Client order ID
+            
+        Returns:
+            True if the order was canceled within the TTL window
+        """
+        return (
+            (order_id and order_id in self._recently_canceled) or
+            (client_order_id and client_order_id in self._recently_canceled)
+        )
+    
     def _cleanup_order_state(self, order_info: Dict[str, Any]) -> None:
         """Clear pending markers and transition order state for a canceled/stale order."""
         if not self.state_store:
