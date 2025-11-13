@@ -2429,6 +2429,40 @@ class ExecutionEngine:
         except Exception as exc:  # pragma: no cover - defensive
             logger.debug("Pending marker clear failed for %s: %s", symbol, exc)
 
+    def _safe_cancel(
+        self,
+        order_id: Optional[str],
+        *,
+        product_id: Optional[str] = None,
+        side: Optional[str] = None,
+        client_order_id: Optional[str] = None,
+    ) -> bool:
+        if not order_id:
+            return False
+
+        try:
+            response = self.exchange.cancel_order(order_id)
+        except Exception as exc:
+            message = str(exc).lower()
+            if "404" in message or "not found" in message:
+                logger.info("Cancel order %s returned not-found; assuming closed", order_id)
+                self._clear_pending_marker(product_id, side, client_order_id=client_order_id, order_id=order_id)
+                return True
+            logger.warning("Cancel order %s failed: %s", order_id, exc)
+            return False
+
+        if response.get("success"):
+            self._clear_pending_marker(product_id, side, client_order_id=client_order_id, order_id=order_id)
+            return True
+
+        error_text = (response.get("error") or "").lower()
+        if "not_found" in error_text or "404" in error_text:
+            logger.info("Cancel order %s treated as already closed (payload=%s)", order_id, response)
+            self._clear_pending_marker(product_id, side, client_order_id=client_order_id, order_id=order_id)
+            return True
+
+        return False
+
     def _resolve_and_finalize_missing_order(self, tracked: OrderState) -> None:
         if tracked is None or tracked.is_terminal():
             return
