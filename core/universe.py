@@ -29,6 +29,7 @@ class UniverseAsset:
     depth_usd: float
     eligible: bool
     ineligible_reason: Optional[str] = None
+    eligibility_reason: Optional[str] = None
 
 
 @dataclass
@@ -458,12 +459,13 @@ class UniverseManager:
         metric: str,
         metric_value: float,
         floor: float,
-    ) -> bool:
+        reason_code: str,
+    ) -> Optional[str]:
         """Apply global near-threshold tolerance if within configured band."""
 
         cfg = self._near_threshold_cfg
         if not cfg.get("override_enabled", False):
-            return False
+            return None
 
         tolerance_pct = float(cfg.get("tolerance_pct", 0.1) or 0.0)
         if tolerance_pct < 0:
@@ -471,7 +473,7 @@ class UniverseManager:
 
         threshold = floor * (1.0 - tolerance_pct)
         if metric_value < threshold:
-            return False
+            return None
 
         tier_key = f"tier{tier}"
         max_overrides = cfg.get("max_overrides_per_tier")
@@ -486,7 +488,7 @@ class UniverseManager:
                     used,
                     max_overrides,
                 )
-                return False
+                return None
             self._near_threshold_usage[tier_key] = used + 1
         else:
             self._near_threshold_usage[tier_key] = self._near_threshold_usage.get(tier_key, 0) + 1
@@ -500,10 +502,10 @@ class UniverseManager:
             tolerance_pct * 100.0,
             tier,
         )
-        return True
+        return reason_code
     
     def _check_liquidity(self, quote: Quote, orderbook, 
-                         global_config: dict, tier_config: dict, tier: int = 3) -> Tuple[bool, Optional[str]]:
+                         global_config: dict, tier_config: dict, tier: int = 3) -> Tuple[bool, Optional[str], Optional[str]]:
         """
         Check if asset passes liquidity requirements.
         
@@ -517,7 +519,9 @@ class UniverseManager:
         Returns:
             (eligible, reason_if_not)
         """
-        # Volume check with near-threshold override
+    eligibility_reason: Optional[str] = None
+
+    # Volume check with tier and global near-threshold overrides
         min_volume_global = global_config.get("min_24h_volume_usd", 5_000_000)
         min_volume_tier = tier_config.get("min_24h_volume_usd", min_volume_global)
         min_volume = max(min_volume_global, min_volume_tier)
@@ -538,61 +542,66 @@ class UniverseManager:
             )
         
         if quote.volume_24h < min_volume:
-            # Check near-threshold override (only for T2)
+            override_reason = None
             if override_enabled and tier == 2 and quote.volume_24h >= override_floor:
                 logger.info(
-                    f"OVERRIDE CHECK: {quote.symbol} in zone - "
-                    f"volume=${quote.volume_24h:,.0f} (${override_floor:,.0f}-${min_volume:,.0f}), "
-                    f"spread={quote.spread_bps:.1f}bps"
+                    "OVERRIDE CHECK: %s in zone - volume=$%s ($%s-$%s), spread=%.1fbps",
+                    quote.symbol,
+                    f"{quote.volume_24h:,.0f}",
+                    f"{override_floor:,.0f}",
+                    f"{min_volume:,.0f}",
+                    quote.spread_bps,
                 )
-                
-                # Asset is in override zone ($28.5M–$30M for T2)
-                # Check ALL strict rules:
-                
-                # 1) Spread tighter than normal
+
                 override_max_spread = override_config.get("max_spread_bps", 30)
                 if quote.spread_bps > override_max_spread:
                     logger.warning(
-                        f"OVERRIDE REJECT: {quote.symbol} spread {quote.spread_bps:.1f}bps > {override_max_spread}bps"
+                        "OVERRIDE REJECT: %s spread %.1fbps > %.1fbps",
+                        quote.symbol,
+                        quote.spread_bps,
+                        override_max_spread,
                     )
-                    return False, f"Volume ${quote.volume_24h:,.0f} in override zone but spread {quote.spread_bps:.1f}bps > {override_max_spread}bps"
-                
-                # 2) Size-aware depth (12× order notional within ±0.5%)
-                # For now, use depth check below (will be enhanced with size-aware logic)
-                require_depth_mult = override_config.get("require_depth_mult", 12)
-                
-                # 3) Listing age check (placeholder - would need exchange metadata)
-                # min_listing_age_days = override_config.get("min_listing_age_days", 30)
-                # For now, skip listing age check (requires additional API data)
-                
-                # 4) Slippage budget must pass (checked later in execution)
-                
+                    return False, (
+                        f"Volume ${quote.volume_24h:,.0f} in override zone but spread {quote.spread_bps:.1f}bps > {override_max_spread}bps"
+                    ), None
+
+                override_reason = "override_volume"
                 logger.info(
-                    f"✅ OVERRIDE PASS: {quote.symbol} volume ${quote.volume_24h:,.0f} "
-                    f"(${override_floor:,.0f}–${min_volume:,.0f}), spread {quote.spread_bps:.1f}bps ≤ {override_max_spread}bps - ALLOWED"
+                    "✅ OVERRIDE PASS: %s volume $%s ($%s–$%s), spread %.1fbps ≤ %.1fbps - ALLOWED",
+                    quote.symbol,
+                    f"{quote.volume_24h:,.0f}",
+                    f"{override_floor:,.0f}",
+                    f"{min_volume:,.0f}",
+                    quote.spread_bps,
+                    override_max_spread,
                 )
-                # Pass override - continue to other checks
             else:
-                applied = self._apply_near_threshold_override(
+                applied_reason = self._apply_near_threshold_override(
                     symbol=quote.symbol,
                     tier=tier,
                     metric="volume",
                     metric_value=quote.volume_24h,
                     floor=min_volume,
+                    reason_code="override_volume",
                 )
+                if applied_reason:
+                    override_reason = applied_reason
 
-                if not applied:
-                    # Log why override didn't apply
-                    if not override_enabled:
-                        logger.debug(f"{quote.symbol}: override disabled")
-                    elif tier != 2:
-                        logger.debug(f"{quote.symbol}: wrong tier (T{tier}, need T2)")
-                    elif quote.volume_24h < override_floor:
-                        logger.debug(
-                            f"{quote.symbol}: below override floor "
-                            f"(${quote.volume_24h:,.0f} < ${override_floor:,.0f})"
-                        )
-                    return False, f"Volume ${quote.volume_24h:,.0f} < ${min_volume:,.0f}"
+            if override_reason:
+                eligibility_reason = override_reason
+            else:
+                if not override_enabled:
+                    logger.debug(f"{quote.symbol}: override disabled")
+                elif tier != 2:
+                    logger.debug(f"{quote.symbol}: wrong tier (T{tier}, need T2)")
+                elif quote.volume_24h < override_floor:
+                    logger.debug(
+                        f"{quote.symbol}: below override floor "
+                        f"(${quote.volume_24h:,.0f} < ${override_floor:,.0f})"
+                    )
+                else:
+                    logger.debug(f"{quote.symbol}: override conditions not met")
+                return False, f"Volume ${quote.volume_24h:,.0f} < ${min_volume:,.0f}", None
         
         # Spread check
         max_spread_global = global_config.get("max_spread_bps", 100)
@@ -623,22 +632,34 @@ class UniverseManager:
                 metric="depth",
                 metric_value=orderbook.total_depth_usd,
                 floor=min_depth_tier,
+                reason_code="override_depth",
             )
 
-            if not applied_depth_override:
+            if applied_depth_override:
+                eligibility_reason = eligibility_reason or applied_depth_override
+            else:
                 logger.debug(
                     f"{quote.symbol}: depth check FAIL - "
                     f"${orderbook.total_depth_usd:,.0f} < ${min_depth_tier:,.0f} (T{tier})"
                 )
-                return False, f"Depth ${orderbook.total_depth_usd:,.0f} < ${min_depth_tier:,.0f} (T{tier})"
+                return False, f"Depth ${orderbook.total_depth_usd:,.0f} < ${min_depth_tier:,.0f} (T{tier})", None
         
         logger.debug(
             f"{quote.symbol}: depth check PASS - "
             f"${orderbook.total_depth_usd:,.0f} ≥ ${min_depth_tier:,.0f} (T{tier})"
         )
-        
-        logger.info(f"✅ ELIGIBLE: {quote.symbol} passed all T{tier} liquidity checks")
-        return True, None
+
+        if eligibility_reason:
+            logger.info(
+                "✅ ELIGIBLE: %s passed all T%d liquidity checks (reason=%s)",
+                quote.symbol,
+                tier,
+                eligibility_reason,
+            )
+        else:
+            logger.info(f"✅ ELIGIBLE: {quote.symbol} passed all T{tier} liquidity checks")
+
+        return True, None, eligibility_reason
     
     def _is_cache_valid(self, regime: str) -> bool:
         """Check if cached snapshot is still valid"""
