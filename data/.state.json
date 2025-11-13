@@ -12,13 +12,13 @@
       "available": 49.46209573,
       "hold": 0.0,
       "total": 49.46209573,
-      "usd_value": 14.390230090159685
+      "usd_value": 14.389710738154518
     },
     "ADA": {
       "available": 25.19157643,
       "hold": 0.0,
       "total": 25.19157643,
-      "usd_value": 14.1060232219785
+      "usd_value": 14.108542379621502
     },
     "BONK": {
       "available": 2048613.0,
@@ -30,19 +30,19 @@
       "available": 91.0,
       "hold": 1025.0,
       "total": 1116.0,
-      "usd_value": 16.211574
+      "usd_value": 16.208226
     },
     "UNI": {
       "available": 1.093593,
       "hold": 0.0,
       "total": 1.093593,
-      "usd_value": 8.754758761500002
+      "usd_value": 8.771162656500001
     },
     "AERO": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.09944800000000001
+      "usd_value": 0.0993325
     },
     "FET": {
       "available": 0.1,
@@ -54,13 +54,13 @@
       "available": 78.5,
       "hold": 0.0,
       "total": 78.5,
-      "usd_value": 11.635270000000002
+      "usd_value": 11.6388025
     },
     "HBAR": {
       "available": 909.4,
       "hold": 0.0,
       "total": 909.4,
-      "usd_value": 162.24150699999998
+      "usd_value": 162.132379
     },
     "ZK": {
       "available": 0.01905562,
@@ -72,42 +72,26 @@
       "available": 145.6,
       "hold": 0.0,
       "total": 145.6,
-      "usd_value": 25.448695999999998
+      "usd_value": 25.450152
     },
     "XRP": {
-      "available": 3.656751,
+      "available": 7.306266,
       "hold": 0.0,
-      "total": 3.656751,
-      "usd_value": 9.057406551899998
+      "total": 7.306266,
+      "usd_value": 18.090314616
     },
     "BTC": {
       "available": 0.00068841,
       "hold": 0.0,
       "total": 0.00068841,
-      "usd_value": 70.18804282545
-    },
-    "XRP-USD": {
-      "side": "BUY",
-      "quantity": 7.298146,
-      "units": 7.298146,
-      "base_qty": 7.298146,
-      "entry_price": 2.4761999636620042,
-      "entry_value_usd": 18.07166886,
-      "usd_value": 18.073858569,
-      "usd": 18.073858569,
-      "fees_paid": 0.10843001316,
-      "entry_time": "2025-11-13T04:45:50.791261+00:00",
-      "last_updated": "2025-11-13T04:44:39.694815+00:00",
-      "last_fill_price": 2.4765
+      "usd_value": 70.17514202205
     }
   },
-  "managed_positions": {
-    "XRP-USD": true
-  },
+  "managed_positions": {},
   "cash_balances": {
     "USDC": 0.070462312468,
     "USDT": 2.33462704,
-    "USD": 101.47769061537379
+    "USD": 92.3876414217428
   },
   "open_orders": {
     "purge_352d5aedfb114abd85": {
@@ -1321,18 +1305,10 @@
       "2025-11-13T04:44:39.694815+00:00"
     ]
   },
-  "last_reconcile_at": "2025-11-13T04:45:20.386877+00:00",
+  "last_reconcile_at": "2025-11-13T04:45:52.328635+00:00",
   "last_reset_date": "2025-11-13",
   "last_reset_hour": 4,
   "events": [
-    {
-      "at": "2025-11-13T03:51:27.436880+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 2,
-      "orders_closed": [],
-      "orders_seen": []
-    },
     {
       "at": "2025-11-13T03:51:35.863198+00:00",
       "event": "open_orders_sync",
@@ -2200,6 +2176,14 @@
       "fees": 0.054215008029,
       "pnl": null,
       "mark_price": 2.4765
+    },
+    {
+      "at": "2025-11-13T04:45:52.328635+00:00",
+      "event": "reconcile",
+      "positions": 13,
+      "open_orders": 3,
+      "orders_closed": [],
+      "orders_seen": []
     }
   ],
   "high_water_mark": 538.2423030124753,
