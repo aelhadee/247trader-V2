@@ -45,6 +45,7 @@ class CapAllocationResult:
     approved: bool
     reason: Optional[str]
     assigned_usd: float
+    requested_usd: float
     min_bump_applied: bool = False
     degraded: bool = False
 
