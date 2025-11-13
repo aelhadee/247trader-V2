@@ -815,11 +815,52 @@ class StateStore:
             }
         )
 
+        fill_key = self._fill_key(symbol, side_upper)
+        state.setdefault("last_fill_times", {})[fill_key] = timestamp.isoformat()
+
+        history_bucket = state.setdefault("fill_history", {}).setdefault(fill_key, [])
+        history_bucket.append(timestamp.isoformat())
+        if len(history_bucket) > self.MAX_FILL_HISTORY:
+            history_bucket[:] = history_bucket[-self.MAX_FILL_HISTORY :]
+
         if len(state["events"]) > 100:
             state["events"] = state["events"][-100:]
 
         self.save(state)
         return state
+
+    def get_last_fill_time(self, product_id: str, side: str) -> Optional[datetime]:
+        state = self.load()
+        key = self._fill_key(product_id, side)
+        last = state.get("last_fill_times", {}).get(key)
+        if not last:
+            return None
+        try:
+            ts = datetime.fromisoformat(last)
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            return ts
+        except Exception:
+            return None
+
+    def get_fill_count_since(self, product_id: str, side: str, since: datetime) -> int:
+        state = self.load()
+        key = self._fill_key(product_id, side)
+        history = state.get("fill_history", {}).get(key) or []
+        if not history:
+            return 0
+
+        count = 0
+        for iso_ts in history:
+            try:
+                ts = datetime.fromisoformat(iso_ts)
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=timezone.utc)
+            except Exception:
+                continue
+            if ts >= since:
+                count += 1
+        return count
 
     def mark_position_managed(self, symbol: str) -> None:
         """Explicitly mark a position as managed by the bot."""
