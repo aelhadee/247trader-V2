@@ -2557,12 +2557,6 @@ class ExecutionEngine:
     def reconcile_open_orders(self) -> None:
         """Ensure local order state matches exchange by reconciling missing orders."""
 
-        active_orders = self.order_state_machine.get_active_orders()
-        if not active_orders:
-            if self.state_store:
-                self.state_store.purge_expired_pending()
-            return
-
         live_identifiers: Set[str] = set()
         remote_orders: List[Dict[str, Any]] = []
 
@@ -2593,6 +2587,8 @@ class ExecutionEngine:
             
             self.state_store.purge_expired_pending()
 
+        # Reconcile tracked orders
+        active_orders = self.order_state_machine.get_active_orders()
         for tracked in active_orders:
             key = tracked.client_order_id or tracked.order_id
             if key and key in live_identifiers:
