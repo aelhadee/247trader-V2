@@ -7,7 +7,7 @@
 - [ ] Adjust configuration defaults (TTL, min notional, new flags) and keep schema/tests/docs in sync.
 - [ ] Implement taker promotion gating and cancel retry/backoff scaffolding per new policy toggles.
 - [x] Plumb per-proposal rejection reasons through risk checks and runner logging.
-- [ ] Raise execution min_notional_usd and add dust sweep guidance to policy/tests.
+- [x] Raise execution min_notional_usd and add dust sweep guidance to policy/tests.
 - [x] Run full relevant test suite (pytest) to confirm fixes.
 - [x] Prepare rollback guidance and update TODO checklist.
 - [ ] Ship rebuild_positions maintenance utility to repair historical base units.
