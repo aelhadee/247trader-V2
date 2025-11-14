@@ -217,6 +217,15 @@ strategy:
       reversal_bounce_confirmed: 0.04
       tier_bias_T1: 0.02
 
+  reversal_confirmation:
+    enforce: true
+    min_required: 3
+    qualifiers:
+      - reversal_close_above_vwap_5m
+      - reversal_higher_low
+      - reversal_rsi_cross_50
+      - reversal_bounce_confirmed
+
   canary:
     enabled: true
     size_multiplier: 0.25
