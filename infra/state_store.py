@@ -554,6 +554,11 @@ class StateStore:
         """
         Update state after order fills.
         
+        Tracks:
+        - Trade counters (today/hour)
+        - Global last_trade_timestamp (for pacing)
+        - Per-symbol last_trade_timestamp (for per-symbol pacing)
+        
         Args:
             filled_orders: List of successfully filled orders
             portfolio: Current portfolio state
@@ -562,6 +567,7 @@ class StateStore:
             Updated state
         """
         state = self.load()
+        now = datetime.now(timezone.utc)
         
         for order in filled_orders:
             # Extract order details (handle both dict and object)
@@ -579,9 +585,15 @@ class StateStore:
                 state["trades_today"] = state.get("trades_today", 0) + 1
                 state["trades_this_hour"] = state.get("trades_this_hour", 0) + 1
                 
+                # Update global last trade timestamp (for global pacing)
+                state["last_trade_timestamp"] = now.isoformat()
+                
+                # Update per-symbol last trade timestamp (for per-symbol pacing)
+                state.setdefault("per_symbol_last_trade", {})[symbol] = now.isoformat()
+                
                 # Log event
                 state.setdefault("events", []).append({
-                    "at": datetime.now(timezone.utc).isoformat(),
+                    "at": now.isoformat(),
                     "event": "fill",
                     "symbol": symbol,
                     "side": side
