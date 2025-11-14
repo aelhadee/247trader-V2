@@ -1183,3 +1183,120 @@ def create_state_store_from_config(state_cfg: Optional[Dict[str, Any]]) -> State
         backend = JsonFileBackend(path)
 
     return StateStore(backend=backend)
+
+
+class StateStoreSupervisor:
+    """Background persistence + backup coordinator driven by app config."""
+
+    def __init__(
+        self,
+        store: StateStore,
+        *,
+        persist_interval_seconds: Optional[Any] = None,
+        backup_config: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        self._store = store
+        self._persist_interval = self._coerce_interval(persist_interval_seconds)
+        cfg = backup_config or {}
+        self._backup_enabled = bool(cfg.get("enabled"))
+        backup_interval_seconds = cfg.get("interval_seconds")
+        if backup_interval_seconds is None and cfg.get("interval_hours") is not None:
+            try:
+                backup_interval_seconds = float(cfg.get("interval_hours")) * 3600.0
+            except (TypeError, ValueError):
+                backup_interval_seconds = None
+        self._backup_interval = self._coerce_interval(backup_interval_seconds)
+        self._backup_path = Path(cfg.get("path") or cfg.get("directory") or "data/state_backups")
+        self._backup_max_files = int(cfg.get("max_files", 10))
+        self._stop_event = threading.Event()
+        self._thread: Optional[threading.Thread] = None
+
+    def start(self) -> None:
+        if self._thread or not self._should_run():
+            return
+        self._stop_event.clear()
+        self._thread = threading.Thread(target=self._run_loop, name="StateStoreSupervisor", daemon=True)
+        self._thread.start()
+        logger.info("StateStoreSupervisor started (persist=%s backup=%s)", self._persist_interval, self._backup_interval)
+
+    def stop(self) -> None:
+        if not self._thread:
+            if self._backup_enabled:
+                self.force_backup()
+            return
+        self._stop_event.set()
+        self._thread.join(timeout=5)
+        self._thread = None
+        self.force_persist()
+        if self._backup_enabled:
+            self.force_backup()
+
+    def force_persist(self) -> None:
+        if self._persist_interval is None and not self._backup_enabled:
+            # Nothing to do if persistence disabled and backups off
+            return
+        self._persist_once()
+
+    def force_backup(self) -> None:
+        if not self._backup_enabled:
+            return
+        self._backup_once()
+
+    def _should_run(self) -> bool:
+        return bool(self._persist_interval or (self._backup_enabled and self._backup_interval))
+
+    @staticmethod
+    def _coerce_interval(value: Optional[Any]) -> Optional[float]:
+        if value in (None, False):
+            return None
+        try:
+            interval = float(value)
+        except (TypeError, ValueError):
+            return None
+        return interval if interval > 0 else None
+
+    def _run_loop(self) -> None:
+        next_persist = time.monotonic() + self._persist_interval if self._persist_interval else None
+        next_backup = (
+            time.monotonic() + self._backup_interval
+            if self._backup_enabled and self._backup_interval
+            else None
+        )
+        while not self._stop_event.wait(1):
+            now = time.monotonic()
+            if next_persist and now >= next_persist:
+                self._persist_once()
+                next_persist = now + self._persist_interval
+            if next_backup and now >= next_backup:
+                self._backup_once()
+                next_backup = now + self._backup_interval
+
+    def _persist_once(self) -> None:
+        try:
+            self._store.flush()
+        except Exception as exc:  # pragma: no cover - logged for ops triage
+            logger.error("State persistence failure: %s", exc)
+
+    def _backup_once(self) -> None:
+        try:
+            state = self._store.flush()
+            self._backup_path.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+            backup_file = self._backup_path / f"state-{timestamp}.json"
+            with backup_file.open("w", encoding="utf-8") as f:
+                json.dump(state, f, indent=2)
+            self._prune_old_backups()
+            logger.info("State backup written to %s", backup_file)
+        except Exception as exc:  # pragma: no cover
+            logger.error("State backup failure: %s", exc)
+
+    def _prune_old_backups(self) -> None:
+        if self._backup_max_files <= 0:
+            return
+        backups = sorted(self._backup_path.glob("state-*.json"))
+        while len(backups) > self._backup_max_files:
+            obsolete = backups.pop(0)
+            try:
+                obsolete.unlink()
+            except OSError:
+                logger.warning("Failed to remove old state backup %s", obsolete)
