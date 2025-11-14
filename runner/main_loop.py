@@ -261,6 +261,7 @@ class TradingLoop:
         self._running = False
 
         self._stop_state_store_supervisor()
+    self._stop_health_server()
         
         # Graceful cleanup (only if not DRY_RUN)
         if self.mode == "DRY_RUN":
