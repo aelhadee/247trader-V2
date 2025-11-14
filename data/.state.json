@@ -983,14 +983,6 @@
   "last_reset_hour": 0,
   "events": [
     {
-      "at": "2025-11-13T16:00:23.654406+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 0,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
       "at": "2025-11-13T16:15:53.526992+00:00",
       "event": "reconcile",
       "positions": 13,
@@ -1785,6 +1777,13 @@
       "open_orders": 0,
       "closed": [],
       "created": []
+    },
+    {
+      "at": "2025-11-14T00:27:46.390470+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
     }
   ],
   "high_water_mark": 538.2423030124753,
@@ -1792,5 +1791,5 @@
   "auto_tune_applied": false,
   "zero_proposal_cycles": 0,
   "auto_loosen_applied": false,
-  "last_open_orders_sync": "2025-11-14T00:27:41.115998+00:00"
+  "last_open_orders_sync": "2025-11-14T00:27:46.390470+00:00"
 }
