@@ -415,12 +415,12 @@ class RulesEngine:
         confirmed, matched, required, min_required = self._reversal_confirmations(trigger)
         if not confirmed:
             logger.info(
-                "Skipping reversal for %s: confirmations %s/%s",
+                "Reversal %s missing confirmations %s/%s (min=%s) — gating to canary window only",
                 trigger.symbol,
                 len(matched),
+                len(required),
                 min_required,
             )
-            return None
         
         side = "BUY"
         reason = f"Reversal: {trigger.reason}"
@@ -456,6 +456,9 @@ class RulesEngine:
             "required": required,
             "min_required": min_required,
         })
+        proposal.metadata["reversal_confirmations_ok"] = confirmed
+        if not confirmed:
+            proposal.tags.append("reversal_unconfirmed")
 
         return proposal
     
