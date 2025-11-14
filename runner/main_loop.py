@@ -34,7 +34,7 @@ from core.risk import RiskEngine, PortfolioState
 from core.execution import ExecutionEngine, ExecutionResult
 from core.position_manager import PositionManager
 from infra.alerting import AlertService, AlertSeverity
-from infra.state_store import StateStore, create_state_store_from_config
+from infra.state_store import StateStore, StateStoreSupervisor, create_state_store_from_config
 from infra.metrics import MetricsRecorder, CycleStats
 from core.audit_log import AuditLogger
 from core.order_state import OrderStatus
