@@ -179,6 +179,11 @@ class TradingLoop:
             policy=self.policy_config,
             state_store=self.state_store,
         )
+        
+        self.position_manager = PositionManager(
+            policy=self.policy_config,
+            state_store=self.state_store,
+        )
 
         try:
             self.executor.reconcile_open_orders()
