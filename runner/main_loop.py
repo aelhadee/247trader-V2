@@ -1814,7 +1814,7 @@ class TradingLoop:
         started_at: datetime,
     ) -> None:
         metrics = getattr(self, "metrics", None)
-        if metrics is None or not metrics.is_enabled():
+        if metrics is None:
             return
 
         duration = max((datetime.now(timezone.utc) - started_at).total_seconds(), 0.0)
@@ -1826,6 +1826,16 @@ class TradingLoop:
             duration_seconds=duration,
         )
         metrics.observe_cycle(stats)
+
+    @contextmanager
+    def _stage_timer(self, stage: str):
+        start = time.perf_counter()
+        try:
+            yield
+        finally:
+            metrics = getattr(self, "metrics", None)
+            if metrics:
+                metrics.record_stage_duration(stage, max(time.perf_counter() - start, 0.0))
 
     def _purge_ineligible_holdings(self, universe) -> None:
         """Sell holdings that are excluded or currently ineligible.
