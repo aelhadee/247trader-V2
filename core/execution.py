@@ -3062,21 +3062,20 @@ class ExecutionEngine:
             )
             
             try:
+                success = True
                 if on_exchange and order_id:
-                    result = self.exchange.cancel_order(order_id)
-                    
-                    # Count as success whether cancel succeeded or order already gone (404)
-                    is_already_closed = (
-                        isinstance(result, dict) and 
-                        (result.get("error") == "not_found" or result.get("success") is False)
+                    success = self._safe_cancel(
+                        order_id,
+                        product_id=product_id,
+                        side=stale.get("side"),
+                        client_order_id=client_id,
+                        retry=True,
                     )
-                    
-                    if is_already_closed:
-                        logger.debug(
-                            "Stale order %s already closed/filled (404) - clearing state",
-                            order_id,
-                        )
-                
+                    if not success:
+                        logger.warning("Cancel attempt failed for stale order %s", order_id)
+                        failed_count += 1
+                        continue
+
                 canceled_count += 1
                 
                 # Add to recently-canceled cache to prevent API re-adding (eventual consistency)
