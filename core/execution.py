@@ -2053,6 +2053,36 @@ class ExecutionEngine:
                     if ttl_quote is not None:
                         quote = ttl_quote
                 else:
+                    promotion_allowed, block_reason = self._taker_promotion_allowed(
+                        mode=mode,
+                        estimated_slippage_bps=est_slippage_bps,
+                        tier=tier,
+                        confidence=confidence,
+                        force_order_type=force_order_type,
+                        bypass_slippage_budget=bypass_slippage_budget,
+                    )
+                    if not promotion_allowed:
+                        logger.info(
+                            "TAKER_PROMOTION_BLOCKED %s %s attempt=%s reason=%s",
+                            symbol,
+                            side.upper(),
+                            attempt_label,
+                            block_reason,
+                        )
+                        last_result = ExecutionResult(
+                            success=False,
+                            order_id=None,
+                            symbol=symbol,
+                            side=side,
+                            filled_size=0.0,
+                            filled_price=0.0,
+                            fees=0.0,
+                            slippage_bps=est_slippage_bps,
+                            route="live_taker_blocked",
+                            error=block_reason,
+                        )
+                        continue
+
                     if not self._is_taker_slippage_allowed(est_slippage_bps, tier):
                         error_msg = (
                             f"Estimated slippage {est_slippage_bps:.1f}bps exceeds taker slippage budget"
