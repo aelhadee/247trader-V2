@@ -124,7 +124,7 @@ def main():
     fills_by_symbol = extract_fills_by_symbol(state)
     cash_balances = state.get("cash_balances", {})
     
-    print("=" * 80)
+    print("\n" + "=" * 80)
     print("247TRADER-V2 PNL REPORT")
     print("=" * 80)
     print(f"Report Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
