@@ -1010,7 +1010,7 @@ class ExecutionEngine:
                             # Calculate from 24h volume and current price
                             # Note: This is approximate - actual historical data would be better
                             change_24h_pct = ((quote.last - quote.mid) / quote.mid) * 100 if quote.mid > 0 else 0.0
-                        except:
+                        except Exception:
                             pass
                         
                         candidates.append({
@@ -1022,7 +1022,7 @@ class ExecutionEngine:
                             'pair': pair,
                             'change_24h_pct': change_24h_pct
                         })
-                except:
+                except Exception:
                     # Try USDC pair as fallback
                     try:
                         pair = f"{currency}-USDC"
@@ -1034,7 +1034,7 @@ class ExecutionEngine:
                             change_24h_pct = 0.0
                             try:
                                 change_24h_pct = ((quote.last - quote.mid) / quote.mid) * 100 if quote.mid > 0 else 0.0
-                            except:
+                            except Exception:
                                 pass
                             
                             candidates.append({
@@ -1046,7 +1046,7 @@ class ExecutionEngine:
                                 'pair': pair,
                                 'change_24h_pct': change_24h_pct
                             })
-                    except:
+                    except Exception:
                         pass
             
             # Sort based on strategy
