@@ -220,6 +220,8 @@ class TradingLoop:
             state_store=self.state_store,
         )
 
+        self._start_health_server()
+
         try:
             self.executor.reconcile_open_orders()
         except Exception as exc:
