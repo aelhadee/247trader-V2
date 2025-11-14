@@ -38,6 +38,7 @@ class MetricsRecorder:
         self._last_stage_durations: Dict[str, float] = {}
         self._last_rate_usage: Dict[str, float] = {}
         self._last_api_event: Optional[Dict[str, str]] = None
+    self._last_no_trade_reason: Optional[str] = None
 
         if not self._prom_available and enabled:
             logger.warning(
@@ -53,6 +54,7 @@ class MetricsRecorder:
             self._rate_limit_gauge = None
             self._rate_limit_counter = None
             self._api_latency_summary = None
+            self._no_trade_counter = None
             return
 
         self._cycle_summary = Summary(  # type: ignore[assignment]
@@ -88,6 +90,11 @@ class MetricsRecorder:
             "exchange_api_latency_seconds",
             "Latency of exchange API calls",
             labelnames=("endpoint", "channel", "status"),
+        )
+        self._no_trade_counter = Counter(  # type: ignore[assignment]
+            "trader_no_trade_total",
+            "Number of cycles that resulted in no-trade outcomes, grouped by reason",
+            labelnames=("reason",),
         )
 
     def start(self) -> None:
@@ -143,6 +150,12 @@ class MetricsRecorder:
                 status=status,
             ).observe(duration)
 
+    def record_no_trade_reason(self, reason: str) -> None:
+        self._last_no_trade_reason = reason
+        if self._enabled and self._no_trade_counter:
+            # Keep label cardinality bounded by reusing the literal reason string
+            self._no_trade_counter.labels(reason=reason).inc()
+
     def last_cycle(self) -> Optional[CycleStats]:
         return self._last_cycle_stats
 
@@ -154,6 +167,9 @@ class MetricsRecorder:
 
     def last_api_event(self) -> Optional[Dict[str, str]]:
         return dict(self._last_api_event) if self._last_api_event else None
+
+    def last_no_trade_reason(self) -> Optional[str]:
+        return self._last_no_trade_reason
 
 
 __all__ = ["MetricsRecorder", "CycleStats"]
