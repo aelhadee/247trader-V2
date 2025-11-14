@@ -1520,6 +1520,8 @@ class TradingLoop:
                         logger.warning(f"⚠️ Trade failed: {proposal.symbol} - {result.error}")
             
             # Update state after fills
+            executed_count = len(final_orders)
+
             if final_orders:
                 self.state_store.update_from_fills(final_orders, self.portfolio)
                 
