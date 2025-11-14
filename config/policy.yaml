@@ -31,7 +31,7 @@ profiles:
       T1: 0.070   # 7.0% cap per T1 asset (~2.3x base, more room to add)
       T2: 0.045   # 4.5% cap per T2 asset (~2.5x base)
       T3: 0.025   # 2.5% cap per T3 asset (~3.5x base)
-    min_trade_notional: 5.0  # Lower floor for small accounts
+  min_trade_notional: 15.0  # Raised floor to ensure fills cover fees/slippage
 
 risk:
   # Global exposure limits
@@ -77,9 +77,9 @@ risk:
   per_symbol_cooldown_after_stop: 60  # Wait 60min after stop-loss hit
   
   # Minimum trade size (DYNAMIC based on profile)
-  # Active profile: day_trader → min_trade_notional = $5.00
-  min_trade_notional_usd: 5  # Lowered for small accounts (day_trader profile)
-  dust_threshold_usd: 3.0  # Holdings below this USD value do not consume a slot
+  # Active profile: day_trader → min_trade_notional = $15.00
+  min_trade_notional_usd: 15  # Raised to keep fills above exchange fee + spread overhead
+  dust_threshold_usd: 10.0  # Holdings below this USD value do not consume a slot
   allow_adds_when_over_cap: true  # Permit topping up existing symbols even if cap reached
   count_open_orders_in_cap: true  # Treat pending buy orders as occupying slots
   allow_pyramiding: true
@@ -306,8 +306,8 @@ execution:
   # Order types
   default_order_type: "limit_post_only"  # Phase 1: conservative
   # Execution minimum (DYNAMIC based on profile)
-  # Active profile: day_trader → min_notional = $5.00 (allows smaller conviction-scaled trades)
-  min_notional_usd: 5.0                  # Execution floor for gross order size (day_trader profile)
+  # Active profile: day_trader → min_notional = $15.00 (ensures fills justify fees)
+  min_notional_usd: 15.0                 # Execution floor for gross order size (day_trader profile)
   maker_first: true                      # Try maker route before taker
   maker_max_reprices: 1                  # Single reprice before fallback
   # Normal trading TTLs (T1/T2 liquid pairs)
