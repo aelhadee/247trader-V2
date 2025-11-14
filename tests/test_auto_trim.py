@@ -31,7 +31,7 @@ def test_auto_trim_to_risk_cap_converts_excess_exposure():
     }
 
     loop.executor = SimpleNamespace(
-        min_notional_usd=5.0,
+        min_notional_usd=15.0,
         get_liquidation_candidates=MagicMock(return_value=[candidate]),
         convert_asset=MagicMock(return_value={"success": True}),
         can_convert=MagicMock(return_value=True),
@@ -113,7 +113,7 @@ def test_auto_trim_skips_convert_when_pair_denied():
     }
 
     loop.executor = SimpleNamespace(
-        min_notional_usd=5.0,
+        min_notional_usd=15.0,
         get_liquidation_candidates=MagicMock(return_value=[candidate]),
         convert_asset=MagicMock(return_value={"success": False}),
         can_convert=MagicMock(return_value=False),
