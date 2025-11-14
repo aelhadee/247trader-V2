@@ -4004,78 +4004,59 @@ class ExecutionEngine:
             if to_cancel:
                 canceled_count = 0
                 failed_count = 0
-                
-                # Try batch cancel first (more efficient)
-                if len(to_cancel) > 1:
-                    try:
-                        result = self.exchange.cancel_orders(to_cancel)
-                        if result.get("success", False) or "results" in result:
-                            logger.info(f"Batch canceled {len(to_cancel)} stale orders")
-                            canceled_count = len(to_cancel)
-                        else:
-                            # Batch failed, fall back to individual
-                            logger.warning(f"Batch cancel failed: {result.get('error')}, trying individual")
-                            raise Exception("Batch cancel failed")
-                    except Exception as batch_exc:
-                        logger.debug(f"Batch cancel exception: {batch_exc}, falling back to individual")
-                        # Fall through to individual cancellation
-                        for order_id in to_cancel:
-                            try:
-                                self.exchange.cancel_order(order_id)
-                                canceled_count += 1
-                                logger.debug(f"Canceled order {order_id}")
-                            except Exception as cancel_exc:
-                                failed_count += 1
-                                logger.warning(f"Failed to cancel order {order_id}: {cancel_exc}")
-                                # Transition to CANCELED anyway (order may already be gone)
-                                client_id = order_id_to_client_id.get(order_id)
-                                if client_id:
-                                    self.order_state_machine.transition(
-                                        client_id,
-                                        OrderStatus.CANCELED,
-                                        error=f"Cancel failed: {cancel_exc}"
-                                    )
-                else:
-                    # Single order cancellation
-                    order_id = to_cancel[0]
-                    try:
-                        self.exchange.cancel_order(order_id)
-                        canceled_count = 1
-                        logger.info(f"Canceled stale order {order_id}")
-                    except Exception as cancel_exc:
-                        failed_count = 1
-                        logger.warning(f"Failed to cancel order {order_id}: {cancel_exc}")
-                        # Transition to CANCELED anyway
-                        client_id = order_id_to_client_id.get(order_id)
-                        if client_id:
-                            self.order_state_machine.transition(
-                                client_id,
-                                OrderStatus.CANCELED,
-                                error=f"Cancel failed: {cancel_exc}"
-                            )
-                
-                # Transition successfully canceled orders to CANCELED state
-                for order_id, client_id in order_id_to_client_id.items():
+
+                for order_id in to_cancel:
+                    client_id = order_id_to_client_id.get(order_id)
+                    tracked_order = self.order_state_machine.get_order(client_id) if client_id else None
+                    symbol = tracked_order.symbol if tracked_order else None
+                    side = tracked_order.side if tracked_order else None
+
+                    success = self._safe_cancel(
+                        order_id,
+                        product_id=symbol,
+                        side=side,
+                        client_order_id=client_id,
+                        retry=True,
+                    )
+
+                    if success:
+                        canceled_count += 1
+                        logger.info(
+                            "Canceled stale order %s (client_id=%s, symbol=%s)",
+                            order_id,
+                            client_id,
+                            symbol,
+                        )
+                    else:
+                        failed_count += 1
+                        logger.warning(
+                            "Failed to cancel stale order %s (client_id=%s)",
+                            order_id,
+                            client_id,
+                        )
+
                     if client_id:
-                        # Check if already transitioned due to failure
                         order_state = self.order_state_machine.get_order(client_id)
                         if order_state and order_state.status != OrderStatus.CANCELED.value:
                             self.order_state_machine.transition(
                                 client_id,
-                                OrderStatus.CANCELED
+                                OrderStatus.CANCELED,
+                                error=None if success else "cancel_failed",
                             )
-                        
-                        # Close in state store
                         if self.state_store:
                             self._close_order_in_state_store(
                                 client_id,
                                 "canceled",
-                                {"reason": "stale_order_timeout", "age_seconds": cancel_after}
+                                {
+                                    "reason": "stale_order_timeout" if success else "stale_cancel_failed",
+                                    "age_seconds": cancel_after,
+                                },
                             )
-                
+
                 logger.info(
-                    f"Stale order cancellation complete: "
-                    f"{canceled_count} canceled, {failed_count} failed"
+                    "Stale order cancellation complete: %d canceled, %d failed",
+                    canceled_count,
+                    failed_count,
                 )
                 
                 # Refresh open orders from exchange to sync state
