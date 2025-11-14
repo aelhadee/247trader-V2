@@ -1306,7 +1306,8 @@ class TradingLoop:
 
             # Step 1: Build universe
             logger.info("Step 1: Building universe...")
-            universe = self.universe_mgr.get_universe(regime=self.current_regime)
+            with self._stage_timer("universe_build"):
+                universe = self.universe_mgr.get_universe(regime=self.current_regime)
 
             # Optional purge: liquidate excluded/ineligible holdings proactively
             try:
@@ -1355,8 +1356,9 @@ class TradingLoop:
             
             # Step 2: Scan for triggers
             logger.info("Step 2: Scanning for triggers...")
-            all_assets = universe.get_all_eligible()
-            triggers = self.trigger_engine.scan(all_assets, regime=self.current_regime)
+            with self._stage_timer("trigger_scan"):
+                all_assets = universe.get_all_eligible()
+                triggers = self.trigger_engine.scan(all_assets, regime=self.current_regime)
             
             if not triggers or len(triggers) == 0:
                 reason = "no_candidates_from_triggers"
@@ -1409,11 +1411,12 @@ class TradingLoop:
             
             # Step 3: Generate trade proposals
             logger.info("Step 3: Generating trade proposals...")
-            proposals = self.rules_engine.propose_trades(
-                universe=universe,
-                triggers=triggers,
-                regime=self.current_regime
-            )
+            with self._stage_timer("rules_engine"):
+                proposals = self.rules_engine.propose_trades(
+                    universe=universe,
+                    triggers=triggers,
+                    regime=self.current_regime
+                )
             proposals_count = len(proposals or [])
             
             if not proposals:
@@ -1495,11 +1498,12 @@ class TradingLoop:
             
             # Step 4: Apply risk checks (including circuit breakers)
             logger.info("Step 4: Applying risk checks...")
-            risk_result = self.risk_engine.check_all(
-                proposals=proposals,
-                portfolio=self.portfolio,
-                regime=self.current_regime
-            )
+            with self._stage_timer("risk_engine"):
+                risk_result = self.risk_engine.check_all(
+                    proposals=proposals,
+                    portfolio=self.portfolio,
+                    regime=self.current_regime
+                )
             
             # Record successful API operations for circuit breaker tracking
             self.risk_engine.record_api_success()
@@ -1565,17 +1569,113 @@ class TradingLoop:
             
             # Step 5: Execute trades (respects mode: DRY_RUN/PAPER/LIVE)
             logger.info(f"Step 5: Executing {len(approved_proposals)} approved trades...")
-            
-            # Step 5a: Check if we need to rebalance BEFORE attempting execution (LIVE/PAPER only)
-            if self.mode != "DRY_RUN" and approved_proposals:
+
+            with self._stage_timer("execution"):
+                # Step 5a: Check if we need to rebalance BEFORE attempting execution (LIVE/PAPER only)
+                if self.mode != "DRY_RUN" and approved_proposals:
+                    try:
+                        pm_cfg = self.policy_config.get("portfolio_management", {})
+                        if not pm_cfg.get("auto_rebalance_worst_performer", True):
+                            pass
+                        else:
+                            # Compute available stable buying power (USD + USDC + USDT)
+                            try:
+                                accounts = self._require_accounts("rebalance_check")
+                            except CriticalDataUnavailable as data_exc:
+                                self._abort_cycle_due_to_data(
+                                    cycle_started,
+                                    data_exc.source,
+                                    str(data_exc.original) if data_exc.original else None,
+                                )
+                                return
+                            stable_currencies = {"USD", "USDC", "USDT"}
+                            stable_available = sum(
+                                float(acc.get('available_balance', {}).get('value', 0))
+                                for acc in accounts if acc.get('currency') in stable_currencies
+                            )
+
+                            # Total required notional for this batch
+                            total_needed = sum(p.size_pct * self.portfolio.account_value_usd / 100 for p in approved_proposals)
+
+                            logger.info(
+                                f"Stable buying power: ${stable_available:.2f} across USD/USDC/USDT; "
+                                f"needed: ${total_needed:.2f}"
+                            )
+
+                            # If we don't have enough stable to fund the plan, liquidate worst performer
+                            if stable_available + 1e-6 < total_needed:
+                                logger.warning(
+                                    f"Insufficient stable capital: have ${stable_available:.2f}, "
+                                    f"need ${total_needed:.2f}. Attempting worst-performer liquidation."
+                                )
+                                deficit_usd = total_needed - stable_available
+                                if self._auto_rebalance_for_trade(approved_proposals, deficit_usd):
+                                    logger.info("✅ Rebalancing successful, continuing to execution...")
+                                    # Refresh portfolio after rebalancing
+                                    self.portfolio = self._init_portfolio_state()
+                                else:
+                                    logger.warning("⚠️ Rebalancing failed or declined")
+                    except Exception as e:
+                        logger.error(f"Failed to evaluate rebalancing need: {e}")
+
+                # Get available capital and adjust position sizes
                 try:
-                    pm_cfg = self.policy_config.get("portfolio_management", {})
-                    if not pm_cfg.get("auto_rebalance_worst_performer", True):
-                        pass
-                    else:
-                        # Compute available stable buying power (USD + USDC + USDT)
+                    adjusted_proposals = self.executor.adjust_proposals_to_capital(
+                        approved_proposals,
+                        self.portfolio.account_value_usd,
+                    )
+                except CriticalDataUnavailable as data_exc:
+                    self._abort_cycle_due_to_data(
+                        cycle_started,
+                        data_exc.source,
+                        str(data_exc.original) if data_exc.original else None,
+                    )
+                    return
+
+                if len(adjusted_proposals) < len(approved_proposals):
+                    logger.warning(f"Capital constraints: executing {len(adjusted_proposals)}/{len(approved_proposals)} trades")
+
+                final_orders = []
+
+                if self.mode == "DRY_RUN":
+                    logger.info("DRY_RUN mode - no actual execution")
+                else:
+                    # Check governance flag (dead man's switch for LIVE trading)
+                    governance_config = self.policy_config.get("governance", {})
+                    live_trading_enabled = governance_config.get("live_trading_enabled", True)
+
+                    if self.mode == "LIVE" and not live_trading_enabled:
+                        logger.error(
+                            "🚨 LIVE TRADING DISABLED via governance.live_trading_enabled=false in policy.yaml"
+                        )
+                        self._log_no_trade(
+                            cycle_started,
+                            "governance_live_trading_disabled",
+                            "LIVE trading is disabled by governance flag in policy.yaml",
+                        )
+                        self._record_cycle_metrics(
+                            status="governance_live_trading_disabled",
+                            proposals=proposals_count,
+                            approved=approved_count,
+                            executed=executed_count,
+                            started_at=cycle_started,
+                        )
+                        return
+
+                    # Execute each adjusted proposal
+                    for proposal, size_usd in adjusted_proposals:
+                        logger.info(f"Executing: {proposal.side} {proposal.symbol} (${size_usd:.2f})")
+
+                        # Extract tier from proposal asset if available
+                        tier = proposal.asset.tier if proposal.asset else None
+
                         try:
-                            accounts = self._require_accounts("rebalance_check")
+                            result = self.executor.execute(
+                                symbol=proposal.symbol,
+                                side=proposal.side,
+                                size_usd=size_usd,
+                                tier=tier,
+                            )
                         except CriticalDataUnavailable as data_exc:
                             self._abort_cycle_due_to_data(
                                 cycle_started,
@@ -1583,123 +1683,28 @@ class TradingLoop:
                                 str(data_exc.original) if data_exc.original else None,
                             )
                             return
-                        stable_currencies = {"USD", "USDC", "USDT"}
-                        stable_available = sum(
-                            float(acc.get('available_balance', {}).get('value', 0))
-                            for acc in accounts if acc.get('currency') in stable_currencies
-                        )
 
-                        # Total required notional for this batch
-                        total_needed = sum(p.size_pct * self.portfolio.account_value_usd / 100 for p in approved_proposals)
-
-                        logger.info(
-                            f"Stable buying power: ${stable_available:.2f} across USD/USDC/USDT; "
-                            f"needed: ${total_needed:.2f}"
-                        )
-
-                        # If we don't have enough stable to fund the plan, liquidate worst performer
-                        if stable_available + 1e-6 < total_needed:
-                            logger.warning(
-                                f"Insufficient stable capital: have ${stable_available:.2f}, "
-                                f"need ${total_needed:.2f}. Attempting worst-performer liquidation."
-                            )
-                            deficit_usd = total_needed - stable_available
-                            if self._auto_rebalance_for_trade(approved_proposals, deficit_usd):
-                                logger.info("✅ Rebalancing successful, continuing to execution...")
-                                # Refresh portfolio after rebalancing
-                                self.portfolio = self._init_portfolio_state()
+                        if result.success:
+                            if result.filled_size and result.filled_size > 0:
+                                logger.info(
+                                    "✅ Order filled: %s %.6f @ $%.2f (route=%s, order_id=%s)",
+                                    proposal.symbol,
+                                    result.filled_size,
+                                    result.filled_price,
+                                    result.route,
+                                    result.order_id,
+                                )
                             else:
-                                logger.warning("⚠️ Rebalancing failed or declined")
-                except Exception as e:
-                    logger.error(f"Failed to evaluate rebalancing need: {e}")
-            
-            # Get available capital and adjust position sizes
-            try:
-                adjusted_proposals = self.executor.adjust_proposals_to_capital(
-                    approved_proposals,
-                    self.portfolio.account_value_usd,
-                )
-            except CriticalDataUnavailable as data_exc:
-                self._abort_cycle_due_to_data(
-                    cycle_started,
-                    data_exc.source,
-                    str(data_exc.original) if data_exc.original else None,
-                )
-                return
-            
-            if len(adjusted_proposals) < len(approved_proposals):
-                logger.warning(f"Capital constraints: executing {len(adjusted_proposals)}/{len(approved_proposals)} trades")
-            
-            final_orders = []
-            
-            if self.mode == "DRY_RUN":
-                logger.info("DRY_RUN mode - no actual execution")
-            else:
-                # Check governance flag (dead man's switch for LIVE trading)
-                governance_config = self.policy_config.get("governance", {})
-                live_trading_enabled = governance_config.get("live_trading_enabled", True)
-                
-                if self.mode == "LIVE" and not live_trading_enabled:
-                    logger.error(
-                        "🚨 LIVE TRADING DISABLED via governance.live_trading_enabled=false in policy.yaml"
-                    )
-                    self._log_no_trade(
-                        cycle_started,
-                        "governance_live_trading_disabled",
-                        "LIVE trading is disabled by governance flag in policy.yaml",
-                    )
-                    self._record_cycle_metrics(
-                        status="governance_live_trading_disabled",
-                        proposals=proposals_count,
-                        approved=approved_count,
-                        executed=executed_count,
-                        started_at=cycle_started,
-                    )
-                    return
-                
-                # Execute each adjusted proposal
-                for proposal, size_usd in adjusted_proposals:
-                    logger.info(f"Executing: {proposal.side} {proposal.symbol} (${size_usd:.2f})")
-                    
-                    # Extract tier from proposal asset if available
-                    tier = proposal.asset.tier if proposal.asset else None
-                    
-                    try:
-                        result = self.executor.execute(
-                            symbol=proposal.symbol,
-                            side=proposal.side,
-                            size_usd=size_usd,
-                            tier=tier,
-                        )
-                    except CriticalDataUnavailable as data_exc:
-                        self._abort_cycle_due_to_data(
-                            cycle_started,
-                            data_exc.source,
-                            str(data_exc.original) if data_exc.original else None,
-                        )
-                        return
-                    
-                    if result.success:
-                        if result.filled_size and result.filled_size > 0:
-                            logger.info(
-                                "✅ Order filled: %s %.6f @ $%.2f (route=%s, order_id=%s)",
-                                proposal.symbol,
-                                result.filled_size,
-                                result.filled_price,
-                                result.route,
-                                result.order_id,
-                            )
+                                logger.info(
+                                    "🕒 Order accepted: %s %s (route=%s, order_id=%s)",
+                                    proposal.side,
+                                    proposal.symbol,
+                                    result.route,
+                                    result.order_id,
+                                )
+                            final_orders.append(result)
                         else:
-                            logger.info(
-                                "🕒 Order accepted: %s %s (route=%s, order_id=%s)",
-                                proposal.side,
-                                proposal.symbol,
-                                result.route,
-                                result.order_id,
-                            )
-                        final_orders.append(result)
-                    else:
-                        logger.warning(f"⚠️ Trade failed: {proposal.symbol} - {result.error}")
+                            logger.warning(f"⚠️ Trade failed: {proposal.symbol} - {result.error}")
             
             # Update state after fills
             executed_count = len(final_orders)
