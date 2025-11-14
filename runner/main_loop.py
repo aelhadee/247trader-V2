@@ -911,6 +911,13 @@ class TradingLoop:
             no_trade_reason=reason,
             state_store=self.state_store,
         )
+        self._record_cycle_metrics(
+            status=reason,
+            proposals=0,
+            approved=0,
+            executed=0,
+            started_at=cycle_started,
+        )
 
     def _require_accounts(self, context: str) -> List[dict]:
         try:
