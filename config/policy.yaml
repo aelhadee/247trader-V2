@@ -198,6 +198,9 @@ strategy:
     tier2: 0.018                    # 1.8% NLV per Tier2 (≈$9 at $500 NAV before min clamp)
     tier3: 0.007                    # 0.7% NLV per Tier3 (day_trader: slightly larger for activity)
 
+  # Allow rules engine to treat large downside momentum as a mean-reversion entry
+  momentum_downside_reversal_pct: 3.0  # Buy dips when 24h return ≤ -3%
+
   max_open_positions: 12            # cap simultaneous distinct holdings (raised from 8)
   max_new_positions_per_cycle: 1    # limit new tickers per cycle to stay within capacity buffers
   prefer_add_to_existing: true      # prioritize adds to existing holdings before opening fresh names
