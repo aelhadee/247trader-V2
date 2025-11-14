@@ -245,8 +245,9 @@ class StateStore:
             resolved = state_file or os.getenv("STATE_FILE", "data/.state.json")
             self._backend = JsonFileBackend(Path(resolved))
         
-        self._backend_description = self._backend.describe()
-        self._state = None
+    self._backend_description = self._backend.describe()
+    self._state = None
+    self._lock = threading.RLock()
         logger.info(f"Initialized StateStore via {self._backend_description}")
 
     @staticmethod
@@ -267,19 +268,20 @@ class StateStore:
         Returns:
             State dict with defaults merged
         """
-        payload = self._backend.load()
-        if payload is None:
-            logger.debug("No persisted state found, using defaults")
-            state = dict(DEFAULT_STATE)
-        elif isinstance(payload, dict):
-            state = {**DEFAULT_STATE, **payload}
-        else:
-            logger.warning("Invalid state payload type %s, using defaults", type(payload))
-            state = dict(DEFAULT_STATE)
+        with self._lock:
+            payload = self._backend.load()
+            if payload is None:
+                logger.debug("No persisted state found, using defaults")
+                state = dict(DEFAULT_STATE)
+            elif isinstance(payload, dict):
+                state = {**DEFAULT_STATE, **payload}
+            else:
+                logger.warning("Invalid state payload type %s, using defaults", type(payload))
+                state = dict(DEFAULT_STATE)
 
-        state = self._auto_reset(state)
-        self._state = state
-        return state
+            state = self._auto_reset(state)
+            self._state = state
+            return state
     
     def save(self, state: Dict[str, Any]) -> None:
         """
@@ -288,12 +290,13 @@ class StateStore:
         Args:
             state: State dict to save
         """
-        try:
-            self._backend.save(state)
-            self._state = state
-            logger.debug("Persisted state via %s", self._backend_description)
-        except Exception as e:
-            logger.error(f"Failed to save state: {e}")
+        with self._lock:
+            try:
+                self._backend.save(state)
+                self._state = state
+                logger.debug("Persisted state via %s", self._backend_description)
+            except Exception as e:
+                logger.error(f"Failed to save state: {e}")
     
     def update(self, event: str, **kwargs) -> Dict[str, Any]:
         """
