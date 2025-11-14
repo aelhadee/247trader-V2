@@ -5,7 +5,7 @@ Calculate total PnL (realized + unrealized) from state store and current prices.
 import json
 import sys
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Tuple
 
 
@@ -127,7 +127,7 @@ def main():
     print("\n" + "=" * 80)
     print("247TRADER-V2 PNL REPORT")
     print("=" * 80)
-    print(f"Report Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+    print(f"Report Time: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC")
     print()
     
     # Cash summary
