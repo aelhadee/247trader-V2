@@ -1489,6 +1489,16 @@ class TradingLoop:
             except Exception as e:
                 logger.warning(f"Open order maintenance skipped: {e}")
             
+            # Position exit management: check for stop-loss/take-profit (LIVE/PAPER/DRY_RUN)
+            try:
+                exit_proposals = self._check_position_exits()
+                if exit_proposals:
+                    logger.info(f"Position exit check generated {len(exit_proposals)} SELL proposal(s)")
+                    # Execute exit proposals immediately (bypass normal approval flow for exits)
+                    self._execute_exit_proposals(exit_proposals)
+            except Exception as exit_exc:
+                logger.warning(f"Position exit check failed: {exit_exc}", exc_info=True)
+            
             cycle_end = datetime.now(timezone.utc)
             cycle_duration = (cycle_end - cycle_started).total_seconds()
             logger.info(f"CYCLE COMPLETE: {cycle_duration:.2f}s")
