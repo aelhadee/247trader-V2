@@ -195,7 +195,7 @@ strategy:
   # Active profile: day_trader (3.0% / 1.8% / 0.7%)
   base_position_pct:
     tier1: 0.030                    # 3.0% NLV per Tier1 (day_trader: larger for active trading)
-    tier2: 0.018                    # 1.8% NLV per Tier2 (day_trader: ensures $9+ at $500 NAV)
+  tier2: 0.018                    # 1.8% NLV per Tier2 (≈$9 at $500 NAV before min clamp)
     tier3: 0.007                    # 0.7% NLV per Tier3 (day_trader: slightly larger for activity)
 
   max_open_positions: 12            # cap simultaneous distinct holdings (raised from 8)
@@ -328,7 +328,7 @@ execution:
   auto_convert_preferred_quote: false
   # Clamp tiny trades up to the minimum notional to avoid rejects
   clamp_small_trades: true
-  # Use market orders instead of post-only limits for very small trades (to avoid repeated $5 failures)
+  # Use market orders instead of post-only limits for very small trades (to avoid repeated dust failures)
   small_order_market_threshold_usd: 6.0
   allow_min_bump_in_risk: true      # Let risk engine bump proposals up to min_notional
   
