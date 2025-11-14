@@ -1675,6 +1675,7 @@ class TradingLoop:
                                 side=proposal.side,
                                 size_usd=size_usd,
                                 tier=tier,
+                                confidence=proposal.confidence,
                             )
                         except CriticalDataUnavailable as data_exc:
                             self._abort_cycle_due_to_data(
