@@ -199,9 +199,13 @@ class RulesEngine:
                 proposal.metadata["conviction_trigger_confidence"] = trigger.confidence
                 self._log_conviction(proposal, breakdown, min_conviction)
 
-                handled = False
+                confirmations_ok = proposal.metadata.get("reversal_confirmations_ok", True)
+                is_reversal = bool(proposal.trigger and proposal.trigger.trigger_type == "reversal")
+                in_canary_window = self._is_canary_conviction_window(conviction, min_conviction)
+                canary_attempted = False
 
-                if self._is_canary_conviction_window(conviction, min_conviction):
+                if in_canary_window:
+                    canary_attempted = True
                     canary_proposal = self._try_canary(
                         proposal=proposal,
                         asset=asset,
@@ -212,40 +216,44 @@ class RulesEngine:
                     )
                     if canary_proposal:
                         proposals.append(canary_proposal)
-                        handled = True
-                    elif conviction >= min_conviction:
+                        continue
+                    if is_reversal and not confirmations_ok:
+                        self._log_reversal_rejection(proposal, conviction, min_conviction)
+                        continue
+                    if conviction >= min_conviction:
                         proposals.append(proposal)
                         logger.info(
                             f"✓ Proposal (canary fallback): {proposal.side} {proposal.symbol} "
                             f"size={proposal.size_pct:.1f}% conf={proposal.confidence:.2f} reason='{proposal.reason}'"
                         )
-                        handled = True
-
-                if handled:
-                    continue
+                        continue
 
                 if conviction >= min_conviction:
+                    if is_reversal and not confirmations_ok:
+                        self._log_reversal_rejection(proposal, conviction, min_conviction)
+                        continue
                     proposals.append(proposal)
                     logger.info(
                         f"✓ Proposal: {proposal.side} {proposal.symbol} "
                         f"size={proposal.size_pct:.1f}% conf={proposal.confidence:.2f} reason='{proposal.reason}'"
                     )
                 else:
-                    canary_proposal = self._try_canary(
-                        proposal=proposal,
-                        asset=asset,
-                        conviction=conviction,
-                        threshold=min_conviction,
-                        breakdown=breakdown,
-                        total_triggers=len(qualified_triggers)
-                    )
-                    if canary_proposal:
-                        proposals.append(canary_proposal)
-                    else:
-                        logger.info(
-                            f"✗ Rejected: {proposal.symbol} conf={conviction:.2f} "
-                            f"< min_conviction={min_conviction:.2f} reason='min_conviction'"
+                    if not canary_attempted:
+                        canary_proposal = self._try_canary(
+                            proposal=proposal,
+                            asset=asset,
+                            conviction=conviction,
+                            threshold=min_conviction,
+                            breakdown=breakdown,
+                            total_triggers=len(qualified_triggers)
                         )
+                        if canary_proposal:
+                            proposals.append(canary_proposal)
+                            continue
+                    logger.info(
+                        f"✗ Rejected: {proposal.symbol} conf={conviction:.2f} "
+                        f"< min_conviction={min_conviction:.2f} reason='min_conviction'"
+                    )
             else:
                 # Log why no proposal was created
                 logger.debug(
