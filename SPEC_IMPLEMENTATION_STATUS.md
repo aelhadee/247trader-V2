@@ -17,7 +17,7 @@ risk:
   max_new_trades_per_hour: 4            ✅ Added
   daily_stop_pnl_pct: -3.0              ✅ In config + code reads it
   weekly_stop_pnl_pct: -7.0             ✅ In config
-  min_trade_notional_usd: 5             ✅ In config + ExecutionEngine reads it
+    min_trade_notional_usd: 15            ✅ In config + ExecutionEngine reads it
   cooldown:                             ✅ In config
     after_loss_trades: 3
     cooldown_minutes: 60
