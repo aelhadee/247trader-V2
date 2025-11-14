@@ -315,6 +315,8 @@ class CoinbaseExchange:
             start_time = time.perf_counter()
             status_label = "success"
             rate_limited = False
+            succeeded = False
+            payload: Optional[dict] = None
             try:
                 if authenticated:
                     headers = self._headers(method, path_for_auth, body)
@@ -329,11 +331,8 @@ class CoinbaseExchange:
                     timeout=20
                 )
                 response.raise_for_status()
-                result = response.json()
-                duration = time.perf_counter() - start_time
-                self._record_rate_usage(channel)
-                self._record_api_metrics(call_label, channel, duration, status_label)
-                return result
+                payload = response.json()
+                succeeded = True
                 
             except requests.exceptions.HTTPError as e:
                 status_code = e.response.status_code
@@ -370,6 +369,9 @@ class CoinbaseExchange:
                 duration = time.perf_counter() - start_time
                 self._record_rate_usage(channel, rate_limited)
                 self._record_api_metrics(call_label, channel, duration, status_label)
+
+            if succeeded:
+                return payload
 
             # Exponential backoff with jitter if not last attempt
             if attempt < max_retries - 1:
