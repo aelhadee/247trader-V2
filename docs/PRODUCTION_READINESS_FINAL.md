@@ -85,7 +85,7 @@ def preview_order(self, symbol: str, side: str, size_usd: float, skip_liquidity_
 ```
 
 **Coverage:**
-- ✅ Blocks trades < `min_notional_usd` ($5 default)
+- ✅ Blocks trades < `min_notional_usd` ($15 default)
 - ✅ Rejects wide spreads (> `max_spread_bps`, default 50 bps)
 - ✅ Requires 2× order size within 20 bps of midprice
 - ✅ Validates quote freshness (< `max_quote_age_seconds`, default 30s)
