@@ -1328,7 +1328,8 @@ class TradingLoop:
             try:
                 pm_cfg = self.policy_config.get("portfolio_management", {})
                 if self.mode != "DRY_RUN" and pm_cfg.get("auto_liquidate_ineligible", False):
-                    self._purge_ineligible_holdings(universe)
+                    with self._stage_timer("purge_ineligible"):
+                        self._purge_ineligible_holdings(universe)
             except CriticalDataUnavailable as data_exc:
                 self._abort_cycle_due_to_data(
                     cycle_started,
