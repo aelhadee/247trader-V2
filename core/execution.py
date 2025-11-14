@@ -1372,7 +1372,7 @@ class ExecutionEngine:
                             continue
                         balance_usd = balance * quote_obj.mid
                         logger.debug(f"  {quote} balance: {balance:.6f} * ${quote_obj.mid:.2f} = ${balance_usd:.2f} USD")
-                    except:
+                    except Exception:
                         # Try USDC pair as fallback
                         try:
                             quote_pair = f"{quote}-USDC"
@@ -1431,23 +1431,23 @@ class ExecutionEngine:
                             pair = f"{currency}-USD"
                             quote_obj = self.exchange.get_quote(pair)
                             value_usd = balance * quote_obj.mid
-                        except:
+                        except Exception:
                             try:
                                 pair = f"{currency}-USDC"
                                 quote_obj = self.exchange.get_quote(pair)
                                 value_usd = balance * quote_obj.mid
-                            except:
+                            except Exception:
                                 continue
                     
                     if value_usd > largest_value and value_usd >= size_usd:
                         largest_holding = currency
                         largest_value = value_usd
-                except:
+                except Exception:
                     continue
             
             if largest_holding:
                 logger.info(f"💡 Suggestion: Convert {largest_holding} (${largest_value:.2f}) to USDC, then buy {base_symbol}")
-                logger.info(f"   This requires implementing two-step conversion flow (Convert API + Buy)")
+                logger.info("   This requires implementing two-step conversion flow (Convert API + Buy)")
             
             logger.warning(f"No suitable trading pair found for {base_symbol} with size ${size_usd:.2f}")
             logger.warning(f"Available balances: {', '.join([f'{k}={v:.2f}' for k, v in balances.items() if v > 0])}")
