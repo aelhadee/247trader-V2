@@ -1614,6 +1614,13 @@ class TradingLoop:
                 no_trade_reason=f"exception:{type(e).__name__}",
                 state_store=self.state_store,
             )
+            self._record_cycle_metrics(
+                status=f"exception:{type(e).__name__}",
+                proposals=proposals_count,
+                approved=approved_count,
+                executed=executed_count,
+                started_at=cycle_started,
+            )
 
     def _purge_ineligible_holdings(self, universe) -> None:
         """Sell holdings that are excluded or currently ineligible.
