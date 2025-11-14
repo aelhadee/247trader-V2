@@ -15,12 +15,11 @@ Flow:
 This module implements Phase 1: Core skeleton (no AI, DRY_RUN only)
 """
 
-import json
 import time
 import signal
 import yaml
 from typing import Any, Dict, List, Optional, Tuple
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 import logging
 from uuid import uuid4
@@ -35,7 +34,7 @@ from core.risk import RiskEngine, PortfolioState
 from core.execution import ExecutionEngine, ExecutionResult
 from core.position_manager import PositionManager
 from infra.alerting import AlertService, AlertSeverity
-from infra.state_store import StateStore, StateStoreSupervisor, create_state_store_from_config
+from infra.state_store import StateStoreSupervisor, create_state_store_from_config
 from infra.metrics import MetricsRecorder, CycleStats
 from infra.healthcheck import HealthServer
 from core.audit_log import AuditLogger
