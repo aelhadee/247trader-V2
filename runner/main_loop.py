@@ -184,7 +184,7 @@ class TradingLoop:
         self.state_store_supervisor.start()
         self.audit = AuditLogger(audit_file=log_file.replace('.log', '_audit.jsonl'))
 
-        monitoring_cfg = self.app_config.get("monitoring", {}) or {}
+        monitoring_cfg = self.monitoring_config
         self.alerts = AlertService.from_config(
             monitoring_cfg.get("alerts_enabled", False),
             monitoring_cfg.get("alerts"),
@@ -194,11 +194,6 @@ class TradingLoop:
                 "Alerting enabled (min_severity=%s)",
                 monitoring_cfg.get("alerts", {}).get("min_severity", "warning"),
             )
-
-        metrics_enabled = monitoring_cfg.get("metrics_enabled", False)
-        metrics_port = int(monitoring_cfg.get("metrics_port", 9090))
-        self.metrics = MetricsRecorder(enabled=metrics_enabled, port=metrics_port)
-        self.metrics.start()
         
         self.universe_mgr = UniverseManager(
             self.config_dir / "universe.yaml",
