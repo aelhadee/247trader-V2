@@ -103,9 +103,9 @@ class CoinbaseExchange:
         
         self.api_key = api_key or os.getenv("COINBASE_API_KEY", "")
         secret_raw = (api_secret or os.getenv("COINBASE_API_SECRET", "")).replace("\\n", "\n").strip()
-    self.api_secret = secret_raw
-    self.read_only = read_only
-    self.metrics = metrics
+        self.api_secret = secret_raw
+        self.read_only = read_only
+        self.metrics = metrics
         
         # Authentication mode
         self._mode = "hmac"
@@ -117,12 +117,12 @@ class CoinbaseExchange:
             self._mode = "pem"
             logger.info("Using Cloud API authentication (JWT/ES256) with PEM key")
         
-    # Rate limiting
-    self._last_call = {}
-    self._min_interval = 0.1  # 100ms between calls
-    self._rate_limit_targets = {"public": None, "private": None}
-    self._rate_usage = {"public": deque(), "private": deque()}
-    self._rate_utilization = {"public": 0.0, "private": 0.0}
+        # Rate limiting
+        self._last_call = {}
+        self._min_interval = 0.1  # 100ms between calls
+        self._rate_limit_targets = {"public": None, "private": None}
+        self._rate_usage = {"public": deque(), "private": deque()}
+        self._rate_utilization = {"public": 0.0, "private": 0.0}
         
         # Cache for products
         self._products_cache = None
@@ -131,7 +131,7 @@ class CoinbaseExchange:
         # Track convert compatibility per currency pair to avoid repeated failures
         self._convert_support_cache: Dict[Tuple[str, str], bool] = {}
         
-    logger.info(f"Initialized CoinbaseExchange (read_only={read_only}, mode={self._mode})")
+        logger.info(f"Initialized CoinbaseExchange (read_only={read_only}, mode={self._mode})")
     
     def _rate_limit(self, endpoint: str):
         """Simple rate limiting"""
