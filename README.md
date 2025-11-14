@@ -98,6 +98,8 @@ Clean architecture trading bot for Coinbase Advanced Trade.
 
 ## Quick Start
 
+> **Safety First:** `config/app.yaml` now ships with `app.mode=DRY_RUN` and `exchange.read_only=true`. Flip to PAPER or LIVE and disable read-only *only* after the regression tests/backtest gate pass and you've confirmed credentials.
+
 ### 1. Install Dependencies
 
 ```bash
