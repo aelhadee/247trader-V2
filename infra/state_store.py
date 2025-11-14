@@ -1137,9 +1137,34 @@ class StateStore:
 _store = None
 
 
-def get_state_store(state_file: Optional[str] = None) -> StateStore:
+def get_state_store(state_file: Optional[str] = None, backend: Optional[StateBackend] = None) -> StateStore:
     """Get singleton state store instance"""
     global _store
     if _store is None:
-        _store = StateStore(state_file=state_file)
+        _store = StateStore(state_file=state_file, backend=backend)
     return _store
+
+
+def create_state_store_from_config(state_cfg: Optional[Dict[str, Any]]) -> StateStore:
+    cfg = state_cfg or {}
+    store_type = (cfg.get("store") or "json").lower()
+
+    if store_type == "sqlite":
+        path = Path(cfg.get("path") or "data/state.db")
+        backend = SQLiteStateBackend(path)
+    elif store_type == "redis":
+        redis_cfg = cfg.get("redis", {}) or {}
+        backend = RedisStateBackend(
+            url=redis_cfg.get("url"),
+            host=redis_cfg.get("host", cfg.get("host", "localhost")),
+            port=int(redis_cfg.get("port", cfg.get("port", 6379))),
+            db=int(redis_cfg.get("db", cfg.get("db", 0))),
+            key=redis_cfg.get("key", cfg.get("key", "247trader:state")),
+        )
+    elif store_type == "memory":
+        backend = InMemoryStateBackend()
+    else:
+        path = Path(cfg.get("path") or cfg.get("file") or "data/.state.json")
+        backend = JsonFileBackend(path)
+
+    return StateStore(backend=backend)
