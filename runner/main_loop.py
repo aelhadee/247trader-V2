@@ -1202,12 +1202,14 @@ class TradingLoop:
         
         try:
             try:
-                self.state_store.purge_expired_pending()
+                with self._stage_timer("pending_purge"):
+                    self.state_store.purge_expired_pending()
             except Exception as exc:
                 logger.debug("Pending purge skipped: %s", exc)
 
             try:
-                self._reconcile_exchange_state()
+                with self._stage_timer("state_reconcile"):
+                    self._reconcile_exchange_state()
             except CriticalDataUnavailable as data_exc:
                 self._abort_cycle_due_to_data(
                     cycle_started,
