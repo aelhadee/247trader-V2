@@ -1857,22 +1857,24 @@ class TradingLoop:
         try:
             yield
         finally:
+            duration = max(time.perf_counter() - start, 0.0)
+            timings = getattr(self, "_stage_timings", None)
+            if timings is not None:
+                timings[stage] = duration
             metrics = getattr(self, "metrics", None)
             if metrics:
-                metrics.record_stage_duration(stage, max(time.perf_counter() - start, 0.0))
+                metrics.record_stage_duration(stage, duration)
 
     def _log_cycle_latency_summary(self, *, status: str, total_duration: float) -> None:
         metrics = getattr(self, "metrics", None)
-        if not metrics:
-            return
-
-        snapshot = metrics.stage_snapshot()
+        per_cycle = getattr(self, "_stage_timings", None)
+        snapshot = dict(per_cycle) if per_cycle else (metrics.stage_snapshot() if metrics else {})
+        if per_cycle is not None:
+            per_cycle.clear()
         if not snapshot:
             return
 
-        ordered = ", ".join(
-            f"{stage}={snapshot[stage]:.3f}s" for stage in sorted(snapshot.keys())
-        )
+        ordered = ", ".join(f"{stage}={snapshot[stage]:.3f}s" for stage in sorted(snapshot.keys()))
         logger.info(
             "Latency summary [%s]: total=%.3fs | %s",
             status,
