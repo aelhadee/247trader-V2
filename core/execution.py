@@ -2753,6 +2753,10 @@ class ExecutionEngine:
                 if "404" in message or "not found" in message:
                     logger.info("Cancel order %s returned not-found; assuming closed", order_id)
                     self._clear_pending_marker(product_id, side, client_order_id=client_order_id, order_id=order_id)
+                    now = time.time()
+                    self._recently_canceled[order_id] = now
+                    if client_order_id:
+                        self._recently_canceled[client_order_id] = now
                     return True
                 logger.warning("Cancel order %s failed (attempt %d/%d): %s", order_id, attempt + 1, attempts, exc)
                 success = False
