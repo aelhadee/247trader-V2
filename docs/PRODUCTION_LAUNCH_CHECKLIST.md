@@ -90,7 +90,7 @@ cat data/.state.json | jq .
 ```yaml
 # config/policy.yaml
 risk:
-  min_trade_notional_usd: 5        # $5 minimum per trade
+  min_trade_notional_usd: 15       # $15 minimum per trade
   max_total_at_risk_pct: 10.0      # Max 10% exposed (conservative)
   max_position_size_pct: 3.0       # Max 3% per asset
   daily_stop_pnl_pct: -3.0         # Stop at -3% loss
