@@ -145,8 +145,8 @@ class TradingLoop:
         logger.info("✅ Single-instance lock acquired")
         
         # Initialize core components
-    self.exchange = CoinbaseExchange(read_only=self.read_only)
-    self.state_store = create_state_store_from_config(self.app_config.get("state"))
+        self.exchange = CoinbaseExchange(read_only=self.read_only)
+        self.state_store = create_state_store_from_config(self.app_config.get("state"))
         self.audit = AuditLogger(audit_file=log_file.replace('.log', '_audit.jsonl'))
 
         monitoring_cfg = self.app_config.get("monitoring", {}) or {}
