@@ -17,8 +17,8 @@ Fixed 5 logging/ergonomics issues identified in first real LIVE trading cycle:
 
 - Added per-stage timers inside `runner/main_loop.TradingLoop.run_cycle` covering:
     - `pending_purge`, `state_reconcile`, `order_reconcile`, `portfolio_snapshot`
-    - `pending_exposure`, `risk_trim`, `pending_exposure_refresh`, `capacity_check`
-    - `purge_ineligible`, `universe_build`, `trigger_scan`, `rules_engine`, `risk_engine`, `execution`, `audit_log`
+    - `pending_exposure`, `risk_trim`, `pending_exposure_refresh`, `capacity_check`, `fills_reconcile`
+    - `purge_ineligible`, `universe_build`, `trigger_scan`, `rules_engine`, `risk_engine`, `execution`, `open_order_maintenance`, `exit_checks`, `exit_execution`, `audit_log`
 - Each stage duration is sent to Prometheus (if enabled) and logged at the end of every cycle:
     - Example log: `Latency summary [executed]: total=6.183s | capacity_check=0.012s, execution=3.411s, risk_engine=0.204s, universe_build=0.978s, ...`
 - `_audit_cycle()` now wraps audit writes with the same timer so audit throttling is visible when I/O stalls.
