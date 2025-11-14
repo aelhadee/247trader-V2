@@ -1571,7 +1571,8 @@ class ExecutionEngine:
                 skip_liquidity_checks: bool = False,
                 tier: Optional[int] = None,
                 bypass_slippage_budget: bool = False,
-                bypass_failed_order_cooldown: bool = False) -> ExecutionResult:
+                bypass_failed_order_cooldown: bool = False,
+                confidence: Optional[float] = None) -> ExecutionResult:
         """
         Execute a trade.
         
@@ -1718,6 +1719,7 @@ class ExecutionEngine:
                 skip_liquidity_checks,
                 tier,
                 bypass_slippage_budget,
+                confidence=confidence,
             )
         
         raise ValueError(f"Invalid mode: {self.mode}")
