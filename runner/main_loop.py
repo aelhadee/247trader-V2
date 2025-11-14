@@ -2523,6 +2523,114 @@ class TradingLoop:
             time.sleep(sleep_for)
         
         logger.info("Trading loop stopped cleanly.")
+    
+    def _check_position_exits(self) -> List[TradeProposal]:
+        """
+        Check all open positions for exit conditions (stop-loss, take-profit, max hold).
+        
+        Returns:
+            List of SELL TradeProposal objects for positions meeting exit criteria
+        """
+        try:
+            # Get current positions and managed metadata
+            state = self.state_store.load()
+            positions = state.get("positions", {})
+            managed_positions = state.get("managed_positions", {})
+            
+            # Get current prices from exchange
+            current_prices = {}
+            for symbol in positions.keys():
+                pair = f"{symbol}-USD"
+                try:
+                    quote = self.exchange.get_quote(pair)
+                    if quote and quote.ask > 0:
+                        current_prices[symbol] = quote.ask
+                except Exception as price_exc:
+                    logger.debug(f"Failed to get price for {symbol}: {price_exc}")
+            
+            # Evaluate positions via PositionManager
+            exit_proposals = self.position_manager.evaluate_positions(
+                positions=positions,
+                managed_positions=managed_positions,
+                current_prices=current_prices,
+            )
+            
+            return exit_proposals
+            
+        except Exception as e:
+            logger.warning(f"Position exit check failed: {e}", exc_info=True)
+            return []
+    
+    def _execute_exit_proposals(self, exit_proposals: List[TradeProposal]) -> None:
+        """
+        Execute exit proposals (SELL orders) immediately without risk approval.
+        
+        Exits bypass normal risk checks since they:
+        - Reduce risk (closing positions)
+        - Are time-sensitive (protect capital)
+        - Have high confidence (rules-based)
+        
+        Args:
+            exit_proposals: List of SELL TradeProposal objects
+        """
+        if not exit_proposals:
+            return
+        
+        logger.info(f"Executing {len(exit_proposals)} position exit(s)")
+        
+        executed_exits = []
+        for proposal in exit_proposals:
+            logger.info(
+                f"EXIT: {proposal.side.upper()} {proposal.symbol} "
+                f"({proposal.trigger_name}) - {proposal.notes.get('exit_reason', 'unknown')}"
+            )
+            
+            if self.mode == "DRY_RUN":
+                logger.info(f"DRY_RUN: Would execute exit {proposal.symbol}")
+                continue
+            
+            try:
+                # Execute via ExecutionEngine
+                result = self.executor.execute(
+                    symbol=proposal.symbol,
+                    side=proposal.side,
+                    size_usd=proposal.notional_usd,
+                    tier=None,  # Exits don't need tier
+                )
+                
+                if result.success:
+                    logger.info(
+                        f"✅ Exit filled: {proposal.symbol} "
+                        f"{result.filled_size:.6f} @ ${result.filled_price:.4f} "
+                        f"(PnL: {proposal.notes.get('pnl_pct', 0):.2f}%)"
+                    )
+                    executed_exits.append(result)
+                    
+                    # Remove from managed_positions after successful exit
+                    self._remove_managed_position(proposal.symbol.replace("-USD", ""))
+                else:
+                    logger.warning(f"⚠️ Exit failed: {proposal.symbol} - {result.error}")
+                    
+            except Exception as exec_exc:
+                logger.error(f"Exit execution exception for {proposal.symbol}: {exec_exc}", exc_info=True)
+        
+        # Update state after successful exits
+        if executed_exits:
+            self.state_store.update_from_fills(executed_exits, self.portfolio)
+            logger.info(f"Completed {len(executed_exits)} position exit(s)")
+    
+    def _remove_managed_position(self, symbol: str) -> None:
+        """Remove a symbol from managed_positions after full exit."""
+        try:
+            state = self.state_store.load()
+            managed = state.get("managed_positions", {})
+            if symbol in managed:
+                del managed[symbol]
+                state["managed_positions"] = managed
+                self.state_store.save(state)
+                logger.debug(f"Removed {symbol} from managed_positions")
+        except Exception as e:
+            logger.warning(f"Failed to remove managed position {symbol}: {e}")
 
 
 def main():
