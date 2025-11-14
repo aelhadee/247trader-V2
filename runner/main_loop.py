@@ -1369,6 +1369,13 @@ class TradingLoop:
                     risk_violations=risk_result.violated_checks,
                     proposal_rejections=risk_result.proposal_rejections,
                 )
+                self._record_cycle_metrics(
+                    status=reason,
+                    proposals=proposals_count,
+                    approved=approved_count,
+                    executed=executed_count,
+                    started_at=cycle_started,
+                )
                 return
             
             # Use the filtered approved proposals from risk engine
