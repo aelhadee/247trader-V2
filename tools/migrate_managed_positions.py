@@ -49,18 +49,13 @@ def migrate_state():
             print(f"✓ {symbol:<10} Already migrated")
             continue
         
-        # Extract entry data
-        entry_price = pos_data.get("entry_price")
+        # Extract entry data from position metadata (NOT current prices)
+        entry_price = pos_data.get("entry_price")  # This is weighted average from fills
         entry_time = pos_data.get("entry_time")
         
         if not entry_price:
-            # Try to infer from usd_value and quantity
-            usd_value = pos_data.get("usd_value", 0.0)
-            if usd_value > 0 and quantity > 0:
-                entry_price = usd_value / quantity
-            else:
-                print(f"⚠ {symbol:<10} No entry_price, skipping")
-                continue
+            print(f"⚠ {symbol:<10} No entry_price in position data, skipping")
+            continue
         
         if not entry_time:
             # Use last_updated or current time
