@@ -1171,17 +1171,57 @@ class RiskEngine:
         
         return RiskCheckResult(approved=True)
     
+    def _check_global_trade_spacing(self) -> RiskCheckResult:
+        """
+        Check minimum time between ANY trades (global pacing).
+        
+        Prevents burning through hourly quota in first few minutes.
+        Uses min_seconds_between_trades from policy.yaml (e.g., 120s).
+        """
+        min_spacing = self.risk_config.get("min_seconds_between_trades", 0)
+        if min_spacing <= 0:
+            return RiskCheckResult(approved=True)
+        
+        from infra.state_store import get_state_store
+        state_store = getattr(self, '_state_store', None) or get_state_store()
+        state = state_store.load()
+        
+        last_trade_ts_str = state.get("last_trade_timestamp")
+        if not last_trade_ts_str:
+            return RiskCheckResult(approved=True)
+        
+        try:
+            last_trade_ts = datetime.fromisoformat(last_trade_ts_str)
+            if last_trade_ts.tzinfo is None:
+                last_trade_ts = last_trade_ts.replace(tzinfo=timezone.utc)
+            
+            now = datetime.now(timezone.utc)
+            elapsed = (now - last_trade_ts).total_seconds()
+            
+            if elapsed < min_spacing:
+                remaining = min_spacing - elapsed
+                return RiskCheckResult(
+                    approved=False,
+                    reason=f"Global trade spacing active ({remaining:.0f}s remaining, min {min_spacing}s between trades)",
+                    violated_checks=["global_trade_spacing"]
+                )
+        except Exception as e:
+            logger.warning(f"Error checking global trade spacing: {e}")
+        
+        return RiskCheckResult(approved=True)
+    
     def _check_trade_frequency(self, proposals: List[TradeProposal],
                               portfolio: PortfolioState) -> RiskCheckResult:
         """
-        Check trade frequency limits (spec requirement).
+        Check trade frequency limits (backup guardrails).
         
-        Uses max_new_trades_per_hour from policy.yaml (default 2/hour).
+        Primary throttle is pacing (min_seconds_between_trades + per_symbol_trade_spacing).
+        These caps are last-resort protection against logic bugs or crazy markets.
         """
-        max_per_day = self.risk_config.get("max_trades_per_day", 10)
-        # Spec uses "max_new_trades_per_hour" (default 2)
+        max_per_day = self.risk_config.get("max_trades_per_day", 40)
+        # Spec uses "max_new_trades_per_hour"
         max_per_hour = self.risk_config.get("max_new_trades_per_hour", 
-                                            self.risk_config.get("max_trades_per_hour", 2))
+                                            self.risk_config.get("max_trades_per_hour", 8))
         
         if portfolio.trades_today >= max_per_day:
             return RiskCheckResult(
