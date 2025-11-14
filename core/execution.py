@@ -1655,7 +1655,7 @@ class ExecutionEngine:
                 # No direct pair found - try two-step conversion
                 logger.warning(f"No direct trading pair found for {base_symbol}")
                 logger.warning(f"Two-step conversion (holdings → USDC → {base_symbol}) not yet fully automated")
-                logger.warning(f"For now, please liquidate holdings manually using examples/liquidate_worst_performers.py")
+                logger.warning("For now, please liquidate holdings manually using examples/liquidate_worst_performers.py")
                 return ExecutionResult(
                     success=False,
                     order_id=None,
@@ -1666,7 +1666,7 @@ class ExecutionEngine:
                     fees=0.0,
                     slippage_bps=0.0,
                     route="failed",
-                    error=f"No suitable trading pair found. Need to liquidate holdings to USDC first."
+                    error="No suitable trading pair found. Need to liquidate holdings to USDC first."
                 )
         elif '-' not in symbol:
             # Default to USD if no pair specified and not buying
@@ -3192,7 +3192,6 @@ class ExecutionEngine:
         side = (order_info.get("side") or "").upper()
         
         if product_id and side in ("BUY", "SELL") and client_id:
-            base = product_id.split('-')[0] if '-' in product_id else product_id
             self.state_store.clear_pending(product_id, side, client_order_id=client_id)
             logger.debug(
                 "Cleared pending marker for stale order: %s %s %s",
