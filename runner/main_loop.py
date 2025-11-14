@@ -1550,7 +1550,7 @@ class TradingLoop:
                     else:
                         logger.warning(f"Risk check FAILED: {reason}")
                 
-                self.audit.log_cycle(
+                self._audit_cycle(
                     ts=cycle_started,
                     mode=self.mode,
                     universe=universe,
