@@ -1265,7 +1265,8 @@ class TradingLoop:
 
             if trimmed:
                 try:
-                    pending_orders = self._get_open_order_exposure()
+                    with self._stage_timer("pending_exposure_refresh"):
+                        pending_orders = self._get_open_order_exposure()
                 except CriticalDataUnavailable as data_exc:
                     self._abort_cycle_due_to_data(
                         cycle_started,
