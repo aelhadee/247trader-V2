@@ -1239,6 +1239,7 @@ class TradingLoop:
                 triggers=triggers,
                 regime=self.current_regime
             )
+            proposals_count = len(proposals or [])
             
             if not proposals:
                 reason = "rules_engine_no_proposals"
