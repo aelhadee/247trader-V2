@@ -1889,6 +1889,10 @@ class TradingLoop:
     def _audit_cycle(self, **payload) -> None:
         if not getattr(self, "audit", None):
             return
+        if "stage_latencies" not in payload:
+            timings = getattr(self, "_stage_timings", None)
+            if timings:
+                payload["stage_latencies"] = dict(timings)
         with self._stage_timer("audit_log"):
             self.audit.log_cycle(**payload)
 
