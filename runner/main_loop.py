@@ -1395,7 +1395,7 @@ class TradingLoop:
                     state["auto_tune_applied"] = True
                     self.state_store.save(state)
                 
-                self.audit.log_cycle(
+                self._audit_cycle(
                     ts=cycle_started,
                     mode=self.mode,
                     universe=universe,
@@ -1441,7 +1441,7 @@ class TradingLoop:
                 # Note: Zero-trigger sentinel already handled earlier in cycle
                 # No need for separate zero-proposal tracking
                 
-                self.audit.log_cycle(
+                self._audit_cycle(
                     ts=cycle_started,
                     mode=self.mode,
                     universe=universe,
