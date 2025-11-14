@@ -74,7 +74,7 @@ def test_purge_liquidation_uses_maker_limit_orders():
 
     order_state_machine = MagicMock()
     loop.executor = MagicMock()
-    loop.executor.min_notional_usd = 5
+    loop.executor.min_notional_usd = 15
     loop.executor.generate_client_order_id = MagicMock(return_value="coid_test")
     loop.executor.order_state_machine = order_state_machine
     loop.executor._close_order_in_state_store = MagicMock()
@@ -158,7 +158,7 @@ def test_purge_retries_after_cancelled_slice():
     loop.exchange = exchange
 
     loop.executor = MagicMock()
-    loop.executor.min_notional_usd = 5
+    loop.executor.min_notional_usd = 15
     loop.executor.order_state_machine = MagicMock()
     loop.executor._close_order_in_state_store = MagicMock()
     loop.executor.exchange = exchange
