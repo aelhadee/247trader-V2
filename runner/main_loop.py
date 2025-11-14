@@ -160,6 +160,11 @@ class TradingLoop:
                 "Alerting enabled (min_severity=%s)",
                 monitoring_cfg.get("alerts", {}).get("min_severity", "warning"),
             )
+
+        metrics_enabled = monitoring_cfg.get("metrics_enabled", False)
+        metrics_port = int(monitoring_cfg.get("metrics_port", 9090))
+        self.metrics = MetricsRecorder(enabled=metrics_enabled, port=metrics_port)
+        self.metrics.start()
         
         self.universe_mgr = UniverseManager(
             self.config_dir / "universe.yaml",
