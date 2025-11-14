@@ -82,6 +82,7 @@ state:
 
 monitoring:
   # Health checks
+  healthcheck_enabled: false
   healthcheck_port: 8080
   
   # Metrics
