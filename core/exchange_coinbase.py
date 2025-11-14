@@ -12,13 +12,17 @@ import hashlib
 import hmac
 import uuid
 import secrets
-from typing import Dict, List, Optional, Tuple
+from collections import deque
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import logging
 import requests
 from requests import exceptions as requests_exceptions
 from urllib.parse import urlencode
+
+if TYPE_CHECKING:  # pragma: no cover
+    from infra.metrics import MetricsRecorder
 
 try:
     import jwt
