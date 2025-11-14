@@ -58,11 +58,14 @@ risk:
   weekly_stop_pnl_pct: -7.0   # -7% week → tighten / only de-risk
   max_drawdown_pct: 10.0
   
-  # Trade frequency (DYNAMIC based on profile)
-  # Active profile: day_trader → higher frequency for 60s cycles
-  max_trades_per_day: 30      # Raised for day trading (was 10)
-  max_trades_per_hour: 12     # Raised for day trading (was 4)
-  max_new_trades_per_hour: 12 # New trades per hour (was 4)
+  # Trade frequency caps (backup guardrails, not primary throttle)
+  max_trades_per_day: 40      # High enough to not bottleneck active trading
+  max_trades_per_hour: 8      # Reasonable hourly cap (primary control is pacing below)
+  max_new_trades_per_hour: 8  # New trades per hour
+  
+  # Trade pacing (prevents burning quota in first 10 minutes)
+  min_seconds_between_trades: 120  # Force 2min spacing between ANY trades (global cooldown)
+  per_symbol_trade_spacing_seconds: 600  # 10min minimum between trades on same symbol
   
   # Cooldown after losses (global)
   cooldown_after_loss_trades: 3  # 3 losing trades in row → pause

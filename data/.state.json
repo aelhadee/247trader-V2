@@ -1,97 +1,103 @@
 {
   "pnl_today": 0.0,
   "pnl_week": 0.0,
-  "trades_today": 4,
-  "trades_this_hour": 4,
+  "trades_today": 5,
+  "trades_this_hour": 5,
   "consecutive_losses": 0,
   "last_loss_time": null,
   "last_win_time": null,
   "cooldowns": {},
   "positions": {
+    "AVNT": {
+      "available": 13.4,
+      "hold": 0.0,
+      "total": 13.4,
+      "usd_value": 7.4035
+    },
     "XLM": {
       "available": 93.93405846,
       "hold": 0.0,
       "total": 93.93405846,
-      "usd_value": 25.10744661765648
+      "usd_value": 25.232472849466742
     },
     "ADA": {
       "available": 48.4293762,
       "hold": 0.0,
       "total": 48.4293762,
-      "usd_value": 25.53923153907
+      "usd_value": 25.636090291469998
     },
     "BONK": {
       "available": 1781781.0,
       "hold": 0.0,
       "total": 1781781.0,
-      "usd_value": 20.570661644999998
+      "usd_value": 20.677568505000004
     },
     "PENGU": {
       "available": 1605.0,
       "hold": 0.0,
       "total": 1605.0,
-      "usd_value": 21.6073125
+      "usd_value": 21.7244775
     },
     "UNI": {
       "available": 1.093593,
       "hold": 0.0,
       "total": 1.093593,
-      "usd_value": 8.399887833000001
+      "usd_value": 8.4157449315
     },
     "AERO": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.092252
+      "usd_value": 0.0926555
     },
     "FET": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.028805000000000004
+      "usd_value": 0.028865000000000002
     },
     "WLFI": {
       "available": 165.1,
       "hold": 0.0,
       "total": 165.1,
-      "usd_value": 23.812372999999997
+      "usd_value": 24.0377345
     },
     "HBAR": {
       "available": 909.4,
       "hold": 0.0,
       "total": 909.4,
-      "usd_value": 148.882421
+      "usd_value": 149.35530899999998
     },
     "ZK": {
       "available": 0.21905562,
       "hold": 0.0,
       "total": 0.21905562,
-      "usd_value": 0.010239754956899999
+      "usd_value": 0.010283566080900001
     },
     "DOGE": {
       "available": 145.6,
       "hold": 0.0,
       "total": 145.6,
-      "usd_value": 23.796135999999997
+      "usd_value": 23.877672
     },
     "XRP": {
       "available": 11.718629,
       "hold": 0.0,
       "total": 11.718629,
-      "usd_value": 27.05186911505
+      "usd_value": 27.16553981635
     },
     "BTC": {
       "available": 0.00068841,
       "hold": 0.0,
       "total": 0.00068841,
-      "usd_value": 68.19369151904999
+      "usd_value": 68.43632162355
     }
   },
   "managed_positions": {},
   "cash_balances": {
     "USDC": 0.198016312468,
     "USDT": 2.33462704,
-    "USD": 93.7664102033721
+    "USD": 86.3050088033721
   },
   "open_orders": {},
   "recent_orders": [
@@ -904,7 +910,8 @@
     "ADA-USD:BUY": "2025-11-13T16:31:42.375546+00:00",
     "XRP-USD:BUY": "2025-11-13T16:31:28.810545+00:00",
     "WLFI-USD:BUY": "2025-11-13T16:31:47.121129+00:00",
-    "BONK-USD:BUY": "2025-11-14T00:15:03.956849+00:00"
+    "BONK-USD:BUY": "2025-11-14T00:15:03.956849+00:00",
+    "AVNT-USD:BUY": "2025-11-14T00:25:09.788658+00:00"
   },
   "fill_history": {
     "XLM-USD:BUY": [
@@ -954,107 +961,15 @@
       "2025-11-14T00:15:03.956849+00:00",
       "2025-11-14T00:15:59.444943+00:00",
       "2025-11-14T00:15:03.956849+00:00"
+    ],
+    "AVNT-USD:BUY": [
+      "2025-11-14T00:25:09.788658+00:00"
     ]
   },
-  "last_reconcile_at": "2025-11-14T00:20:38.017419+00:00",
+  "last_reconcile_at": "2025-11-14T00:25:11.084374+00:00",
   "last_reset_date": "2025-11-14",
   "last_reset_hour": 0,
   "events": [
-    {
-      "at": "2025-11-13T13:43:58.008110+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-13T13:44:54.191526+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 0,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-13T13:44:58.641157+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-13T13:45:02.606548+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-13T13:45:48.818795+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 0,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-13T13:45:53.209631+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-13T13:45:57.308323+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-13T13:46:53.148752+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 0,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-13T13:46:57.814606+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-13T13:47:02.001864+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-13T13:47:57.543340+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 0,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-13T13:48:02.459047+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-13T13:48:06.317009+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
     {
       "at": "2025-11-13T14:48:58.354189+00:00",
       "event": "reconcile",
@@ -1754,6 +1669,105 @@
       "open_orders": 0,
       "closed": [],
       "created": []
+    },
+    {
+      "at": "2025-11-14T00:21:39.134606+00:00",
+      "event": "reconcile",
+      "positions": 13,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-14T00:21:43.539880+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:21:47.624941+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:22:44.453533+00:00",
+      "event": "reconcile",
+      "positions": 13,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-14T00:22:48.721522+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:22:52.730750+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:23:30.276125+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:23:34.270762+00:00",
+      "event": "reconcile",
+      "positions": 13,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-14T00:23:38.552511+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:23:42.771431+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:25:10.412098+00:00",
+      "event": "fill",
+      "symbol": "AVNT-USD",
+      "side": "BUY"
+    },
+    {
+      "at": "2025-11-14T00:25:09.788658+00:00",
+      "event": "fill",
+      "symbol": "AVNT-USD",
+      "side": "BUY",
+      "quantity": 13.4,
+      "price": 0.5535,
+      "notional_usd": 7.4169,
+      "fees": 0.0445014,
+      "pnl": null,
+      "mark_price": 0.5535
+    },
+    {
+      "at": "2025-11-14T00:25:11.084374+00:00",
+      "event": "reconcile",
+      "positions": 14,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
     }
   ],
   "high_water_mark": 538.2423030124753,
@@ -1761,5 +1775,5 @@
   "auto_tune_applied": false,
   "zero_proposal_cycles": 0,
   "auto_loosen_applied": false,
-  "last_open_orders_sync": "2025-11-14T00:20:46.456326+00:00"
+  "last_open_orders_sync": "2025-11-14T00:23:42.771431+00:00"
 }
