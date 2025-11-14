@@ -1481,13 +1481,16 @@ class RiskEngine:
     
     def _filter_cooled_symbols(self, proposals: List[TradeProposal]) -> List[TradeProposal]:
         """
-        Filter out proposals for symbols currently in cooldown.
+        Filter out proposals for symbols currently in cooldown or trade pacing window.
         
-        Checks StateStore for per-symbol cooldowns set after losses or stop-outs.
+        Two types of per-symbol filtering:
+        1. Loss cooldowns: Set after losses/stop-outs (30-60 min)
+        2. Trade pacing: Minimum time between ANY trades on same symbol (10 min)
+        
         Only filters if per_symbol_cooldown_enabled=true in policy.
         
         Returns:
-            Filtered list of proposals (symbols not in cooldown)
+            Filtered list of proposals (symbols not in cooldown or pacing window)
         """
         if not self.risk_config.get("per_symbol_cooldown_enabled", True):
             return proposals
@@ -1495,21 +1498,47 @@ class RiskEngine:
         from infra.state_store import get_state_store
         # Use state_store from risk engine if available, otherwise get default
         state_store = getattr(self, '_state_store', None) or get_state_store()
+        state = state_store.load()
+        
+        # Get trade pacing config
+        trade_spacing_seconds = self.risk_config.get("per_symbol_trade_spacing_seconds", 0)
         
         filtered = []
+        now = datetime.now(timezone.utc)
+        
         for proposal in proposals:
             symbol = proposal.symbol
             
-            # Check if symbol is in cooldown
+            # Check 1: Loss-based cooldown (existing logic)
             if state_store.is_cooldown_active(symbol):
-                logger.info(f"Filtered {symbol}: per-symbol cooldown active")
+                logger.info(f"Filtered {symbol}: per-symbol loss cooldown active")
                 continue
+            
+            # Check 2: Trade pacing (prevent same symbol churning)
+            if trade_spacing_seconds > 0:
+                last_trade_ts_str = state.get("per_symbol_last_trade", {}).get(symbol)
+                if last_trade_ts_str:
+                    try:
+                        last_trade_ts = datetime.fromisoformat(last_trade_ts_str)
+                        if last_trade_ts.tzinfo is None:
+                            last_trade_ts = last_trade_ts.replace(tzinfo=timezone.utc)
+                        
+                        elapsed = (now - last_trade_ts).total_seconds()
+                        if elapsed < trade_spacing_seconds:
+                            remaining = trade_spacing_seconds - elapsed
+                            logger.info(
+                                f"Filtered {symbol}: per-symbol trade pacing active "
+                                f"({remaining:.0f}s remaining, min {trade_spacing_seconds}s between trades)"
+                            )
+                            continue
+                    except Exception as e:
+                        logger.warning(f"Error checking trade spacing for {symbol}: {e}")
             
             filtered.append(proposal)
         
         if len(filtered) < len(proposals):
             logger.info(
-                f"Per-symbol cooldown filtered: {len(filtered)}/{len(proposals)} proposals remain"
+                f"Per-symbol filtering: {len(filtered)}/{len(proposals)} proposals remain"
             )
         
         return filtered
