@@ -16,7 +16,6 @@ This module implements Phase 1: Core skeleton (no AI, DRY_RUN only)
 """
 
 import json
-import os
 import time
 import signal
 import yaml
