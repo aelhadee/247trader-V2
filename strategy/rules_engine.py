@@ -107,6 +107,8 @@ class RulesEngine:
             for tier in self.canary_cfg.get("require_tier_in", [])
             if tier.upper() in {"T1", "T2"}
         }
+
+        self.reversal_confirmation_cfg = self._build_reversal_confirmation_cfg(strategy_cfg)
         
         logger.info(
             f"Initialized RulesEngine with tier sizing: "
@@ -196,6 +198,31 @@ class RulesEngine:
                 proposal.metadata["conviction_trigger_strength"] = trigger.strength
                 proposal.metadata["conviction_trigger_confidence"] = trigger.confidence
                 self._log_conviction(proposal, breakdown, min_conviction)
+
+                handled = False
+
+                if self._is_canary_conviction_window(conviction, min_conviction):
+                    canary_proposal = self._try_canary(
+                        proposal=proposal,
+                        asset=asset,
+                        conviction=conviction,
+                        threshold=min_conviction,
+                        breakdown=breakdown,
+                        total_triggers=len(qualified_triggers)
+                    )
+                    if canary_proposal:
+                        proposals.append(canary_proposal)
+                        handled = True
+                    elif conviction >= min_conviction:
+                        proposals.append(proposal)
+                        logger.info(
+                            f"✓ Proposal (canary fallback): {proposal.side} {proposal.symbol} "
+                            f"size={proposal.size_pct:.1f}% conf={proposal.confidence:.2f} reason='{proposal.reason}'"
+                        )
+                        handled = True
+
+                if handled:
+                    continue
 
                 if conviction >= min_conviction:
                     proposals.append(proposal)
@@ -384,6 +411,16 @@ class RulesEngine:
         # Only take reversals in non-crash regimes
         if regime == "crash":
             return None
+
+        confirmed, matched, required, min_required = self._reversal_confirmations(trigger)
+        if not confirmed:
+            logger.info(
+                "Skipping reversal for %s: confirmations %s/%s",
+                trigger.symbol,
+                len(matched),
+                min_required,
+            )
+            return None
         
         side = "BUY"
         reason = f"Reversal: {trigger.reason}"
@@ -401,7 +438,7 @@ class RulesEngine:
         # Scale by reduced confidence (reversals are risky)
         size_pct *= (trigger.confidence * 0.8)
         
-        return TradeProposal(
+        proposal = TradeProposal(
             symbol=trigger.symbol,
             side=side,
             size_pct=size_pct,
@@ -413,6 +450,14 @@ class RulesEngine:
             take_profit_pct=take_profit,
             max_hold_hours=max_hold
         )
+
+        proposal.metadata.setdefault("reversal_confirmations", {
+            "matched": matched,
+            "required": required,
+            "min_required": min_required,
+        })
+
+        return proposal
     
     def _rule_momentum(self, trigger: TriggerSignal, asset: UniverseAsset,
                       regime: str) -> Optional[TradeProposal]:
@@ -597,6 +642,66 @@ class RulesEngine:
             f"size={proposal.size_pct:.2f}% tags={proposal.tags}"
         )
         return proposal
+
+    def _is_canary_conviction_window(self, conviction: float, threshold: float) -> bool:
+        cfg = self.canary_cfg or {}
+        if not cfg.get("enabled", False):
+            return False
+
+        window_cfg = cfg.get("conviction_window", {}) or {}
+        lower = window_cfg.get("lower")
+        upper = window_cfg.get("upper", threshold)
+        inclusive_upper = window_cfg.get("inclusive_upper", False)
+
+        if lower is None or upper is None:
+            return False
+
+        if inclusive_upper:
+            return lower <= conviction <= upper
+        return lower <= conviction < upper
+
+    def _reversal_confirmations(self, trigger: TriggerSignal) -> Tuple[bool, List[str], List[str], int]:
+        cfg = self.reversal_confirmation_cfg or {}
+        qualifiers = cfg.get("qualifiers", []) or []
+        min_required = int(cfg.get("min_required", len(qualifiers) or 0))
+        enforce = cfg.get("enforce", True)
+        trigger_qualifiers = trigger.qualifiers or {}
+
+        if qualifiers:
+            matched = [name for name in qualifiers if trigger_qualifiers.get(name, False)]
+        else:
+            matched = [name for name, value in trigger_qualifiers.items() if value]
+            qualifiers = list(trigger_qualifiers.keys())
+
+        if min_required < 0:
+            min_required = 0
+        if qualifiers:
+            min_required = min(min_required or len(qualifiers), len(qualifiers))
+
+        if not enforce:
+            return True, matched, qualifiers, min_required
+
+        return len(matched) >= min_required, matched, qualifiers, min_required
+
+    def _build_reversal_confirmation_cfg(self, strategy_cfg: Dict[str, Any]) -> Dict[str, Any]:
+        cfg = strategy_cfg.get("reversal_confirmation", {}) or {}
+        configured = list(cfg.get("qualifiers", []) or [])
+        if not configured:
+            configured = [
+                key for key in self.conviction_quality_boosts.keys()
+                if key.startswith("reversal_")
+            ]
+        min_required = cfg.get("min_required")
+        if min_required is None:
+            min_required = 2 if len(configured) >= 2 else len(configured)
+
+        enforce = cfg.get("enforce", True)
+
+        return {
+            "qualifiers": configured,
+            "min_required": max(0, min_required),
+            "enforce": enforce,
+        }
 
     def _canary_liquidity_ok(self, asset: UniverseAsset) -> bool:
         spreads_cfg = self.liquidity_policy.get("spreads_bps", {})
