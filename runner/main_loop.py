@@ -1253,7 +1253,8 @@ class TradingLoop:
                 self.portfolio.pending_orders = pending_orders
 
             try:
-                trimmed = self._auto_trim_to_risk_cap()
+                with self._stage_timer("risk_trim"):
+                    trimmed = self._auto_trim_to_risk_cap()
             except CriticalDataUnavailable as data_exc:
                 self._abort_cycle_due_to_data(
                     cycle_started,
