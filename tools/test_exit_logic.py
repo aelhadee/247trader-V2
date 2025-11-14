@@ -62,15 +62,15 @@ def test_exits():
     if exit_proposals:
         print(f"\n✅ Generated {len(exit_proposals)} SELL proposal(s):\n")
         for proposal in exit_proposals:
-            notes = proposal.notes or {}
+            meta = proposal.metadata or {}
             print(f"  {proposal.symbol}")
-            print(f"    Reason:        {notes.get('exit_reason', 'unknown')}")
-            print(f"    Entry Price:   ${notes.get('entry_price', 0):.4f}")
-            print(f"    Current Price: ${notes.get('current_price', 0):.4f}")
-            print(f"    PnL:           {notes.get('pnl_pct', 0):+.2f}%")
-            print(f"    Hold Time:     {notes.get('hold_hours', 0):.1f}h")
-            print(f"    Size:          {proposal.base_size:.6f}")
-            print(f"    Notional:      ${proposal.notional_usd:.2f}")
+            print(f"    Reason:        {meta.get('exit_reason', 'unknown')}")
+            print(f"    Entry Price:   ${meta.get('entry_price', 0):.4f}")
+            print(f"    Current Price: ${meta.get('current_price', 0):.4f}")
+            print(f"    PnL:           {meta.get('pnl_pct', 0):+.2f}%")
+            print(f"    Hold Time:     {meta.get('hold_hours', 0):.1f}h")
+            print(f"    Size:          {meta.get('quantity', 0):.6f}")
+            print(f"    Notional:      ${meta.get('notional_usd', 0):.2f}")
             print()
     else:
         print("\n❌ No positions met exit criteria")
