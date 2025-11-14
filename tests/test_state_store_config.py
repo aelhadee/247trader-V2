@@ -1,5 +1,4 @@
 import json
-from pathlib import Path
 
 from infra.state_store import (
     JsonFileBackend,
