@@ -8,7 +8,6 @@ Includes deterministic client order ID generation to prevent duplicate
 submissions on network retries.
 """
 
-import uuid
 import hashlib
 import time
 from decimal import Decimal, InvalidOperation, ROUND_DOWN
