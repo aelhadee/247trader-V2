@@ -240,19 +240,20 @@ class PositionManager:
         return TradeProposal(
             symbol=f"{symbol}-USD",
             side="sell",
-            trigger_name=f"exit_{exit_signal.reason}",
-            base_size=quantity,
-            notional_usd=notional_usd,
-            conviction=exit_signal.confidence,
+            size_pct=0.0,  # Size determined by quantity, not %
+            reason=f"exit_{exit_signal.reason}",
+            confidence=exit_signal.confidence,
             stop_loss_pct=None,  # N/A for exit orders
             take_profit_pct=None,  # N/A for exit orders
             max_hold_hours=None,  # N/A for exit orders
-            notes={
+            metadata={
                 "exit_reason": exit_signal.reason,
                 "entry_price": exit_signal.entry_price,
                 "current_price": exit_signal.current_price,
                 "pnl_pct": exit_signal.pnl_pct,
                 "hold_hours": exit_signal.hold_hours,
+                "quantity": quantity,
+                "notional_usd": notional_usd,
             },
         )
     

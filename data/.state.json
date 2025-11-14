@@ -12,85 +12,85 @@
       "available": 50.76,
       "hold": 0.0,
       "total": 50.76,
-      "usd_value": 6.119117999999999
+      "usd_value": 6.0531299999999995
     },
     "XLM": {
       "available": 93.93405846,
       "hold": 0.0,
       "total": 93.93405846,
-      "usd_value": 25.205044104396418
+      "usd_value": 25.052307325340458
     },
     "ADA": {
       "available": 48.4293762,
       "hold": 0.0,
       "total": 48.4293762,
-      "usd_value": 25.636090291469998
+      "usd_value": 25.454480130719997
     },
     "BONK": {
       "available": 1781781.0,
       "hold": 0.0,
       "total": 1781781.0,
-      "usd_value": 20.659750695
+      "usd_value": 20.535026024999997
     },
     "PENGU": {
-      "available": 1605.0,
+      "available": 1.0,
       "hold": 0.0,
-      "total": 1605.0,
-      "usd_value": 21.6297825
+      "total": 1.0,
+      "usd_value": 0.0134125
     },
     "UNI": {
       "available": 1.093593,
       "hold": 0.0,
       "total": 1.093593,
-      "usd_value": 8.378015973
+      "usd_value": 8.302558056
     },
     "AERO": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.092997
+      "usd_value": 0.09212750000000001
     },
     "FET": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.028845
+      "usd_value": 0.02864
     },
     "WLFI": {
       "available": 165.1,
       "hold": 0.0,
       "total": 165.1,
-      "usd_value": 24.050942499999998
+      "usd_value": 23.770272499999997
     },
     "HBAR": {
       "available": 909.4,
       "hold": 0.0,
       "total": 909.4,
-      "usd_value": 149.246181
+      "usd_value": 147.945739
     },
     "ZK": {
       "available": 0.21905562,
       "hold": 0.0,
       "total": 0.21905562,
-      "usd_value": 0.0103536638793
+      "usd_value": 0.0103186149801
     },
     "DOGE": {
       "available": 145.6,
       "hold": 0.0,
       "total": 145.6,
-      "usd_value": 23.844184
+      "usd_value": 23.718239999999998
     },
     "XRP": {
       "available": 11.718629,
       "hold": 0.0,
       "total": 11.718629,
-      "usd_value": 27.121009026150002
+      "usd_value": 26.90655811545
     },
     "BTC": {
       "available": 0.00068841,
       "hold": 0.0,
       "total": 0.00068841,
-      "usd_value": 68.25023751645
+      "usd_value": 68.02913399265
     }
   },
   "managed_positions": {
@@ -160,7 +160,7 @@
     "HBAR": {
       "entry_price": 0.16406500000000002,
       "entry_time": "2025-11-14T00:39:49.706922+00:00",
-      "stop_loss_pct": 8.0,
+      "stop_loss_pct": 0.1,
       "take_profit_pct": 15.0,
       "max_hold_hours": 48.0
     },
@@ -188,7 +188,7 @@
     "BTC": {
       "entry_price": 99115.85500000001,
       "entry_time": "2025-11-14T00:39:49.706966+00:00",
-      "stop_loss_pct": 8.0,
+      "stop_loss_pct": 0.1,
       "take_profit_pct": 15.0,
       "max_hold_hours": 48.0
     }
@@ -196,7 +196,7 @@
   "cash_balances": {
     "USDC": 0.198016312468,
     "USDT": 2.33462704,
-    "USD": 87.1922025033721
+    "USD": 108.5517198153721
   },
   "open_orders": {},
   "recent_orders": [
@@ -1071,320 +1071,10 @@
       "2025-11-14T00:27:09.626247+00:00"
     ]
   },
-  "last_reconcile_at": "2025-11-14T00:40:23.115246+00:00",
+  "last_reconcile_at": "2025-11-14T00:55:47.727952+00:00",
   "last_reset_date": "2025-11-14",
   "last_reset_hour": 0,
   "events": [
-    {
-      "at": "2025-11-13T23:52:15.875991+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-14T00:14:21.810228+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 0,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-14T00:14:26.134511+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-14T00:14:30.338360+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-14T00:15:04.893860+00:00",
-      "event": "fill",
-      "symbol": "PENGU-USD",
-      "side": "BUY"
-    },
-    {
-      "at": "2025-11-14T00:15:04.893871+00:00",
-      "event": "fill",
-      "symbol": "BONK-USD",
-      "side": "BUY"
-    },
-    {
-      "at": "2025-11-14T00:15:03.956849+00:00",
-      "event": "fill",
-      "symbol": "BONK-USD",
-      "side": "BUY",
-      "quantity": 889912.0,
-      "price": 1.157e-05,
-      "notional_usd": 10.29628184,
-      "fees": 0.06177769104,
-      "pnl": null,
-      "mark_price": 1.157e-05
-    },
-    {
-      "at": "2025-11-14T00:14:49.159853+00:00",
-      "event": "fill",
-      "symbol": "PENGU-USD",
-      "side": "BUY",
-      "quantity": 762.0,
-      "price": 0.013513,
-      "notional_usd": 10.296906,
-      "fees": 0.061781436,
-      "pnl": null,
-      "mark_price": 0.013513
-    },
-    {
-      "at": "2025-11-14T00:15:05.584833+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 0,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-14T00:15:35.454748+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 0,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-14T00:15:39.914667+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-14T00:15:43.919613+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-14T00:16:00.563971+00:00",
-      "event": "fill",
-      "symbol": "BONK-USD",
-      "side": "BUY"
-    },
-    {
-      "at": "2025-11-14T00:15:59.444943+00:00",
-      "event": "fill",
-      "symbol": "BONK-USD",
-      "side": "BUY",
-      "quantity": 891187.0,
-      "price": 1.152e-05,
-      "notional_usd": 10.26647424,
-      "fees": 0.06159884544,
-      "pnl": null,
-      "mark_price": 1.152e-05
-    },
-    {
-      "at": "2025-11-14T00:15:03.956849+00:00",
-      "event": "fill",
-      "symbol": "BONK-USD",
-      "side": "BUY",
-      "quantity": 889912.0,
-      "price": 1.157e-05,
-      "notional_usd": 10.29628184,
-      "fees": 0.06177769104,
-      "pnl": null,
-      "mark_price": 1.157e-05
-    },
-    {
-      "at": "2025-11-14T00:14:49.159853+00:00",
-      "event": "fill",
-      "symbol": "PENGU-USD",
-      "side": "BUY",
-      "quantity": 762.0,
-      "price": 0.013513,
-      "notional_usd": 10.296906,
-      "fees": 0.061781436,
-      "pnl": null,
-      "mark_price": 0.013513
-    },
-    {
-      "at": "2025-11-14T00:16:01.251851+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 0,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-14T00:16:38.025443+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 0,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-14T00:16:42.527725+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-14T00:16:46.703980+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-14T00:17:43.673698+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 0,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-14T00:17:48.112561+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-14T00:17:52.072593+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-14T00:18:48.185879+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 0,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-14T00:18:52.820596+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-14T00:18:57.171899+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-14T00:19:14.462415+00:00",
-      "event": "fill",
-      "symbol": "PENGU-USD",
-      "side": "BUY"
-    },
-    {
-      "at": "2025-11-14T00:19:13.601072+00:00",
-      "event": "fill",
-      "symbol": "PENGU-USD",
-      "side": "BUY",
-      "quantity": 763.0,
-      "price": 0.013462,
-      "notional_usd": 10.271506,
-      "fees": 0.061629036,
-      "pnl": null,
-      "mark_price": 0.013462
-    },
-    {
-      "at": "2025-11-14T00:15:59.444943+00:00",
-      "event": "fill",
-      "symbol": "BONK-USD",
-      "side": "BUY",
-      "quantity": 891187.0,
-      "price": 1.152e-05,
-      "notional_usd": 10.26647424,
-      "fees": 0.06159884544,
-      "pnl": null,
-      "mark_price": 1.152e-05
-    },
-    {
-      "at": "2025-11-14T00:15:03.956849+00:00",
-      "event": "fill",
-      "symbol": "BONK-USD",
-      "side": "BUY",
-      "quantity": 889912.0,
-      "price": 1.157e-05,
-      "notional_usd": 10.29628184,
-      "fees": 0.06177769104,
-      "pnl": null,
-      "mark_price": 1.157e-05
-    },
-    {
-      "at": "2025-11-14T00:14:49.159853+00:00",
-      "event": "fill",
-      "symbol": "PENGU-USD",
-      "side": "BUY",
-      "quantity": 762.0,
-      "price": 0.013513,
-      "notional_usd": 10.296906,
-      "fees": 0.061781436,
-      "pnl": null,
-      "mark_price": 0.013513
-    },
-    {
-      "at": "2025-11-14T00:19:15.146680+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 0,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-14T00:19:42.898962+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 0,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-14T00:19:47.318825+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-14T00:19:51.671366+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-14T00:20:38.017419+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 0,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-14T00:20:42.292657+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
     {
       "at": "2025-11-14T00:20:46.456326+00:00",
       "event": "open_orders_sync",
@@ -1861,6 +1551,277 @@
       "open_orders": 0,
       "closed": [],
       "created": []
+    },
+    {
+      "at": "2025-11-14T00:41:28.537110+00:00",
+      "event": "reconcile",
+      "positions": 14,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-14T00:41:37.969517+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:41:45.949729+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:42:46.451360+00:00",
+      "event": "reconcile",
+      "positions": 14,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-14T00:42:53.722523+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:43:00.537005+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:43:43.313728+00:00",
+      "event": "reconcile",
+      "positions": 14,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-14T00:43:50.431943+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:43:56.628427+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:45:10.911768+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:45:18.041823+00:00",
+      "event": "reconcile",
+      "positions": 14,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-14T00:45:25.115076+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:45:32.026885+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:46:12.684188+00:00",
+      "event": "reconcile",
+      "positions": 14,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-14T00:46:19.803012+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:46:26.209094+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:47:15.743710+00:00",
+      "event": "reconcile",
+      "positions": 14,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-14T00:47:23.312435+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:47:29.543246+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:48:18.241844+00:00",
+      "event": "reconcile",
+      "positions": 14,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-14T00:48:27.261639+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:48:33.920185+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:49:19.461197+00:00",
+      "event": "reconcile",
+      "positions": 14,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-14T00:49:26.463302+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:49:32.724156+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:50:19.436610+00:00",
+      "event": "reconcile",
+      "positions": 14,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-14T00:50:25.905269+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:50:32.931484+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:51:17.336647+00:00",
+      "event": "reconcile",
+      "positions": 14,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-14T00:51:24.471494+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:51:30.761204+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:54:20.229538+00:00",
+      "event": "reconcile",
+      "positions": 14,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-14T00:54:27.120264+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:54:33.651168+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:55:47.727952+00:00",
+      "event": "reconcile",
+      "positions": 14,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-14T00:55:54.496703+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:56:00.867630+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
     }
   ],
   "high_water_mark": 538.2423030124753,
@@ -1868,5 +1829,5 @@
   "auto_tune_applied": false,
   "zero_proposal_cycles": 0,
   "auto_loosen_applied": false,
-  "last_open_orders_sync": "2025-11-14T00:40:34.764233+00:00"
+  "last_open_orders_sync": "2025-11-14T00:56:00.867630+00:00"
 }
