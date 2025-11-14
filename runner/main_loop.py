@@ -53,12 +53,14 @@ class TradingLoop:
     - Coordinate core modules
     - Output structured summaries
     - Handle errors gracefully
-    """
+            with self._stage_timer("pending_purge"):
+                self.state_store.purge_expired_pending()
     
     def __init__(self, config_dir: str = "config"):
         self.config_dir = Path(config_dir)
         
-        # Validate configs before loading
+            with self._stage_timer("state_reconcile"):
+                self._reconcile_exchange_state()
         from tools.config_validator import validate_all_configs
         validation_errors = validate_all_configs(config_dir)
         if validation_errors:
@@ -70,14 +72,16 @@ class TradingLoop:
                 if not lines:
                     continue
                 logger.error(f"{idx:>2}. {lines[0]}")
-                for extra in lines[1:]:
-                    logger.error(f"    {extra}")
+            with self._stage_timer("order_reconcile"):
+                self.executor.reconcile_open_orders()
+                self.state_store.purge_expired_pending()
             logger.error("=" * 80)
             raise ValueError(f"Invalid configuration: {len(validation_errors)} error(s) found")
         
         # Load configs
         self.app_config = self._load_yaml("app.yaml")
-        self.policy_config = self._load_yaml("policy.yaml")
+            with self._stage_timer("portfolio_snapshot"):
+                self.portfolio = self._init_portfolio_state()
         self.universe_config = self._load_yaml("universe.yaml")
 
         loop_policy_cfg = (self.policy_config.get("loop") or {})
@@ -87,7 +91,8 @@ class TradingLoop:
 
         loop_cache_ttl = loop_policy_cfg.get("universe_cache_seconds") or loop_app_cfg.get("universe_cache_seconds")
         self._universe_cache_ttl = float(loop_cache_ttl) if loop_cache_ttl is not None else None
-
+            with self._stage_timer("pending_exposure"):
+                pending_orders = self._get_open_order_exposure()
         interval_seconds = loop_policy_cfg.get("interval_seconds") or loop_app_cfg.get("interval_seconds")
         if interval_seconds is None:
             interval_cfg = loop_app_cfg.get("interval") if isinstance(loop_app_cfg.get("interval"), dict) else {}
@@ -96,7 +101,8 @@ class TradingLoop:
             minutes_value = loop_app_cfg.get("interval_minutes")
             if minutes_value is not None:
                 try:
-                    interval_seconds = float(minutes_value) * 60.0
+            with self._stage_timer("risk_trim"):
+                trimmed = self._auto_trim_to_risk_cap()
                 except (TypeError, ValueError):
                     interval_seconds = None
 
@@ -105,7 +111,8 @@ class TradingLoop:
         # Mode & safety
         self.mode = self.app_config.get("app", {}).get("mode", "DRY_RUN").upper()
         
-        if self.mode not in ("DRY_RUN", "PAPER", "LIVE"):
+                with self._stage_timer("pending_exposure_refresh"):
+                    pending_orders = self._get_open_order_exposure()
             raise ValueError(f"Invalid mode: {self.mode}")
         
         # Exchange read_only: True unless explicitly false in LIVE mode
@@ -114,7 +121,8 @@ class TradingLoop:
         self.read_only = (self.mode != "LIVE") or read_only_cfg
         
         # Logging setup
-        log_cfg = self.app_config.get("logging", {})
+            with self._stage_timer("capacity_check"):
+                capacity_reason = self._ensure_capacity_for_new_positions()
         log_file = log_cfg.get("file", "logs/247trader-v2.log")
         log_path = Path(log_file)
         log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -123,7 +131,7 @@ class TradingLoop:
             level=getattr(logging, log_cfg.get("level", "INFO").upper()),
             format="%(asctime)s %(levelname)s %(name)s: %(message)s",
             handlers=[logging.FileHandler(log_file), logging.StreamHandler()]
-        )
+            self._audit_cycle(
         
         logger.info(f"Starting 247trader-v2 in mode={self.mode}, read_only={self.read_only}")
         
@@ -1282,7 +1290,8 @@ class TradingLoop:
                         "Max open positions remain saturated; skipping proposal generation this cycle."
                     )
 
-                self.audit.log_cycle(
+                with self._stage_timer("audit_log"):
+                    self.audit.log_cycle(**payload)
                     ts=cycle_started,
                     mode=self.mode,
                     universe=None,
