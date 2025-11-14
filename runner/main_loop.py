@@ -1229,7 +1229,8 @@ class TradingLoop:
 
             # Refresh portfolio snapshot now that state store has authoritative data
             try:
-                self.portfolio = self._init_portfolio_state()
+                with self._stage_timer("portfolio_snapshot"):
+                    self.portfolio = self._init_portfolio_state()
             except CriticalDataUnavailable as data_exc:
                 self._abort_cycle_due_to_data(
                     cycle_started,
