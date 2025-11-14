@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, ANY
 
 import pytest
 
@@ -72,3 +72,30 @@ def test_get_convert_trade_passes_query(monkeypatch):
 
     assert result == {"trade": {"id": "123", "status": "OK"}}
     assert called.query == {"from_account": "from", "to_account": "to"}
+
+
+def test_req_records_metrics(monkeypatch):
+    metrics = SimpleNamespace(
+        record_rate_limit_usage=MagicMock(),
+        record_api_call=MagicMock(),
+    )
+    exchange = CoinbaseExchange(api_key="key", api_secret="secret", read_only=True, metrics=metrics)
+    exchange.configure_rate_limits({"private": 10})
+
+    def fake_headers(method, path, body):
+        return {"X-Test": "ok"}
+
+    def fake_request(method, url, headers, json, timeout):
+        response = MagicMock()
+        response.raise_for_status.return_value = None
+        response.json.return_value = {"ok": True}
+        return response
+
+    monkeypatch.setattr(exchange, "_headers", fake_headers)
+    monkeypatch.setattr("requests.request", fake_request)
+
+    result = exchange._req("GET", "/metrics/test", authenticated=True, max_retries=1)
+
+    assert result == {"ok": True}
+    metrics.record_rate_limit_usage.assert_called()
+    metrics.record_api_call.assert_called_with("metrics/test", "private", ANY, "success")
