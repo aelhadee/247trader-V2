@@ -76,7 +76,7 @@ profiles:
 - Risk: `min_trade_notional_usd: 15`
 - Execution: `min_notional_usd: 15.0`
 
-**Effect:** Orders smaller than $15 are auto-bumped to the floor so fills cover fees/slippage. You still size proposals the same way, but anything under the floor now routes as a $15 clip instead of a dust trade.
+**Effect:** Orders smaller than $15 are auto-bumped to the floor so fills cover fees/slippage. Dust threshold also rises to $10, so sub-$10 residuals no longer consume position slots and are queued for purge.
 
 ## Expected Behavior Changes
 
