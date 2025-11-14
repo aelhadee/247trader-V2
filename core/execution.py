@@ -2232,7 +2232,7 @@ class ExecutionEngine:
                         logger.warning("Taker fallback blocked: slippage %.1f bps not allowed", est_slippage_bps)
 
                 route = f"live_{order_type}"
-                logger.info("Order response: %s", result)
+                logger.debug("Order response: %s", result)
 
                 order_id = result.get("order_id") or result.get("success_response", {}).get("order_id")
                 status = (
@@ -2256,6 +2256,18 @@ class ExecutionEngine:
                     attempt_client_order_id,
                     OrderStatus.OPEN,
                     order_id=order_id,
+                )
+
+                logger.info(
+                    "EXEC_PLACE %s %s client_id=%s order_id=%s route=%s mode=%s ttl=%s status=%s",
+                    symbol,
+                    side.upper(),
+                    attempt_client_order_id,
+                    order_id,
+                    f"live_{order_type}",
+                    mode,
+                    ttl_seconds if use_maker else "na",
+                    status,
                 )
 
                 fills = result.get("fills") or []
@@ -2363,6 +2375,18 @@ class ExecutionEngine:
                         filled_value=filled_value,
                         fees=fees,
                         fills=fills,
+                    )
+                    logger.info(
+                        "EXEC_FILL %s %s client_id=%s order_id=%s filled=%.8f avg_price=%.6f fees=%.6f route=%s ttl_cancelled=%s",
+                        symbol,
+                        side.upper(),
+                        attempt_client_order_id,
+                        order_id,
+                        filled_size,
+                        filled_price,
+                        fees,
+                        route,
+                        ttl_canceled,
                     )
 
                 actual_slippage = est_slippage_bps
