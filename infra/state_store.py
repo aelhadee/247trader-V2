@@ -245,9 +245,9 @@ class StateStore:
             resolved = state_file or os.getenv("STATE_FILE", "data/.state.json")
             self._backend = JsonFileBackend(Path(resolved))
         
-    self._backend_description = self._backend.describe()
-    self._state = None
-    self._lock = threading.RLock()
+        self._backend_description = self._backend.describe()
+        self._state = None
+        self._lock = threading.RLock()
         logger.info(f"Initialized StateStore via {self._backend_description}")
 
     @staticmethod
