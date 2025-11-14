@@ -1473,6 +1473,13 @@ class TradingLoop:
                         "governance_live_trading_disabled",
                         "LIVE trading is disabled by governance flag in policy.yaml",
                     )
+                    self._record_cycle_metrics(
+                        status="governance_live_trading_disabled",
+                        proposals=proposals_count,
+                        approved=approved_count,
+                        executed=executed_count,
+                        started_at=cycle_started,
+                    )
                     return
                 
                 # Execute each adjusted proposal
