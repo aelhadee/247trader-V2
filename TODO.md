@@ -5,7 +5,7 @@
 - [x] Extend risk engine to count open orders toward max position caps, support dust thresholds, and allow adds while saturated.
 - [x] Harden risk cap filter to auto-approve adds vs new symbols per policy toggles.
 - [ ] Adjust configuration defaults (TTL, min notional, new flags) and keep schema/tests/docs in sync.
-- [ ] Implement taker promotion gating and cancel retry/backoff scaffolding per new policy toggles.
+- [x] Implement taker promotion gating and cancel retry/backoff scaffolding per new policy toggles.
 - [x] Plumb per-proposal rejection reasons through risk checks and runner logging.
 - [x] Raise execution min_notional_usd and add dust sweep guidance to policy/tests.
 - [x] Run full relevant test suite (pytest) to confirm fixes.
