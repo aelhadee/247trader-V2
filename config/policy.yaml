@@ -58,10 +58,11 @@ risk:
   weekly_stop_pnl_pct: -7.0   # -7% week → tighten / only de-risk
   max_drawdown_pct: 10.0
   
-  # Trade frequency
-  max_trades_per_day: 10
-  max_trades_per_hour: 4
-  max_new_trades_per_hour: 4  # New trades per hour (spec requirement)
+  # Trade frequency (DYNAMIC based on profile)
+  # Active profile: day_trader → higher frequency for 60s cycles
+  max_trades_per_day: 30      # Raised for day trading (was 10)
+  max_trades_per_hour: 12     # Raised for day trading (was 4)
+  max_new_trades_per_hour: 12 # New trades per hour (was 4)
   
   # Cooldown after losses (global)
   cooldown_after_loss_trades: 3  # 3 losing trades in row → pause
