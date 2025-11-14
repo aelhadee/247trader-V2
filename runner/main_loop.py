@@ -1342,7 +1342,7 @@ class TradingLoop:
             if not universe or universe.total_eligible == 0:
                 reason = "empty_universe"
                 logger.info(f"NO_TRADE: {reason}")
-                self.audit.log_cycle(
+                self._audit_cycle(
                     ts=cycle_started,
                     mode=self.mode,
                     universe=universe,
