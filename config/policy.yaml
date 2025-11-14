@@ -195,7 +195,7 @@ strategy:
   # Active profile: day_trader (3.0% / 1.8% / 0.7%)
   base_position_pct:
     tier1: 0.030                    # 3.0% NLV per Tier1 (day_trader: larger for active trading)
-  tier2: 0.018                    # 1.8% NLV per Tier2 (≈$9 at $500 NAV before min clamp)
+    tier2: 0.018                    # 1.8% NLV per Tier2 (≈$9 at $500 NAV before min clamp)
     tier3: 0.007                    # 0.7% NLV per Tier3 (day_trader: slightly larger for activity)
 
   max_open_positions: 12            # cap simultaneous distinct holdings (raised from 8)
