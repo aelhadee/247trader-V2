@@ -1278,7 +1278,8 @@ class TradingLoop:
                     self.portfolio.pending_orders = pending_orders
 
             try:
-                capacity_reason = self._ensure_capacity_for_new_positions()
+                with self._stage_timer("capacity_check"):
+                    capacity_reason = self._ensure_capacity_for_new_positions()
             except CriticalDataUnavailable as data_exc:
                 self._abort_cycle_due_to_data(
                     cycle_started,
