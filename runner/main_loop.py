@@ -373,6 +373,16 @@ class TradingLoop:
                 self.instance_lock.release()
                 logger.info("✅ Lock released")
 
+    def __del__(self):  # pragma: no cover - defensive cleanup
+        try:
+            self._stop_health_server()
+        except Exception:
+            pass
+        try:
+            self._stop_state_store_supervisor()
+        except Exception:
+            pass
+
     def _stop_state_store_supervisor(self) -> None:
         supervisor = getattr(self, "state_store_supervisor", None)
         if not supervisor:
@@ -381,6 +391,121 @@ class TradingLoop:
             supervisor.stop()
         except Exception as exc:
             logger.warning("State store supervisor stop failed: %s", exc)
+    
+    def _stop_health_server(self) -> None:
+        server = getattr(self, "health_server", None)
+        if not server:
+            return
+        try:
+            server.stop()
+        except Exception as exc:  # pragma: no cover - best-effort shutdown
+            logger.warning("Health server stop failed: %s", exc)
+        finally:
+            self.health_server = None
+
+    def _start_health_server(self) -> None:
+        cfg = getattr(self, "monitoring_config", {}) or {}
+        if not cfg.get("healthcheck_enabled", False):
+            return
+        port_value = cfg.get("healthcheck_port", 0)
+        try:
+            port = int(port_value)
+        except (TypeError, ValueError):
+            logger.warning("Invalid healthcheck_port=%s; disabling health server", port_value)
+            return
+        if port <= 0:
+            logger.warning("Health server port must be > 0; got %s", port)
+            return
+        if getattr(self, "health_server", None):
+            return
+
+        server = HealthServer(port, self._health_status_snapshot)
+        try:
+            server.start()
+        except OSError as exc:
+            logger.error("Failed to start health server on port %s: %s", port, exc)
+            return
+        self.health_server = server
+
+    def _health_status_snapshot(self) -> Dict[str, Any]:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        metrics = getattr(self, "metrics", None)
+        alerts = getattr(self, "alerts", None)
+        cycle = metrics.last_cycle() if metrics else None
+        stage_stats = metrics.stage_snapshot() if metrics else {}
+        rate_usage = metrics.rate_usage_snapshot() if metrics else {}
+        last_api_event = metrics.last_api_event() if metrics else None
+
+        exchange_rate = {}
+        try:
+            exchange_rate = self.exchange.rate_limit_snapshot()
+        except Exception:
+            exchange_rate = {}
+
+        governance_cfg = (self.policy_config.get("governance") or {}) if hasattr(self, "policy_config") else {}
+        kill_switch_file = governance_cfg.get("kill_switch_file", "data/KILL_SWITCH")
+        kill_switch_active = bool(kill_switch_file and Path(kill_switch_file).exists())
+
+        circuit_snapshot: Dict[str, Any] = {}
+        if hasattr(self, "risk_engine") and hasattr(self.risk_engine, "circuit_snapshot"):
+            try:
+                circuit_snapshot = self.risk_engine.circuit_snapshot()
+            except Exception:
+                circuit_snapshot = {}
+
+        portfolio = getattr(self, "portfolio", None)
+        open_positions = len(getattr(portfolio, "open_positions", {}) or {}) if portfolio else 0
+        pending_orders = 0
+        if portfolio and getattr(portfolio, "pending_orders", None):
+            for side_bucket in portfolio.pending_orders.values():
+                try:
+                    pending_orders += len(side_bucket)
+                except Exception:
+                    continue
+
+        issues = []
+        if kill_switch_active:
+            issues.append("kill_switch")
+        if circuit_snapshot.get("rate_limit_cooldown_active"):
+            issues.append("rate_limit_cooldown")
+        api_error_count = circuit_snapshot.get("api_error_count", 0)
+        max_errors = circuit_snapshot.get("max_consecutive_api_errors")
+        if max_errors is not None and api_error_count and api_error_count >= max_errors:
+            issues.append("api_error_threshold")
+        if cycle and isinstance(cycle.status, str) and cycle.status.startswith("exception"):
+            issues.append("last_cycle_exception")
+
+        payload = {
+            "timestamp": now_iso,
+            "mode": self.mode,
+            "regime": getattr(self, "current_regime", "unknown"),
+            "read_only": self.read_only,
+            "running": getattr(self, "_running", False),
+            "cycle": {
+                "status": cycle.status,
+                "proposals": cycle.proposals,
+                "approved": cycle.approved,
+                "executed": cycle.executed,
+                "duration_seconds": cycle.duration_seconds,
+            } if cycle else None,
+            "stage_durations": stage_stats,
+            "rate_usage": rate_usage,
+            "exchange_rate_limits": exchange_rate,
+            "last_api_event": last_api_event,
+            "metrics_enabled": metrics.is_enabled() if metrics else False,
+            "alerts_enabled": alerts.is_enabled() if alerts else False,
+            "kill_switch_active": kill_switch_active,
+            "portfolio": {
+                "open_positions": open_positions,
+                "pending_buckets": pending_orders,
+                "account_value_usd": getattr(portfolio, "account_value_usd", None) if portfolio else None,
+            },
+            "circuit": circuit_snapshot,
+        }
+
+        payload["issues"] = issues
+        payload["ok"] = len(issues) == 0
+        return payload
     
     def _load_yaml(self, filename: str) -> dict:
         """Load YAML config file"""
