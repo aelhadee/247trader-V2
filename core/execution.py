@@ -2737,30 +2737,47 @@ class ExecutionEngine:
         product_id: Optional[str] = None,
         side: Optional[str] = None,
         client_order_id: Optional[str] = None,
+        retry: bool = False,
     ) -> bool:
         if not order_id:
             return False
 
-        try:
-            response = self.exchange.cancel_order(order_id)
-        except Exception as exc:
-            message = str(exc).lower()
-            if "404" in message or "not found" in message:
-                logger.info("Cancel order %s returned not-found; assuming closed", order_id)
-                self._clear_pending_marker(product_id, side, client_order_id=client_order_id, order_id=order_id)
-                return True
-            logger.warning("Cancel order %s failed: %s", order_id, exc)
-            return False
+        backoffs = self.cancel_retry_backoff_ms if retry else []
+        attempts = max(1, len(backoffs) + 1)
 
-        if response.get("success"):
-            self._clear_pending_marker(product_id, side, client_order_id=client_order_id, order_id=order_id)
-            return True
+        for attempt in range(attempts):
+            try:
+                response = self.exchange.cancel_order(order_id)
+            except Exception as exc:
+                message = str(exc).lower()
+                if "404" in message or "not found" in message:
+                    logger.info("Cancel order %s returned not-found; assuming closed", order_id)
+                    self._clear_pending_marker(product_id, side, client_order_id=client_order_id, order_id=order_id)
+                    return True
+                logger.warning("Cancel order %s failed (attempt %d/%d): %s", order_id, attempt + 1, attempts, exc)
+                success = False
+            else:
+                if response.get("success"):
+                    self._clear_pending_marker(product_id, side, client_order_id=client_order_id, order_id=order_id)
+                    return True
 
-        error_text = (response.get("error") or "").lower()
-        if "not_found" in error_text or "404" in error_text:
-            logger.info("Cancel order %s treated as already closed (payload=%s)", order_id, response)
-            self._clear_pending_marker(product_id, side, client_order_id=client_order_id, order_id=order_id)
-            return True
+                error_text = (response.get("error") or "").lower()
+                if "not_found" in error_text or "404" in error_text:
+                    logger.info("Cancel order %s treated as already closed (payload=%s)", order_id, response)
+                    self._clear_pending_marker(product_id, side, client_order_id=client_order_id, order_id=order_id)
+                    return True
+
+                logger.warning(
+                    "Cancel order %s unsuccessful (attempt %d/%d): %s",
+                    order_id,
+                    attempt + 1,
+                    attempts,
+                    response,
+                )
+                success = False
+
+            if not success and attempt < len(backoffs):
+                time.sleep(max(backoffs[attempt] / 1000.0, 0.05))
 
         return False
 
