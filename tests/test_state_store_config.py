@@ -13,7 +13,6 @@ def test_create_state_store_from_config_respects_sqlite(tmp_path):
     cfg = {"store": "sqlite", "path": str(tmp_path / "state.db")}
     store = create_state_store_from_config(cfg)
     assert isinstance(store._backend, SQLiteStateBackend)
-    # Should point at configured path
     assert "state.db" in store._backend.describe()
 
 
@@ -37,12 +36,11 @@ def test_state_store_supervisor_can_persist_and_backup(tmp_path):
     )
 
     try:
-    supervisor.start()
-    state = store.load()
-    state["pnl_today"] = 42.0
-    # Do not save – supervisor flush should persist update
-    state["pnl_today"] = 43.0
-    supervisor.force_persist()
+        supervisor.start()
+        state = store.load()
+        state["pnl_today"] = 42.0
+        state["pnl_today"] = 43.0
+        supervisor.force_persist()
         on_disk = json.loads(state_path.read_text())
         assert on_disk["pnl_today"] == 43.0
 
@@ -51,4 +49,3 @@ def test_state_store_supervisor_can_persist_and_backup(tmp_path):
         assert backups, "backup file should be written"
     finally:
         supervisor.stop()
-*** End Patch
