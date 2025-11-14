@@ -226,6 +226,22 @@ class TradingLoop:
             state_store=self.state_store,
         )
 
+        latency_cfg = (self.monitoring_config or {}).get("latency", {}) or {}
+        default_stage_budgets = {
+            "order_reconcile": 2.0,
+            "universe_build": 6.0,
+            "trigger_scan": 6.0,
+            "rules_engine": 4.0,
+            "risk_engine": 4.0,
+            "execution": 15.0,
+            "open_order_maintenance": 3.0,
+            "exit_checks": 3.0,
+            "exit_execution": 3.0,
+        }
+        stage_overrides = latency_cfg.get("stage_budgets", {}) or {}
+        self._latency_stage_budgets = {**default_stage_budgets, **stage_overrides}
+        self._latency_total_budget = float(latency_cfg.get("total_seconds", 45.0) or 45.0)
+
         self._start_health_server()
 
         try:
