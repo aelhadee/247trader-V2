@@ -1570,6 +1570,9 @@ class TradingLoop:
             # Step 5: Execute trades (respects mode: DRY_RUN/PAPER/LIVE)
             logger.info(f"Step 5: Executing {len(approved_proposals)} approved trades...")
 
+            adjusted_proposals: List[Tuple[TradeProposal, float]] = []
+            final_orders: List[ExecutionResult] = []
+
             with self._stage_timer("execution"):
                 # Step 5a: Check if we need to rebalance BEFORE attempting execution (LIVE/PAPER only)
                 if self.mode != "DRY_RUN" and approved_proposals:
@@ -1634,8 +1637,6 @@ class TradingLoop:
 
                 if len(adjusted_proposals) < len(approved_proposals):
                     logger.warning(f"Capital constraints: executing {len(adjusted_proposals)}/{len(approved_proposals)} trades")
-
-                final_orders = []
 
                 if self.mode == "DRY_RUN":
                     logger.info("DRY_RUN mode - no actual execution")
