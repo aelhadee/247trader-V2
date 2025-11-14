@@ -659,6 +659,11 @@ class RulesEngine:
         if cfg.get("maker_only", True):
             proposal.metadata["order_type_override"] = "limit_post_only"
 
+        window_cfg = cfg.get("conviction_window", {}) or {}
+        upper_bound = window_cfg.get("upper")
+        if upper_bound is not None:
+            proposal.metadata["conviction_threshold"] = upper_bound
+
         logger.info(
             f"🪶 Canary: {proposal.symbol} conviction={conviction:.3f} (< {threshold:.2f}) "
             f"size={proposal.size_pct:.2f}% tags={proposal.tags}"
