@@ -1728,21 +1728,22 @@ class TradingLoop:
             executed_count = len(final_orders)
 
             if final_orders:
-                self.state_store.update_from_fills(final_orders, self.portfolio)
-                
-                # Update managed position targets from proposals (for BUY orders only)
-                for order, (proposal, _) in zip(final_orders, adjusted_proposals):
-                    if order.success and proposal.side.upper() == "BUY":
-                        symbol = proposal.symbol.replace("-USD", "")
-                        self.state_store.update_managed_position_targets(
-                            symbol=symbol,
-                            stop_loss_pct=proposal.stop_loss_pct,
-                            take_profit_pct=proposal.take_profit_pct,
-                            max_hold_hours=proposal.max_hold_hours,
-                        )
-                
-                self._post_trade_refresh(final_orders)
-                self._apply_cooldowns_after_trades(final_orders, approved_proposals)
+                with self._stage_timer("fills_reconcile"):
+                    self.state_store.update_from_fills(final_orders, self.portfolio)
+                    
+                    # Update managed position targets from proposals (for BUY orders only)
+                    for order, (proposal, _) in zip(final_orders, adjusted_proposals):
+                        if order.success and proposal.side.upper() == "BUY":
+                            symbol = proposal.symbol.replace("-USD", "")
+                            self.state_store.update_managed_position_targets(
+                                symbol=symbol,
+                                stop_loss_pct=proposal.stop_loss_pct,
+                                take_profit_pct=proposal.take_profit_pct,
+                                max_hold_hours=proposal.max_hold_hours,
+                            )
+                    
+                    self._post_trade_refresh(final_orders)
+                    self._apply_cooldowns_after_trades(final_orders, approved_proposals)
                 logger.info(f"Executed {len(final_orders)} order(s)")
             else:
                 logger.info("NO_TRADE: execution layer filtered all proposals (liquidity/slippage/notional/etc)")
@@ -1770,17 +1771,20 @@ class TradingLoop:
             # Post-cycle maintenance: cancel stale open orders (LIVE/PAPER)
             try:
                 if self.mode in ("LIVE", "PAPER"):
-                    self.executor.manage_open_orders()
+                    with self._stage_timer("open_order_maintenance"):
+                        self.executor.manage_open_orders()
             except Exception as e:
                 logger.warning(f"Open order maintenance skipped: {e}")
             
             # Position exit management: check for stop-loss/take-profit (LIVE/PAPER/DRY_RUN)
             try:
-                exit_proposals = self._check_position_exits()
+                with self._stage_timer("exit_checks"):
+                    exit_proposals = self._check_position_exits()
                 if exit_proposals:
                     logger.info(f"Position exit check generated {len(exit_proposals)} SELL proposal(s)")
                     # Execute exit proposals immediately (bypass normal approval flow for exits)
-                    self._execute_exit_proposals(exit_proposals)
+                    with self._stage_timer("exit_execution"):
+                        self._execute_exit_proposals(exit_proposals)
             except Exception as exit_exc:
                 logger.warning(f"Position exit check failed: {exit_exc}", exc_info=True)
             
