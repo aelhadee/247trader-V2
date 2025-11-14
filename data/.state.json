@@ -12,85 +12,85 @@
       "available": 50.76,
       "hold": 0.0,
       "total": 50.76,
-      "usd_value": 6.108966
+      "usd_value": 6.121656
     },
     "XLM": {
       "available": 93.93405846,
       "hold": 0.0,
       "total": 93.93405846,
-      "usd_value": 25.28596829575971
+      "usd_value": 25.35256754320785
     },
     "ADA": {
       "available": 48.4293762,
       "hold": 0.0,
       "total": 48.4293762,
-      "usd_value": 25.694205542909998
+      "usd_value": 25.77653548245
     },
     "BONK": {
       "available": 1781781.0,
       "hold": 0.0,
       "total": 1781781.0,
-      "usd_value": 20.731021934999998
+      "usd_value": 20.802293175
     },
     "PENGU": {
       "available": 1605.0,
       "hold": 0.0,
       "total": 1605.0,
-      "usd_value": 21.720465
+      "usd_value": 21.7983075
     },
     "UNI": {
       "available": 1.093593,
       "hold": 0.0,
       "total": 1.093593,
-      "usd_value": 8.418478914000001
+      "usd_value": 8.4387103845
     },
     "AERO": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.09336150000000001
+      "usd_value": 0.093434
     },
     "FET": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.028855
+      "usd_value": 0.029010000000000005
     },
     "WLFI": {
       "available": 165.1,
       "hold": 0.0,
       "total": 165.1,
-      "usd_value": 23.924640999999998
+      "usd_value": 24.0245265
     },
     "HBAR": {
       "available": 909.4,
       "hold": 0.0,
       "total": 909.4,
-      "usd_value": 149.532642
+      "usd_value": 149.96006
     },
     "ZK": {
       "available": 0.21905562,
       "hold": 0.0,
       "total": 0.21905562,
-      "usd_value": 0.010396379725200001
+      "usd_value": 0.0104281427901
     },
     "DOGE": {
       "available": 145.6,
       "hold": 0.0,
       "total": 145.6,
-      "usd_value": 23.901695999999998
+      "usd_value": 23.959208
     },
     "XRP": {
       "available": 11.718629,
       "hold": 0.0,
       "total": 11.718629,
-      "usd_value": 27.181359965499997
+      "usd_value": 27.249913945150002
     },
     "BTC": {
       "available": 0.00068841,
       "hold": 0.0,
       "total": 0.00068841,
-      "usd_value": 68.51193657795
+      "usd_value": 68.58489426975
     }
   },
   "managed_positions": {},
@@ -972,25 +972,10 @@
       "2025-11-14T00:27:09.626247+00:00"
     ]
   },
-  "last_reconcile_at": "2025-11-14T00:32:19.472402+00:00",
+  "last_reconcile_at": "2025-11-14T00:33:24.791019+00:00",
   "last_reset_date": "2025-11-14",
   "last_reset_hour": 0,
   "events": [
-    {
-      "at": "2025-11-13T16:45:13.008659+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-13T17:00:53.025188+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 0,
-      "orders_closed": [],
-      "orders_seen": []
-    },
     {
       "at": "2025-11-13T17:00:59.020164+00:00",
       "event": "open_orders_sync",
@@ -1762,6 +1747,21 @@
       "open_orders": 0,
       "closed": [],
       "created": []
+    },
+    {
+      "at": "2025-11-14T00:33:24.791019+00:00",
+      "event": "reconcile",
+      "positions": 14,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-14T00:33:29.492588+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
     }
   ],
   "high_water_mark": 538.2423030124753,
@@ -1769,5 +1769,5 @@
   "auto_tune_applied": false,
   "zero_proposal_cycles": 0,
   "auto_loosen_applied": false,
-  "last_open_orders_sync": "2025-11-14T00:32:28.504632+00:00"
+  "last_open_orders_sync": "2025-11-14T00:33:29.492588+00:00"
 }
