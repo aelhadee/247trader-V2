@@ -306,10 +306,15 @@ class CoinbaseExchange:
             path_for_auth = f"/api/v3/brokerage{endpoint_with_query}"
         
         url = CB_BASE + endpoint_with_query
-        
+
         last_exception = None
-        
+        channel = "private" if authenticated else "public"
+        call_label = endpoint.strip("/") or "root"
+
         for attempt in range(max_retries):
+            start_time = time.perf_counter()
+            status_label = "success"
+            rate_limited = False
             try:
                 if authenticated:
                     headers = self._headers(method, path_for_auth, body)
@@ -324,10 +329,16 @@ class CoinbaseExchange:
                     timeout=20
                 )
                 response.raise_for_status()
-                return response.json()
+                result = response.json()
+                duration = time.perf_counter() - start_time
+                self._record_rate_usage(channel)
+                self._record_api_metrics(call_label, channel, duration, status_label)
+                return result
                 
             except requests.exceptions.HTTPError as e:
                 status_code = e.response.status_code
+                status_label = f"http_{status_code}"
+                rate_limited = status_code == 429
                 
                 # Don't retry on client errors (except 429)
                 if 400 <= status_code < 500 and status_code != 429:
@@ -349,11 +360,17 @@ class CoinbaseExchange:
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
                 logger.warning(f"Network error on {endpoint}: {e}, attempt {attempt + 1}/{max_retries}")
                 last_exception = e
+                status_label = "network_error"
                 
             except Exception as e:
                 logger.error(f"Request failed: {e}")
+                status_label = type(e).__name__
                 raise
-            
+            finally:
+                duration = time.perf_counter() - start_time
+                self._record_rate_usage(channel, rate_limited)
+                self._record_api_metrics(call_label, channel, duration, status_label)
+
             # Exponential backoff with jitter if not last attempt
             if attempt < max_retries - 1:
                 import random
