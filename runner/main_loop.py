@@ -1221,8 +1221,9 @@ class TradingLoop:
             # Reconcile exchange state and purge expired pending markers BEFORE building portfolio
             # This ensures pending_markers are cleared before being read into PortfolioState
             try:
-                self.executor.reconcile_open_orders()
-                self.state_store.purge_expired_pending()
+                with self._stage_timer("order_reconcile"):
+                    self.executor.reconcile_open_orders()
+                    self.state_store.purge_expired_pending()
             except Exception as exc:
                 logger.debug("Cycle reconciliation skipped: %s", exc)
 
