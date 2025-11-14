@@ -2758,13 +2758,26 @@ class ExecutionEngine:
                 success = False
             else:
                 if response.get("success"):
-                    self._clear_pending_marker(product_id, side, client_order_id=client_order_id, order_id=order_id)
+                    self._clear_pending_marker(
+                        product_id,
+                        side,
+                        client_order_id=client_order_id,
+                        order_id=order_id,
+                    )
+                    now = time.time()
+                    self._recently_canceled[order_id] = now
+                    if client_order_id:
+                        self._recently_canceled[client_order_id] = now
                     return True
 
                 error_text = (response.get("error") or "").lower()
                 if "not_found" in error_text or "404" in error_text:
                     logger.info("Cancel order %s treated as already closed (payload=%s)", order_id, response)
                     self._clear_pending_marker(product_id, side, client_order_id=client_order_id, order_id=order_id)
+                    now = time.time()
+                    self._recently_canceled[order_id] = now
+                    if client_order_id:
+                        self._recently_canceled[client_order_id] = now
                     return True
 
                 logger.warning(
