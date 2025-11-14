@@ -1373,6 +1373,7 @@ class TradingLoop:
             
             # Use the filtered approved proposals from risk engine
             approved_proposals = risk_result.approved_proposals
+            approved_count = len(approved_proposals or [])
             logger.info(f"Risk checks PASSED: {len(approved_proposals)}/{len(proposals)} proposals approved")
             if getattr(risk_result, "proposal_rejections", None):
                 logger.info(
