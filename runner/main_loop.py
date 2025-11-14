@@ -1849,6 +1849,7 @@ class TradingLoop:
             duration_seconds=duration,
         )
         metrics.observe_cycle(stats)
+        self._log_cycle_latency_summary(status=status, total_duration=duration)
 
     @contextmanager
     def _stage_timer(self, stage: str):
@@ -1859,6 +1860,31 @@ class TradingLoop:
             metrics = getattr(self, "metrics", None)
             if metrics:
                 metrics.record_stage_duration(stage, max(time.perf_counter() - start, 0.0))
+
+    def _log_cycle_latency_summary(self, *, status: str, total_duration: float) -> None:
+        metrics = getattr(self, "metrics", None)
+        if not metrics:
+            return
+
+        snapshot = metrics.stage_snapshot()
+        if not snapshot:
+            return
+
+        ordered = ", ".join(
+            f"{stage}={snapshot[stage]:.3f}s" for stage in sorted(snapshot.keys())
+        )
+        logger.info(
+            "Latency summary [%s]: total=%.3fs | %s",
+            status,
+            total_duration,
+            ordered,
+        )
+
+    def _audit_cycle(self, **payload) -> None:
+        if not getattr(self, "audit", None):
+            return
+        with self._stage_timer("audit_log"):
+            self.audit.log_cycle(**payload)
 
     def _purge_ineligible_holdings(self, universe) -> None:
         """Sell holdings that are excluded or currently ineligible.
