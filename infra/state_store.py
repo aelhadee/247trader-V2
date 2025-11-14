@@ -688,7 +688,15 @@ class StateStore:
         fees_float = float(fees_dec)
 
         if side_upper == "BUY":
-            managed_positions[symbol] = True
+            # Track managed position with metadata for exits
+            if symbol not in managed_positions:
+                managed_positions[symbol] = {
+                    "entry_price": price_float,
+                    "entry_time": timestamp.isoformat(),
+                    "stop_loss_pct": None,  # Will be set from TradeProposal
+                    "take_profit_pct": None,  # Will be set from TradeProposal
+                    "max_hold_hours": None,  # Will be set from TradeProposal
+                }
 
             if symbol in positions:
                 pos = positions[symbol]
