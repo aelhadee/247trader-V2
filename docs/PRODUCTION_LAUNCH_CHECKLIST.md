@@ -147,7 +147,7 @@ kill -9 <PID>
 
 ### Week 1-2: Validation
 - Account size: $100-200
-- Per-trade size: $5-10
+- Per-trade size: $15-25
 - Max exposure: 10%
 - Goal: Validate system stability
 
