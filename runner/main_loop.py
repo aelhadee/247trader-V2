@@ -1482,7 +1482,7 @@ class TradingLoop:
             if not filtered:
                 reason = "open_orders_pending"
                 logger.info(f"NO_TRADE: {reason}")
-                self.audit.log_cycle(
+                self._audit_cycle(
                     ts=cycle_started,
                     mode=self.mode,
                     universe=universe,
