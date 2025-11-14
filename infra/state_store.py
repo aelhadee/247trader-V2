@@ -939,6 +939,56 @@ class StateStore:
         
         self.save(state)
         return state
+    
+    def update_managed_position_targets(
+        self,
+        symbol: str,
+        stop_loss_pct: Optional[float] = None,
+        take_profit_pct: Optional[float] = None,
+        max_hold_hours: Optional[float] = None,
+    ) -> None:
+        """
+        Update stop-loss, take-profit, and max hold time for a managed position.
+        
+        Called after order execution to set exit targets from TradeProposal.
+        
+        Args:
+            symbol: Asset symbol (e.g., "BTC")
+            stop_loss_pct: Stop-loss percentage
+            take_profit_pct: Take-profit percentage
+            max_hold_hours: Maximum hold time in hours
+        """
+        state = self.load()
+        managed = state.setdefault("managed_positions", {})
+        
+        if symbol not in managed:
+            logger.debug(f"Cannot update targets for non-managed position: {symbol}")
+            return
+        
+        # Update targets (preserve existing if new value is None)
+        if isinstance(managed[symbol], dict):
+            if stop_loss_pct is not None:
+                managed[symbol]["stop_loss_pct"] = stop_loss_pct
+            if take_profit_pct is not None:
+                managed[symbol]["take_profit_pct"] = take_profit_pct
+            if max_hold_hours is not None:
+                managed[symbol]["max_hold_hours"] = max_hold_hours
+        else:
+            # Old format (boolean) - upgrade to dict
+            logger.debug(f"Upgrading managed_position {symbol} from boolean to dict format")
+            managed[symbol] = {
+                "entry_price": None,  # Will be set on next fill
+                "entry_time": None,
+                "stop_loss_pct": stop_loss_pct,
+                "take_profit_pct": take_profit_pct,
+                "max_hold_hours": max_hold_hours,
+            }
+        
+        self.save(state)
+        logger.debug(
+            f"Updated {symbol} targets: SL={stop_loss_pct}%, TP={take_profit_pct}%, "
+            f"max_hold={max_hold_hours}h"
+        )
 
 
 # Singleton instance
