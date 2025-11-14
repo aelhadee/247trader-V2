@@ -12,91 +12,91 @@
       "available": 50.76,
       "hold": 0.0,
       "total": 50.76,
-      "usd_value": 6.1140419999999995
+      "usd_value": 6.119117999999999
     },
     "AVNT": {
       "available": 26.9,
       "hold": 0.0,
       "total": 26.9,
-      "usd_value": 14.936225
+      "usd_value": 14.808449999999999
     },
     "XLM": {
       "available": 93.93405846,
       "hold": 0.0,
       "total": 93.93405846,
-      "usd_value": 25.23627717883437
+      "usd_value": 25.251024826012593
     },
     "ADA": {
       "available": 48.4293762,
       "hold": 0.0,
       "total": 48.4293762,
-      "usd_value": 25.67483379243
+      "usd_value": 25.669990854810003
     },
     "BONK": {
       "available": 1781781.0,
       "hold": 0.0,
       "total": 1781781.0,
-      "usd_value": 20.677568505000004
+      "usd_value": 20.713204125
     },
     "PENGU": {
       "available": 1605.0,
       "hold": 0.0,
       "total": 1605.0,
-      "usd_value": 21.706020000000002
+      "usd_value": 21.7228725
     },
     "UNI": {
       "available": 1.093593,
       "hold": 0.0,
       "total": 1.093593,
-      "usd_value": 8.4234000825
+      "usd_value": 8.4212128965
     },
     "AERO": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.09292050000000002
+      "usd_value": 0.09306750000000001
     },
     "FET": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.028810000000000002
+      "usd_value": 0.028865000000000002
     },
     "WLFI": {
       "available": 165.1,
       "hold": 0.0,
       "total": 165.1,
-      "usd_value": 24.045989499999997
+      "usd_value": 24.0905665
     },
     "HBAR": {
       "available": 909.4,
       "hold": 0.0,
       "total": 909.4,
-      "usd_value": 149.50081300000002
+      "usd_value": 149.609941
     },
     "ZK": {
       "available": 0.21905562,
       "hold": 0.0,
       "total": 0.21905562,
-      "usd_value": 0.0102879471933
+      "usd_value": 0.0103120433115
     },
     "DOGE": {
       "available": 145.6,
       "hold": 0.0,
       "total": 145.6,
-      "usd_value": 23.871848
+      "usd_value": 23.8966
     },
     "XRP": {
       "available": 11.718629,
       "hold": 0.0,
       "total": 11.718629,
-      "usd_value": 27.154407118800002
+      "usd_value": 27.167297610699997
     },
     "BTC": {
       "available": 0.00068841,
       "hold": 0.0,
       "total": 0.00068841,
-      "usd_value": 68.46273247319999
+      "usd_value": 68.48368423155
     }
   },
   "managed_positions": {},
@@ -978,32 +978,10 @@
       "2025-11-14T00:27:09.626247+00:00"
     ]
   },
-  "last_reconcile_at": "2025-11-14T00:27:36.238662+00:00",
+  "last_reconcile_at": "2025-11-14T00:28:52.360726+00:00",
   "last_reset_date": "2025-11-14",
   "last_reset_hour": 0,
   "events": [
-    {
-      "at": "2025-11-13T16:15:53.526992+00:00",
-      "event": "reconcile",
-      "positions": 13,
-      "open_orders": 0,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-13T16:15:59.744153+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-13T16:16:05.738249+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
     {
       "at": "2025-11-13T16:31:48.336240+00:00",
       "event": "order_opened",
@@ -1784,6 +1762,28 @@
       "open_orders": 0,
       "closed": [],
       "created": []
+    },
+    {
+      "at": "2025-11-14T00:28:52.360726+00:00",
+      "event": "reconcile",
+      "positions": 15,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-14T00:28:57.261981+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-14T00:29:02.146511+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
     }
   ],
   "high_water_mark": 538.2423030124753,
@@ -1791,5 +1791,5 @@
   "auto_tune_applied": false,
   "zero_proposal_cycles": 0,
   "auto_loosen_applied": false,
-  "last_open_orders_sync": "2025-11-14T00:27:46.390470+00:00"
+  "last_open_orders_sync": "2025-11-14T00:29:02.146511+00:00"
 }
