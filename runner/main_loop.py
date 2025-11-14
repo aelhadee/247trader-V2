@@ -1853,6 +1853,8 @@ class TradingLoop:
             duration_seconds=duration,
         )
         metrics.observe_cycle(stats)
+        if not status.startswith("executed"):
+            metrics.record_no_trade_reason(status)
         self._log_cycle_latency_summary(status=status, total_duration=duration)
 
     @contextmanager
