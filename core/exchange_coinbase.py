@@ -140,6 +140,62 @@ class CoinbaseExchange:
         if elapsed < self._min_interval:
             time.sleep(self._min_interval - elapsed)
         self._last_call[endpoint] = time.time()
+
+    def configure_rate_limits(self, rate_cfg: Optional[Dict[str, Any]]) -> None:
+        cfg = rate_cfg or {}
+        for channel in ("public", "private"):
+            limit = cfg.get(channel)
+            if limit is None:
+                self._rate_limit_targets[channel] = None
+                continue
+            try:
+                parsed = float(limit)
+            except (TypeError, ValueError):
+                logger.warning("Invalid %s rate limit value: %s", channel, limit)
+                self._rate_limit_targets[channel] = None
+            else:
+                self._rate_limit_targets[channel] = parsed if parsed > 0 else None
+
+    def rate_limit_snapshot(self) -> Dict[str, float]:
+        return dict(self._rate_utilization)
+
+    def _record_rate_usage(self, channel: str, violated: bool = False) -> None:
+        queue = self._rate_usage[channel]
+        now = time.monotonic()
+        queue.append(now)
+        cutoff = now - 1.0
+        while queue and queue[0] < cutoff:
+            queue.popleft()
+
+        limit = self._rate_limit_targets.get(channel)
+        usage = (len(queue) / limit) if limit else 0.0
+        self._rate_utilization[channel] = usage
+        violation = violated or (limit is not None and usage >= 1.0)
+        if self.metrics:
+            self.metrics.record_rate_limit_usage(channel, usage, violated=violation)
+
+    def _record_api_metrics(self, endpoint: str, channel: str, duration: float, status: str) -> None:
+        if self.metrics:
+            self.metrics.record_api_call(endpoint, channel, duration, status)
+
+    def _public_get(self, url: str, *, params: Optional[Dict[str, Any]] = None,
+                    timeout: float = 10.0, label: str = "public_get") -> requests.Response:
+        start = time.perf_counter()
+        status_label = "success"
+        try:
+            response = requests.get(url, params=params, timeout=timeout)
+            response.raise_for_status()
+            return response
+        except requests.exceptions.HTTPError as exc:
+            status_label = f"http_{exc.response.status_code if exc.response else 'error'}"
+            raise
+        except Exception:
+            status_label = "error"
+            raise
+        finally:
+            duration = time.perf_counter() - start
+            self._record_rate_usage("public")
+            self._record_api_metrics(label, "public", duration, status_label)
     
     def _build_jwt(self, method: str, path: str) -> str:
         """Build JWT token for Cloud API authentication (ES256)"""
