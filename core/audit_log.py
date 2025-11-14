@@ -56,7 +56,8 @@ class AuditLogger:
                   no_trade_reason: Optional[str] = None,
                   risk_violations: Optional[List[str]] = None,
                   proposal_rejections: Optional[Dict[str, List[str]]] = None,
-                  state_store: Optional[Any] = None) -> None:
+                  state_store: Optional[Any] = None,
+                  stage_latencies: Optional[Dict[str, float]] = None) -> None:
         """
         Log a complete trading cycle.
         
@@ -70,6 +71,7 @@ class AuditLogger:
             final_orders: Orders that were executed
             no_trade_reason: Reason if no trade occurred
             risk_violations: List of violated risk checks
+            stage_latencies: Optional per-stage timing snapshot for the cycle
         """
         try:
             # Build structured log entry
@@ -79,6 +81,9 @@ class AuditLogger:
                 "status": self._determine_status(final_orders, no_trade_reason),
                 "no_trade_reason": no_trade_reason,
             }
+
+            if stage_latencies:
+                entry["stage_latencies"] = stage_latencies
             
             # PnL summary from state_store
             if state_store:
