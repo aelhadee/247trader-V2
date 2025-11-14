@@ -81,7 +81,7 @@ def test_dust_threshold_frees_capacity_for_new_symbols(base_policy):
         **base_policy,
         "risk": {
             **base_policy["risk"],
-            "dust_threshold_usd": 3.0,
+            "dust_threshold_usd": 10.0,
         },
         "strategy": {
             **base_policy["strategy"],
@@ -145,7 +145,7 @@ def test_allow_adds_when_cap_saturated(base_policy):
         "risk": {
             **base_policy["risk"],
             "allow_adds_when_over_cap": True,
-            "dust_threshold_usd": 3.0,
+            "dust_threshold_usd": 10.0,
         },
         "strategy": {
             **base_policy["strategy"],
