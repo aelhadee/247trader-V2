@@ -1554,6 +1554,13 @@ class TradingLoop:
                 no_trade_reason=None if final_orders else "no_orders_after_execution_filter",
                 state_store=self.state_store,
             )
+            self._record_cycle_metrics(
+                status="executed" if final_orders else "no_orders_after_execution_filter",
+                proposals=proposals_count,
+                approved=approved_count,
+                executed=executed_count,
+                started_at=cycle_started,
+            )
 
             # Post-cycle maintenance: cancel stale open orders (LIVE/PAPER)
             try:
