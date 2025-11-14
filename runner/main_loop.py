@@ -147,7 +147,28 @@ class TradingLoop:
         
         # Initialize core components
         self.exchange = CoinbaseExchange(read_only=self.read_only)
-        self.state_store = create_state_store_from_config(self.app_config.get("state"))
+        state_cfg = self.app_config.get("state") or {}
+        self.state_store = create_state_store_from_config(state_cfg)
+        persist_interval = state_cfg.get("persist_interval_seconds")
+        if persist_interval is not None:
+            try:
+                persist_interval = float(persist_interval)
+            except (TypeError, ValueError):
+                logger.warning("Invalid persist_interval_seconds=%s; disabling periodic flush", persist_interval)
+                persist_interval = None
+        backup_cfg = {
+            "enabled": state_cfg.get("backup_enabled", False),
+            "interval_hours": state_cfg.get("backup_interval_hours"),
+            "interval_seconds": state_cfg.get("backup_interval_seconds"),
+            "path": state_cfg.get("backup_path"),
+            "max_files": state_cfg.get("backup_max_files", 10),
+        }
+        self.state_store_supervisor = StateStoreSupervisor(
+            self.state_store,
+            persist_interval_seconds=persist_interval,
+            backup_config=backup_cfg,
+        )
+        self.state_store_supervisor.start()
         self.audit = AuditLogger(audit_file=log_file.replace('.log', '_audit.jsonl'))
 
         monitoring_cfg = self.app_config.get("monitoring", {}) or {}
