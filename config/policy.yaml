@@ -90,6 +90,26 @@ risk:
   stop_loss_pct: 8.0
   take_profit_pct: 15.0
 
+# Position Exit Management
+# Automatically checks open positions against stop-loss, take-profit, and max hold time
+exits:
+  enabled: true                      # Enable position exit logic
+  check_stop_loss: true              # Check positions against stop-loss targets
+  check_take_profit: true            # Check positions against take-profit targets
+  check_max_hold: true               # Check positions against max hold time
+  
+  # Trailing stop (future enhancement)
+  use_trailing_stop: false           # Trailing stop not yet implemented
+  trailing_stop_pct: 5.0             # Trail stop N% below highest price since entry
+  
+  # Exit execution preferences
+  exit_order_type: "limit_ioc"       # IOC to ensure quick exits (vs post-only)
+  exit_slippage_tolerance_bps: 100   # Allow 1% slippage on exits (protect capital quickly)
+  
+  # Regime-aware exit adjustments (future enhancement)
+  tighten_stops_in_crash: true       # Reduce stop-loss % in crash regime
+  widen_targets_in_bull: true        # Increase take-profit % in bull regime
+
 position_sizing:
   # Base sizing method
   method: "risk_parity"  # fixed | risk_parity | kelly
