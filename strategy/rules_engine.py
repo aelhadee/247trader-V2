@@ -108,6 +108,11 @@ class RulesEngine:
             if tier.upper() in {"T1", "T2"}
         }
 
+        # Allow buying violent downside momentum as a mean-reversion setup
+        self.downside_momentum_min_pct = float(
+            strategy_cfg.get("momentum_downside_reversal_pct", 3.0)
+        )
+
         self.reversal_confirmation_cfg = self._build_reversal_confirmation_cfg(strategy_cfg)
         
         logger.info(
@@ -478,28 +483,36 @@ class RulesEngine:
         Logic: If price is consistently moving one direction, follow it.
         """
         # Direction based on price change
-        if trigger.price_change_pct > 0:
+        price_change = trigger.price_change_pct or 0.0
+        if price_change > 0:
+            reason = f"Momentum: {trigger.reason}"
+            stop_loss = 8.0
+            take_profit = 15.0
+            max_hold = 72
+            base_size = self._tier_base_size(asset.tier)
+            size_pct = self.calculate_volatility_adjusted_size(
+                trigger, base_size, stop_loss, target_risk_pct=1.0
+            )
+            size_pct *= trigger.confidence
             side = "BUY"
+            tags = []
+        elif price_change <= -self.downside_momentum_min_pct:
+            # Violent downside momentum → treat as mean-reversion bounce instead of ignoring
+            reason = f"Momentum flush: {trigger.reason}"
+            stop_loss = 10.0
+            take_profit = 18.0
+            max_hold = 48
+            base_size = self._tier_base_size(asset.tier)
+            size_pct = self.calculate_volatility_adjusted_size(
+                trigger, base_size * 0.85, stop_loss, target_risk_pct=1.0
+            )
+            size_pct *= trigger.confidence * 0.9
+            side = "BUY"
+            tags = ["momentum_dip"]
         else:
-            # Only short if explicitly enabled
-            return None  # No shorts in v2 phase 1
-        
-        reason = f"Momentum: {trigger.reason}"
-        
-        # Standard risk parameters
-        stop_loss = 8.0
-        take_profit = 15.0
-        max_hold = 72
-        
-        # Volatility-adjusted position sizing
-        base_size = self._tier_base_size(asset.tier)
-        size_pct = self.calculate_volatility_adjusted_size(
-            trigger, base_size, stop_loss, target_risk_pct=1.0
-        )
-        # Scale by confidence
-        size_pct *= trigger.confidence
-        
-        return TradeProposal(
+            return None  # Ignore flat/soft downside moves
+
+        proposal = TradeProposal(
             symbol=trigger.symbol,
             side=side,
             size_pct=size_pct,
@@ -509,8 +522,12 @@ class RulesEngine:
             asset=asset,
             stop_loss_pct=stop_loss,
             take_profit_pct=take_profit,
-            max_hold_hours=max_hold
+            max_hold_hours=max_hold,
+            tags=tags,
         )
+        if price_change <= 0:
+            proposal.metadata["momentum_downside"] = True
+        return proposal
     
     def _tier_base_size(self, tier: int) -> float:
         """
