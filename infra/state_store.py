@@ -215,10 +215,10 @@ class InMemoryStateBackend(StateBackend):
 
 class StateStore:
     """
-    Persistent state storage using JSON file.
+    Persistent state storage with pluggable backends.
     
     Features:
-    - Atomic writes (temp file + rename)
+    - Atomic persistence (JSON, SQLite, Redis)
     - Daily/hourly counter resets
     - Cooldown tracking
     - Trade history
@@ -229,24 +229,23 @@ class StateStore:
     MAX_PENDING_HISTORY = 200
     MAX_FILL_HISTORY = 100
 
-    def __init__(self, state_file: Optional[str] = None):
+    def __init__(self, state_file: Optional[str] = None, backend: Optional[StateBackend] = None):
         """
         Initialize state store.
         
         Args:
-            state_file: Path to state JSON file (default: data/.state.json)
+            state_file: Path to state JSON file (legacy helper)
+            backend: Custom persistence backend
         """
-        if state_file:
-            self.state_file = Path(state_file)
+        if backend is not None:
+            self._backend = backend
         else:
-            state_file = os.getenv("STATE_FILE", "data/.state.json")
-            self.state_file = Path(state_file)
+            resolved = state_file or os.getenv("STATE_FILE", "data/.state.json")
+            self._backend = JsonFileBackend(Path(resolved))
         
-        # Ensure directory exists
-        self.state_file.parent.mkdir(parents=True, exist_ok=True)
-        
+        self._backend_description = self._backend.describe()
         self._state = None
-        logger.info(f"Initialized StateStore at {self.state_file}")
+        logger.info(f"Initialized StateStore via {self._backend_description}")
 
     @staticmethod
     def _normalize_symbol(symbol: str) -> str:
@@ -266,31 +265,19 @@ class StateStore:
         Returns:
             State dict with defaults merged
         """
-        if not self.state_file.exists():
-            logger.debug("No state file found, using defaults")
-            return dict(DEFAULT_STATE)
-        
-        try:
-            with open(self.state_file, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                
-            if isinstance(data, dict):
-                # Merge with defaults
-                state = {**DEFAULT_STATE, **data}
-                
-                # Auto-reset counters if needed
-                state = self._auto_reset(state)
-                
-                self._state = state
-                logger.debug("Loaded state from file")
-                return state
-            else:
-                logger.warning("Invalid state file format, using defaults")
-                return dict(DEFAULT_STATE)
-                
-        except Exception as e:
-            logger.error(f"Failed to load state: {e}")
-            return dict(DEFAULT_STATE)
+        payload = self._backend.load()
+        if payload is None:
+            logger.debug("No persisted state found, using defaults")
+            state = dict(DEFAULT_STATE)
+        elif isinstance(payload, dict):
+            state = {**DEFAULT_STATE, **payload}
+        else:
+            logger.warning("Invalid state payload type %s, using defaults", type(payload))
+            state = dict(DEFAULT_STATE)
+
+        state = self._auto_reset(state)
+        self._state = state
+        return state
     
     def save(self, state: Dict[str, Any]) -> None:
         """
@@ -300,22 +287,9 @@ class StateStore:
             state: State dict to save
         """
         try:
-            # Write to temp file first
-            temp_fd, temp_path = tempfile.mkstemp(
-                dir=self.state_file.parent,
-                prefix=".state_",
-                suffix=".json.tmp"
-            )
-            
-            with os.fdopen(temp_fd, "w", encoding="utf-8") as f:
-                json.dump(state, f, indent=2)
-            
-            # Atomic rename
-            os.replace(temp_path, self.state_file)
-            
+            self._backend.save(state)
             self._state = state
-            logger.debug("Saved state to file")
-            
+            logger.debug("Persisted state via %s", self._backend_description)
         except Exception as e:
             logger.error(f"Failed to save state: {e}")
     
