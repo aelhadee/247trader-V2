@@ -618,7 +618,7 @@ class RulesEngine:
         min_required = meta.get("min_required")
         required_total = len(meta.get("required", []))
         logger.info(
-            f"✗ Rejected: {proposal.symbol} conf={conviction:.2f} (<={threshold:.2f}) "
+            f"✗ Rejected: {proposal.symbol} conf={conviction:.2f} threshold={threshold:.2f} "
             f"reason='reversal_confirmations' matched={matched}/{required_total} min_required={min_required}"
         )
 
