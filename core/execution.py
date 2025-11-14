@@ -636,6 +636,53 @@ class ExecutionEngine:
         except (TypeError, ValueError):
             return False
 
+    def _taker_promotion_allowed(
+        self,
+        *,
+        mode: str,
+        estimated_slippage_bps: float,
+        tier: Optional[int],
+        confidence: Optional[float],
+        force_order_type: Optional[str],
+        bypass_slippage_budget: bool,
+    ) -> Tuple[bool, Optional[str]]:
+        """Return whether a taker fallback step is permitted under policy."""
+
+        # Forced market/IOC orders or non-fallback steps always proceed.
+        forced_type = (force_order_type or "").lower()
+        if mode != "fallback" or forced_type in {"market", "limit_ioc", "market_ioc"}:
+            return True, None
+
+        if bypass_slippage_budget:
+            return True, None
+
+        if not self.taker_fallback_enabled:
+            return False, "taker_fallback_disabled"
+
+        if not self.promote_to_taker_if_budget_allows:
+            return False, "taker_promotion_disabled"
+
+        requirements = self.taker_promotion_requirements or {}
+        min_conf = float(requirements.get("min_confidence", 0.0) or 0.0)
+        conf_value = 0.0 if confidence is None else float(confidence)
+        if conf_value < min_conf:
+            return False, f"confidence {conf_value:.2f} < min {min_conf:.2f}"
+
+        max_slip_req = requirements.get("max_slippage_bps")
+        if max_slip_req is not None:
+            try:
+                max_slip_req = float(max_slip_req)
+            except (TypeError, ValueError):
+                max_slip_req = None
+
+        if max_slip_req is not None and estimated_slippage_bps > max_slip_req:
+            return False, (
+                f"slippage {estimated_slippage_bps:.1f}bps exceeds taker cap {max_slip_req:.1f}bps"
+            )
+
+        # Still respect tier-level slippage budgets via downstream checks
+        return True, None
+
     @staticmethod
     def _should_retry_maker(result: ExecutionResult) -> bool:
         if result.success:
