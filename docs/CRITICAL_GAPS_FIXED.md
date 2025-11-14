@@ -311,7 +311,7 @@ kill %1  # Kill background process
 ### Minimal Safe Config (`config/policy.yaml`)
 ```yaml
 risk:
-  min_trade_notional_usd: 5        # Very small for testing
+  min_trade_notional_usd: 15       # Floor to avoid dust trades
   max_total_at_risk_pct: 15.0      # Max 15% exposed
   max_position_size_pct: 5.0       # Max 5% per asset
   daily_stop_pnl_pct: -3.0         # Stop at -3% daily loss
