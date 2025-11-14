@@ -1298,8 +1298,7 @@ class TradingLoop:
                         "Max open positions remain saturated; skipping proposal generation this cycle."
                     )
 
-                with self._stage_timer("audit_log"):
-                    self.audit.log_cycle(**payload)
+                self._audit_cycle(
                     ts=cycle_started,
                     mode=self.mode,
                     universe=None,
