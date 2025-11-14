@@ -1974,6 +1974,25 @@ class RiskEngine:
         self._last_rate_limit_time = datetime.now(timezone.utc)
         logger.warning("Rate limit hit recorded")
     
+    def circuit_snapshot(self) -> Dict[str, Any]:
+        cooldown_seconds = self.circuit_breakers_config.get("rate_limit_cooldown_seconds", 60)
+        last_rate_limit_iso = None
+        cooldown_active = False
+        if self._last_rate_limit_time:
+            last_rate_limit_iso = self._last_rate_limit_time.isoformat()
+            if cooldown_seconds:
+                elapsed = (datetime.now(timezone.utc) - self._last_rate_limit_time).total_seconds()
+                cooldown_active = elapsed < float(cooldown_seconds)
+
+        return {
+            "api_error_count": self._api_error_count,
+            "last_api_success": self._last_api_success.isoformat() if self._last_api_success else None,
+            "last_rate_limit_time": last_rate_limit_iso,
+            "rate_limit_cooldown_seconds": cooldown_seconds,
+            "rate_limit_cooldown_active": cooldown_active,
+            "max_consecutive_api_errors": self.circuit_breakers_config.get("max_consecutive_api_errors"),
+        }
+
     def apply_symbol_cooldown(self, symbol: str, is_stop_loss: bool = False):
         """
         Apply per-symbol cooldown after a loss or stop-out.
