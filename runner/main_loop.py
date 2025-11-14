@@ -2898,6 +2898,7 @@ class TradingLoop:
                     side=proposal.side,
                     size_usd=proposal.notional_usd,
                     tier=None,  # Exits don't need tier
+                    confidence=proposal.confidence,
                 )
                 
                 if result.success:
