@@ -67,7 +67,7 @@ All 4 critical safety features implemented, tested, and production-ready:
 | 🟢 Done | Fail-closed gating when critical data (accounts, quotes, orders) is unavailable. | N/A | `TradingLoop._abort_cycle_due_to_data` returns NO_TRADE. |
 
 | 🔴 TODO | Maintain canonical symbol mapping (`BTC-USD` vs `BTCUSD`) across modules. | TBD | Prevents mismatches between exchange and strategy layers. |
-| 🔴 TODO | Enforce UTC/monotonic time sanity, including explicit bar windowing. | TBD | Replace remaining `datetime.utcnow()` usage and align candles. |
+| � Done | Enforce UTC/monotonic time sanity, including explicit bar windowing. | N/A | All runtime modules now rely on timezone-aware `datetime.now(timezone.utc)`; final `datetime.utcnow()` instance removed from `tools/calculate_pnl.py`. |
 | 🟢 Done | **[BLOCKER #3]** Outlier/bad-tick guards before trigger evaluation. | N/A | TriggerEngine._validate_price_outlier() rejects deviations >10% without volume confirmation; prevents false breakouts; 15 tests in test_outlier_guards.py. See docs/OUTLIER_BAD_TICK_GUARDS.md. |
 | 🟢 Done | Abort cycle if partial snapshot detected during reconcile. | N/A | `_reconcile_exchange_state` raises `CriticalDataUnavailable`. |
 | 🟢 Done | **Reject quotes older than max_quote_age_seconds** before trading decisions. | N/A | Implemented `_validate_quote_freshness()` in ExecutionEngine; validates timestamps at 3 critical points (preview_order, _execute_live, _find_best_trading_pair); uses policy `microstructure.max_quote_age_seconds` (30s default); handles timezone-aware/naive timestamps, detects clock skew; 14 comprehensive tests; all 109 tests passing. See `docs/STALE_QUOTE_REJECTION.md`. |
