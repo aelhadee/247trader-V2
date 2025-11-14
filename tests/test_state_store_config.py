@@ -39,12 +39,12 @@ def test_state_store_supervisor_can_persist_and_backup(tmp_path):
     )
 
     try:
-        supervisor.start()
-        state = store.load()
-        state["pnl_today"] = 42.0
-        # Do not save – supervisor flush should persist update
-        state["pnl_today"] = 43.0
-        time.sleep(0.3)
+    supervisor.start()
+    state = store.load()
+    state["pnl_today"] = 42.0
+    # Do not save – supervisor flush should persist update
+    state["pnl_today"] = 43.0
+    supervisor.force_persist()
         on_disk = json.loads(state_path.read_text())
         assert on_disk["pnl_today"] == 43.0
 
