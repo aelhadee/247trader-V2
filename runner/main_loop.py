@@ -1747,7 +1747,7 @@ class TradingLoop:
                 logger.info("NO_TRADE: execution layer filtered all proposals (liquidity/slippage/notional/etc)")
             
             # Audit cycle
-            self.audit.log_cycle(
+            self._audit_cycle(
                 ts=cycle_started,
                 mode=self.mode,
                 universe=universe,
