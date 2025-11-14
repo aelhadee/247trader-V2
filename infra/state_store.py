@@ -28,7 +28,7 @@ DEFAULT_STATE = {
     "last_win_time": None,
     "cooldowns": {},  # asset -> ISO time when eligible again
     "positions": {},  # asset -> position info
-    "managed_positions": {},  # asset -> bool flag if position created by bot
+    "managed_positions": {},  # asset -> {entry_price, entry_time, stop_loss_pct, take_profit_pct, max_hold_hours}
     "cash_balances": {},  # quote currency -> available
     "open_orders": {},  # client_order_id/order_id -> metadata
     "recent_orders": [],  # bounded history of closed/canceled orders
