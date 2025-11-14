@@ -808,7 +808,17 @@ class RiskEngine:
                 proposal_rejections=proposal_rejections,
             )
         
-        # 4. Trade frequency
+        # 4. Global trade spacing (pacing control)
+        result = self._check_global_trade_spacing()
+        if not result.approved:
+            return RiskCheckResult(
+                approved=False,
+                reason=result.reason,
+                violated_checks=result.violated_checks,
+                proposal_rejections=proposal_rejections,
+            )
+        
+        # 4a. Trade frequency caps (backup guardrails)
         result = self._check_trade_frequency(proposals, portfolio)
         if not result.approved:
             return RiskCheckResult(
