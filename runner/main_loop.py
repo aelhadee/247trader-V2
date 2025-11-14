@@ -1120,6 +1120,13 @@ class TradingLoop:
                     no_trade_reason=capacity_reason,
                     state_store=self.state_store,
                 )
+                self._record_cycle_metrics(
+                    status=capacity_reason,
+                    proposals=proposals_count,
+                    approved=approved_count,
+                    executed=executed_count,
+                    started_at=cycle_started,
+                )
                 return
 
             # Step 1: Build universe
@@ -1153,7 +1160,14 @@ class TradingLoop:
                     risk_approved=[],
                     final_orders=[],
                     no_trade_reason=reason,
-            state_store=self.state_store,
+                    state_store=self.state_store,
+                )
+                self._record_cycle_metrics(
+                    status=reason,
+                    proposals=proposals_count,
+                    approved=approved_count,
+                    executed=executed_count,
+                    started_at=cycle_started,
                 )
                 return
             
@@ -1198,7 +1212,14 @@ class TradingLoop:
                     risk_approved=[],
                     final_orders=[],
                     no_trade_reason=reason,
-            state_store=self.state_store,
+                    state_store=self.state_store,
+                )
+                self._record_cycle_metrics(
+                    status=reason,
+                    proposals=proposals_count,
+                    approved=approved_count,
+                    executed=executed_count,
+                    started_at=cycle_started,
                 )
                 return
             
