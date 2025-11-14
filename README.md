@@ -497,6 +497,8 @@ Trigger → Rule (base) → M1 (news) → M2 (tape) → M3 (governor) → Execut
   - Real-time PnL tracking
   - Alert on unexpected behavior (Slack webhook)
   - Daily summary reports
+  - Prometheus metrics exporter (`monitoring.metrics_enabled`) for cycle stats, stage durations, API/rate usage
+  - HTTP health endpoint (`monitoring.healthcheck_enabled` + `healthcheck_port`) exposing JSON status for probes
 
 **Safety features**:
 - Kill switch file: `data/KILL_SWITCH` halts all trading
