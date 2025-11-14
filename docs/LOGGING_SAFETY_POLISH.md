@@ -24,6 +24,7 @@ Fixed 5 logging/ergonomics issues identified in first real LIVE trading cycle:
 - `_audit_cycle()` now wraps audit writes with the same timer so audit throttling is visible when I/O stalls.
 - Stage timings reset after each `_record_cycle_metrics()` call, so early NO_TRADE exits still get accurate latency breadcrumbs.
 - Audit JSON now includes `stage_latencies` for each cycle so downstream analytics can aggregate hotspots without parsing logs.
+- Added latency budgets (default + `monitoring.latency.stage_budgets` overrides) that warn/alert when any stage or total cycle time breaches its SLA.
 
 ---
 
