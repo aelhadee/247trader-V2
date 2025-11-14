@@ -476,8 +476,11 @@ class ExecutionEngine:
             and size_usd <= self.small_order_market_threshold_usd
         )
 
-        if forced == "market":
-            plan.append({"order_type": "market", "mode": "forced"})
+        if forced in {"market", "limit_ioc", "market_ioc"}:
+            plan.append({
+                "order_type": "market",
+                "mode": "forced_ioc" if forced != "market" else "forced",
+            })
             return plan
 
         if forced == "limit_post_only":
