@@ -1807,7 +1807,7 @@ class TradingLoop:
                     "mode": self.mode,
                 },
             )
-            self.audit.log_cycle(
+            self._audit_cycle(
                 ts=cycle_started,
                 mode=self.mode,
                 universe=None,
