@@ -249,6 +249,8 @@ class TradingLoop:
         
         # Stop loop after current cycle
         self._running = False
+
+        self._stop_state_store_supervisor()
         
         # Graceful cleanup (only if not DRY_RUN)
         if self.mode == "DRY_RUN":
@@ -359,6 +361,15 @@ class TradingLoop:
                 logger.info("Releasing single-instance lock...")
                 self.instance_lock.release()
                 logger.info("✅ Lock released")
+
+    def _stop_state_store_supervisor(self) -> None:
+        supervisor = getattr(self, "state_store_supervisor", None)
+        if not supervisor:
+            return
+        try:
+            supervisor.stop()
+        except Exception as exc:
+            logger.warning("State store supervisor stop failed: %s", exc)
     
     def _load_yaml(self, filename: str) -> dict:
         """Load YAML config file"""
