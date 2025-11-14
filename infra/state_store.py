@@ -7,13 +7,20 @@ Ported from v1 with enhancements for v2 architecture.
 
 import json
 import os
+import sqlite3
 import tempfile
 import uuid
+from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
-from typing import Any, Dict, Optional, Tuple, List
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 import logging
+
+try:  # Optional dependency for redis-backed state store
+    import redis  # type: ignore
+except ImportError:  # pragma: no cover
+    redis = None
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +50,167 @@ DEFAULT_STATE = {
     "zero_trigger_cycles": 0,  # Counter for consecutive cycles with 0 triggers (bounded auto-tune)
     "auto_tune_applied": False,  # Flag to prevent repeated auto-tune adjustments
 }
+
+
+class StateBackend(ABC):
+    """Storage backend contract for StateStore."""
+
+    @abstractmethod
+    def load(self) -> Optional[Dict[str, Any]]:
+        """Return persisted state payload or None if empty."""
+
+    @abstractmethod
+    def save(self, data: Dict[str, Any]) -> None:
+        """Persist provided state payload atomically."""
+
+    @abstractmethod
+    def describe(self) -> str:
+        """Human-readable identifier for logging."""
+
+
+class JsonFileBackend(StateBackend):
+    def __init__(self, path: Path):
+        self.path = path
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+
+    def load(self) -> Optional[Dict[str, Any]]:
+        if not self.path.exists():
+            return None
+        try:
+            with open(self.path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data if isinstance(data, dict) else None
+        except Exception as exc:
+            logger.error("Failed to load state JSON %s: %s", self.path, exc)
+            return None
+
+    def save(self, data: Dict[str, Any]) -> None:
+        temp_fd, temp_path = tempfile.mkstemp(
+            dir=self.path.parent,
+            prefix=".state_",
+            suffix=".json.tmp",
+        )
+        try:
+            with os.fdopen(temp_fd, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+            os.replace(temp_path, self.path)
+        except Exception as exc:
+            logger.error("Failed to write state JSON %s: %s", self.path, exc)
+            raise
+
+    def describe(self) -> str:
+        return f"json://{self.path}"
+
+
+class SQLiteStateBackend(StateBackend):
+    def __init__(self, path: Path):
+        self.path = path
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._ensure_table()
+
+    def _ensure_table(self) -> None:
+        conn = sqlite3.connect(self.path)
+        try:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS state_store (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    payload TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def load(self) -> Optional[Dict[str, Any]]:
+        conn = sqlite3.connect(self.path)
+        try:
+            row = conn.execute("SELECT payload FROM state_store WHERE id = 1").fetchone()
+            if not row or not row[0]:
+                return None
+            return json.loads(row[0])
+        except Exception as exc:
+            logger.error("Failed to load sqlite state %s: %s", self.path, exc)
+            return None
+        finally:
+            conn.close()
+
+    def save(self, data: Dict[str, Any]) -> None:
+        payload = json.dumps(data)
+        conn = sqlite3.connect(self.path)
+        try:
+            conn.execute(
+                """
+                INSERT INTO state_store (id, payload, updated_at)
+                VALUES (1, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET payload = excluded.payload,
+                                            updated_at = excluded.updated_at
+                """,
+                (payload, datetime.now(timezone.utc).isoformat()),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def describe(self) -> str:
+        return f"sqlite://{self.path}"
+
+
+class RedisStateBackend(StateBackend):
+    def __init__(self, *, url: Optional[str] = None, host: str = "localhost", port: int = 6379,
+                 db: int = 0, key: str = "247trader:state"):
+        if redis is None:  # pragma: no cover - optional dependency
+            raise ImportError("redis package not installed; pip install redis to enable redis backend")
+        if url:
+            self._client = redis.Redis.from_url(url)  # type: ignore[attr-defined]
+            self._description = url
+        else:
+            self._client = redis.Redis(host=host, port=port, db=db)
+            self._description = f"redis://{host}:{port}/{db}"
+        self._key = key
+
+    def load(self) -> Optional[Dict[str, Any]]:
+        try:
+            payload = self._client.get(self._key)
+        except Exception as exc:
+            logger.error("Failed to fetch redis state (%s): %s", self._description, exc)
+            return None
+        if not payload:
+            return None
+        try:
+            if isinstance(payload, bytes):
+                payload = payload.decode("utf-8")
+            return json.loads(payload)
+        except Exception as exc:
+            logger.error("Malformed redis state payload: %s", exc)
+            return None
+
+    def save(self, data: Dict[str, Any]) -> None:
+        serialized = json.dumps(data)
+        try:
+            self._client.set(self._key, serialized)
+        except Exception as exc:
+            logger.error("Failed to store redis state (%s): %s", self._description, exc)
+            raise
+
+    def describe(self) -> str:
+        return f"{self._description}#{self._key}"
+
+
+class InMemoryStateBackend(StateBackend):
+    def __init__(self):
+        self._payload: Optional[Dict[str, Any]] = None
+
+    def load(self) -> Optional[Dict[str, Any]]:
+        return self._payload
+
+    def save(self, data: Dict[str, Any]) -> None:
+        self._payload = dict(data)
+
+    def describe(self) -> str:
+        return "memory://state"
 
 
 class StateStore:
