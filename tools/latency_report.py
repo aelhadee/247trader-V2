@@ -80,6 +80,13 @@ def main(argv: List[str] | None = None) -> int:
                     total_durations.append(float(total_duration))
                 except (TypeError, ValueError):
                     pass
+            elif stage_latencies:
+                try:
+                    total_durations.append(
+                        sum(float(v) for v in stage_latencies.values() if isinstance(v, (int, float)))
+                    )
+                except (TypeError, ValueError):
+                    pass
 
     if not stage_samples:
         print("No stage latency data found. Ensure stage_latencies is enabled in the audit log.", file=sys.stderr)
