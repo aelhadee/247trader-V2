@@ -1629,6 +1629,29 @@ class TradingLoop:
                 started_at=cycle_started,
             )
 
+    def _record_cycle_metrics(
+        self,
+        *,
+        status: str,
+        proposals: int,
+        approved: int,
+        executed: int,
+        started_at: datetime,
+    ) -> None:
+        metrics = getattr(self, "metrics", None)
+        if metrics is None or not metrics.is_enabled():
+            return
+
+        duration = max((datetime.now(timezone.utc) - started_at).total_seconds(), 0.0)
+        stats = CycleStats(
+            status=status,
+            proposals=proposals,
+            approved=approved,
+            executed=executed,
+            duration_seconds=duration,
+        )
+        metrics.observe_cycle(stats)
+
     def _purge_ineligible_holdings(self, universe) -> None:
         """Sell holdings that are excluded or currently ineligible.
 
