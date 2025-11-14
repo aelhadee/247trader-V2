@@ -1903,6 +1903,7 @@ class TradingLoop:
             total_duration,
             ordered,
         )
+        self._check_latency_budgets(snapshot, total_duration)
 
     def _audit_cycle(self, **payload) -> None:
         if not getattr(self, "audit", None):
@@ -1913,6 +1914,47 @@ class TradingLoop:
                 payload["stage_latencies"] = dict(timings)
         with self._stage_timer("audit_log"):
             self.audit.log_cycle(**payload)
+
+    def _check_latency_budgets(self, snapshot: Dict[str, float], total_duration: float) -> None:
+        stage_budgets = getattr(self, "_latency_stage_budgets", {}) or {}
+        breaches = []
+        for stage, budget in stage_budgets.items():
+            duration = snapshot.get(stage)
+            if duration is not None and duration > budget:
+                breaches.append((stage, duration, budget))
+
+        total_budget = getattr(self, "_latency_total_budget", None)
+        total_breach = bool(total_budget and total_duration > float(total_budget))
+
+        if not breaches and not total_breach:
+            return
+
+        parts = []
+        if total_breach and total_budget:
+            parts.append(
+                f"total {total_duration:.2f}s>{float(total_budget):.2f}s"
+            )
+        parts.extend(
+            f"{stage} {duration:.2f}s>{budget:.2f}s" for stage, duration, budget in breaches
+        )
+        message = "; ".join(parts)
+        logger.warning("Latency budget exceeded: %s", message)
+
+        alerts = getattr(self, "alerts", None)
+        if alerts and alerts.is_enabled():
+            alerts.notify(
+                AlertSeverity.WARNING,
+                "Latency budget exceeded",
+                message,
+                {
+                    "breaches": [
+                        {"stage": stage, "duration": duration, "budget": budget}
+                        for stage, duration, budget in breaches
+                    ],
+                    "total_duration": total_duration,
+                    "total_budget": total_budget,
+                },
+            )
 
     def _purge_ineligible_holdings(self, universe) -> None:
         """Sell holdings that are excluded or currently ineligible.
