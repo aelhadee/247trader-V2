@@ -611,6 +611,17 @@ class RulesEngine:
             f"[{boost_summary}] threshold={threshold:.2f} trigger_score={trigger_score:.3f}"
         )
 
+    def _log_reversal_rejection(self, proposal: TradeProposal, conviction: float,
+                                threshold: float) -> None:
+        meta = proposal.metadata.get("reversal_confirmations", {}) if proposal.metadata else {}
+        matched = len(meta.get("matched", []))
+        min_required = meta.get("min_required")
+        required_total = len(meta.get("required", []))
+        logger.info(
+            f"✗ Rejected: {proposal.symbol} conf={conviction:.2f} (<={threshold:.2f}) "
+            f"reason='reversal_confirmations' matched={matched}/{required_total} min_required={min_required}"
+        )
+
     def _try_canary(self, proposal: TradeProposal, asset: UniverseAsset, conviction: float,
                     threshold: float, breakdown: Dict[str, float], total_triggers: int) -> Optional[TradeProposal]:
         cfg = self.canary_cfg or {}
