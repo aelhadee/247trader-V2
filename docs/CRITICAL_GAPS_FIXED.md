@@ -246,7 +246,7 @@ These are improvements, not blockers:
 
 ### ⏳ LIVE Launch (After PAPER Validation)
 - [ ] Start with $100-200 account (risk limit)
-- [ ] Reduce position sizes to $5-10 per trade
+- [ ] Reduce position sizes to $15-25 per trade
 - [ ] Set `mode: LIVE` in config/app.yaml
 - [ ] Set `read_only: false` in exchange config
 - [ ] Monitor EVERY trade manually (first 20 trades)
