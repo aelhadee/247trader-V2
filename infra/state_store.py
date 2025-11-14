@@ -298,6 +298,17 @@ class StateStore:
             except Exception as e:
                 logger.error(f"Failed to save state: {e}")
     
+    def flush(self) -> Dict[str, Any]:
+        """Force persistence of the in-memory state snapshot."""
+        with self._lock:
+            state = self._state
+            if state is None:
+                state = self.load()
+            else:
+                self._backend.save(state)
+                logger.debug("Flushed state via %s", self._backend_description)
+            return state
+    
     def update(self, event: str, **kwargs) -> Dict[str, Any]:
         """
         Update state with event.
