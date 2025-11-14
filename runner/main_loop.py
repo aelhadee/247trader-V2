@@ -2267,7 +2267,7 @@ class TradingLoop:
         try:
             # Get liquidation candidates (worst performers first)
             candidates = self.executor.get_liquidation_candidates(
-                min_value_usd=5.0,  # Only consider holdings > $5
+                min_value_usd=10.0,  # Only consider holdings > $10
                 sort_by="performance"
             )
             
