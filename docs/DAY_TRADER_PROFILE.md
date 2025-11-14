@@ -187,11 +187,11 @@ Then restart the bot. All dependent settings will revert to conservative values.
 1. **config/policy.yaml**
    - Added `profile` selector (line 4)
    - Added `profiles` definitions (lines 7-38)
-   - Updated `risk.min_trade_notional_usd: 5`
+   - Updated `risk.min_trade_notional_usd: 15`
    - Updated `risk.max_position_size_pct: 7.0`
    - Updated `strategy.base_position_pct` (3.0% / 1.8% / 0.7%)
    - Updated `strategy.min_conviction_to_propose: 0.30`
-   - Updated `execution.min_notional_usd: 5.0`
+   - Updated `execution.min_notional_usd: 15.0`
 
 ## Next Steps
 
