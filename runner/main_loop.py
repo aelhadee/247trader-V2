@@ -32,6 +32,7 @@ from core.triggers import TriggerEngine
 from strategy.rules_engine import RulesEngine, TradeProposal
 from core.risk import RiskEngine, PortfolioState
 from core.execution import ExecutionEngine, ExecutionResult
+from core.position_manager import PositionManager
 from infra.alerting import AlertService, AlertSeverity
 from infra.state_store import StateStore
 from core.audit_log import AuditLogger
