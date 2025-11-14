@@ -1,6 +1,6 @@
 - [x] Inspect current execution and risk code paths for logging, fill reconciliation, cancel handling, and open-position counting.
 - [x] Write failing regression tests capturing base/quote fill mismatch, canceled→filled reconciliation, and risk cap counting of open orders.
-- [ ] Update execution engine logging to distinguish order placement from fills, and make cancel races tolerant.
+- [x] Update execution engine logging to distinguish order placement from fills, and make cancel races tolerant.
 - [x] Fix fill aggregation math and state persistence using base units and average price.
 - [x] Extend risk engine to count open orders toward max position caps, support dust thresholds, and allow adds while saturated.
 - [x] Harden risk cap filter to auto-approve adds vs new symbols per policy toggles.
