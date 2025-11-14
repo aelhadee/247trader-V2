@@ -304,9 +304,8 @@ class StateStore:
             state = self._state
             if state is None:
                 state = self.load()
-            else:
-                self._backend.save(state)
-                logger.debug("Flushed state via %s", self._backend_description)
+            self._backend.save(state)
+            logger.debug("Flushed state via %s", self._backend_description)
             return state
     
     def update(self, event: str, **kwargs) -> Dict[str, Any]:
