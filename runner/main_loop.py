@@ -1199,7 +1199,7 @@ class TradingLoop:
         logger.info("=" * 80)
         logger.info(f"CYCLE START: {cycle_started.isoformat()}")
         logger.info("=" * 80)
-    self._stage_timings = {}
+        self._stage_timings = {}
         
         try:
             try:
