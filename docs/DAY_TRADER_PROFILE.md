@@ -67,16 +67,16 @@ profiles:
 - T2 cap: $15 → **$22.50** (room for pyramiding)
 - T3 cap: $10 → **$12.50** (enough for small positions)
 
-### 4. Lower Min Trade Notional
-**Before:** 
+### 4. Min Trade Notional Guardrail
+**Before:**
 - Risk: `min_trade_notional_usd: 5`
-- Execution: `min_notional_usd: 9.0` ❌ **MISMATCH**
+- Execution: `min_notional_usd: 5.0`
 
-**After:**
-- Risk: `min_trade_notional_usd: 5`
-- Execution: `min_notional_usd: 5.0` ✅ **ALIGNED**
+**After (safety uplift):**
+- Risk: `min_trade_notional_usd: 15`
+- Execution: `min_notional_usd: 15.0`
 
-**Effect:** Conviction-scaled $7-8 trades now **pass** both risk and execution checks
+**Effect:** Orders smaller than $15 are auto-bumped to the floor so fills cover fees/slippage. You still size proposals the same way, but anything under the floor now routes as a $15 clip instead of a dust trade.
 
 ## Expected Behavior Changes
 
@@ -127,7 +127,7 @@ Even with day_trader profile, you're still protected by:
 ✅ **Stop losses** (1.5% per position)  
 ✅ **Daily loss limit** (-3% NLV → halt)  
 ✅ **Maker-first orders** (post-only TTL)  
-✅ **Min notional** ($5 floor, no dust)  
+✅ **Min notional** ($15 floor, no dust)  
 ✅ **Cooldowns** (30min after loss per symbol)
 
 ## Risk Assessment
