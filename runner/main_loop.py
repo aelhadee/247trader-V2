@@ -1469,6 +1469,18 @@ class TradingLoop:
             # Update state after fills
             if final_orders:
                 self.state_store.update_from_fills(final_orders, self.portfolio)
+                
+                # Update managed position targets from proposals (for BUY orders only)
+                for order, (proposal, _) in zip(final_orders, adjusted_proposals):
+                    if order.success and proposal.side.upper() == "BUY":
+                        symbol = proposal.symbol.replace("-USD", "")
+                        self.state_store.update_managed_position_targets(
+                            symbol=symbol,
+                            stop_loss_pct=proposal.stop_loss_pct,
+                            take_profit_pct=proposal.take_profit_pct,
+                            max_hold_hours=proposal.max_hold_hours,
+                        )
+                
                 self._post_trade_refresh(final_orders)
                 self._apply_cooldowns_after_trades(final_orders, approved_proposals)
                 logger.info(f"Executed {len(final_orders)} order(s)")
