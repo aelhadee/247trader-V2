@@ -38,7 +38,7 @@
 
 **Dust Trade Block:**
 ```python
-if size_usd < self.min_notional_usd:  # Default $5
+if size_usd < self.min_notional_usd:  # Default $15
     return {"success": False, "error": "Size below minimum"}
 ```
 
