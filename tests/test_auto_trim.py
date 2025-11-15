@@ -20,6 +20,9 @@ def test_auto_trim_to_risk_cap_converts_excess_exposure():
             "trim_slippage_buffer_pct": 5.0,
         },
     }
+    
+    # Mock metrics (required by _auto_trim_to_risk_cap)
+    loop.metrics = MagicMock()
 
     candidate = {
         "currency": "PEPE",
@@ -102,6 +105,9 @@ def test_auto_trim_skips_convert_when_pair_denied():
             "trim_slippage_buffer_pct": 5.0,
         },
     }
+    
+    # Mock metrics (required by _auto_trim_to_risk_cap)
+    loop.metrics = MagicMock()
 
     candidate = {
         "currency": "HBAR",
