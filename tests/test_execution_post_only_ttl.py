@@ -54,9 +54,20 @@ def _build_engine(exchange: Mock, ttl_seconds: int = 1) -> ExecutionEngine:
     exchange.list_accounts.return_value = mock_accounts
     exchange.list_balances.return_value = mock_accounts
     engine = ExecutionEngine(mode="LIVE", exchange=exchange, policy=policy)
-    engine.enforce_product_constraints = MagicMock(
-        return_value={"success": True, "adjusted_size_usd": 20.0, "fee_adjusted": False}
-    )
+
+    def _constraints(_symbol, requested_size_usd, _price, is_maker=True):
+        return {
+            "success": True,
+            "adjusted_size_usd": requested_size_usd,
+            "fee_adjusted": False,
+            "metadata": {
+                "base_increment": "1",
+                "quote_increment": "0.01",
+                "price_increment": "0.0001",
+            },
+        }
+
+    engine.enforce_product_constraints = MagicMock(side_effect=_constraints)
     return engine
 
 
