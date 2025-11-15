@@ -2865,34 +2865,49 @@ class TradingLoop:
                     f"    ✅ CONVERT SUCCESS: {units_to_liquidate:.6f} {currency} → {target_currency} (~${freed_usd:.2f})"
                 )
 
+            logger.info(f"    ✅ Liquidation complete, updating counters")
             trimmed_any = True
             remaining_excess_usd = max(0.0, remaining_excess_usd - freed_usd)
             max_liqs -= 1
+            logger.info(f"    📊 Remaining excess: ${remaining_excess_usd:.2f}, remaining max_liqs: {max_liqs}")
 
+        logger.info(f"🔧 TRIM STEP 10: Candidate processing complete (trimmed_any={trimmed_any})")
+        
         if not trimmed_any:
+            logger.error(f"  ❌ NO LIQUIDATIONS SUCCEEDED despite {len(candidates)} candidates")
             self.metrics.record_trim_attempt("failed", consecutive_failures=0)
             return False
 
         # Record successful trim
         liquidated_usd = excess_usd - remaining_excess_usd
+        logger.info(f"🔧 TRIM STEP 11: Recording successful trim (liquidated=${liquidated_usd:.2f})")
         self.metrics.record_trim_attempt("success", consecutive_failures=0, liquidated_usd=liquidated_usd)
-        logger.info(f"Auto trim completed: liquidated ${liquidated_usd:.2f}")
 
+        logger.info(f"🔧 TRIM STEP 12: Reconciling exchange state post-trim")
         try:
             self._reconcile_exchange_state()
+            logger.info(f"  ✅ Exchange state reconciled")
         except CriticalDataUnavailable:
             raise
         except Exception as exc:
-            logger.warning("Post-trim reconcile skipped: %s", exc)
+            logger.warning(f"  ⚠️  Post-trim reconcile skipped: {exc}")
 
+        logger.info(f"🔧 TRIM STEP 13: Refreshing portfolio state")
         try:
             self.portfolio = self._init_portfolio_state()
+            new_exposure_usd = self.portfolio.get_total_exposure_usd()
+            new_exposure_pct = (new_exposure_usd / nav) * 100 if nav else 0.0
+            logger.info(f"  ✅ Portfolio refreshed: new exposure=${new_exposure_usd:.2f} ({new_exposure_pct:.1f}%)")
         except CriticalDataUnavailable:
             raise
         except Exception as exc:
-            logger.warning("Failed to refresh portfolio after trimming: %s", exc)
+            logger.warning(f"  ⚠️  Failed to refresh portfolio after trimming: {exc}")
 
-        logger.info("Auto trim complete. Remaining excess exposure $%.2f", remaining_excess_usd)
+        logger.info(
+            f"✅ AUTO TRIM COMPLETE: liquidated ${liquidated_usd:.2f}, "
+            f"remaining excess=${remaining_excess_usd:.2f}, "
+            f"exposure {exposure_pct:.1f}% → {new_exposure_pct if 'new_exposure_pct' in locals() else '?'}%"
+        )
         return True
 
     def _auto_rebalance_for_trade(self, proposals: List[TradeProposal], deficit_usd: float) -> bool:
