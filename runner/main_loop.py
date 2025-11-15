@@ -2588,6 +2588,9 @@ class TradingLoop:
                     )
             else:
                 self._trim_skip_counter = 1
+            
+            # Record metrics
+            self.metrics.record_trim_attempt("no_candidates", consecutive_failures=self._trim_skip_counter)
             return False
         
         # Reset counter on success finding candidates
