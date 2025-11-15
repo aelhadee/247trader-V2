@@ -19,27 +19,18 @@ from unittest.mock import Mock, MagicMock, patch
 import pytest
 
 
-@pytest.fixture(autouse=True)
-def mock_metrics_module():
-    """Mock metrics module for all tests in this file to avoid Prometheus registry conflicts."""
-    # Save original if it exists (likely already mocked or real)
-    original_module = sys.modules.get('infra.metrics')
+@pytest.fixture(scope="function", autouse=True)
+def _mock_metrics_to_avoid_registry_conflicts():
+    """
+    Mock metrics module at import time to avoid Prometheus registry conflicts.
     
-    # Create fresh mock for each test
-    mock_metrics = MagicMock()
-    mock_metrics.MetricsRecorder = MagicMock(return_value=MagicMock())
-    mock_metrics.CycleStats = MagicMock
-    sys.modules['infra.metrics'] = mock_metrics
-    
-    # Also mock the Prometheus registry to prevent duplicate registration
-    with patch('prometheus_client.REGISTRY', MagicMock()):
-        yield mock_metrics
-    
-    # Restore if there was an original, otherwise remove
-    if original_module is not None:
-        sys.modules['infra.metrics'] = original_module
-    else:
-        sys.modules.pop('infra.metrics', None)
+    Each TradingLoop instantiation tries to register Prometheus metrics, which fails
+    if the same metrics are already registered. This fixture mocks the entire metrics
+    module before main_loop is imported to prevent registration.
+    """
+    # Mock at sys.modules level (already done at module level above)
+    # This fixture just ensures isolation per test function
+    yield
 
 
 # Import after mock is set up

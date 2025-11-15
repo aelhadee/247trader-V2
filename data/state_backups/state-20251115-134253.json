@@ -115,57 +115,6 @@
   "last_reset_hour": 13,
   "events": [
     {
-      "at": "2025-11-15T12:36:32.524932+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-15T12:37:24.373740+00:00",
-      "event": "reconcile",
-      "positions": 15,
-      "open_orders": 0,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-15T12:37:28.070045+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-15T12:37:31.378215+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-15T12:38:19.926620+00:00",
-      "event": "reconcile",
-      "positions": 15,
-      "open_orders": 0,
-      "orders_closed": [],
-      "orders_seen": []
-    },
-    {
-      "at": "2025-11-15T12:38:23.679938+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-15T12:38:27.167053+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
       "at": "2025-11-15T12:39:15.299427+00:00",
       "event": "reconcile",
       "positions": 15,
@@ -836,11 +785,60 @@
       "open_orders": 0,
       "closed": [],
       "created": []
+    },
+    {
+      "at": "2025-11-15T13:38:12.473802+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-15T13:39:52.551443+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-15T13:41:12.525806+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-15T13:41:33.909028+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-15T13:41:54.920053+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-15T13:42:24.908187+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-15T13:42:52.970580+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
     }
   ],
   "high_water_mark": 10000.0,
   "zero_trigger_cycles": 44,
   "auto_tune_applied": true,
   "latency_stats": {},
-  "last_open_orders_sync": "2025-11-15T13:37:50.729798+00:00"
+  "last_open_orders_sync": "2025-11-15T13:42:52.970580+00:00"
 }
