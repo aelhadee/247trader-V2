@@ -314,10 +314,10 @@ portfolio_management:
     max_duration_seconds: 240
     poll_interval_seconds: 2.0
     max_slices: 24
-    max_residual_usd: 5.0
+    max_residual_usd: 12.0  # Increased from 5.0 to reduce thrashing on small positions
     max_consecutive_no_fill: 2
     allow_taker_fallback: true
-    taker_fallback_threshold_usd: 50.0
+    taker_fallback_threshold_usd: 25.0  # Lowered from 50.0 to use taker sooner
     taker_max_slippage_bps: 100
     cushion_ticks: 1
     max_cushion_ticks: 3
