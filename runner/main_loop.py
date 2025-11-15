@@ -3043,6 +3043,54 @@ class TradingLoop:
             logger.info("TWAP: nothing to liquidate for %s (target=$%.2f)", currency, target_value_usd)
             return True
 
+        # Emergency: skip maker-first TWAP and immediately execute taker IOC
+        if force_taker:
+            logger.warning(
+                "⚡ EMERGENCY TAKER EXECUTION: %.6f %s (~$%.2f) via %s (tier T%d)",
+                balance,
+                currency,
+                target_value_usd,
+                pair,
+                tier,
+            )
+            
+            client_order_id = f"emergency_taker_{uuid4().hex[:14]}"
+            
+            try:
+                taker_result = self.executor.execute(
+                    symbol=pair,
+                    side="SELL",
+                    size_usd=target_value_usd,
+                    client_order_id=client_order_id,
+                    force_order_type="limit_ioc",  # IOC to force immediate fill or cancel
+                    skip_liquidity_checks=True,
+                    tier=tier,
+                    bypass_slippage_budget=True,
+                    bypass_failed_order_cooldown=True,
+                )
+                
+                if taker_result.success and taker_result.filled_usd > 0:
+                    logger.info(
+                        "⚡ Emergency taker filled $%.2f (%.6f %s), fees=$%.4f",
+                        taker_result.filled_usd,
+                        taker_result.filled_size,
+                        currency,
+                        taker_result.total_fees,
+                    )
+                    return True
+                else:
+                    logger.error(
+                        "⚡ Emergency taker failed for %s: %s",
+                        pair,
+                        taker_result.error if hasattr(taker_result, 'error') else "No fill",
+                    )
+                    return False
+            except CriticalDataUnavailable:
+                raise
+            except Exception as exc:
+                logger.error("⚡ Emergency taker execution error for %s: %s", pair, exc)
+                return False
+        
         logger.info(
             "TWAP purge start: %.6f %s (~$%.2f) via %s (tier T%d, slice=$%.2f, replace=%.1fs)",
             balance,
