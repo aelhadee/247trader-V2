@@ -2511,11 +2511,15 @@ class TradingLoop:
     def _auto_trim_to_risk_cap(self) -> bool:
         """Liquidate enough exposure to fall back under the global risk cap."""
         
+        logger.info("🔧 ==== AUTO-TRIM FUNCTION ENTERED ====")
         logger.info("🔧 TRIM STEP 1: Checking if auto-trim is needed...")
 
         pm_cfg = self.policy_config.get("portfolio_management", {})
-        if not pm_cfg.get("auto_trim_to_risk_cap", False):
-            logger.debug("  ❌ Auto trim disabled in config (portfolio_management.auto_trim_to_risk_cap=false)")
+        auto_trim_enabled = pm_cfg.get("auto_trim_to_risk_cap", False)
+        logger.info(f"  📊 Config check: portfolio_management.auto_trim_to_risk_cap = {auto_trim_enabled}")
+        
+        if not auto_trim_enabled:
+            logger.warning("  ❌ AUTO-TRIM DISABLED IN CONFIG - returning False immediately")
             return False
 
         if self.mode == "DRY_RUN":
