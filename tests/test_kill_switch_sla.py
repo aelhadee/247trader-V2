@@ -187,6 +187,11 @@ def test_kill_switch_cancel_timing_sla(mock_lock, kill_switch_file, mock_exchang
     loop.mode = "PAPER"  # Not DRY_RUN so cancellation happens
     loop._running = True
     
+    # Mock instance_lock to have a release() method
+    mock_lock_obj = Mock()
+    mock_lock_obj.release = Mock()
+    loop.instance_lock = mock_lock_obj
+    
     # Create mock active orders in OrderStateMachine
     from core.order_state import OrderState, OrderStatus
     mock_order_1 = OrderState(
