@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-@dataclass
 class TriggerSignal:
     """A trigger signal for an asset"""
     symbol: str
