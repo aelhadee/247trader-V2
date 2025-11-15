@@ -572,11 +572,13 @@ Transition **DRY_RUN → PAPER → LIVE** **SHALL** require:
    * Latency telemetry (OB1) active.
    * Jittered scheduling (SCH1) enabled.
    * Alerts wired and verified.
+   * **Status:** ✅ Complete (LatencyTracker operational with 19 tests; jittered scheduling implemented with 3 tests; AlertService wired with 18 tests).
 
 5. **Canary LIVE**
 
    * One tier-1 asset traded LIVE at **≤50%** of normal caps for at least **48h**.
    * Continuous monitoring of exposure and alerts.
+   * **Status:** ⏸️ Pending (scheduled after PAPER rehearsal completion; deployment guide at docs/LIVE_DEPLOYMENT_CHECKLIST.md; monitoring procedures documented).
 
 ---
 
