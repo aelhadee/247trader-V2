@@ -1664,6 +1664,14 @@ class TradingLoop:
             # Record successful API operations for circuit breaker tracking
             self.risk_engine.record_api_success()
             
+            # Reset consecutive API error count in metrics
+            self.metrics.reset_consecutive_api_errors()
+            
+            # Clear circuit breaker states (all passed)
+            for breaker_name in ['rate_limit_cooldown', 'api_health', 'exchange_connectivity', 
+                                'exchange_health', 'volatility_crash']:
+                self.metrics.record_circuit_breaker_state(breaker_name, False)
+            
             if not risk_result.approved or not risk_result.approved_proposals:
                 reason = risk_result.reason or "all_proposals_blocked_by_risk"
                 
