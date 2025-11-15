@@ -443,7 +443,8 @@ class CoinbaseExchange:
                     if not last:
                         last = float(p.get("price") or 0)
                     if not volume_24h:
-                        volume_24h = float(p.get("volume_24h") or 0)
+                        # CRITICAL: Use quote-denominated volume (USD), not base volume
+                        volume_24h = float(p.get("approximate_quote_24h_volume") or p.get("quote_volume_24h") or p.get("volume_24h") or 0)
             except Exception as e:
                 logger.warning(f"product fallback failed for {symbol}: {e}")
 
