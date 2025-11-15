@@ -23,6 +23,7 @@ from urllib.parse import urlencode
 
 if TYPE_CHECKING:  # pragma: no cover
     from infra.metrics import MetricsRecorder
+    from infra.latency_tracker import LatencyTracker
 
 try:
     import jwt
