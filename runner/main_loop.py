@@ -2776,12 +2776,20 @@ class TradingLoop:
 
             if not success:
                 tier = self._infer_tier_from_config(candidate.get("pair")) or 3
+                # For emergency trims (BTC/ETH that are normally exempt), force immediate execution
+                is_emergency = currency in ['BTC', 'ETH']
+                if is_emergency:
+                    logger.warning(
+                        f"⚠️  Emergency trim for {currency}: forcing taker execution to bypass maker-first delays"
+                    )
+                
                 success = self._sell_via_market_order(
                     currency,
                     units_to_liquidate,
                     usd_target=min(freed_usd, remaining_excess_usd),
                     tier=tier,
                     preferred_pair=candidate.get("pair"),
+                    force_taker=is_emergency,  # Skip maker-first for emergency
                 )
 
                 if success:
