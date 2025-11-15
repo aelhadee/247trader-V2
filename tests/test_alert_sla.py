@@ -300,7 +300,7 @@ class TestAlertEscalation:
     
     def test_escalation_includes_metadata(self, alert_service, mock_urllib):
         """Verify escalation includes occurrence count and timing metadata."""
-        with patch('time.monotonic', side_effect=[0.0, 0.1, 30.0, 60.0, 121.0, 121.1]):
+        with patch('time.monotonic', create_time_sequence(0.0, 30.0, 60.0, 121.0)):
             # Multiple occurrences before escalation
             for _ in range(3):
                 alert_service.notify(
