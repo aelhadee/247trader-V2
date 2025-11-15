@@ -190,14 +190,20 @@ class AlertService:
         return hashlib.sha256(content.encode('utf-8')).hexdigest()
 
     def _should_dedupe(self, fingerprint: str) -> bool:
-        """Check if alert should be deduped (within window)."""
+        """
+        Check if alert should be deduped (within 60s window from first occurrence).
+        
+        Uses fixed window from first_seen, not sliding window from last_seen.
+        This means alerts are deduped for 60s after first occurrence, then
+        window resets and next alert goes through.
+        """
         if fingerprint not in self._alert_history:
             return False
         
         record = self._alert_history[fingerprint]
-        elapsed = time.monotonic() - record.last_seen
+        elapsed = time.monotonic() - record.first_seen
         
-        # Don't dedupe if outside window
+        # Don't dedupe if outside window (window expired, will reset on next _record_alert)
         if elapsed > self._config.dedupe_seconds:
             return False
         
