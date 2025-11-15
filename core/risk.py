@@ -288,9 +288,7 @@ class RiskEngine:
 
     @staticmethod
     def _normalize_symbol(symbol: str) -> str:
-        if not symbol:
-            return symbol
-        return symbol if "-" in symbol else f"{symbol}-USD"
+        return normalize_symbol(symbol)
 
     def _build_pending_buy_map(self, portfolio: PortfolioState) -> Dict[str, float]:
         """Normalize pending BUY orders keyed by fully-qualified symbol."""
