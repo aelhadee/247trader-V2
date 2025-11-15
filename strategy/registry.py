@@ -12,13 +12,17 @@ Architecture:
 REQ-STR2: Per-strategy feature flags (enable/disable toggles)
 """
 
-from typing import List, Dict, Any, Optional, Type
+from typing import List, Dict, Any, Optional, Type, TYPE_CHECKING
 from pathlib import Path
 import yaml
 import logging
 
 from strategy.base_strategy import BaseStrategy, StrategyContext
-from strategy.rules_engine import RulesEngine, TradeProposal
+from strategy.rules_engine import RulesEngine
+
+# Avoid circular import
+if TYPE_CHECKING:
+    from strategy.rules_engine import TradeProposal
 
 logger = logging.getLogger(__name__)
 
