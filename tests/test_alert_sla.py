@@ -405,7 +405,7 @@ class TestAlertHistoryManagement:
     
     def test_cleanup_preserves_recent_alerts(self, alert_service):
         """Verify recent alerts (<5min) are not cleaned up."""
-        with patch('time.monotonic', side_effect=[0.0, 0.1, 200.0]):
+        with patch('time.monotonic', create_time_sequence(0.0, 200.0)):
             # Alert at t=0
             alert_service.notify(
                 severity=AlertSeverity.INFO,
