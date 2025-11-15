@@ -77,6 +77,9 @@ class TradingLoop:
         self.policy_config = self._load_yaml("policy.yaml")
         self.signals_config = self._load_yaml("signals.yaml")
         self.universe_config = self._load_yaml("universe.yaml")
+        
+        # Compute config hash for audit trail (configuration drift detection)
+        self.config_hash = self._compute_config_hash()
 
         loop_policy_cfg = self.policy_config.get("loop") or {}
         loop_app_cfg = self.app_config.get("loop") or {}
