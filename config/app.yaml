@@ -12,7 +12,7 @@ exchange:
   api_secret: "${COINBASE_API_SECRET}"
   
   # Read-only mode for safety (must explicitly set to false for LIVE trading)
-  read_only: false
+  read_only: true
   
   # Rate limits (per second)
   rate_limit:
