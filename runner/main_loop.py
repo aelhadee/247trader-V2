@@ -2197,6 +2197,9 @@ class TradingLoop:
             timings = getattr(self, "_stage_timings", None)
             if timings:
                 payload["stage_latencies"] = dict(timings)
+        # Add config hash for drift detection
+        if "config_hash" not in payload:
+            payload["config_hash"] = getattr(self, "config_hash", None)
         with self._stage_timer("audit_log"):
             self.audit.log_cycle(**payload)
 
