@@ -134,7 +134,7 @@ class TestPolicyValidation:
         
         # Should not raise
         schema = PolicySchema(**config)
-    assert schema.risk.max_total_at_risk_pct == 95.0
+        assert schema.risk.max_total_at_risk_pct == 95.0
     
     def test_invalid_risk_percentages(self):
         """Invalid risk percentages fail validation"""
