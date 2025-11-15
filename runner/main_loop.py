@@ -265,6 +265,11 @@ class TradingLoop:
         self.portfolio = self._init_portfolio_state()
         self.current_regime = "chop"  # TODO: Replace with regime detector
         
+        # Exception burst tracking for alert detection
+        self._exception_history = []  # List of (timestamp, exception_type) tuples
+        self._exception_window_seconds = 300  # 5 minutes
+        self._exception_threshold = 2
+        
         # REQ-SEC2: Secret rotation tracking
         from infra.secret_rotation import SecretRotationTracker
         self.secret_rotation_tracker = SecretRotationTracker()
