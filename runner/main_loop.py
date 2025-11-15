@@ -3116,7 +3116,7 @@ class TradingLoop:
         # Emergency: skip maker-first TWAP and immediately execute taker IOC
         if force_taker:
             logger.warning(
-                "⚡ EMERGENCY TAKER EXECUTION: %.6f %s (~$%.2f) via %s (tier T%d)",
+                "⚡ EMERGENCY TAKER EXECUTION START: %.6f %s (~$%.2f) via %s (tier T%d)",
                 balance,
                 currency,
                 target_value_usd,
@@ -3125,6 +3125,16 @@ class TradingLoop:
             )
             
             client_order_id = f"emergency_taker_{uuid4().hex[:14]}"
+            logger.info(f"  📝 Client order ID: {client_order_id}")
+            
+            logger.info(f"  🚀 Calling executor.execute with:")
+            logger.info(f"     - symbol={pair}")
+            logger.info(f"     - side=SELL")
+            logger.info(f"     - size_usd=${target_value_usd:.2f}")
+            logger.info(f"     - force_order_type=limit_ioc (immediate-or-cancel)")
+            logger.info(f"     - skip_liquidity_checks=True")
+            logger.info(f"     - bypass_slippage_budget=True")
+            logger.info(f"     - tier=T{tier}")
             
             try:
                 taker_result = self.executor.execute(
@@ -3139,10 +3149,14 @@ class TradingLoop:
                     bypass_failed_order_cooldown=True,
                 )
                 
+                logger.info(f"  📊 Execution result: success={taker_result.success}, filled_size={taker_result.filled_size:.8f}, filled_price=${taker_result.filled_price:.6f}")
+                
                 filled_usd = taker_result.filled_size * taker_result.filled_price
+                logger.info(f"  💰 Filled USD: {taker_result.filled_size:.8f} × ${taker_result.filled_price:.6f} = ${filled_usd:.2f}")
+                
                 if taker_result.success and filled_usd > 0:
                     logger.info(
-                        "⚡ Emergency taker filled $%.2f (%.6f %s @ $%.6f), fees=$%.4f",
+                        "  ✅ EMERGENCY TAKER SUCCESS: filled $%.2f (%.6f %s @ $%.6f), fees=$%.4f",
                         filled_usd,
                         taker_result.filled_size,
                         currency,
@@ -3151,16 +3165,19 @@ class TradingLoop:
                     )
                     return True
                 else:
+                    error_msg = taker_result.error if hasattr(taker_result, 'error') else "No fill"
                     logger.error(
-                        "⚡ Emergency taker failed for %s: %s",
+                        "  ❌ EMERGENCY TAKER FAILED for %s: %s (success=%s, filled_usd=%.2f)",
                         pair,
-                        taker_result.error if hasattr(taker_result, 'error') else "No fill",
+                        error_msg,
+                        taker_result.success,
+                        filled_usd,
                     )
                     return False
             except CriticalDataUnavailable:
                 raise
             except Exception as exc:
-                logger.error("⚡ Emergency taker execution error for %s: %s", pair, exc)
+                logger.error(f"  ❌ EMERGENCY TAKER EXCEPTION for {pair}: {exc}", exc_info=True)
                 return False
         
         logger.info(
