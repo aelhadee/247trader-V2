@@ -210,7 +210,7 @@ def test_post_only_ttl_handles_cancel_fill_race(monkeypatch: pytest.MonkeyPatch)
     exchange.list_fills.return_value = [
         {
             "size": "498",
-            "size_in_quote": "7.1002",
+            "size_in_quote": "7.099488",
             "price": "0.014256",
             "commission": "0.01",
         }
