@@ -139,6 +139,7 @@ All 4 critical safety features implemented and tested:
 
 **Latest additions:**
 - ✅ Latency Tracking (REQ-OB1): 19 tests added, full p50/p95/p99 telemetry with StateStore persistence and AlertService integration
+- ✅ Jittered Scheduling (REQ-SCH1): 1 test added, 0-10% randomized sleep intervals to prevent lockstep behavior
 
 ---
 
