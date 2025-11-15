@@ -39,6 +39,7 @@ from infra.metrics import MetricsRecorder, CycleStats
 from infra.healthcheck import HealthServer
 from core.audit_log import AuditLogger
 from core.order_state import OrderStatus
+from infra.symbols import normalize_symbol
 
 logger = logging.getLogger(__name__)
 
