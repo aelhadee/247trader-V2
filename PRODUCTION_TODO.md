@@ -178,11 +178,10 @@ Status alignment with formal requirements spec (APP_REQUIREMENTS.md). Tracks all
 | REQ-SEC1 | Secrets handling (env vars, redacted logs) | core/exchange_coinbase.py + all logging | Manual audit passed |
 | REQ-RET1 | Data retention (90-day logs, no PII) | Configured via log rotation | Log config verified |
 
-### 🟡 Partial Implementation (6 requirements)
+### 🟡 Partial Implementation (5 requirements)
 
 | REQ-ID | Requirement | What's Done | What's Missing | Priority |
 | ------ | ----------- | ----------- | -------------- | -------- |
-| REQ-AL1 | Alert SLA (60s dedupe, 2m escalation) | ✅ IMPLEMENTED: AlertService with fingerprinting, fixed dedupe window, escalation with severity boost | See docs/ALERT_DEDUPE_ESCALATION.md | MEDIUM |
 | REQ-CB1 | Retry policy (exponential backoff + jitter) | CoinbaseExchange._req implements backoff for 429/5xx | Full jitter formula verification + fault-injection tests | MEDIUM |
 | REQ-BT1 | Backtest determinism (fixed seed) | backtest/engine.py exists with BacktestEngine | Fixed seed support incomplete | LOW |
 | REQ-BT2 | Backtest JSON reports (trades, PnL, DD) | Basic backtest output exists | Machine-readable JSON format incomplete | LOW |
