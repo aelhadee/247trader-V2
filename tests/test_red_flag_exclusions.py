@@ -33,6 +33,10 @@ def state_store(temp_state_file):
     """Create StateStore with temp backend"""
     backend = JsonFileBackend(temp_state_file)
     store = StateStore(backend=backend)
+    # Clear any existing red flag bans to isolate test
+    state = store.load()
+    state["red_flag_bans"] = {}
+    store.save(state)
     return store
 
 
