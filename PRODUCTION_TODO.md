@@ -108,8 +108,8 @@ All 4 critical safety features implemented, tested, and production-ready:
 | Status | Task | Owner | Notes |
 | ------ | ---- | ----- | ----- |
 | � Done | Load production alert webhook secrets, fire staging alert, and verify on-call routing. | N/A | Alert test script created (`scripts/test_alerts.py`). RiskEngine wired to AlertService (kill switch, stops, drawdown). See `docs/ALERT_SYSTEM_SETUP.md` for configuration and testing. |
-| � Pending Validation | Build alert matrix (stop hits, reconcile mismatch, API failures, empty universe, order rejection, exception bursts). | TBD | Critical alerts wired (kill switch, daily/weekly stop, max DD). Need to add: API errors, reconcile mismatch, order rejections. |
-| 🔴 TODO | Expose metrics for no_trade_reason, exposure, fill ratio, error rates, and latency. | TBD | Needed for dashboards and SLOs. |
+| 🟡 Pending Validation | Build alert matrix (stop hits, reconcile mismatch, API failures, empty universe, order rejection, exception bursts). | TBD | Critical alerts wired (kill switch, daily/weekly stop, max DD, latency threshold violations). Need to add: API errors, reconcile mismatch, order rejections. |
+| � Partial | Expose metrics for no_trade_reason, exposure, fill ratio, error rates, and latency. | N/A | Latency metrics implemented with p50/p95/p99 tracking via LatencyTracker. Persisted to StateStore. Need: no_trade_reason counter, exposure metrics, fill ratio tracking, error rate histograms for dashboards. |
 
 ## Config & Governance
 
