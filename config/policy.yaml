@@ -230,17 +230,20 @@ regime:
     position_size_multiplier: 0.0
     max_positions: 0
 execution:
+  # CONSERVATIVE EXECUTION: Aligned with Freqtrade/Hummingbot timing patterns
+  # Freqtrade: 10min unfilled timeout, GTC orders
+  # Hummingbot: 30min max_order_age, periodic refresh
   maker_fee_bps: 40
   taker_fee_bps: 60
   default_order_type: limit_post_only
-  min_notional_usd: 15.0
+  min_notional_usd: 10.0        # Was 15 - REDUCED to match conservative profile
   maker_first: true
   maker_max_reprices: 1
-  maker_max_ttl_sec: 15
-  maker_first_min_ttl_sec: 12
-  maker_retry_min_ttl_sec: 8
+  maker_max_ttl_sec: 30         # Was 15s - INCREASED to 30s (less aggressive canceling)
+  maker_first_min_ttl_sec: 20   # Was 12s - INCREASED proportionally
+  maker_retry_min_ttl_sec: 15   # Was 8s - INCREASED proportionally
   maker_reprice_decay: 0.7
-  purge_maker_ttl_sec: 25
+  purge_maker_ttl_sec: 45       # Was 25s - INCREASED (allow more time for fills)
   taker_fallback: true
   prefer_ioc: true
   taker_max_slippage_bps:
