@@ -664,6 +664,8 @@ def main():
     parser.add_argument("--end", required=True, help="End date (YYYY-MM-DD)")
     parser.add_argument("--capital", type=float, default=10_000.0, help="Initial capital")
     parser.add_argument("--interval", type=int, default=15, help="Minutes between cycles")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed for deterministic results (REQ-BT1)")
+    parser.add_argument("--output", type=str, help="Path to export JSON report (REQ-BT2)")
     
     args = parser.parse_args()
     
@@ -674,8 +676,8 @@ def main():
     start = datetime.fromisoformat(args.start)
     end = datetime.fromisoformat(args.end)
     
-    # Create backtest engine
-    engine = BacktestEngine(initial_capital=args.capital)
+    # Create backtest engine with seed
+    engine = BacktestEngine(initial_capital=args.capital, seed=args.seed)
     
     # Mock data loader (replace with real data)
     def mock_data_loader(symbols, start, end):
