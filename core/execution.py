@@ -1048,6 +1048,10 @@ class ExecutionEngine:
                             'pair': pair,
                             'change_24h_pct': change_24h_pct
                         })
+                        logger.debug(f"Added candidate: {currency} ${value_usd:.2f} ({change_24h_pct:+.2f}%)")
+                    else:
+                        skipped_below_min += 1
+                        logger.debug(f"Skipping {currency} (${value_usd:.2f}): below min_value_usd=${min_value_usd:.2f}")
                 except Exception:
                     # Try USDC pair as fallback
                     try:
