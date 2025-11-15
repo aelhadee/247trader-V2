@@ -23,6 +23,34 @@ All 4 critical safety features implemented, tested, and production-ready:
 - `docs/ENVIRONMENT_RUNTIME_GATES.md`
 - `docs/LATENCY_TRACKING.md` (NEW: comprehensive latency monitoring guide)
 
+## 🚀 MULTI-STRATEGY FRAMEWORK: COMPLETE ✅
+
+**Status:** Production-ready for adding new trading strategies beyond baseline RulesEngine
+
+**Implementation:** (REQ-STR1-3)
+1. **✅ Pure Strategy Interface** - BaseStrategy abstract class enforces no exchange API access; strategies receive immutable StrategyContext
+2. **✅ Per-Strategy Feature Flags** - Independent enable/disable toggles; new strategies default to disabled
+3. **✅ Per-Strategy Risk Budgets** - Enforced max_at_risk_pct and max_trades_per_cycle BEFORE global caps
+
+**Key Components:**
+- `strategy/base_strategy.py`: BaseStrategy ABC + StrategyContext dataclass
+- `strategy/registry.py`: StrategyRegistry for dynamic loading, filtering, aggregation
+- `strategy/rules_engine.py`: Converted to inherit from BaseStrategy (backward compatible)
+- `config/strategies.yaml`: Declarative strategy configuration with risk budgets
+- `core/risk.py`: _check_strategy_caps() enforces per-strategy limits before global caps
+- `runner/main_loop.py`: Integrated StrategyRegistry.aggregate_proposals()
+
+**Tests:** 29 passing (`tests/test_strategy_framework.py`)
+- Interface enforcement (11 tests)
+- Registry management (8 tests)
+- Backward compatibility (4 tests)
+- Context validation (4 tests)
+- Strategy isolation (2 tests)
+
+**Documentation:** `docs/MULTI_STRATEGY_FRAMEWORK.md` (comprehensive guide with examples)
+
+**Total passing tests:** 226 (197 + 29) | **Requirements coverage:** 27/34 (79%)
+
 ---
 
 ## Safety & Risk Controls
