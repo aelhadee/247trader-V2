@@ -17,7 +17,7 @@ from unittest.mock import Mock, patch, MagicMock
 from runner.main_loop import TradingLoop
 
 
-def test_jitter_config_default(temp_config_dir):
+def test_jitter_config_default():
     """Test jitter configuration loads with default 10%."""
     loop = TradingLoop(config_dir=temp_config_dir)
     assert loop.loop_jitter_pct == 10.0
