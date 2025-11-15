@@ -160,6 +160,20 @@ If a single strategy attempts to exceed its own budget, excess proposals are dro
 
 ---
 
+**REQ-STR4 (Multi-strategy aggregation)**
+The system **SHALL** support multiple concurrent trading strategies via:
+
+* `StrategyRegistry` that manages strategy loading, filtering, and proposal aggregation.
+* `BaseStrategy` abstract class enforcing pure interface (no exchange access).
+* `StrategyContext` providing immutable market data to strategies.
+* `aggregate_proposals()` method handling deduplication by symbol (highest confidence wins).
+
+**Acceptance:**
+Framework can load and execute multiple strategies with independent toggles, aggregate their proposals, deduplicate by symbol, and enforce per-strategy risk budgets BEFORE global caps. Aggregation completes in <100ms for reasonable strategy counts.
+**Status:** ✅ Implemented (`strategy/registry.py`: StrategyRegistry with generate_proposals() and aggregate_proposals(); `strategy/base_strategy.py`: BaseStrategy ABC + StrategyContext; deduplication by symbol with highest confidence selection; 29 tests in test_strategy_framework.py; framework operational with RulesEngine baseline; ready for adding new strategies; completed 2025-11-15).
+
+---
+
 #### 4.2.2 Signals & Rules
 
 **REQ-S1 (Deterministic triggers)**
