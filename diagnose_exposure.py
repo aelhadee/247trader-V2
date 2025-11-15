@@ -10,7 +10,7 @@ from infra.state_store import StateStore
 
 # Initialize
 ex = CoinbaseExchange(read_only=True)
-state = StateStore(db_path="data/state.db")
+state = StateStore(state_file="data/state.db")
 
 print("=" * 80)
 print("EXPOSURE DIAGNOSTIC")
