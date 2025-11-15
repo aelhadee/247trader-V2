@@ -248,8 +248,8 @@ Status alignment with formal requirements spec (APP_REQUIREMENTS.md). Tracks all
 3. ✅ ~~Formalize strategy isolation boundaries~~ - **DONE** - Pure interface, no exchange access, immutable StrategyContext
 
 **Before Full Production Certification:**
-1. Implement secret rotation tracking (REQ-SEC2)
-2. Add clock sync validation (REQ-TIME1)
-3. Complete backtest CI regression gate (REQ-BT3)
+1. ✅ ~~Complete backtest CI regression gate (REQ-BT1-3)~~ - **DONE** - 17 tests passing, deterministic seed + JSON export + ±2% comparison
+2. Implement secret rotation tracking (REQ-SEC2)
+3. Add clock sync validation (REQ-TIME1)
 
 ---
