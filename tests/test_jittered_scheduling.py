@@ -18,13 +18,13 @@ from runner.main_loop import TradingLoop
 def test_jitter_config_loads_from_policy():
     """Test jitter configuration loads from policy.yaml."""
     loop = TradingLoop(config_dir="config")
-    # Should load jitter_pct from policy.yaml loop section
+    # Should load jitter_pct from policy.yaml loop section (default 10.0)
     assert hasattr(loop, 'loop_jitter_pct')
     assert isinstance(loop.loop_jitter_pct, float)
-    assert 0.0 <= loop.loop_jitter_pct <= 20.0  # Within clamped range
+    assert loop.loop_jitter_pct == 10.0  # From policy.yaml
 
 
-def test_jitter_config_clamping():
+def test_jitter_config_clamping_bounds():
     """Test custom jitter percentage."""
     config_dir = tmp_path / "config"
     config_dir.mkdir()
