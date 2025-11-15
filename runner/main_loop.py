@@ -2561,10 +2561,44 @@ class TradingLoop:
         slippage_buffer_pct = max(0.0, float(pm_cfg.get("trim_slippage_buffer_pct", 5.0) or 0.0) / 100.0)
         preferred_quotes = pm_cfg.get("trim_preferred_quotes", ["USDC", "USD", "USDT"]) or []
 
+        logger.info(
+            f"🔍 Trim diagnostics: NAV=${nav:.2f}, exposure=${exposure_usd:.2f} ({exposure_pct:.1f}%), "
+            f"cap={max_total_at_risk:.1f}%, target={target_pct:.1f}%, excess=${excess_usd:.2f}, "
+            f"min_liq_value=${min_liq_value:.2f}"
+        )
+
+        # Get all accounts for diagnostics
+        try:
+            all_accounts = self.executor.get_accounts()
+            logger.info(f"📊 Total accounts: {len(all_accounts)}")
+            for acc in all_accounts:
+                curr = acc['currency']
+                bal = float(acc.get('available_balance', {}).get('value', 0))
+                if bal > 0.001:
+                    # Calculate USD value
+                    usd_val = 0
+                    if curr in ['USD', 'USDC', 'USDT']:
+                        usd_val = bal
+                        logger.info(f"  💵 {curr}: {bal:.6f} = ${usd_val:.2f} (quote currency, exempt from trim)")
+                    else:
+                        try:
+                            pair = f"{curr}-USD"
+                            quote = self.executor.exchange.get_quote(pair)
+                            usd_val = bal * quote.mid
+                            is_preferred = curr in self.executor.preferred_quotes
+                            status = "preferred quote (normally exempt)" if is_preferred else "eligible for trim"
+                            logger.info(f"  🪙 {curr}: {bal:.6f} = ${usd_val:.2f} ({status})")
+                        except Exception as e:
+                            logger.debug(f"  ⚠️  {curr}: {bal:.6f} (failed to price: {e})")
+        except Exception as e:
+            logger.warning(f"Failed to enumerate accounts for diagnostics: {e}")
+
+        logger.info(f"🔎 Searching for liquidation candidates (min_value=${min_liq_value:.2f}, sort=performance)...")
         candidates = self.executor.get_liquidation_candidates(
             min_value_usd=min_liq_value,
             sort_by="performance",
         )
+        logger.info(f"  Found {len(candidates)} standard candidates")
 
         # Fallback 1: if no candidates at min_value threshold, try again with lower threshold
         if not candidates and min_liq_value > self.executor.min_notional_usd:
