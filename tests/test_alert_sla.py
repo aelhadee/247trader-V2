@@ -273,7 +273,7 @@ class TestAlertEscalation:
     
     def test_escalation_prevents_further_escalations(self, alert_service, mock_urllib):
         """Verify already-escalated alerts don't escalate again."""
-        with patch('time.monotonic', side_effect=[0.0, 0.1, 121.0, 121.1, 250.0, 250.1]):
+        with patch('time.monotonic', create_time_sequence(0.0, 121.0, 250.0)):
             # First alert
             alert_service.notify(
                 severity=AlertSeverity.WARNING,
