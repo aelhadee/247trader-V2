@@ -32,14 +32,22 @@
 "universe_build": 15.0,  # Updated from 6.0 to match production requirements
 ```
 
-**No restart needed - fix will apply on next cycle (60s)**
+**Restart required (Python caches module at load time):**
+
+```bash
+# Stop current process (it's already suspended with ^Z)
+pkill -f app_run_live.sh
+
+# Restart with fix applied
+./app_run_live.sh --loop
+```
 
 **Expected outcome:**
 - ✅ Warning disappears (8.98s < 15.0s)
 - ✅ System continues LIVE trading normally
 - ✅ No functional impact
 
-**Status:** COMPLETE - Monitor next cycle logs to confirm
+**Status:** FIX APPLIED - Restart to activate
 
 ## Performance Optimization (Future Work)
 
