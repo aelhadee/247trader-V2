@@ -241,7 +241,7 @@ Exposure calculations **SHALL** include:
 
 **Acceptance:**
 Creating a working order that pushes exposure near the cap blocks further proposals even if the order is not filled yet.
-**Status:** Partial (ensure inclusion across all caps and all code paths).
+**Status:** ✅ Implemented (PortfolioState.pending_orders tracked in global/per-asset/theme caps; 5 comprehensive tests in test_pending_exposure.py).
 
 ---
 
