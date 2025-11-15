@@ -2603,12 +2603,14 @@ class TradingLoop:
         # Fallback 1: if no candidates at min_value threshold, try again with lower threshold
         if not candidates and min_liq_value > self.executor.min_notional_usd:
             logger.warning(
-                f"No candidates at min_value=${min_liq_value}, retrying with ${self.executor.min_notional_usd}"
+                f"🔄 FALLBACK 1: No candidates at min_value=${min_liq_value:.2f}, "
+                f"retrying with min_notional=${self.executor.min_notional_usd:.2f}"
             )
             candidates = self.executor.get_liquidation_candidates(
                 min_value_usd=self.executor.min_notional_usd,
                 sort_by="value",  # Switch to lowest-value first for forced trim
             )
+            logger.info(f"  Found {len(candidates)} candidates with lower threshold")
         
         # Fallback 2: if still no candidates, allow liquidating BTC/ETH (normally exempt as preferred quotes)
         # This handles the case where portfolio is mostly BTC/ETH but exceeds risk cap
