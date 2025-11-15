@@ -179,25 +179,23 @@ def test_kill_switch_cancel_timing_sla(mock_lock, kill_switch_file, mock_exchang
     from core.order_state import OrderState, OrderStatus
     mock_order_1 = OrderState(
         client_order_id="test_order_1",
+        order_id="exchange_order_1",
         symbol="BTC-USD",
         side="BUY",
-        size=0.1,
-        order_type="limit",
-        price=50000.0,
-        status=OrderStatus.OPEN,
+        size_base=0.1,
+        size_usd=5000.0,
+        status=OrderStatus.OPEN.value,
     )
-    mock_order_1.order_id = "exchange_order_1"
     
     mock_order_2 = OrderState(
         client_order_id="test_order_2",
+        order_id="exchange_order_2",
         symbol="ETH-USD",
         side="BUY",
-        size=1.0,
-        order_type="limit",
-        price=3000.0,
-        status=OrderStatus.OPEN,
+        size_base=1.0,
+        size_usd=3000.0,
+        status=OrderStatus.OPEN.value,
     )
-    mock_order_2.order_id = "exchange_order_2"
     
     # Inject orders into OrderStateMachine
     loop.executor.order_state_machine._orders = {
