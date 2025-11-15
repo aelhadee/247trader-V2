@@ -549,6 +549,83 @@ class TradingLoop:
         payload["ok"] = len(issues) == 0
         return payload
     
+    def _startup_validations(self) -> None:
+        """
+        Run startup validations per REQ-SEC2 and REQ-TIME1.
+        
+        Validations:
+        1. REQ-SEC2: Check secret rotation status (CRITICAL alert if overdue)
+        2. REQ-TIME1: Validate clock sync (fail startup if drift >100ms in LIVE)
+        
+        Mode Behavior:
+        - DRY_RUN: Skip clock sync (no real orders)
+        - PAPER: Validate with warnings only
+        - LIVE: Fail fast on violations
+        """
+        logger.info("=" * 80)
+        logger.info("STARTUP VALIDATIONS (REQ-SEC2, REQ-TIME1)")
+        logger.info("=" * 80)
+        
+        # REQ-SEC2: Secret rotation tracking
+        try:
+            logger.info("Checking secret rotation status (REQ-SEC2)...")
+            self.secret_rotation_tracker.check_and_alert(alert_service=self.alerts)
+            
+            status = self.secret_rotation_tracker.get_status()
+            if status["rotation_due"]:
+                logger.critical(
+                    "⚠️ API secrets OVERDUE for rotation! "
+                    f"Last rotated {status['days_since_rotation']} days ago "
+                    f"(policy: {status['policy_days']} days). "
+                    "IMMEDIATE ACTION REQUIRED."
+                )
+            elif status["rotation_warning"]:
+                logger.warning(
+                    f"API secrets rotation approaching: "
+                    f"{status['days_until_due']} days remaining"
+                )
+            else:
+                logger.info(
+                    f"✅ Secret rotation status: OK "
+                    f"(next rotation in {status['days_until_due']} days)"
+                )
+        except Exception as e:
+            logger.error(f"Secret rotation check failed: {e}")
+            # Don't fail startup - just log error
+        
+        # REQ-TIME1: Clock sync validation
+        try:
+            logger.info(f"Validating clock sync (REQ-TIME1, mode={self.mode})...")
+            clock_status = self.clock_sync_validator.validate_or_fail(mode=self.mode)
+            
+            if clock_status["synced"]:
+                logger.info(
+                    f"✅ Clock sync validated: "
+                    f"drift={clock_status['drift_ms']:.1f}ms, "
+                    f"server={clock_status['server']}"
+                )
+            else:
+                # Warning only (validate_or_fail already handled mode-specific behavior)
+                logger.warning(
+                    f"Clock sync check: {clock_status.get('error', 'Unknown error')}"
+                )
+        except RuntimeError as e:
+            # REQ-TIME1: Fail startup in LIVE mode if drift >100ms
+            logger.critical(f"Clock sync validation FAILED: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Clock sync check failed: {e}")
+            if self.mode == "LIVE":
+                # Fail safe: block LIVE trading if clock check fails
+                raise RuntimeError(
+                    f"Clock sync validation required for LIVE mode (REQ-TIME1). "
+                    f"Error: {e}"
+                )
+        
+        logger.info("=" * 80)
+        logger.info("STARTUP VALIDATIONS COMPLETE")
+        logger.info("=" * 80)
+    
     def _load_yaml(self, filename: str) -> dict:
         """Load YAML config file"""
         path = self.config_dir / filename
