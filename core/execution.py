@@ -1092,12 +1092,20 @@ class ExecutionEngine:
                 # Lowest value first (for dust cleanup)
                 candidates.sort(key=lambda x: x['value_usd'])
             
+            # Log summary
+            total_accounts = len(accounts)
+            logger.info(
+                f"📋 Liquidation scan complete: "
+                f"{len(candidates)} candidates found from {total_accounts} accounts | "
+                f"Skipped: {skipped_zero} zero-balance, {skipped_preferred} preferred-quotes, "
+                f"{skipped_below_min} below-min-value (${min_value_usd:.2f}), {failed_to_price} failed-to-price"
+            )
+            
             if candidates:
                 total_value = sum(c['value_usd'] for c in candidates)
-                logger.info(f"Found {len(candidates)} liquidation candidates worth ${total_value:.2f} (sorted by {sort_by})")
-                if candidates:
-                    worst = candidates[0]
-                    logger.info(f"Top candidate: {worst['currency']} (${worst['value_usd']:.2f}, {worst['change_24h_pct']:+.2f}% 24h)")
+                logger.info(f"  💰 Total liquidation value: ${total_value:.2f} (sorted by {sort_by})")
+                worst = candidates[0]
+                logger.info(f"  🎯 Top candidate: {worst['currency']} (${worst['value_usd']:.2f}, {worst['change_24h_pct']:+.2f}% 24h)")
             
             return candidates
             
