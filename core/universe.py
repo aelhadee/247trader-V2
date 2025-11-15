@@ -73,10 +73,11 @@ class UniverseManager:
         self.state_store = state_store
         self.alert_service = alert_service
         
-        # Initialize cache attributes
+        # Initialize cache attributes (fix for AttributeError)
         self._cache: Optional[UniverseSnapshot] = None
         self._cache_time: Optional[datetime] = None
-        self._cache_ttl_seconds: Optional[float] = config.get('universe', {}).get('refresh_interval_hours', 1) * 3600
+        refresh_hours = config.get('universe', {}).get('refresh_interval_hours', 1)
+        self._cache_ttl = timedelta(hours=refresh_hours)
     
     def _load_config(self) -> dict:
         """Load universe configuration"""
