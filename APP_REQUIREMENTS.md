@@ -612,6 +612,7 @@ To be populated in CI:
 | REQ-STR1  | `test_strategy_interface_pure` | strategy tests/logs         | ✅ Implemented (11 tests in test_strategy_framework.py::TestBaseStrategyInterface) |
 | REQ-STR2  | `test_strategy_feature_flags`  | strategy loading logs       | ✅ Implemented (8 tests in test_strategy_framework.py::TestStrategyRegistry) |
 | REQ-STR3  | `test_strategy_risk_budgets`   | risk decisions log          | ✅ Implemented (per-strategy caps in RiskEngine._check_strategy_caps; tested in strategy framework) |
+| REQ-STR4  | `test_multi_strategy_aggregation` | framework operational tests | ✅ Implemented (StrategyRegistry + BaseStrategy + StrategyContext + aggregate_proposals with deduplication; 29 tests in test_strategy_framework.py; ready for adding new strategies; completed 2025-11-15) |
 
 ---
 
