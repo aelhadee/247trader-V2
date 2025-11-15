@@ -188,7 +188,7 @@ class TestAlertEscalation:
     def test_escalation_after_2m_unresolved(self, alert_service, mock_urllib):
         """Verify alert escalates after 2m unresolved."""
         # Timeline: t=0 (first alert), t=121 (escalation check)
-        with patch('time.monotonic', side_effect=[0.0, 0.1, 121.0, 121.1]):
+        with patch('time.monotonic', create_time_sequence(0.0, 121.0)):
             # First alert at t=0
             alert_service.notify(
                 severity=AlertSeverity.WARNING,
