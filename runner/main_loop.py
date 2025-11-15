@@ -1543,7 +1543,6 @@ class TradingLoop:
             with self._stage_timer("rules_engine"):
                 # Build StrategyContext for all strategies
                 from strategy.base_strategy import StrategyContext
-                from datetime import timezone
                 strategy_context = StrategyContext(
                     universe=universe,
                     triggers=triggers,
