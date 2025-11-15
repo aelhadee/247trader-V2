@@ -49,7 +49,7 @@ All 4 critical safety features implemented, tested, and production-ready:
 
 **Documentation:** `docs/MULTI_STRATEGY_FRAMEWORK.md` (comprehensive guide with examples)
 
-**Total passing tests:** 291 (197 + 29 + 17 + 22 + 26) | **Requirements coverage:** 35/34 (103%)
+**Total passing tests:** 314 (291 baseline + 17 REQ-CB1 + 3 timezone fix + 3 clock sync regression) | **Requirements coverage:** 35/34 (103%)
 
 ---
 
