@@ -627,7 +627,7 @@ To be populated in CI:
 ### 🟡 PARTIAL (Functional but Need Hardening)
 1. ~~**Kill-switch (K1)**~~ – ✅ 6 comprehensive SLA tests pass; <10s cancel, <5s alert verified
 2. ~~**Alert routing (AL1)**~~ – ✅ 18 tests passing; 60s dedupe + 2m escalation implemented
-3. **Retry/backoff with jitter (CB1)** – Exponential backoff exists; full jitter formula + fault-injection tests missing
+3. ~~**Retry/backoff with jitter (CB1)**~~ – ✅ 17 comprehensive tests passing; AWS best practice formula verified with fault-injection (completed 2025-11-15)
 4. ~~**Backtest determinism (BT1-3)**~~ – ✅ 17 tests passing; deterministic seed + JSON export + ±2% regression gate complete
 
 ### 🎉 ALL PRODUCTION REQUIREMENTS COMPLETE
