@@ -147,6 +147,8 @@ def print_comparison(deviations: Dict, passed: bool):
 
 
 def main():
+    global TOLERANCE_PCT  # Declare at function start
+    
     parser = argparse.ArgumentParser(
         description="Compare backtest results against baseline (REQ-BT3)"
     )
@@ -170,7 +172,6 @@ def main():
     args = parser.parse_args()
     
     # Override global tolerance if specified
-    global TOLERANCE_PCT
     TOLERANCE_PCT = args.tolerance
     
     # Load reports
