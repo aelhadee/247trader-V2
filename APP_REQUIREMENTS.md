@@ -420,7 +420,7 @@ Targets:
 
 **Acceptance:**
 Telemetry is visible in CI or a dashboard; CI fails if SLOs are violated beyond a configured tolerance.
-**Status:** Planned.
+**Status:** ✅ Implemented (LatencyTracker in infra/latency_tracker.py tracks API calls and cycle stages with p50/p95/p99; StateStore persistence; AlertService integration; 19 tests passing; see docs/LATENCY_TRACKING.md).
 
 ---
 
