@@ -66,7 +66,7 @@ risk:
   
   # Trade pacing: Freqtrade has no explicit limits but recommends cooldowns via "Protections"
   # Our defaults enforce similar behavior to prevent overtrading
-  max_trades_per_day: 15        # Was 40 - REDUCED to ~3 trades/position × 5 positions
+  max_trades_per_day: 120       # Was 15 - FIXED: must be ≥ hourly rate × 24 (5×24=120)
   max_trades_per_hour: 5        # Was 8 - REDUCED to prevent rapid-fire entries
   max_new_trades_per_hour: 3    # Was 8 - REDUCED to match conservative pace
   min_seconds_between_trades: 180  # Was 120s - INCREASED to 3min (Hummingbot-style spacing)
