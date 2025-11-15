@@ -246,13 +246,14 @@ class AlertService:
             record = self._alert_history[fingerprint]
             elapsed = now - record.first_seen
             
-            # Reset as new occurrence only if:
-            # 1) Already escalated (alert lifecycle complete), OR
-            # 2) Dedupe window expired AND escalation window also expired
+            # Reset as new occurrence only if alert lifecycle is complete:
+            # 1) Already escalated (escalation happened, lifecycle complete), OR
+            # 2) Resolved (issue fixed), OR
+            # 3) WAY past escalation window (5min+ with no escalation = stale)
             should_reset = (
                 record.escalated or
                 record.resolved or
-                elapsed > max(self._config.dedupe_seconds, self._config.escalation_seconds)
+                elapsed > 300.0  # 5min - long enough to be considered stale
             )
             
             if should_reset:
