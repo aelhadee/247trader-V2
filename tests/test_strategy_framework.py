@@ -71,21 +71,23 @@ def mock_triggers():
     return [
         TriggerSignal(
             symbol="BTC-USD",
-            pattern="breakout",
+            trigger_type="breakout",
             strength=0.8,
             confidence=0.9,
-            volatility=0.05,
             reason="Price broke resistance",
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
+            current_price=50000.0,
+            volatility=0.05
         ),
         TriggerSignal(
             symbol="ETH-USD",
-            pattern="volume_spike",
+            trigger_type="volume_spike",
             strength=0.7,
             confidence=0.8,
-            volatility=0.06,
             reason="Volume 2x average",
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
+            current_price=3000.0,
+            volatility=0.06
         )
     ]
 
