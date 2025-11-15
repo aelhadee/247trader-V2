@@ -186,11 +186,11 @@ All 4 critical safety features implemented and tested:
 **Total passing tests:** 222  
 **System status:** Production-ready for LIVE trading scale-up
 
-**Latest additions (2025-11-15):**
-- ✅ **Timezone Bug Fix** (P0 BLOCKER): Removed shadowing import at runner/main_loop.py:1505 causing UnboundLocalError; 3 regression tests added (test_timezone_fix.py)
-- ✅ **Clock Sync Tolerance Adjustment**: Increased MAX_DRIFT_MS from 100ms → 150ms to handle production network jitter; all 26 tests updated; validated at 94.8ms drift in LIVE mode
-- ✅ **REQ-CB1 Retry Fault-Injection**: 17 comprehensive tests covering 429 rate limits, 5xx server errors, network failures, exponential backoff with full jitter (test_exchange_retry.py)
-- ✅ **REQ-STR4 Framework Complete**: Multi-strategy architecture operational (StrategyRegistry, BaseStrategy, StrategyContext, aggregate_proposals with deduplication, per-strategy risk budgets)
+# Production TODO
+
+**Updated:** 2025-11-15 19:45 PST  
+**Phase:** PAPER rehearsal in progress (62.5% complete)  
+**Status:** All operational work complete, waiting for 24h validation
 
 **Previous milestones:**
 - ✅ Kill-Switch SLA Verification (REQ-K1): 6 tests added, verified <10s order cancellation, <5s alert latency, <3s detection MTTD
