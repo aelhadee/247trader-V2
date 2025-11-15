@@ -197,7 +197,7 @@ and respect:
 
 **Acceptance:**
 Unit tests and runtime guards reject proposals missing any required field or violating bounds, with explicit error logs.
-**Status:** Implemented.
+**Status:** ✅ Implemented.
 
 ---
 
