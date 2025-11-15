@@ -156,7 +156,7 @@ These caps are applied **before** global caps in the Risk Engine.
 
 **Acceptance:**
 If a single strategy attempts to exceed its own budget, excess proposals are dropped or downscaled with `risk_reason='strategy_cap'`, even if global caps are still available.
-**Status:** Planned.
+**Status:** 🔴 Planned (only global caps implemented; per-strategy budgets needed for multi-strategy).
 
 ---
 
