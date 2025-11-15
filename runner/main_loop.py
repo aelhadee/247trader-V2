@@ -115,11 +115,15 @@ class TradingLoop:
         jitter_pct = loop_policy_cfg.get("jitter_pct", 10.0)  # Default 10%
         self.loop_jitter_pct = max(0.0, min(float(jitter_pct), 20.0))  # Clamp 0-20%
         
-        # Mode & safety
-        self.mode = self.app_config.get("app", {}).get("mode", "LIVE").upper()
+        # Mode & safety (allow test override)
+        config_mode = self.app_config.get("app", {}).get("mode", "LIVE").upper()
+        self.mode = mode_override.upper() if mode_override else config_mode
         allowed_modes = {"DRY_RUN", "PAPER", "LIVE"}
         if self.mode not in allowed_modes:
             raise ValueError(f"Invalid mode: {self.mode}")
+        
+        if mode_override:
+            logger.info(f"Mode override active: {self.mode} (config had {config_mode})")
         
         # Exchange read_only: True unless explicitly false in LIVE mode
         exchange_config = self.app_config.get("exchange", {}) or {}
