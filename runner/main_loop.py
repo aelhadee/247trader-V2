@@ -73,19 +73,18 @@ class TradingLoop:
         
         # Load configs
         self.app_config = self._load_yaml("app.yaml")
-            with self._stage_timer("portfolio_snapshot"):
-                self.portfolio = self._init_portfolio_state()
+        self.policy_config = self._load_yaml("policy.yaml")
+        self.signals_config = self._load_yaml("signals.yaml")
         self.universe_config = self._load_yaml("universe.yaml")
 
-        loop_policy_cfg = (self.policy_config.get("loop") or {})
-        loop_app_cfg = (self.app_config.get("loop") or {})
+        loop_policy_cfg = self.policy_config.get("loop") or {}
+        loop_app_cfg = self.app_config.get("loop") or {}
         self.loop_policy_config = loop_policy_cfg
         self.loop_app_config = loop_app_cfg
 
         loop_cache_ttl = loop_policy_cfg.get("universe_cache_seconds") or loop_app_cfg.get("universe_cache_seconds")
         self._universe_cache_ttl = float(loop_cache_ttl) if loop_cache_ttl is not None else None
-            with self._stage_timer("pending_exposure"):
-                pending_orders = self._get_open_order_exposure()
+
         interval_seconds = loop_policy_cfg.get("interval_seconds") or loop_app_cfg.get("interval_seconds")
         if interval_seconds is None:
             interval_cfg = loop_app_cfg.get("interval") if isinstance(loop_app_cfg.get("interval"), dict) else {}
@@ -94,8 +93,7 @@ class TradingLoop:
             minutes_value = loop_app_cfg.get("interval_minutes")
             if minutes_value is not None:
                 try:
-            with self._stage_timer("risk_trim"):
-                trimmed = self._auto_trim_to_risk_cap()
+                    interval_seconds = float(minutes_value) * 60.0
                 except (TypeError, ValueError):
                     interval_seconds = None
 
@@ -103,19 +101,17 @@ class TradingLoop:
         
         # Mode & safety
         self.mode = self.app_config.get("app", {}).get("mode", "DRY_RUN").upper()
-        
-                with self._stage_timer("pending_exposure_refresh"):
-                    pending_orders = self._get_open_order_exposure()
+        allowed_modes = {"DRY_RUN", "PAPER", "LIVE"}
+        if self.mode not in allowed_modes:
             raise ValueError(f"Invalid mode: {self.mode}")
         
         # Exchange read_only: True unless explicitly false in LIVE mode
-        exchange_config = self.app_config.get("exchange", {})
+        exchange_config = self.app_config.get("exchange", {}) or {}
         read_only_cfg = exchange_config.get("read_only", True)
-        self.read_only = (self.mode != "LIVE") or read_only_cfg
+        self.read_only = (self.mode != "LIVE") or bool(read_only_cfg)
         
         # Logging setup
-            with self._stage_timer("capacity_check"):
-                capacity_reason = self._ensure_capacity_for_new_positions()
+        log_cfg = self.app_config.get("logging", {}) or {}
         log_file = log_cfg.get("file", "logs/247trader-v2.log")
         log_path = Path(log_file)
         log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -123,9 +119,9 @@ class TradingLoop:
         logging.basicConfig(
             level=getattr(logging, log_cfg.get("level", "INFO").upper()),
             format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-            handlers=[logging.FileHandler(log_file), logging.StreamHandler()]
-            self._audit_cycle(
-        
+            handlers=[logging.FileHandler(log_file), logging.StreamHandler()],
+        )
+
         logger.info(f"Starting 247trader-v2 in mode={self.mode}, read_only={self.read_only}")
         
         # CRITICAL: Acquire single-instance lock to prevent double-trading
