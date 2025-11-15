@@ -221,7 +221,7 @@ class TestAlertEscalation:
     
     def test_escalation_boosts_severity(self, alert_service, mock_urllib):
         """Verify escalation boosts severity by configured amount."""
-        with patch('time.monotonic', side_effect=[0.0, 0.1, 121.0, 121.1]):
+        with patch('time.monotonic', create_time_sequence(0.0, 121.0)):
             # WARNING alert
             alert_service.notify(
                 severity=AlertSeverity.WARNING,
