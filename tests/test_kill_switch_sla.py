@@ -52,6 +52,7 @@ def mock_exchange():
 def mock_alert_service():
     """Mock alert service that tracks notification timing."""
     alert_service = Mock()
+    alert_service._enabled = True  # Required for notify() to execute
     alert_service.is_enabled = Mock(return_value=True)
     alert_service.notify = Mock()
     return alert_service
