@@ -153,8 +153,13 @@ class TradingLoop:
         self.metrics = MetricsRecorder(enabled=metrics_enabled, port=metrics_port)
         self.metrics.start()
         
+        # Initialize latency tracker
+        from infra.latency_tracker import LatencyTracker
+        self.latency_tracker = LatencyTracker(retention_per_operation=1000)
+        
         # Initialize core components
-        self.exchange = CoinbaseExchange(read_only=self.read_only, metrics=self.metrics)
+        self.exchange = CoinbaseExchange(read_only=self.read_only, metrics=self.metrics, 
+                                        latency_tracker=self.latency_tracker)
         self.exchange.configure_rate_limits(exchange_config.get("rate_limit"))
         state_cfg = self.app_config.get("state") or {}
         self.state_store = create_state_store_from_config(state_cfg)
