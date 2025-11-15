@@ -269,7 +269,7 @@ class StrategyRegistry:
         self,
         context: StrategyContext,
         dedupe_by_symbol: bool = True
-    ) -> List[TradeProposal]:
+    ) -> List[Any]:
         """
         Generate and aggregate proposals from all strategies.
         
