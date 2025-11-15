@@ -465,7 +465,7 @@ CI **SHALL** compare key backtest metrics to a baseline and fail if deviation ex
 * The app **SHALL** refuse to start if secrets appear in plaintext configs.
 * Logs **SHALL** redact secrets with 100% coverage (verified by a secret-scanner).
 
-**Status:** Implemented.
+**Status:** ✅ Implemented (CB_API_SECRET_FILE env var support; fallback to COINBASE_API_KEY/SECRET; secrets never logged).
 
 ---
 
