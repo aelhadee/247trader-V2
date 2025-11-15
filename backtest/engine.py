@@ -366,39 +366,71 @@ class BacktestEngine:
         return triggers
     
     def _execute_proposal(self, proposal: TradeProposal, current_time: datetime, data_loader):
-        """Execute a trade proposal"""
-        # Get current price from data_loader
-        entry_price = self._get_current_price(proposal.symbol, current_time, data_loader)
-        if entry_price is None:
+        """Execute a trade proposal with realistic slippage and fees"""
+        # Get mid price from data_loader
+        mid_price = self._get_current_price(proposal.symbol, current_time, data_loader)
+        if mid_price is None:
             logger.warning(f"Could not get price for {proposal.symbol}, skipping trade")
             return
         
-        # Calculate position size in USD
+        # Calculate position size in USD (before fees)
         size_usd = (proposal.size_pct / 100.0) * self.capital
         
-        # Create trade
+        # Get asset tier for slippage calculation
+        asset = self.universe_mgr.get_asset_by_symbol(proposal.symbol)
+        tier = getattr(asset, "tier", "tier2") if asset else "tier2"
+        
+        # Convert side to lowercase for slippage model
+        side = "buy" if proposal.side == "BUY" else "sell"
+        
+        # Calculate realistic fill price with slippage
+        # Conservative: assume taker orders (pay more fees but guaranteed execution)
+        quantity = size_usd / mid_price  # Rough quantity estimate
+        fill_price = self.slippage_model.calculate_fill_price(
+            mid_price=mid_price,
+            side=side,
+            tier=tier,
+            order_type="taker",
+            notional_usd=size_usd
+        )
+        
+        # Calculate actual cost including fees
+        gross_notional, total_cost = self.slippage_model.calculate_total_cost(
+            fill_price=fill_price,
+            quantity=quantity,
+            side=side,
+            order_type="taker"
+        )
+        
+        # Check if we have enough capital for total cost
+        if side == "buy" and total_cost > self.capital:
+            logger.debug(f"Insufficient capital for {proposal.symbol}: ${total_cost:,.2f} > ${self.capital:,.2f}")
+            return
+        
+        # Create trade with realistic fill price
         trade = Trade(
             symbol=proposal.symbol,
             side=proposal.side,
-            entry_price=entry_price,
+            entry_price=fill_price,  # Use slipped price
             entry_time=current_time,
             size_usd=size_usd,
             max_hold_hours=proposal.max_hold_hours
         )
         
-        # Set stops
+        # Set stops based on fill price (not mid)
         if proposal.stop_loss_pct:
-            trade.stop_loss_price = entry_price * (1 - proposal.stop_loss_pct / 100.0)
+            trade.stop_loss_price = fill_price * (1 - proposal.stop_loss_pct / 100.0)
         if proposal.take_profit_pct:
-            trade.take_profit_price = entry_price * (1 + proposal.take_profit_pct / 100.0)
+            trade.take_profit_price = fill_price * (1 + proposal.take_profit_pct / 100.0)
         
         self.open_trades.append(trade)
         self.daily_trade_count += 1
         
+        fee_usd = total_cost - gross_notional if side == "buy" else gross_notional - total_cost
         logger.debug(
-            f"OPEN {trade.symbol} @ ${entry_price:,.2f} | "
-            f"Size: ${size_usd:,.0f} | Stop: ${trade.stop_loss_price:,.2f} | "
-            f"Target: ${trade.take_profit_price:,.2f}"
+            f"OPEN {trade.symbol} @ ${fill_price:,.2f} (mid: ${mid_price:,.2f}) | "
+            f"Size: ${size_usd:,.0f} | Fee: ${fee_usd:,.2f} | Tier: {tier} | "
+            f"Stop: ${trade.stop_loss_price:,.2f} | Target: ${trade.take_profit_price:,.2f}"
         )
     
     def _update_open_positions(self, current_time: datetime, data_loader):
