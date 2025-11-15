@@ -343,7 +343,7 @@ latency:
   # Decision cycle stage budgets in seconds
   stage_budgets:
     order_reconcile: 2.0
-    universe_build: .0
+    universe_build: 1.0
     trigger_scan: 6.0
     rules_engine: 4.0
     risk_engine: 4.0
