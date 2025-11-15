@@ -2615,21 +2615,27 @@ class TradingLoop:
         # Fallback 2: if still no candidates, allow liquidating BTC/ETH (normally exempt as preferred quotes)
         # This handles the case where portfolio is mostly BTC/ETH but exceeds risk cap
         if not candidates:
-            logger.warning("No standard candidates found, scanning BTC/ETH for emergency trim")
+            logger.warning("🔄 FALLBACK 2: No standard candidates found, scanning BTC/ETH for emergency trim")
             accounts = self.executor._require_accounts("emergency_trim")
+            btc_eth_checked = 0
             for acc in accounts:
                 curr = acc['currency']
                 if curr not in ['BTC', 'ETH']:  # Only scan BTC/ETH, never liquidate USDC/USD/USDT
                     continue
                 
+                btc_eth_checked += 1
                 bal = float(acc.get('available_balance', {}).get('value', 0))
+                logger.info(f"  Checking {curr}: balance={bal:.8f}")
+                
                 if bal == 0:
+                    logger.info(f"    ❌ {curr} balance is zero, skipping")
                     continue
                 
                 try:
                     pair = f"{curr}-USD"
                     quote = self.executor.exchange.get_quote(pair)
                     value_usd = bal * quote.mid
+                    logger.info(f"    💰 {curr} value: ${value_usd:.2f} (min_notional=${self.executor.min_notional_usd:.2f})")
                     
                     if value_usd >= self.executor.min_notional_usd:
                         candidates.append({
@@ -2641,9 +2647,13 @@ class TradingLoop:
                             'pair': pair,
                             'change_24h_pct': 0.0
                         })
-                        logger.info(f"Emergency trim candidate: {curr} ${value_usd:.2f}")
+                        logger.warning(f"    ✅ Emergency trim candidate added: {curr} ${value_usd:.2f}")
+                    else:
+                        logger.info(f"    ❌ {curr} below min_notional, skipping")
                 except Exception as e:
-                    logger.debug(f"Failed to check {curr} for emergency trim: {e}")
+                    logger.warning(f"    ⚠️  Failed to check {curr} for emergency trim: {e}")
+            
+            logger.info(f"  Emergency scan results: checked {btc_eth_checked} BTC/ETH accounts, found {len(candidates)} candidates")
 
         if not candidates:
             logger.warning("Auto trim skipped: no liquidation candidates available (checked all holdings)")
