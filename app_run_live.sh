@@ -237,7 +237,15 @@ if [ "$MODE" = "LIVE" ]; then
     echo "═══════════════════════════════════════════════════════════"
     log_warning "This will place REAL ORDERS with REAL MONEY"
     log_warning "Account balance: \$${BALANCE} USDC"
-    log_warning "Auto-confirming launch (no interactive prompt)"
+    echo ""
+    
+    # Require explicit confirmation
+    read -p "Type 'YES' in all caps to proceed with LIVE trading: " CONFIRM
+    if [ "$CONFIRM" != "YES" ]; then
+        log_error "LIVE mode confirmation failed. Exiting."
+        exit 1
+    fi
+    log_success "✅ LIVE mode confirmed"
     echo ""
 fi
 

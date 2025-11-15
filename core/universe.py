@@ -83,6 +83,32 @@ class UniverseManager:
         self._near_threshold_cfg = config.get('universe', {}).get('near_threshold_override', {})
         self._near_threshold_usage: dict[str, int] = {}
     
+    @classmethod
+    def from_config_path(cls, config_path: str, exchange=None, state_store=None, alert_service=None):
+        """
+        Create UniverseManager from config file path (backward compatibility).
+        
+        Args:
+            config_path: Path to config file
+            exchange: Optional exchange instance
+            state_store: Optional state store instance
+            alert_service: Optional alert service instance
+            
+        Returns:
+            UniverseManager instance
+        """
+        from pathlib import Path
+        import yaml
+        
+        config_path_obj = Path(config_path)
+        if not config_path_obj.exists():
+            raise FileNotFoundError(f"Config file not found: {config_path}")
+        
+        with open(config_path_obj) as f:
+            config = yaml.safe_load(f)
+        
+        return cls(config=config, exchange=exchange, state_store=state_store, alert_service=alert_service)
+    
     def _load_config(self) -> dict:
         """Load universe configuration"""
         if not self.config_path.exists():
