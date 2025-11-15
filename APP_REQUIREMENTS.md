@@ -479,7 +479,7 @@ Secrets **SHALL** be rotated at least every **90 days**, and the rotation event 
 **REQ-TIME1 (Clock sync gate)**
 The host clock **SHALL** be NTP-synced with drift < **100ms** relative to a trusted source; otherwise the app **SHALL** refuse to start.
 
-**Status:** Planned.
+**Status:** 🔴 Planned (no clock drift validation on startup).
 
 ---
 
