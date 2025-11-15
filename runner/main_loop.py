@@ -2656,7 +2656,19 @@ class TradingLoop:
             logger.info(f"  Emergency scan results: checked {btc_eth_checked} BTC/ETH accounts, found {len(candidates)} candidates")
 
         if not candidates:
-            logger.warning("Auto trim skipped: no liquidation candidates available (checked all holdings)")
+            logger.error(
+                f"❌ Auto trim FAILED: no liquidation candidates available after all fallbacks\n"
+                f"   NAV: ${nav:.2f}\n"
+                f"   Exposure: ${exposure_usd:.2f} ({exposure_pct:.1f}%)\n"
+                f"   Cap: {max_total_at_risk:.1f}%\n"
+                f"   Excess: ${excess_usd:.2f}\n"
+                f"   Candidates checked: standard + min_notional fallback + BTC/ETH emergency scan\n"
+                f"   Possible reasons:\n"
+                f"     - All holdings are preferred quotes (USDC/USD/USDT) - exempt from trim\n"
+                f"     - All holdings below min_notional (${self.executor.min_notional_usd:.2f})\n"
+                f"     - Holdings exist but failed to price\n"
+                f"   Action required: Review account holdings above or manually liquidate"
+            )
             # Emit counter for monitoring
             if hasattr(self, '_trim_skip_counter'):
                 self._trim_skip_counter = getattr(self, '_trim_skip_counter', 0) + 1
