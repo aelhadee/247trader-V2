@@ -239,7 +239,7 @@ class TradingLoop:
         latency_cfg = (self.monitoring_config or {}).get("latency", {}) or {}
         default_stage_budgets = {
             "order_reconcile": 2.0,
-            "universe_build": 6.0,
+            "universe_build": 15.0,  # Updated from 6.0 to match production requirements
             "trigger_scan": 6.0,
             "rules_engine": 4.0,
             "risk_engine": 4.0,
