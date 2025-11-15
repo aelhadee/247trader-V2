@@ -347,6 +347,18 @@ class MetricsRecorder:
             return "connection_error"
         else:
             return "other"
+    
+    def record_trim_attempt(self, outcome: str, consecutive_failures: int = 0, liquidated_usd: float = 0.0) -> None:
+        """Record auto-trim attempt and outcome"""
+        if not self._enabled:
+            return
+        
+        assert self._trim_attempts_counter and self._trim_consecutive_failures_gauge and self._trim_liquidated_usd_counter
+        self._trim_attempts_counter.labels(outcome=outcome).inc()
+        self._trim_consecutive_failures_gauge.set(consecutive_failures)
+        
+        if liquidated_usd > 0:
+            self._trim_liquidated_usd_counter.inc(liquidated_usd)
 
 
 __all__ = ["MetricsRecorder", "CycleStats"]
