@@ -281,7 +281,7 @@ Ticks with:
 
 **Acceptance:**
 Synthetic spikes trigger risk rejections and log outlier metrics.
-**Status:** Implemented.
+**Status:** ✅ Implemented (TriggerEngine._validate_price_outlier rejects >10% deviations without volume confirmation; 15 tests in test_outlier_guards.py).
 
 ---
 
