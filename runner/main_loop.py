@@ -1875,6 +1875,10 @@ class TradingLoop:
             metrics = getattr(self, "metrics", None)
             if metrics:
                 metrics.record_stage_duration(stage, duration)
+            # Record to latency tracker for detailed analysis
+            latency_tracker = getattr(self, "latency_tracker", None)
+            if latency_tracker:
+                latency_tracker.record(f"cycle_{stage}", duration * 1000.0, {"mode": self.mode})
 
     def _log_cycle_latency_summary(self, *, status: str, total_duration: float) -> None:
         metrics = getattr(self, "metrics", None)
