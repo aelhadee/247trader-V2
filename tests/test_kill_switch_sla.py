@@ -77,6 +77,8 @@ def test_kill_switch_blocks_proposals_immediately(mock_lock, kill_switch_file, m
     
     # Execute: Check risk engine blocks proposals
     from core.risk import PortfolioState
+    from strategy.rules_engine import TradeProposal
+    
     portfolio = PortfolioState(
         account_value_usd=10000.0,
         open_positions={},
@@ -88,7 +90,18 @@ def test_kill_switch_blocks_proposals_immediately(mock_lock, kill_switch_file, m
         pending_orders={},
     )
     
-    result = loop.risk_engine.check_all(proposals=[], portfolio=portfolio)
+    # Create a proposal to test that kill switch blocks it
+    proposal = TradeProposal(
+        symbol="BTC-USD",
+        side="BUY",
+        notional_pct=1.0,
+        stop_loss_pct=2.0,
+        take_profit_pct=5.0,
+        conviction=0.8,
+        trigger_reasons=["test"],
+    )
+    
+    result = loop.risk_engine.check_all(proposals=[proposal], portfolio=portfolio)
     
     # Assert: Proposals blocked
     assert not result.approved, "Kill switch should block all proposals"
