@@ -251,7 +251,7 @@ execution:
     T2: 40
     T3: 60
     default: 60
-  auto_convert_preferred_quote: true
+  auto_convert_preferred_quote: false  # Disabled - API lacks convert privileges
   clamp_small_trades: true
   small_order_market_threshold_usd: 6.0
   allow_min_bump_in_risk: true
