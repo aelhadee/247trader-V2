@@ -55,6 +55,32 @@ def mock_urllib():
         yield mock_urlopen
 
 
+def create_time_sequence(*phases):
+    """
+    Create a time generator for mocking time.monotonic().
+    
+    Each phase represents a time value that will be returned for ~15 calls.
+    This handles the multiple time.monotonic() calls within each notify().
+    
+    Example: create_time_sequence(0.0, 30.0, 60.0) will return:
+    - 0.0 for first ~15 calls
+    - 30.0 for next ~15 calls
+    - 60.0 for remaining calls
+    """
+    class TimeGenerator:
+        def __init__(self, phases):
+            self.phases = phases
+            self.call_count = 0
+            self.calls_per_phase = 15
+        
+        def __call__(self):
+            self.call_count += 1
+            phase_index = min((self.call_count - 1) // self.calls_per_phase, len(self.phases) - 1)
+            return self.phases[phase_index]
+    
+    return TimeGenerator(phases)
+
+
 class TestAlertDeduplication:
     """Test alert deduplication within 60s window (REQ-AL1.1)."""
     
