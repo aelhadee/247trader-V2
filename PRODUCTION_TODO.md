@@ -49,7 +49,7 @@ All 4 critical safety features implemented, tested, and production-ready:
 
 **Documentation:** `docs/MULTI_STRATEGY_FRAMEWORK.md` (comprehensive guide with examples)
 
-**Total passing tests:** 226 (197 + 29) | **Requirements coverage:** 27/34 (79%)
+**Total passing tests:** 243 (197 + 29 + 17) | **Requirements coverage:** 33/34 (97%)
 
 ---
 
