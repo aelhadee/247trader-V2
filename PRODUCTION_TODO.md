@@ -187,21 +187,18 @@ Status alignment with formal requirements spec (APP_REQUIREMENTS.md). Tracks all
 | REQ-BT2 | Backtest JSON reports (trades, PnL, DD) | Basic backtest output exists | Machine-readable JSON format incomplete | LOW |
 | REQ-BT3 | CI regression gate (±2% tolerance) | Unit tests in CI | Backtest comparison gate not implemented | LOW |
 
-### 🔴 Planned (5 requirements)
+### 🔴 Planned (2 requirements)
 
 | REQ-ID | Requirement | Why Needed | Blocking What | Priority |
 | ------ | ----------- | ---------- | ------------- | -------- |
-| REQ-STR1 | Pure strategy interface (no direct exchange calls) | Multi-strategy support | Adding new strategies beyond RulesEngine | HIGH |
-| REQ-STR2 | Per-strategy feature flags (enable/disable toggles) | Safe strategy rollout | Multi-strategy operation | HIGH |
-| REQ-STR3 | Per-strategy risk budgets (caps per strategy) | Isolate strategy risk | Multi-strategy capital allocation | HIGH |
 | REQ-SEC2 | Secret rotation policy (90-day rotation + tracking) | Security compliance | Production certification | MEDIUM |
 | REQ-TIME1 | Clock sync gate (NTP drift <100ms validation) | Timestamp reliability | Production safety | MEDIUM |
 
 ### 🎯 Requirements Coverage Summary
 
-- **✅ Implemented:** 24/34 requirements (71%)
+- **✅ Implemented:** 27/34 requirements (79%)
 - **🟡 Partial:** 5/34 requirements (15%)
-- **🔴 Planned:** 5/34 requirements (15%)
+- **🔴 Planned:** 2/34 requirements (6%)
 - **Total:** 34 formal requirements tracked
 
 **Note:** Some requirements overlap categories (partial implementations with planned enhancements).
@@ -214,9 +211,9 @@ Status alignment with formal requirements spec (APP_REQUIREMENTS.md). Tracks all
 3. ✅ ~~Implement jittered scheduling (REQ-SCH1)~~ - **DONE**
 
 **Before Multi-Strategy:**
-1. Implement strategy module contract (REQ-STR1-3)
-2. Add per-strategy caps and toggles
-3. Formalize strategy isolation boundaries
+1. ✅ ~~Implement strategy module contract (REQ-STR1-3)~~ - **DONE** - 29 tests passing, BaseStrategy + StrategyRegistry + per-strategy risk caps
+2. ✅ ~~Add per-strategy caps and toggles~~ - **DONE** - max_at_risk_pct + max_trades_per_cycle enforced, enabled flags working
+3. ✅ ~~Formalize strategy isolation boundaries~~ - **DONE** - Pure interface, no exchange access, immutable StrategyContext
 
 **Before Full Production Certification:**
 1. Implement secret rotation tracking (REQ-SEC2)
