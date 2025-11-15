@@ -3548,6 +3548,16 @@ class ExecutionEngine:
                     except Exception as exc:  # pragma: no cover - defensive
                         logger.debug("Order state transition failed after 404 cancel: %s", exc)
 
+                if client_order_id and size and size > 0:
+                    try:
+                        self.order_state_machine.transition(
+                            client_order_id,
+                            OrderStatus.FILLED,
+                            allow_override=True,
+                        )
+                    except Exception as exc:  # pragma: no cover - defensive
+                        logger.debug("Order state transition failed after TTL fill upgrade: %s", exc)
+
                 return PostOnlyTTLResult(
                     triggered=True,
                     canceled=status_after in {"CANCELED", "CANCELLED", "EXPIRED"},
