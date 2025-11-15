@@ -211,7 +211,7 @@ Status alignment with formal requirements spec (APP_REQUIREMENTS.md). Tracks all
 
 **Before LIVE Scale-Up:**
 1. ✅ ~~Complete kill-switch timing proof (REQ-K1)~~ - **DONE**
-2. Verify alert dedupe/escalation (REQ-AL1) - live 60s dedupe + 2m escalation verification
+2. ✅ ~~Verify alert dedupe/escalation (REQ-AL1)~~ - **DONE** - 18 tests passing, 60s dedupe + 2m escalation implemented
 3. ✅ ~~Implement jittered scheduling (REQ-SCH1)~~ - **DONE**
 
 **Before Multi-Strategy:**
