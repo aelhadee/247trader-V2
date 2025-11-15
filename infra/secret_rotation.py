@@ -54,8 +54,25 @@ class SecretRotationTracker:
         self._ensure_metadata_exists()
     
     def _ensure_metadata_exists(self) -> None:
-        """Create metadata file if missing (assumes initial setup = rotation event)."""
-        if os.path.exists(self.metadata_path):
+        """Create metadata file if missing or empty (assumes initial setup = rotation event)."""
+        # Check if file exists and has valid content
+        needs_init = False
+        if not os.path.exists(self.metadata_path):
+            needs_init = True
+        else:
+            # Check if file is empty or invalid
+            try:
+                if os.path.getsize(self.metadata_path) == 0:
+                    needs_init = True
+                else:
+                    with open(self.metadata_path, 'r') as f:
+                        data = json.load(f)
+                        if not data or "last_rotation_utc" not in data:
+                            needs_init = True
+            except (json.JSONDecodeError, OSError):
+                needs_init = True
+        
+        if not needs_init:
             return
         
         # Create directory if needed
