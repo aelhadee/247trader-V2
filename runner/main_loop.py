@@ -203,6 +203,7 @@ class TradingLoop:
         self.universe_mgr = UniverseManager(
             self.config_dir / "universe.yaml",
             cache_ttl_seconds=self._universe_cache_ttl,
+            alert_service=self.alerts,  # Wire alerts for empty universe detection
         )
         self.trigger_engine = TriggerEngine()
         
