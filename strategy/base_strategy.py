@@ -205,7 +205,7 @@ class BaseStrategy(ABC):
         
         return validated
     
-    def run(self, context: StrategyContext) -> List[TradeProposal]:
+    def run(self, context: StrategyContext) -> List[Any]:
         """
         Execute strategy with error handling and validation.
         
