@@ -124,11 +124,11 @@ class TestClockSyncCheck:
     """Test check_sync method (non-blocking)."""
     
     def test_check_sync_returns_synced_when_within_tolerance(self, validator):
-        """Test returns synced=True when drift <100ms."""
+        """Test returns synced=True when drift <150ms."""
         with patch.object(validator, 'query_ntp_with_fallback') as mock_query:
             mock_query.return_value = {
                 "server": "pool.ntp.org",
-                "offset_ms": 45.2,  # Within 100ms tolerance
+                "offset_ms": 45.2,  # Within 150ms tolerance
                 "round_trip_ms": 23.1,
                 "local_time": datetime.now(timezone.utc).isoformat(),
                 "ntp_time": datetime.now(timezone.utc).isoformat()
