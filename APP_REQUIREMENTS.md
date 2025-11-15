@@ -591,6 +591,8 @@ To be populated in CI:
 | REQ-AL1   | `test_alert_sla_and_dedupe`    | alert events                | 🟡 Partial (wiring complete; dedupe/escalation need verification) |
 | REQ-OB1   | `test_latency_slos`            | telemetry export/dashboard  | ✅ Implemented (19 tests; docs/LATENCY_TRACKING.md) |
 | REQ-BT1-3 | `backtest_regression_suite`    | JSON report diff            | ✅ Implemented (17 tests in test_backtest_regression.py; docs/BACKTEST_REGRESSION_SYSTEM.md) |
+| REQ-SEC2  | `test_secret_rotation_tracking`| rotation metadata + alerts  | ✅ Implemented (22 tests in test_secret_rotation.py; 90-day policy enforced) |
+| REQ-TIME1 | `test_clock_sync_validation`   | NTP drift check + startup gate | ✅ Implemented (26 tests in test_clock_sync.py; <100ms requirement) |
 | REQ-CB1   | `retry_policy_fault_injection` | request traces              | 🟡 Partial (backoff exists; fault-injection tests missing) |
 | REQ-STR1  | `test_strategy_interface_pure` | strategy tests/logs         | ✅ Implemented (11 tests in test_strategy_framework.py::TestBaseStrategyInterface) |
 | REQ-STR2  | `test_strategy_feature_flags`  | strategy loading logs       | ✅ Implemented (8 tests in test_strategy_framework.py::TestStrategyRegistry) |
