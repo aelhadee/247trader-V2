@@ -16,7 +16,8 @@ def test_config_loading():
     """Test that configs load"""
     from runner.main_loop import TradingLoop
     
-    loop = TradingLoop(config_dir="config")
+    # Force DRY_RUN mode to avoid credential requirements in tests
+    loop = TradingLoop(config_dir="config", mode_override="DRY_RUN")
     assert loop.mode in ["DRY_RUN", "PAPER", "LIVE"], f"Invalid mode: {loop.mode}"
     assert loop.policy_config is not None, "Policy config not loaded"
     assert loop.universe_config is not None, "Universe config not loaded"
