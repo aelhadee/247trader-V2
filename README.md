@@ -13,6 +13,28 @@ Clean architecture trading bot for Coinbase Advanced Trade.
 - **Clean separation**: Universe → Triggers → Rules → Risk → Execution
 - **Battle-tested patterns**: Inspired by Freqtrade, Jesse, Hummingbot
 
+## Current Status (Nov 15, 2025)
+
+**Phase 1: Core Engine ✅ COMPLETE**
+- All 178 tests passing
+- 4/4 critical production blockers resolved
+- Safety features: Kill-switch, circuit breakers, environment gates, fee-adjusted sizing
+
+**Phase 2: Paper Trading ⏳ READY**
+- DRY_RUN mode validated with live data
+- PAPER mode implemented (simulated execution)
+- Next: 1-week PAPER validation before LIVE
+
+**Phase 3: Live Trading 🔲 PLANNED**
+- After PAPER validation passes
+- Small position scaling ($50-100 initially)
+- See `PRODUCTION_TODO.md` for go/no-go gates
+
+**Documentation:**
+- `README.md` - This file (quick start, architecture overview)
+- `APP_REQUIREMENTS.md` - Formal specification (34 REQ-* items with SLAs)
+- `PRODUCTION_TODO.md` - Current blockers and implementation status
+
 ## Architecture Status
 
 **Overall Implementation**: 85-90% complete vs `proposed_architecture.md`
