@@ -239,13 +239,14 @@ def test_kill_switch_state_persistence(mock_lock, kill_switch_file, mock_exchang
     # Execute: Trigger kill-switch check
     from core.risk import PortfolioState
     portfolio = PortfolioState(
-        nav=10000.0,
-        cash_usd=10000.0,
+        account_value_usd=10000.0,
         open_positions={},
-        pending_orders={},
         daily_pnl_pct=0.0,
-        weekly_pnl_pct=0.0,
         max_drawdown_pct=0.0,
+        trades_today=0,
+        trades_this_hour=0,
+        weekly_pnl_pct=0.0,
+        pending_orders={},
     )
     
     result = loop.risk_engine.check_all(proposals=[], portfolio=portfolio)
