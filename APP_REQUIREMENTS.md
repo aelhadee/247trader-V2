@@ -310,7 +310,7 @@ If `max_drawdown_pct` (rolling or session) is breached, the system **SHALL**:
 
 **Acceptance:**
 Backtest/replay or simulated PnL dip beyond limit triggers halt and alert; no new trades appear after breach.
-**Status:** Implemented.
+**Status:** ✅ Implemented (RiskEngine._check_max_drawdown halts trading; CRITICAL alert emitted via AlertService).
 
 ---
 
