@@ -2566,7 +2566,7 @@ class TradingLoop:
             sort_by="performance",
         )
 
-        # Fallback: if no candidates at min_value threshold, try again with lower threshold
+        # Fallback 1: if no candidates at min_value threshold, try again with lower threshold
         if not candidates and min_liq_value > self.executor.min_notional_usd:
             logger.warning(
                 f"No candidates at min_value=${min_liq_value}, retrying with ${self.executor.min_notional_usd}"
@@ -2575,6 +2575,39 @@ class TradingLoop:
                 min_value_usd=self.executor.min_notional_usd,
                 sort_by="value",  # Switch to lowest-value first for forced trim
             )
+        
+        # Fallback 2: if still no candidates, allow liquidating BTC/ETH (normally exempt as preferred quotes)
+        # This handles the case where portfolio is mostly BTC/ETH but exceeds risk cap
+        if not candidates:
+            logger.warning("No standard candidates found, scanning BTC/ETH for emergency trim")
+            accounts = self.executor._require_accounts("emergency_trim")
+            for acc in accounts:
+                curr = acc['currency']
+                if curr not in ['BTC', 'ETH']:  # Only scan BTC/ETH, never liquidate USDC/USD/USDT
+                    continue
+                
+                bal = float(acc.get('available_balance', {}).get('value', 0))
+                if bal == 0:
+                    continue
+                
+                try:
+                    pair = f"{curr}-USD"
+                    quote = self.executor.exchange.get_quote(pair)
+                    value_usd = bal * quote.mid
+                    
+                    if value_usd >= self.executor.min_notional_usd:
+                        candidates.append({
+                            'currency': curr,
+                            'account_uuid': acc.get('uuid'),
+                            'balance': bal,
+                            'value_usd': value_usd,
+                            'price': quote.mid,
+                            'pair': pair,
+                            'change_24h_pct': 0.0
+                        })
+                        logger.info(f"Emergency trim candidate: {curr} ${value_usd:.2f}")
+                except Exception as e:
+                    logger.debug(f"Failed to check {curr} for emergency trim: {e}")
 
         if not candidates:
             logger.warning("Auto trim skipped: no liquidation candidates available (checked all holdings)")
