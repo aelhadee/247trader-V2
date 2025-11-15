@@ -293,20 +293,9 @@ class RiskEngine:
     def _build_pending_buy_map(self, portfolio: PortfolioState) -> Dict[str, float]:
         """Normalize pending BUY orders keyed by fully-qualified symbol."""
 
-        pending_map: Dict[str, float] = {}
         orders = (portfolio.pending_orders or {}).get("buy", {}) if portfolio.pending_orders else {}
-
-        for raw_symbol, value in orders.items():
-            symbol = raw_symbol if "-" in raw_symbol else f"{raw_symbol}-USD"
-            try:
-                usd_value = float(value)
-            except (TypeError, ValueError):
-                continue
-            if usd_value <= 0:
-                continue
-            pending_map[symbol] = pending_map.get(symbol, 0.0) + usd_value
-
-        return pending_map
+        pending_map = merge_symbol_value_map(orders)
+        return {symbol: value for symbol, value in pending_map.items() if value > 0}
 
     def _collect_open_order_buys(self) -> Dict[str, float]:
         """Aggregate outstanding BUY open-order notional from the exchange."""
