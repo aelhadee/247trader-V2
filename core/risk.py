@@ -1382,9 +1382,7 @@ class RiskEngine:
         count_threshold = max(dust_threshold, min_trade_usd * 0.25, 1e-6)
 
         def _normalize_symbol(symbol: str) -> str:
-            if not symbol:
-                return symbol
-            return symbol if "-" in symbol else f"{symbol}-USD"
+            return normalize_symbol(symbol)
 
         # Identify symbols already held (dust excluded from occupancy) and all existing holdings
         held_symbols: set[str] = set()
