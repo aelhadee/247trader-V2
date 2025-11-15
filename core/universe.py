@@ -266,6 +266,20 @@ class UniverseManager:
         # Get exclusions first
         excluded = set(exclusions.get("never_trade", []))
         
+        # Add red-flag banned symbols from StateStore
+        from infra.state_store import get_state_store
+        try:
+            state_store = get_state_store()
+            red_flag_banned = state_store.get_red_flag_banned_symbols()
+            for symbol, ban_info in red_flag_banned.items():
+                excluded.add(symbol)
+                logger.warning(
+                    f"🚩 Excluding red-flagged asset: {symbol} "
+                    f"(reason: {ban_info['reason']}, expires: {ban_info['expires_at_iso']})"
+                )
+        except Exception as exc:
+            logger.warning(f"Failed to load red flag bans from StateStore: {exc}")
+        
         # Build tier 1 (core)
         tier_1 = self._build_tier_1(
             tiers_config.get("tier_1_core", {}),
