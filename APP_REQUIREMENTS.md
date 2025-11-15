@@ -632,7 +632,7 @@ To be populated in CI:
 
 ### 🎉 ALL PRODUCTION REQUIREMENTS COMPLETE
 1. ~~**Jittered scheduling (SCH1)**~~ – ✅ 0-10% cycle jitter implemented to prevent lockstep
-2. ~~**Clock sync gate (TIME1)**~~ – ✅ 26 tests passing; NTP drift <100ms validation with LIVE mode gate
+2. ~~**Clock sync gate (TIME1)**~~ – ✅ 29 tests passing (26 + 3 regression); NTP drift <150ms validation (adjusted 2025-11-15 for production network jitter); validated at 94.8ms in LIVE
 3. ~~**Secret rotation (SEC2)**~~ – ✅ 22 tests passing; 90-day rotation policy with CRITICAL/WARNING alerts
 4. ~~**Strategy isolation and caps (STR1-3)**~~ – ✅ Multi-strategy framework complete (29 tests, docs/MULTI_STRATEGY_FRAMEWORK.md)
 
