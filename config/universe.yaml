@@ -78,6 +78,11 @@ tiers:
       max_allocation_pct: 40.0
       max_spread_bps: 20
       min_24h_volume_usd: 10000000  # Reduced from $50M to $10M (realistic for current conditions)
+      # Volume override: always eligible regardless of transient volume dips (API stale data, off-hours)
+      force_eligible_symbols:
+        - BTC-USD  # Always liquid, volume floor irrelevant
+        - ETH-USD  # Always liquid, volume floor irrelevant
+        - SOL-USD  # Always liquid, volume floor irrelevant
     refresh: weekly
     symbols:
     - BTC-USD
