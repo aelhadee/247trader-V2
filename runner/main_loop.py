@@ -200,9 +200,16 @@ class TradingLoop:
                 monitoring_cfg.get("alerts", {}).get("min_severity", "warning"),
             )
         
+        # Load universe config
+        universe_config_path = self.config_dir / "universe.yaml"
+        with open(universe_config_path) as f:
+            import yaml
+            universe_config = yaml.safe_load(f)
+        
         self.universe_mgr = UniverseManager(
-            self.config_dir / "universe.yaml",
-            cache_ttl_seconds=self._universe_cache_ttl,
+            config=universe_config,
+            exchange=self.exchange,
+            state_store=self.state_store,
             alert_service=self.alerts,  # Wire alerts for empty universe detection
         )
         self.trigger_engine = TriggerEngine()
