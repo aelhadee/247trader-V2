@@ -3069,13 +3069,15 @@ class TradingLoop:
                     bypass_failed_order_cooldown=True,
                 )
                 
-                if taker_result.success and taker_result.filled_usd > 0:
+                filled_usd = taker_result.filled_size * taker_result.filled_price
+                if taker_result.success and filled_usd > 0:
                     logger.info(
-                        "⚡ Emergency taker filled $%.2f (%.6f %s), fees=$%.4f",
-                        taker_result.filled_usd,
+                        "⚡ Emergency taker filled $%.2f (%.6f %s @ $%.6f), fees=$%.4f",
+                        filled_usd,
                         taker_result.filled_size,
                         currency,
-                        taker_result.total_fees,
+                        taker_result.filled_price,
+                        taker_result.fees,
                     )
                     return True
                 else:
