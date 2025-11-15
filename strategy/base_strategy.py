@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 class StrategyContext:
     """
     Immutable context passed to strategies.
-    
+
     Contains all market data needed for decision-making without
     allowing direct exchange API access.
     
