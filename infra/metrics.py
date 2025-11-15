@@ -101,7 +101,7 @@ class MetricsRecorder:
         self._exposure_gauge = Gauge(  # type: ignore[assignment]
             "trader_exposure_pct",
             "Current portfolio exposure as percentage of NAV",
-            labelnames=("type",),  # type: "at_risk", "pending"
+            labelnames=("type",),  # Label values: "at_risk", "pending"
         )
         self._positions_gauge = Gauge(  # type: ignore[assignment]
             "trader_open_positions",
