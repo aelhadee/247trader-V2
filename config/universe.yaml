@@ -87,7 +87,7 @@ tiers:
     constraints:
       max_allocation_pct: 20.0
       max_spread_bps: 35
-      min_24h_volume_usd: 30000000
+      min_24h_volume_usd: 5000000  # Reduced from $30M to $5M (realistic for altcoins)
       near_threshold_override:
         enable: true
         lower_mult: 0.95
