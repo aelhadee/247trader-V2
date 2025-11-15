@@ -19,6 +19,7 @@ from core.triggers import TriggerEngine, TriggerSignal
 from core.regime import RegimeDetector
 from strategy.rules_engine import RulesEngine, TradeProposal
 from core.risk import RiskEngine, PortfolioState
+from backtest.slippage_model import SlippageModel, SlippageConfig
 
 logger = logging.getLogger(__name__)
 
