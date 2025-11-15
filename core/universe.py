@@ -573,6 +573,12 @@ class UniverseManager:
             Tuple[eligible_flag, ineligible_reason, eligibility_reason]
         """
         eligibility_reason: Optional[str] = None
+        
+        # Force-eligible override: bypass all liquidity checks for core assets
+        force_eligible = tier_config.get("force_eligible_symbols", [])
+        if quote.symbol in force_eligible:
+            logger.info(f"✅ FORCE ELIGIBLE: {quote.symbol} bypasses liquidity checks (core asset)")
+            return True, None, "force_eligible_core_asset"
 
         # Volume check with tier and global near-threshold overrides
         min_volume_global = global_config.get("min_24h_volume_usd", 5_000_000)
