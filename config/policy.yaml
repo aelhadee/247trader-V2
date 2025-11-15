@@ -111,8 +111,8 @@ position_sizing:
   fixed_size_usd: 100.0
   min_order_usd: 10.0
   max_order_usd: 10000.0
-  allow_pyramiding: true
-  max_pyramid_positions: 2
+  allow_pyramiding: false  # Aligned with risk.allow_pyramiding=false (conservative profile)
+  max_pyramid_positions: 0  # Pyramiding disabled
 liquidity:
   min_24h_volume_usd: 8000000
   max_spread_bps: 80
