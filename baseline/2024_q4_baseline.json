@@ -1,0 +1,32 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "generated_at": "2025-11-15T11:23:22.200243",
+    "seed": 42,
+    "initial_capital_usd": 10000.0,
+    "final_capital_usd": 10000.0,
+    "config_dir": "config"
+  },
+  "summary": {
+    "total_trades": 0,
+    "winning_trades": 0,
+    "losing_trades": 0,
+    "win_rate": 0.0,
+    "total_pnl_usd": 0.0,
+    "total_pnl_pct": 0.0,
+    "avg_win_pct": 0.0,
+    "avg_loss_pct": 0.0,
+    "max_drawdown_pct": 0.0,
+    "max_consecutive_losses": 0,
+    "profit_factor": null,
+    "sharpe_ratio": null
+  },
+  "trades": [],
+  "regression_keys": {
+    "total_trades": 0,
+    "win_rate": 0.0,
+    "total_pnl_pct": 0.0,
+    "max_drawdown_pct": 0.0,
+    "profit_factor": null
+  }
+}
