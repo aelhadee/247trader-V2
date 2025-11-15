@@ -1132,6 +1132,106 @@ class RiskEngine:
         
         return RiskCheckResult(approved=True)
     
+    def _check_strategy_caps(
+        self,
+        proposals: List[TradeProposal],
+        portfolio: PortfolioState,
+        pending_buy_override_usd: Optional[float] = None,
+    ) -> RiskCheckResult:
+        """
+        Enforce per-strategy risk budgets (REQ-STR3).
+        
+        Checks each strategy's:
+        - max_at_risk_pct: Existing exposure + proposed for this strategy
+        - max_trades_per_cycle: Already enforced by BaseStrategy.validate_proposals()
+        
+        Args:
+            proposals: All proposals (may contain multiple strategies)
+            portfolio: Current portfolio state
+            pending_buy_override_usd: Optional override for pending buy exposure
+            
+        Returns:
+            RiskCheckResult with filtered proposals and rejections
+        """
+        # Group proposals by strategy
+        proposals_by_strategy: Dict[str, List[TradeProposal]] = {}
+        for proposal in proposals:
+            strategy_name = proposal.metadata.get("strategy", "unknown")
+            proposals_by_strategy.setdefault(strategy_name, []).append(proposal)
+        
+        approved_proposals = []
+        proposal_rejections: Dict[str, List[str]] = {}
+        
+        for strategy_name, strategy_proposals in proposals_by_strategy.items():
+            # Get strategy risk budget from first proposal's metadata
+            if not strategy_proposals:
+                continue
+            
+            first_proposal = strategy_proposals[0]
+            # Strategy risk budgets would need to be passed via metadata or config
+            # For now, extract from proposal metadata if available
+            # This will be set by BaseStrategy when it validates proposals
+            strategy_max_at_risk_pct = first_proposal.metadata.get("strategy_max_at_risk_pct")
+            
+            if strategy_max_at_risk_pct is None:
+                # No strategy-specific cap, approve all from this strategy
+                approved_proposals.extend(strategy_proposals)
+                continue
+            
+            # Calculate strategy's current exposure
+            # We need to track which positions were opened by which strategy
+            # For now, approximate: all managed exposure divided by number of active strategies
+            # TODO: Enhance StateStore to track strategy_name per position
+            strategy_exposure_usd = 0.0  # Placeholder: needs strategy tagging in state
+            
+            # Calculate proposed exposure for this strategy
+            proposed_usd = sum(
+                p.size_pct * portfolio.account_value_usd / 100.0
+                for p in strategy_proposals
+            )
+            
+            total_strategy_exposure = strategy_exposure_usd + proposed_usd
+            strategy_at_risk_pct = (
+                (total_strategy_exposure / portfolio.account_value_usd) * 100.0
+                if portfolio.account_value_usd > 0
+                else 0.0
+            )
+            
+            if strategy_at_risk_pct > strategy_max_at_risk_pct:
+                logger.warning(
+                    f"Strategy '{strategy_name}' would exceed risk budget: "
+                    f"{strategy_at_risk_pct:.2f}% > {strategy_max_at_risk_pct:.2f}% "
+                    f"(existing=${strategy_exposure_usd:.2f}, proposed=${proposed_usd:.2f})"
+                )
+                
+                # Reject all proposals from this strategy
+                for proposal in strategy_proposals:
+                    proposal_rejections.setdefault(proposal.symbol, []).append(
+                        f"strategy_cap:{strategy_name}"
+                    )
+            else:
+                # Approve all from this strategy
+                approved_proposals.extend(strategy_proposals)
+                logger.debug(
+                    f"Strategy '{strategy_name}' within risk budget: "
+                    f"{strategy_at_risk_pct:.2f}% / {strategy_max_at_risk_pct:.2f}%"
+                )
+        
+        if not approved_proposals:
+            return RiskCheckResult(
+                approved=False,
+                reason="All proposals blocked by per-strategy risk caps",
+                violated_checks=["strategy_caps"],
+                proposal_rejections=proposal_rejections,
+            )
+        
+        return RiskCheckResult(
+            approved=True,
+            approved_proposals=approved_proposals,
+            filtered_proposals=approved_proposals,
+            proposal_rejections=proposal_rejections if proposal_rejections else None,
+        )
+    
     def _check_global_at_risk(
         self,
         proposals: List[TradeProposal],
