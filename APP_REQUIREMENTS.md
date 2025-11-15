@@ -99,7 +99,7 @@ The system **SHALL** enforce a max exposure per theme/cluster (e.g., L2, MEME), 
 
 **Acceptance:**
 When proposed + pending exposure for a theme would exceed the cap, new proposals are rejected with `risk_reason='theme_cap'`.
-**Status:** Implemented.
+**Status:** ✅ Implemented.
 
 ---
 
