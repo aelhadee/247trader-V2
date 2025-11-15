@@ -19,33 +19,30 @@
 
 ## Claim-by-Claim Analysis
 
-### ❌ CLAIM 1: "config/app.yaml ships with LIVE/read_only=false defaults"
+### ✅ CLAIM 1: "config/app.yaml ships with LIVE/read_only=false defaults" - **FIXED**
 
-**Status:** **PARTIALLY TRUE** (currently misconfigured)
+**Status:** **FIXED** ✅
 
-**Evidence:**
+**Original Evidence:**
 ```yaml
-# config/app.yaml lines 4-15
+# config/app.yaml lines 4-15 (BEFORE)
 app:
-  mode: "LIVE"  # ❌ Should be DRY_RUN
+  mode: "LIVE"  # ❌ Was unsafe
 exchange:
-  read_only: false  # ❌ Should be true
+  read_only: false  # ❌ Was unsafe
 ```
 
-**README.md promise (lines 79-81):**
-> Safety First: config/app.yaml now ships with app.mode=DRY_RUN and exchange.read_only=true.
-
-**Reality:** Config file contradicts README documentation. The defaults ARE unsafe.
-
-**Impact:** HIGH - A developer following Quick Start would accidentally trade with real money.
-
-**Recommendation:** 
+**Fix Applied:**
 ```yaml
+# config/app.yaml lines 4-15 (AFTER)
 app:
-  mode: "DRY_RUN"  # Safe default
+  mode: "DRY_RUN"  # ✅ Safe default
 exchange:
-  read_only: true  # Safe default
+  read_only: true  # ✅ Safe default
 ```
+
+**Impact:** HIGH → RESOLVED
+**Fix Duration:** 5 minutes
 
 ---
 
