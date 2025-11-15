@@ -14,13 +14,43 @@ ai:
   - cointelegraph.com
   openai_api_key: ${OPENAI_API_KEY}
 execution:
-  default_order_type: limit
-  fill_timeout_seconds: 60
-  limit_offset_bps: 5
+  maker_fee_bps: 40
+  taker_fee_bps: 60
+  default_order_type: limit_post_only
+  maker_first: true
+  maker_max_reprices: 1
+  maker_max_ttl_sec: 15
+  maker_first_min_ttl_sec: 12
+  maker_retry_min_ttl_sec: 8
+  maker_reprice_decay: 0.7
+  taker_fallback: true
+  prefer_ioc: true
+  taker_max_slippage_bps:
+    default: 60
+  min_notional_usd: 15.0
+  clamp_small_trades: true
+  small_order_market_threshold_usd: 6.0
+  allow_min_bump_in_risk: true
+  cancel_after_seconds: 60
+  post_only_ttl_seconds: 15
+  partial_fill_min_pct: 0.25
+  max_order_age_seconds: 1800
+  max_slippage_bps: 40
+  hard_max_spread_bps: 80
+  limit_offset_bps: 0
   limit_timeout_seconds: 30
-  max_retries: 3
+  fill_timeout_seconds: 60
   require_fill_confirmation: true
+  max_retries: 3
   retry_delay_seconds: 5
+  cancel_retry_backoff_ms:
+    - 250
+    - 500
+    - 1000
+  promote_to_taker_if_budget_allows: false
+  taker_promotion_requirements:
+    min_confidence: 0.7
+    max_slippage_bps: 50
 governance:
   allow_manual_override: true
   emergency_email: ${ALERT_EMAIL}
