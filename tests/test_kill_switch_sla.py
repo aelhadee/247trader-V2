@@ -134,6 +134,8 @@ def test_kill_switch_alert_sla_under_5s(mock_lock, kill_switch_file, mock_exchan
     
     # Execute: Measure alert timing
     from core.risk import PortfolioState
+    from strategy.rules_engine import TradeProposal
+    
     portfolio = PortfolioState(
         account_value_usd=10000.0,
         open_positions={},
@@ -145,12 +147,21 @@ def test_kill_switch_alert_sla_under_5s(mock_lock, kill_switch_file, mock_exchan
         pending_orders={},
     )
     
+    # Need a proposal to trigger kill-switch alert
+    proposal = TradeProposal(
+        symbol="BTC-USD",
+        side="BUY",
+        size_pct=1.0,
+        reason="test_alert",
+        confidence=0.8,
+    )
+    
     start_time = time.monotonic()
-    result = loop.risk_engine.check_all(proposals=[], portfolio=portfolio)
+    result = loop.risk_engine.check_all(proposals=[proposal], portfolio=portfolio)
     alert_latency = time.monotonic() - start_time
     
     # Assert: Alert fired
-    assert mock_alert_service.notify.called
+    assert mock_alert_service.notify.called, "Kill-switch should trigger CRITICAL alert"
     
     # Assert: Latency ≤5s (in practice should be <<1s for local call)
     assert alert_latency < 5.0, f"Alert latency {alert_latency:.3f}s exceeds 5s SLA"
