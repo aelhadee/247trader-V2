@@ -2480,6 +2480,42 @@ class ExecutionEngine:
 
         except Exception as e:
             logger.error(f"Live execution failed: {e}")
+            
+            # Track rejection for burst detection
+            now = datetime.now(timezone.utc)
+            self._rejection_history.append((now, symbol, str(e)))
+            
+            # Clean old rejections (>10 minutes)
+            cutoff = now - timedelta(seconds=self._rejection_window_seconds)
+            self._rejection_history = [
+                (ts, sym, reason) for ts, sym, reason in self._rejection_history
+                if ts > cutoff
+            ]
+            
+            # Alert on rejection burst
+            if len(self._rejection_history) >= self._rejection_threshold:
+                if hasattr(self, 'alert_service') and self.alert_service:
+                    from infra.alerting import AlertSeverity
+                    
+                    # Count rejection reasons
+                    rejection_reasons = {}
+                    for _, sym, reason in self._rejection_history:
+                        rejection_reasons[reason] = rejection_reasons.get(reason, 0) + 1
+                    
+                    self.alert_service.notify(
+                        severity=AlertSeverity.WARNING,
+                        title="⚠️ Order Rejection Burst",
+                        message=f"{len(self._rejection_history)} orders rejected in {self._rejection_window_seconds}s",
+                        context={
+                            "rejection_count": len(self._rejection_history),
+                            "window_seconds": self._rejection_window_seconds,
+                            "rejection_reasons": rejection_reasons,
+                            "affected_symbols": list(set(sym for _, sym, _ in self._rejection_history)),
+                            "latest_error": str(e)
+                        }
+                    )
+                    logger.error(f"🚨 REJECTION BURST: {len(self._rejection_history)} orders rejected")
+            
             try:
                 self.order_state_machine.transition(
                     active_client_order_id,
