@@ -1002,6 +1002,10 @@ class ExecutionEngine:
         try:
             accounts = self._require_accounts("liquidation_candidates")
             candidates = []
+            skipped_zero = 0
+            skipped_preferred = 0
+            skipped_below_min = 0
+            failed_to_price = 0
             
             for acc in accounts:
                 currency = acc['currency']
@@ -1009,7 +1013,13 @@ class ExecutionEngine:
                 account_uuid = acc.get('uuid', '')
                 
                 # Skip if balance too low or is a quote currency we prefer
-                if balance == 0 or currency in self.preferred_quotes:
+                if balance == 0:
+                    skipped_zero += 1
+                    continue
+                
+                if currency in self.preferred_quotes:
+                    skipped_preferred += 1
+                    logger.debug(f"Skipping {currency} (balance={balance:.6f}): preferred quote currency")
                     continue
                 
                 # Try to get USD value and performance
