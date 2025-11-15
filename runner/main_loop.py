@@ -263,6 +263,17 @@ class TradingLoop:
         self.portfolio = self._init_portfolio_state()
         self.current_regime = "chop"  # TODO: Replace with regime detector
         
+        # REQ-SEC2: Secret rotation tracking
+        from infra.secret_rotation import SecretRotationTracker
+        self.secret_rotation_tracker = SecretRotationTracker()
+        
+        # REQ-TIME1: Clock sync validation
+        from infra.clock_sync import ClockSyncValidator
+        self.clock_sync_validator = ClockSyncValidator()
+        
+        # Perform startup validations
+        self._startup_validations()
+        
         # Shutdown flag
         self._running = True
         signal.signal(signal.SIGINT, self._handle_stop)
