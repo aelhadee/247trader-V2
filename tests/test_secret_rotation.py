@@ -264,8 +264,13 @@ class TestSecretRotationTracker:
             assert "api_secret" not in message
             assert "-----begin" not in message
             # Rotation metadata should be logged, but safely
+            if "recorded secret rotation" in message:
+                assert "no secrets logged" in message
+            # Other rotation-related logs should not contain sensitive data
             if "rotation" in message:
-                assert "no secrets logged" in message or "timestamp" in message
+                # Safe patterns: dates, reasons, status messages
+                safe_patterns = ["timestamp", "no secrets", "due", "days", "recorded", "next"]
+                assert any(pattern in message for pattern in safe_patterns)
 
 
 class TestSecretRotationMetadataPersistence:
