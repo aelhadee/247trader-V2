@@ -203,7 +203,6 @@ class TradingLoop:
         # Load universe config
         universe_config_path = self.config_dir / "universe.yaml"
         with open(universe_config_path) as f:
-            import yaml
             universe_config = yaml.safe_load(f)
         
         self.universe_mgr = UniverseManager(
