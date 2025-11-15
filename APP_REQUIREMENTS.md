@@ -215,7 +215,7 @@ Mean time to detect (MTTD) kill-switch changes **≤3s**.
 
 **Acceptance:**
 Simulation flips kill flag; metrics/logs confirm the timing bounds above.
-**Status:** Partial (wiring must be proven end-to-end).
+**Status:** 🟡 Partial (file-based kill switch exists and blocks proposals immediately; alert wiring complete; <10s order cancel and timing SLAs need end-to-end verification).
 
 ---
 
