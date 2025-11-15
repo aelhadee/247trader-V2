@@ -205,7 +205,18 @@ class TradingLoop:
             cache_ttl_seconds=self._universe_cache_ttl,
         )
         self.trigger_engine = TriggerEngine()
-        self.rules_engine = RulesEngine(config={})
+        
+        # Initialize multi-strategy framework (REQ-STR1-3)
+        from strategy.registry import StrategyRegistry
+        self.strategy_registry = StrategyRegistry(config_path=self.config_dir / "strategies.yaml")
+        
+        # Keep legacy rules_engine reference for backward compatibility
+        self.rules_engine = self.strategy_registry.strategies.get("rules_engine")
+        if not self.rules_engine:
+            logger.warning("rules_engine strategy not found in registry, creating fallback")
+            from strategy.rules_engine import RulesEngine
+            self.rules_engine = RulesEngine(config={})
+        
         self.risk_engine = RiskEngine(
             self.policy_config, 
             universe_manager=self.universe_mgr,
