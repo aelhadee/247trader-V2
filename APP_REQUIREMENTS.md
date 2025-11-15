@@ -401,7 +401,7 @@ On any safety breach (kill-switch, staleness, health, exposure, drawdown), the s
 
 **Acceptance:**
 Simulated breaches produce timely alerts with dedupe behavior; unresolved breaches escalate.
-**Status:** Partial (alert wiring must be finalized).
+**Status:** 🟡 Partial (AlertService wired to RiskEngine for kill-switch/stops/drawdown; <5s timing achieved; 60s dedupe and 2m escalation logic need verification).
 
 ---
 
