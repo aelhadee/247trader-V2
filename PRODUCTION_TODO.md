@@ -205,6 +205,12 @@ Status alignment with formal requirements spec (APP_REQUIREMENTS.md). Tracks all
 | REQ-AL1 | Alert dedupe (60s) + escalation (2m) | infra/alerting.py: AlertService with fingerprinting, fixed window dedupe, escalation with severity boost | 18 tests in test_alert_sla.py |
 | REQ-SEC1 | Secrets handling (env vars, redacted logs) | core/exchange_coinbase.py + all logging | Manual audit passed |
 | REQ-RET1 | Data retention (90-day logs, no PII) | Configured via log rotation | Log config verified |
+| REQ-STR1 | Pure strategy interface (no exchange access) | strategy/base_strategy.py: BaseStrategy ABC + StrategyContext | 11 tests in test_strategy_framework.py |
+| REQ-STR2 | Per-strategy feature flags (independent toggles) | config/strategies.yaml: enabled + default disabled | 8 tests in test_strategy_framework.py |
+| REQ-STR3 | Per-strategy risk budgets (before global caps) | core/risk.py: _check_strategy_caps() | 4 tests in test_strategy_framework.py |
+| REQ-BT1 | Backtest determinism (fixed seed) | backtest/engine.py: BacktestEngine(seed=42) with random.seed() | 3 tests in test_backtest_regression.py |
+| REQ-BT2 | Backtest JSON reports (machine-readable) | backtest/engine.py: export_json() with 4 sections (metadata, summary, trades, regression_keys) | 6 tests in test_backtest_regression.py |
+| REQ-BT3 | CI regression gate (±2% tolerance on 5 metrics) | backtest/compare_baseline.py with automated comparison | 8 tests in test_backtest_regression.py |
 
 ### 🟡 Partial Implementation (2 requirements)
 
