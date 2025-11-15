@@ -697,6 +697,11 @@ def main():
     print("=" * 80)
     print(json.dumps(metrics.to_dict(), indent=2))
     print("=" * 80)
+    
+    # Export JSON report if requested (REQ-BT2)
+    if args.output:
+        engine.export_json(args.output)
+        print(f"\n✅ Report exported to {args.output}")
 
 
 if __name__ == "__main__":
