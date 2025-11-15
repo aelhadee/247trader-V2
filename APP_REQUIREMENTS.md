@@ -610,7 +610,7 @@ To be populated in CI:
 1. ~~**Kill-switch (K1)**~~ – ✅ 6 comprehensive SLA tests pass; <10s cancel, <5s alert verified
 2. ~~**Alert routing (AL1)**~~ – ✅ 18 tests passing; 60s dedupe + 2m escalation implemented
 3. **Retry/backoff with jitter (CB1)** – Exponential backoff exists; full jitter formula + fault-injection tests missing
-4. **Backtest determinism (BT1-3)** – Engine exists; fixed seed support + CI regression gate incomplete
+4. ~~**Backtest determinism (BT1-3)**~~ – ✅ 17 tests passing; deterministic seed + JSON export + ±2% regression gate complete
 
 ### 🔴 PLANNED (Required Before Full Production Certification)
 1. ~~**Jittered scheduling (SCH1)**~~ – ✅ 0-10% cycle jitter implemented to prevent lockstep
