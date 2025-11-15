@@ -109,7 +109,7 @@ class TradingLoop:
         self.loop_jitter_pct = max(0.0, min(float(jitter_pct), 20.0))  # Clamp 0-20%
         
         # Mode & safety
-        self.mode = self.app_config.get("app", {}).get("mode", "DRY_RUN").upper()
+        self.mode = self.app_config.get("app", {}).get("mode", "LIVE").upper()
         allowed_modes = {"DRY_RUN", "PAPER", "LIVE"}
         if self.mode not in allowed_modes:
             raise ValueError(f"Invalid mode: {self.mode}")
