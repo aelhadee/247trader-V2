@@ -28,9 +28,9 @@ class TriggerSignal:
     confidence: float  # 0.0 to 1.0
     reason: str
     timestamp: datetime
-    
-    # Supporting data
     current_price: float
+    
+    # Supporting data (optional)
     volume_ratio: Optional[float] = None
     price_change_pct: Optional[float] = None
     technical_score: Optional[float] = None
