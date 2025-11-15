@@ -38,7 +38,7 @@ class MetricsRecorder:
         self._last_stage_durations: Dict[str, float] = {}
         self._last_rate_usage: Dict[str, float] = {}
         self._last_api_event: Optional[Dict[str, str]] = None
-    self._last_no_trade_reason: Optional[str] = None
+        self._last_no_trade_reason: Optional[str] = None
 
         if not self._prom_available and enabled:
             logger.warning(
