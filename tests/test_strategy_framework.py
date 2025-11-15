@@ -150,7 +150,7 @@ class MockStrategy(BaseStrategy):
                 symbol=trigger.symbol,
                 side="BUY",
                 size_pct=2.0,
-                reason=f"Mock strategy: {trigger.pattern}",
+                reason=f"Mock strategy: {trigger.trigger_type}",
                 confidence=trigger.confidence,
                 trigger=trigger
             ))
