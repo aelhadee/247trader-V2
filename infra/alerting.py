@@ -133,20 +133,192 @@ class AlertService:
         message: str,
         context: Optional[Dict[str, Any]] = None,
     ) -> None:
+        """
+        Send alert notification with dedupe and escalation.
+        
+        Deduplication:
+        - Identical alerts (same fingerprint) within 60s are suppressed
+        - Dedupe window configurable via dedupe_seconds
+        
+        Escalation:
+        - Alerts unresolved after 2m trigger escalation
+        - Escalation boosts severity or sends to separate webhook
+        - Escalation window configurable via escalation_seconds
+        """
         if not self._enabled:
             return
         if severity.value < self._config.min_severity.value:
             return
+        
+        # Cleanup old alerts periodically
+        self._cleanup_old_alerts()
+        
+        # Generate fingerprint for dedupe/escalation tracking
+        fingerprint = self._generate_fingerprint(severity, title, message)
+        
+        # Check for deduplication
+        if self._should_dedupe(fingerprint):
+            self._update_alert_record(fingerprint)
+            logger.debug(f"Alert deduped: {title} (fingerprint={fingerprint[:8]}...)")
+            return
+        
+        # Record alert
+        self._record_alert(fingerprint, severity, title, message)
+        
+        # Check for escalation
+        if self._should_escalate(fingerprint):
+            self._escalate_alert(fingerprint, severity, title, message, context)
+            return
+        
+        # Send normal alert
+        self._send_alert(severity, title, message, context, webhook_url=self._config.webhook_url)
 
+    def resolve_alert(self, severity: AlertSeverity, title: str, message: str) -> None:
+        """
+        Mark an alert as resolved to prevent escalation.
+        
+        Call this when the condition that triggered the alert is cleared.
+        """
+        fingerprint = self._generate_fingerprint(severity, title, message)
+        if fingerprint in self._alert_history:
+            self._alert_history[fingerprint].resolved = True
+            logger.debug(f"Alert resolved: {title} (fingerprint={fingerprint[:8]}...)")
+
+    def _generate_fingerprint(self, severity: AlertSeverity, title: str, message: str) -> str:
+        """Generate unique fingerprint for alert dedupe/escalation."""
+        content = f"{severity.name}|{title}|{message}"
+        return hashlib.sha256(content.encode('utf-8')).hexdigest()
+
+    def _should_dedupe(self, fingerprint: str) -> bool:
+        """Check if alert should be deduped (within window)."""
+        if fingerprint not in self._alert_history:
+            return False
+        
+        record = self._alert_history[fingerprint]
+        elapsed = time.monotonic() - record.last_seen
+        
+        # Don't dedupe if outside window
+        if elapsed > self._config.dedupe_seconds:
+            return False
+        
+        # Don't dedupe if already escalated (we want visibility of ongoing issues)
+        if record.escalated:
+            return False
+        
+        return True
+
+    def _should_escalate(self, fingerprint: str) -> bool:
+        """Check if alert should be escalated (unresolved for >2m)."""
+        if fingerprint not in self._alert_history:
+            return False
+        
+        record = self._alert_history[fingerprint]
+        
+        # Don't escalate if already escalated
+        if record.escalated:
+            return False
+        
+        # Don't escalate if resolved
+        if record.resolved:
+            return False
+        
+        # Check if unresolved for escalation window
+        elapsed = time.monotonic() - record.first_seen
+        return elapsed >= self._config.escalation_seconds
+
+    def _record_alert(self, fingerprint: str, severity: AlertSeverity, title: str, message: str) -> None:
+        """Record new alert in history."""
+        now = time.monotonic()
+        
+        if fingerprint in self._alert_history:
+            # Update existing record
+            self._alert_history[fingerprint].last_seen = now
+            self._alert_history[fingerprint].count += 1
+        else:
+            # Create new record
+            self._alert_history[fingerprint] = AlertRecord(
+                fingerprint=fingerprint,
+                severity=severity,
+                title=title,
+                message=message,
+                first_seen=now,
+                last_seen=now,
+            )
+
+    def _update_alert_record(self, fingerprint: str) -> None:
+        """Update last_seen timestamp for deduped alert."""
+        if fingerprint in self._alert_history:
+            self._alert_history[fingerprint].last_seen = time.monotonic()
+            self._alert_history[fingerprint].count += 1
+
+    def _escalate_alert(
+        self,
+        fingerprint: str,
+        severity: AlertSeverity,
+        title: str,
+        message: str,
+        context: Optional[Dict[str, Any]],
+    ) -> None:
+        """Escalate unresolved alert with higher severity or separate webhook."""
+        record = self._alert_history[fingerprint]
+        
+        # Mark as escalated
+        record.escalated = True
+        
+        # Boost severity
+        escalated_severity = self._boost_severity(severity, self._config.escalation_severity_boost)
+        
+        # Add escalation context
+        escalation_context = {
+            **(context or {}),
+            "escalated": True,
+            "first_seen_seconds_ago": int(time.monotonic() - record.first_seen),
+            "occurrence_count": record.count,
+        }
+        
+        # Escalated title
+        escalated_title = f"🚨 ESCALATED: {title}"
+        escalated_message = f"{message} (unresolved for {int(time.monotonic() - record.first_seen)}s, {record.count} occurrences)"
+        
+        logger.warning(f"Escalating alert: {title} (unresolved for {int(time.monotonic() - record.first_seen)}s)")
+        
+        # Send to escalation webhook if configured, otherwise use primary with boosted severity
+        webhook_url = self._config.escalation_webhook_url or self._config.webhook_url
+        self._send_alert(escalated_severity, escalated_title, escalated_message, escalation_context, webhook_url=webhook_url)
+
+    def _boost_severity(self, severity: AlertSeverity, boost: int) -> AlertSeverity:
+        """Boost alert severity by N levels."""
+        levels = [AlertSeverity.INFO, AlertSeverity.WARNING, AlertSeverity.CRITICAL]
+        try:
+            current_index = levels.index(severity)
+        except ValueError:
+            return severity
+        
+        new_index = min(current_index + boost, len(levels) - 1)
+        return levels[new_index]
+
+    def _send_alert(
+        self,
+        severity: AlertSeverity,
+        title: str,
+        message: str,
+        context: Optional[Dict[str, Any]],
+        webhook_url: Optional[str],
+    ) -> None:
+        """Send alert to webhook."""
         payload = self._build_payload(severity, title, message, context)
+        
         if self._config.dry_run:
             logger.info("[ALERT:%s] %s - %s | %s", severity.name, title, message, context or {})
             return
 
-        assert self._config.webhook_url  # guarded by _enabled
+        if not webhook_url:
+            logger.warning(f"No webhook URL for alert: {title}")
+            return
+
         data = json.dumps(payload).encode("utf-8")
         request = urllib.request.Request(
-            self._config.webhook_url,
+            webhook_url,
             data=data,
             headers={"Content-Type": "application/json"},
         )
@@ -156,7 +328,7 @@ class AlertService:
                 if response.status >= 400:
                     body = response.read().decode("utf-8", errors="ignore")
                     raise urllib.error.HTTPError(
-                        self._config.webhook_url,
+                        webhook_url,
                         response.status,
                         body,
                         response.headers,
@@ -164,6 +336,29 @@ class AlertService:
                     )
         except (urllib.error.URLError, urllib.error.HTTPError, socket.timeout) as exc:
             logger.error("Failed to deliver alert '%s': %s", title, exc)
+
+    def _cleanup_old_alerts(self) -> None:
+        """Remove alerts older than 5 minutes to prevent memory leak."""
+        now = time.monotonic()
+        
+        # Cleanup every 60s
+        if now - self._last_cleanup < 60.0:
+            return
+        
+        self._last_cleanup = now
+        
+        # Remove alerts older than 5 minutes
+        max_age = 300.0
+        to_remove = [
+            fp for fp, record in self._alert_history.items()
+            if (now - record.last_seen) > max_age
+        ]
+        
+        for fp in to_remove:
+            del self._alert_history[fp]
+        
+        if to_remove:
+            logger.debug(f"Cleaned up {len(to_remove)} old alert records")
 
     @staticmethod
     def _build_payload(
