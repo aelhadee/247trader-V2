@@ -624,6 +624,78 @@ def validate_sanity_checks(config_dir: Path) -> List[str]:
                 f"Excessive slippage tolerance may lead to poor fills."
             )
         
+        # Check: Min/max trade count coherence
+        max_trades_per_hour = risk.get("max_trades_per_hour", 0)
+        max_trades_per_day = risk.get("max_trades_per_day", 0)
+        if max_trades_per_hour > 0 and max_trades_per_day > 0:
+            # Allow for some flexibility, but flag if hourly rate * 24 >> daily cap
+            theoretical_daily = max_trades_per_hour * 24
+            if theoretical_daily > max_trades_per_day * 2:  # More than 2x suggests misconfiguration
+                errors.append(
+                    f"UNSAFE: max_trades_per_hour ({max_trades_per_hour}) × 24 = {theoretical_daily} "
+                    f"far exceeds max_trades_per_day ({max_trades_per_day}). "
+                    f"Hourly rate should be ~1/24 of daily cap."
+                )
+        
+        # Check: Max new trades per hour vs total trades per hour
+        max_new_trades_per_hour = risk.get("max_new_trades_per_hour", 0)
+        if max_new_trades_per_hour > max_trades_per_hour:
+            errors.append(
+                f"UNSAFE: max_new_trades_per_hour ({max_new_trades_per_hour}) > "
+                f"max_trades_per_hour ({max_trades_per_hour}). "
+                f"New trade limit exceeds total trade limit."
+            )
+        
+        # Check: Cooldown coherence (symbol vs global)
+        per_symbol_cooldown_minutes = risk.get("per_symbol_cooldown_minutes", 0)
+        min_seconds_between_trades = risk.get("min_seconds_between_trades", 0)
+        if per_symbol_cooldown_minutes > 0 and min_seconds_between_trades > 0:
+            per_symbol_cooldown_seconds = per_symbol_cooldown_minutes * 60
+            if per_symbol_cooldown_seconds < min_seconds_between_trades:
+                errors.append(
+                    f"UNSAFE: per_symbol_cooldown_minutes ({per_symbol_cooldown_minutes}min = "
+                    f"{per_symbol_cooldown_seconds}s) < min_seconds_between_trades ({min_seconds_between_trades}s). "
+                    f"Per-symbol cooldown should be >= global cooldown."
+                )
+        
+        # Check: Maker/taker fee coherence
+        maker_fee_bps = exec_config.get("maker_fee_bps", 0)
+        taker_fee_bps = exec_config.get("taker_fee_bps", 0)
+        if maker_fee_bps > taker_fee_bps:
+            errors.append(
+                f"UNSAFE: maker_fee_bps ({maker_fee_bps}) > taker_fee_bps ({taker_fee_bps}). "
+                f"Maker fees should be lower than taker fees. Verify Coinbase fee tier."
+            )
+        
+        # Check: Maker TTL coherence
+        maker_max_ttl_sec = exec_config.get("maker_max_ttl_sec", 0)
+        maker_first_min_ttl_sec = exec_config.get("maker_first_min_ttl_sec", 0)
+        maker_retry_min_ttl_sec = exec_config.get("maker_retry_min_ttl_sec", 0)
+        
+        if maker_first_min_ttl_sec > maker_max_ttl_sec:
+            errors.append(
+                f"UNSAFE: maker_first_min_ttl_sec ({maker_first_min_ttl_sec}s) > "
+                f"maker_max_ttl_sec ({maker_max_ttl_sec}s). "
+                f"Initial TTL exceeds maximum TTL."
+            )
+        
+        if maker_retry_min_ttl_sec > maker_first_min_ttl_sec:
+            errors.append(
+                f"UNSAFE: maker_retry_min_ttl_sec ({maker_retry_min_ttl_sec}s) > "
+                f"maker_first_min_ttl_sec ({maker_first_min_ttl_sec}s). "
+                f"Retry TTL should decay, not increase."
+            )
+        
+        # Check: Dust threshold vs min trade notional
+        dust_threshold_usd = risk.get("dust_threshold_usd", 0)
+        min_trade_notional_usd = risk.get("min_trade_notional_usd", 0)
+        if dust_threshold_usd > min_trade_notional_usd:
+            errors.append(
+                f"UNSAFE: dust_threshold_usd ({dust_threshold_usd}) > "
+                f"min_trade_notional_usd ({min_trade_notional_usd}). "
+                f"Dust threshold should be ≤ minimum trade size."
+            )
+        
         # === DEPRECATED KEY CHECKS ===
         
         # Check: Old exposure parameter name
