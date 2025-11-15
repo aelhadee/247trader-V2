@@ -34,6 +34,7 @@ def _build_engine(exchange: Mock, ttl_seconds: int = 1) -> ExecutionEngine:
             "cancel_after_seconds": 60,
             "post_only_ttl_seconds": ttl_seconds,
             "post_trade_reconcile_wait_seconds": 0.5,
+            "maker_max_reprices": 0,
         },
         "microstructure": {
             "max_expected_slippage_bps": 50.0,
