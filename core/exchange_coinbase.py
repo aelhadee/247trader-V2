@@ -424,7 +424,8 @@ class CoinbaseExchange:
             bb = data.get("best_bid") or data.get("best_bid_price") or data.get("bid")
             ba = data.get("best_ask") or data.get("best_ask_price") or data.get("ask")
             lp = data.get("price") or data.get("last") or data.get("last_price")
-            vol = data.get("volume_24h") or data.get("quote_volume_24h")
+            # CRITICAL: Use quote-denominated volume (USD), not base volume (BTC/ETH/etc)
+            vol = data.get("approximate_quote_24h_volume") or data.get("quote_volume_24h") or data.get("volume_24h")
 
             if bb: best_bid = float(bb)
             if ba: best_ask = float(ba)
