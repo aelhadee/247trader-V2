@@ -1,234 +1,149 @@
-# 247trader-v2 Policy Configuration
-# Hard constraints that NO component (rules, AI, or human) can violate
-
-# Trading Profile Selection
-# Profiles adjust risk tolerance for different account sizes and trading styles
-profile: day_trader  # Options: swing_trader, day_trader
-
-# Profile Definitions (applied to risk/strategy sections below)
+profile: day_trader
 profiles:
   swing_trader:
-    # Conservative swing trading for larger accounts ($2K+)
     min_conviction: 0.34
     tier_sizing:
-      T1: 0.020   # 2.0% of NAV per T1 asset
-      T2: 0.012   # 1.2% of NAV per T2 asset
-      T3: 0.005   # 0.5% of NAV per T3 asset
+      T1: 0.02
+      T2: 0.012
+      T3: 0.005
     max_position_pct:
-      T1: 0.040   # 4.0% cap per T1 asset (2x base)
-      T2: 0.030   # 3.0% cap per T2 asset (2.5x base)
-      T3: 0.020   # 2.0% cap per T3 asset (4x base)
-    min_trade_notional: 9.0  # Higher floor for precision
-    
+      T1: 0.04
+      T2: 0.03
+      T3: 0.02
+    min_trade_notional: 9.0
   day_trader:
-    # Active day trading for smaller accounts ($300-$1K)
-    min_conviction: 0.30    # Lower bar → more setups convert
+    min_conviction: 0.3
     tier_sizing:
-      T1: 0.030   # 3.0% of NAV per T1 asset (50% larger)
-      T2: 0.018   # 1.8% of NAV per T2 asset (50% larger)
-      T3: 0.007   # 0.7% of NAV per T3 asset (40% larger)
+      T1: 0.03
+      T2: 0.018
+      T3: 0.007
     max_position_pct:
-      T1: 0.070   # 7.0% cap per T1 asset (~2.3x base, more room to add)
-      T2: 0.045   # 4.5% cap per T2 asset (~2.5x base)
-      T3: 0.025   # 2.5% cap per T3 asset (~3.5x base)
-  min_trade_notional: 15.0  # Raised floor to ensure fills cover fees/slippage
-
+      T1: 0.07
+      T2: 0.045
+      T3: 0.025
+  min_trade_notional: 15.0
 risk:
-  # Global exposure limits
-  max_total_at_risk_pct: 95.0  # 95% of NLV in active risk positions
-  count_external_positions: false  # Ignore legacy/external holdings when enforcing risk cap
-  managed_position_tag: "247trader"  # Tag applied to client order IDs for managed trades
-  external_exposure_buffer_pct: 5.0  # Allow this % of external holdings as buffer before counting
-  
-  # Per-asset limits (DYNAMIC based on profile - see profiles section above)
-  # Active profile: day_trader
-  max_position_size_pct: 7.0  # T1: 7% of NLV per coin (day_trader profile)
-  max_per_asset_pct: 7.0      # Alias for spec compatibility
+  max_total_at_risk_pct: 95.0
+  count_external_positions: false
+  managed_position_tag: 247trader
+  external_exposure_buffer_pct: 5.0
+  max_position_size_pct: 7.0
+  max_per_asset_pct: 7.0
   min_position_size_pct: 0.5
-  max_open_positions: 12      # Hard cap on concurrently held tickers
-  
-  # Per-theme limits (cluster exposure)
+  max_open_positions: 12
   max_per_theme_pct:
-    L2: 10.0      # 10% across ARB/OP/STRK/etc
-    MEME: 5.0     # 5% max in meme coins
-    DEFI: 10.0    # 10% max in DeFi
-  
-  # Drawdown controls
-  daily_stop_pnl_pct: -3.0    # -3% NLV on day → stop new trades
-  weekly_stop_pnl_pct: -7.0   # -7% week → tighten / only de-risk
+    L2: 10.0
+    MEME: 5.0
+    DEFI: 10.0
+  daily_stop_pnl_pct: -3.0
+  weekly_stop_pnl_pct: -7.0
   max_drawdown_pct: 10.0
-  
-  # Trade frequency caps (backup guardrails, not primary throttle)
-  max_trades_per_day: 40      # High enough to not bottleneck active trading
-  max_trades_per_hour: 8      # Reasonable hourly cap (primary control is pacing below)
-  max_new_trades_per_hour: 8  # New trades per hour
-  
-  # Trade pacing (prevents burning quota in first 10 minutes)
-  min_seconds_between_trades: 120  # Force 2min spacing between ANY trades (global cooldown)
-  per_symbol_trade_spacing_seconds: 600  # 10min minimum between trades on same symbol
-  
-  # Cooldown after losses (global)
-  cooldown_after_loss_trades: 3  # 3 losing trades in row → pause
+  max_trades_per_day: 40
+  max_trades_per_hour: 8
+  max_new_trades_per_hour: 8
+  min_seconds_between_trades: 120
+  per_symbol_trade_spacing_seconds: 600
+  cooldown_after_loss_trades: 3
   cooldown_minutes: 60
-  
-  # Per-symbol cooldowns
   per_symbol_cooldown_enabled: true
-  per_symbol_cooldown_minutes: 30  # Wait 30min after any loss on a symbol
-  per_symbol_cooldown_after_stop: 60  # Wait 60min after stop-loss hit
-  
-  # Minimum trade size (DYNAMIC based on profile)
-  # Active profile: day_trader → min_trade_notional = $15.00
-  min_trade_notional_usd: 15  # Raised to keep fills above exchange fee + spread overhead
-  dust_threshold_usd: 10.0  # Holdings below this USD value do not consume a slot
-  allow_adds_when_over_cap: true  # Permit topping up existing symbols even if cap reached
-  count_open_orders_in_cap: true  # Treat pending buy orders as occupying slots
+  per_symbol_cooldown_minutes: 30
+  per_symbol_cooldown_after_stop: 60
+  min_trade_notional_usd: 15
+  dust_threshold_usd: 10.0
+  allow_adds_when_over_cap: true
+  count_open_orders_in_cap: true
   allow_pyramiding: true
   pyramid_cooldown_seconds: 300
   max_adds_per_asset_per_day: 2
-  
-  # Hard stops per position
   stop_loss_pct: 8.0
   take_profit_pct: 15.0
-
-# Position Exit Management
-# Automatically checks open positions against stop-loss, take-profit, and max hold time
 exits:
-  enabled: true                      # Enable position exit logic
-  check_stop_loss: true              # Check positions against stop-loss targets
-  check_take_profit: true            # Check positions against take-profit targets
-  check_max_hold: true               # Check positions against max hold time
-  
-  # Trailing stop (future enhancement)
-  use_trailing_stop: false           # Trailing stop not yet implemented
-  trailing_stop_pct: 5.0             # Trail stop N% below highest price since entry
-  
-  # Exit execution preferences
-  exit_order_type: "limit_ioc"       # IOC to ensure quick exits (vs post-only)
-  exit_slippage_tolerance_bps: 100   # Allow 1% slippage on exits (protect capital quickly)
-  
-  # Regime-aware exit adjustments (future enhancement)
-  tighten_stops_in_crash: true       # Reduce stop-loss % in crash regime
-  widen_targets_in_bull: true        # Increase take-profit % in bull regime
-
+  enabled: true
+  check_stop_loss: true
+  check_take_profit: true
+  check_max_hold: true
+  use_trailing_stop: false
+  trailing_stop_pct: 5.0
+  exit_order_type: limit_ioc
+  exit_slippage_tolerance_bps: 100
+  tighten_stops_in_crash: true
+  widen_targets_in_bull: true
 position_sizing:
-  # Base sizing method
-  method: "risk_parity"  # fixed | risk_parity | kelly
-  
-  # Risk per trade (when using risk_parity)
+  method: risk_parity
   risk_per_trade_pct: 1.0
-  
-  # Fixed size (when using fixed method)
   fixed_size_usd: 100.0
-  
-  # Sizing constraints
   min_order_usd: 10.0
   max_order_usd: 10000.0
-
-  # Pyramid rules
   allow_pyramiding: true
   max_pyramid_positions: 2
-
 liquidity:
-  # Unified liquidity filters (single source of truth)
-  min_24h_volume_usd: 8_000_000     # $8M minimum (unified policy)
-  max_spread_bps: 80                # 0.80% max spread (unified policy)
-  min_depth_20bps_usd: 10_000       # $10K depth within 20bps (broader universe, monitor slippage)
-  
-  # Size-aware depth requirement (depth must be ≥ N× order notional)
-  require_depth_mult: 10            # Depth within ±0.5% must be ≥ 10× order notional
-  
-  # Tier-specific constraints
+  min_24h_volume_usd: 8000000
+  max_spread_bps: 80
+  min_depth_20bps_usd: 10000
+  require_depth_mult: 10
   spreads_bps:
-    T1: 20                          # Max 20bps spread for T1
-    T2: 35                          # Max 35bps spread for T2
-    T3: 60                          # Max 60bps spread for T3
-  
+    T1: 20
+    T2: 35
+    T3: 60
   min_depth_floor_usd:
-    T1: 50_000                      # $50K floor for T1 (realistic for small accounts)
-    T2: 25_000                      # $25K floor for T2
-    T3: 10_000                      # $10K floor for T3
-  
+    T1: 50000
+    T2: 25000
+    T3: 10000
   slippage_budget_bps:
-    T1: 60                          # Maker fee 40bps + 20bps slippage buffer
-    T2: 95                          # Taker fee 60bps + 35bps buffer for moderate assets
-    T3: 120                         # Illiquid tails: 60bps fee + 60bps slippage allowance
-  
-  # Eligibility persistence (avoid thrashing)
+    T1: 60
+    T2: 95
+    T3: 120
   eligibility_persistence:
-    ineligible_grace_cycles: 5     # Don't purge until 5 consecutive ineligible cycles
-    eligible_grace_cycles: 2       # Avoid thrash on re-entries (must be eligible 2× before adding)
-
+    ineligible_grace_cycles: 5
+    eligible_grace_cycles: 2
 triggers:
-  # Direction filter (long-only strategy)
-  only_upside: false                # Allow downside setups for mean reversion (still long-only execution)
-  
-  # Price-move based triggers (LOOSENED for chop regime)
+  only_upside: false
   price_move:
-    pct_15m: 1.5                    # abs move >= 1.5% in 15m (was 2.5%)
-    pct_60m: 3.0                    # abs move >= 3.0% in 60m (was 4.5%)
-
-  # Volume spike trigger
+    pct_15m: 1.5
+    pct_60m: 3.0
   volume_spike:
-    ratio_1h_vs_24h: 1.9            # last 1h >= 1.9x average hourly (was 1.8x - tighter to demand real interest)
-
-  # Breakout / breakdown trigger
+    ratio_1h_vs_24h: 1.9
   breakout:
-    lookback_hours: 24              # new 24h high/low + volume confirmation
-
-  # Minimum combined trigger score (if you implement scoring)
+    lookback_hours: 24
   min_score: 0.2
-
   fallback:
     enabled: true
     min_no_trigger_streak: 1
-    relax_pct: 0.30
+    relax_pct: 0.3
     max_new_positions_per_cycle: 1
     allow_downside: true
-
   mean_reversion:
     stop_atr: 1.2
     take_profit_atr: 1.8
     max_hold_hours: 48
-
 strategy:
-  # Base target allocation per asset tier (DYNAMIC based on profile)
-  # Active profile: day_trader (3.0% / 1.8% / 0.7%)
   base_position_pct:
-    tier1: 0.030                    # 3.0% NLV per Tier1 (day_trader: larger for active trading)
-    tier2: 0.018                    # 1.8% NLV per Tier2 (≈$9 at $500 NAV before min clamp)
-    tier3: 0.007                    # 0.7% NLV per Tier3 (day_trader: slightly larger for activity)
-
-  # Allow rules engine to treat large downside momentum as a mean-reversion entry
-  momentum_downside_reversal_pct: 3.0  # Buy dips when 24h return ≤ -3%
-
-  max_open_positions: 12            # cap simultaneous distinct holdings (raised from 8)
-  max_new_positions_per_cycle: 1    # limit new tickers per cycle to stay within capacity buffers
-  prefer_add_to_existing: true      # prioritize adds to existing holdings before opening fresh names
-
-  # Require at least this conviction from rules to emit a proposal (DYNAMIC based on profile)
-  # Active profile: day_trader → min_conviction = 0.30 (lower bar for more activity)
-  min_conviction_to_propose: 0.30    # 0..1 (below this = no trade) - day_trader profile
-
+    tier1: 0.03
+    tier2: 0.018
+    tier3: 0.007
+  momentum_downside_reversal_pct: 3.0
+  max_open_positions: 12
+  max_new_positions_per_cycle: 1
+  prefer_add_to_existing: true
+  min_conviction_to_propose: 0.3
   conviction_weights:
     base: 0.0
-    trigger_strength: 0.50
-    trigger_confidence: 0.30
+    trigger_strength: 0.5
+    trigger_confidence: 0.3
     quality_boosts:
       reversal_close_above_vwap_5m: 0.04
       reversal_higher_low: 0.04
       reversal_rsi_cross_50: 0.03
       reversal_bounce_confirmed: 0.04
       tier_bias_T1: 0.02
-
   reversal_confirmation:
     enforce: true
     min_required: 3
     qualifiers:
-      - reversal_close_above_vwap_5m
-      - reversal_higher_low
-      - reversal_rsi_cross_50
-      - reversal_bounce_confirmed
-
+    - reversal_close_above_vwap_5m
+    - reversal_higher_low
+    - reversal_rsi_cross_50
+    - reversal_bounce_confirmed
   canary:
     enabled: true
     size_multiplier: 0.25
@@ -236,58 +151,35 @@ strategy:
       lower: 0.32
       upper: 0.34
       inclusive_upper: false
-    require_tier_in: [T1, T2]
+    require_tier_in:
+    - T1
+    - T2
     maker_only: true
-
 microstructure:
-  # Liquidity filters moved to top-level 'liquidity'; avoid duplication.
-  # Retain only execution-time microstructure guardrails.
-  # Slippage protection
-  max_expected_slippage_bps: 50  # 0.50%
-  # Quote freshness (CRITICAL: 30s = regime change in crypto; use 5s max)
-  max_quote_age_seconds: 5  # Changed from 30s → 5s to prevent ghost trading on stale data
-
+  max_expected_slippage_bps: 50
+  max_quote_age_seconds: 5
 circuit_breakers:
-  # Data staleness limits
-  max_quote_age_seconds: 60          # Reject quotes older than 60s
-  max_ohlcv_age_seconds: 300         # Reject candles older than 5min
-  
-  # API health monitoring
-  max_consecutive_api_errors: 3      # Trip breaker after 3 consecutive API failures
-  api_error_window_seconds: 300      # Reset error counter after 5min of success
-  
-  # Exchange health checks
-  check_exchange_status: true        # Verify exchange is operational
-  check_product_status: true         # Block trading on POST_ONLY/LIMIT_ONLY/CANCEL_ONLY products
-  halt_on_maintenance: true          # Stop trading during maintenance windows
-  
-  # Outlier/bad-tick guards
-  check_price_outliers: true         # Reject prices deviating significantly from moving average
-  max_price_deviation_pct: 10.0      # Max % deviation from 20-period moving average (10% = flash crash/spike protection)
-  min_volume_ratio: 0.1              # Require volume >= 10% of average to validate extreme moves
-  outlier_lookback_periods: 20       # Periods to calculate moving average for outlier detection
-  
-  # ATR volatility filter (reduce false signals in low-vol chop)
-  enable_atr_filter: true            # Skip low-volatility assets (tight ranges = noise)
-  atr_lookback_periods: 14           # Period for ATR calculation
-  atr_min_multiplier: 1.1            # Current ATR must be >= 1.1x median ATR (was 1.2x - loosened for chop)
-  
-  # Volatility circuit breaker
-  max_realized_volatility_pct: 150   # Halt if realized vol > 150% annualized
-  volatility_lookback_hours: 24      # Calculate vol over last 24h
-  
-  # Universe health
-  min_eligible_assets: 2             # Need at least 2 eligible assets to trade
-  
-  # Rate limit protection
-  pause_on_rate_limit: true          # Pause cycle if rate limited
-  rate_limit_cooldown_seconds: 60    # Wait 60s after rate limit before resuming
-
+  max_quote_age_seconds: 60
+  max_ohlcv_age_seconds: 300
+  max_consecutive_api_errors: 3
+  api_error_window_seconds: 300
+  check_exchange_status: true
+  check_product_status: true
+  halt_on_maintenance: true
+  check_price_outliers: true
+  max_price_deviation_pct: 10.0
+  min_volume_ratio: 0.1
+  outlier_lookback_periods: 20
+  enable_atr_filter: true
+  atr_lookback_periods: 14
+  atr_min_multiplier: 1.1
+  max_realized_volatility_pct: 150
+  volatility_lookback_hours: 24
+  min_eligible_assets: 2
+  pause_on_rate_limit: true
+  rate_limit_cooldown_seconds: 60
 regime:
-  # Market regime adjustments
   enabled: true
-  
-  # Regime-specific multipliers (applied to position sizing)
   bull:
     position_size_multiplier: 1.2
     max_positions: 5
@@ -298,219 +190,139 @@ regime:
     position_size_multiplier: 0.5
     max_positions: 2
   crash:
-    position_size_multiplier: 0.0  # No new positions
+    position_size_multiplier: 0.0
     max_positions: 0
-
 execution:
-  # Fee structure (Coinbase Advanced Trade)
-  maker_fee_bps: 40   # 0.40% maker fee (post-only orders)
-  taker_fee_bps: 60   # 0.60% taker fee (market/IOC orders)
-  
-  # Order types
-  default_order_type: "limit_post_only"  # Phase 1: conservative
-  # Execution minimum (DYNAMIC based on profile)
-  # Active profile: day_trader → min_notional = $15.00 (ensures fills justify fees)
-  min_notional_usd: 15.0                 # Execution floor for gross order size (day_trader profile)
-  maker_first: true                      # Try maker route before taker
-  maker_max_reprices: 1                  # Single reprice before fallback
-  # Normal trading TTLs (T1/T2 liquid pairs)
-  maker_max_ttl_sec: 15                  # Upper bound for maker TTL - balanced for 60s cycles
-  maker_first_min_ttl_sec: 12            # First attempt TTL (gives ~2-3 book refreshes)
-  maker_retry_min_ttl_sec: 8             # Reprice attempts minimum TTL
-  maker_reprice_decay: 0.7               # Subsequent TTL multiplier
-  # Purge-specific TTLs (T3 illiquid junk) - see portfolio_management.purge_execution
-  purge_maker_ttl_sec: 25                # Longer TTL for purge to improve fill rate on thin books
-  taker_fallback: true                   # Allow taker IOC fallback within budget
-  prefer_ioc: true                       # Use IOC for taker fallback
+  maker_fee_bps: 40
+  taker_fee_bps: 60
+  default_order_type: limit_post_only
+  min_notional_usd: 15.0
+  maker_first: true
+  maker_max_reprices: 1
+  maker_max_ttl_sec: 15
+  maker_first_min_ttl_sec: 12
+  maker_retry_min_ttl_sec: 8
+  maker_reprice_decay: 0.7
+  purge_maker_ttl_sec: 25
+  taker_fallback: true
+  prefer_ioc: true
   taker_max_slippage_bps:
     T1: 20
     T2: 40
     T3: 60
     default: 60
-  # Auto-convert USD → USDC to honor preferred quote (when needed for BUYs)
   auto_convert_preferred_quote: true
-  # Clamp tiny trades up to the minimum notional to avoid rejects
   clamp_small_trades: true
-  # Use market orders instead of post-only limits for very small trades (to avoid repeated dust failures)
   small_order_market_threshold_usd: 6.0
-  allow_min_bump_in_risk: true      # Let risk engine bump proposals up to min_notional
-  
-  # Post-trade reconciliation
-  post_trade_reconcile_wait_seconds: 0.5  # Wait after trade before reconciling fills
-  # Cooldown after a failed attempt (precision/limit reject) before retrying same symbol
+  allow_min_bump_in_risk: true
+  post_trade_reconcile_wait_seconds: 0.5
   failed_order_cooldown_seconds: 180
-  
-  # Quote currency preferences (in order of preference)
-  # System will use first available currency with sufficient balance
   preferred_quote_currencies:
-    - "USDC"  # Stablecoin preferred
-    - "USD"   # Fiat
-    - "USDT"  # Alternative stablecoin
-    - "BTC"   # Major crypto
-    - "ETH"   # Major crypto
-  
-  # Hard guardrails
-  max_slippage_bps: 40              # 0.40% max allowed vs reference (default)
-  hard_max_spread_bps: 80           # must align with liquidity.max_spread_bps
-  
-  # Slippage budget by tier (est_slippage_bps + fees must stay under budget)
-  # Updated to exceed maker/taker fees plus realistic slippage cushions
-  slippage_budget_t1_bps: 60        # Maker fee 40bps + 20bps slippage headroom
-  slippage_budget_t2_bps: 95        # Taker fee 60bps + 35bps buffer for T2 assets
-  slippage_budget_t3_bps: 120       # Additional slack for illiquid Tier 3 names
-  
-  # Order management
-  cancel_after_seconds: 60          # cancel resting orders if not filled
-  post_only_ttl_seconds: 15         # legacy override (maker_max_ttl_sec now primary)
-  partial_fill_min_pct: 0.25        # ignore fills <25% when assessing success
-  max_order_age_seconds: 1800       # 30 min - auto-cancel stale orders to free capacity
-  
-  # Limit order behavior
-  limit_offset_bps: 0               # Join top-of-book (peg)
+  - USDC
+  - USD
+  - USDT
+  - BTC
+  - ETH
+  max_slippage_bps: 40
+  hard_max_spread_bps: 80
+  slippage_budget_t1_bps: 60
+  slippage_budget_t2_bps: 95
+  slippage_budget_t3_bps: 120
+  cancel_after_seconds: 60
+  post_only_ttl_seconds: 15
+  partial_fill_min_pct: 0.25
+  max_order_age_seconds: 1800
+  limit_offset_bps: 0
   limit_timeout_seconds: 30
-  
-  # Post-trade confirmation
   require_fill_confirmation: true
   fill_timeout_seconds: 60
-  
-  # Retry logic
   max_retries: 3
   retry_delay_seconds: 5
   cancel_retry_backoff_ms:
-    - 250
-    - 500
-    - 1000
+  - 250
+  - 500
+  - 1000
   promote_to_taker_if_budget_allows: false
   taker_promotion_requirements:
     min_confidence: 0.7
     max_slippage_bps: 50
-  
-  # Volatility-aware sizing: cut risk in crazy tape
   high_volatility:
     lookback_minutes: 60
-    move_threshold_pct: 8.0         # if asset moves >8% in 1h
-    size_reduction_factor: 0.5      # halve proposed size
-
+    move_threshold_pct: 8.0
+    size_reduction_factor: 0.5
 portfolio_management:
-  # Automatically liquidate assets that are excluded or currently ineligible
   auto_liquidate_ineligible: true
-  # Only liquidate holdings worth at least this much (USD equivalent)
   min_liquidation_value_usd: 10
-  # Cap liquidations per cycle to avoid mass sells
   max_liquidations_per_cycle: 2
-  # Automatically trim portfolio back under global risk cap before evaluating new trades
   auto_trim_to_risk_cap: true
-  # Buffer below the hard cap to avoid thrash when exposure hovers near the threshold (percent of NAV)
-  trim_target_buffer_pct: 10.0  # Target cap - 10pp (e.g. 95% → 85%)
-  # Allowable margin over the cap before triggering forced trimming (percent of NAV)
+  trim_target_buffer_pct: 10.0
   trim_tolerance_pct: 0.25
-  # Minimum USD value for liquidation attempts when trimming exposure
   trim_min_value_usd: 10.0
-  # Maximum number of assets to liquidate in a single trim pass
   trim_max_liquidations: 5
-  # Preferred destination currencies when converting excess exposure back to cash
   trim_preferred_quotes:
-    - "USDC"
-    - "USD"
-    - "USDT"
-  # Extra percentage buffer applied to liquidation size to cover fees/slippage
+  - USDC
+  - USD
+  - USDT
   trim_slippage_buffer_pct: 5.0
-  # Attempt to free capital by liquidating worst-performing holding when stable buying power is insufficient
   auto_rebalance_worst_performer: true
-  # Maker-only TWAP purge settings (replaces legacy market dump path)
   purge_execution:
-    slice_usd: 15.0               # Notional per maker slice
-    maker_ttl_sec: 25             # Longer TTL for illiquid T3 purge (vs 12-15s for normal trading)
-    maker_first_ttl_sec: 25       # First attempt gets full TTL
-    maker_retry_ttl_sec: 20       # Retry attempts still generous
-    replace_seconds: 45           # Reprice cadence for resting orders
-    max_duration_seconds: 240     # Bail after 4 minutes of attempts
-    poll_interval_seconds: 2.0    # Order status polling cadence
-    max_slices: 24                # Safety cap on number of slices per purge
-    max_residual_usd: 5.0         # Allowable leftover notional before flagging failure
-    max_consecutive_no_fill: 2    # Retry cancelled slices up to this many times before taker fallback
-    # Aggressive purge mode for illiquid junk
-    allow_taker_fallback: true    # After max_consecutive_no_fill failures, use taker/market to force completion
-    taker_fallback_threshold_usd: 50.0  # Only use aggressive mode for positions < $50
-    taker_max_slippage_bps: 100   # Allow 1% slippage for forced purge (vs normal 20-60bps)
-    # Price placement strategy
-    cushion_ticks: 1              # Start with 1 tick above best ask (minimal maker cushion)
-    max_cushion_ticks: 3          # Max cushion if getting post-only rejections
-
+    slice_usd: 15.0
+    maker_ttl_sec: 25
+    maker_first_ttl_sec: 25
+    maker_retry_ttl_sec: 20
+    replace_seconds: 45
+    max_duration_seconds: 240
+    poll_interval_seconds: 2.0
+    max_slices: 24
+    max_residual_usd: 5.0
+    max_consecutive_no_fill: 2
+    allow_taker_fallback: true
+    taker_fallback_threshold_usd: 50.0
+    taker_max_slippage_bps: 100
+    cushion_ticks: 1
+    max_cushion_ticks: 3
 twap:
   replace_seconds: 45
-
 cooldowns:
   bypass_tags:
-    - "purge"
-    - "trim"
-
+  - purge
+  - trim
 loop:
   interval_seconds: 60
   universe_cache_seconds: 300
-
 ai:
-  # AI module configuration
-  enabled: false  # Start with rules-only
-  
-  # Model selection
-  m1_model: "gpt-4o"  # Fundamental analyst
-  m2_model: "gpt-4o"  # Quantitative analyst
-  m3_model: "o3-mini"  # Arbitrator/governor
-  
-  # API configuration
-  openai_api_key: "${OPENAI_API_KEY}"
-  
-  # AI constraints
-  ai_can_create_symbols: false  # AI can only veto/adjust rule proposals
-  ai_can_override_risk: false  # AI cannot violate risk rules
-  ai_max_position_adjustment_pct: 20  # AI can adjust size by ±20%
-  
-  # News sources (allowlist only)
+  enabled: false
+  m1_model: gpt-4o
+  m2_model: gpt-4o
+  m3_model: o3-mini
+  openai_api_key: ${OPENAI_API_KEY}
+  ai_can_create_symbols: false
+  ai_can_override_risk: false
+  ai_max_position_adjustment_pct: 20
   news_sources:
-    - "coindesk.com"
-    - "theblock.co"
-    - "cointelegraph.com"
-  
-  # Rate limits
+  - coindesk.com
+  - theblock.co
+  - cointelegraph.com
   max_ai_calls_per_hour: 60
-  
-  # Cost controls
   max_cost_per_cycle_usd: 2.0
-
 governance:
-  # Live trading safety gate (dead man's switch)
-  live_trading_enabled: true  # Set to false to disable LIVE order execution without code changes
-  
-  # Decision logging
+  live_trading_enabled: true
   require_decision_reasoning: true
   min_reasoning_length: 50
-  
-  # Audit trail
   log_all_decisions: true
   log_ai_prompts: true
   log_ai_responses: true
-  
-  # Human override
   allow_manual_override: true
   require_override_reason: true
-  
-  # Kill switches
   kill_switch_enabled: true
-  kill_switch_file: "data/KILL_SWITCH"  # Create this file to halt
-  
-  # Emergency contacts
-  emergency_slack_webhook: "${SLACK_WEBHOOK_URL}"
-  emergency_email: "${ALERT_EMAIL}"
-
+  kill_switch_file: data/KILL_SWITCH
+  emergency_slack_webhook: ${SLACK_WEBHOOK_URL}
+  emergency_email: ${ALERT_EMAIL}
 data:
-  # Data quality guardrails
-  max_age_s: 60  # Max age for OHLCV data (seconds)
-  max_quote_staleness_seconds: 30  # Max age for quotes (seconds)
-
+  max_age_s: 60
+  max_quote_staleness_seconds: 30
 circuit_breaker:
-  # API health monitoring
-  api_error_threshold: 5  # Errors before circuit breaker
-  api_error_window_minutes: 5  # Window for error tracking
-  rate_limit_threshold: 3  # Rate limits before circuit breaker
-  rate_limit_window_minutes: 10  # Window for rate limit tracking
+  api_error_threshold: 5
+  api_error_window_minutes: 5
+  rate_limit_threshold: 3
+  rate_limit_window_minutes: 10
