@@ -136,9 +136,28 @@ class RulesEngine(BaseStrategy):
         self.reversal_confirmation_cfg = self._build_reversal_confirmation_cfg(strategy_cfg)
         
         logger.info(
-            f"Initialized RulesEngine with tier sizing: "
+            f"Initialized RulesEngine '{name}' with tier sizing: "
             f"T1={self.tier1_base_size:.1f}%, T2={self.tier2_base_size:.1f}%, T3={self.tier3_base_size:.1f}% | "
             f"min_conviction={self.min_conviction_default}"
+        )
+    
+    def generate_proposals(self, context: StrategyContext) -> List[TradeProposal]:
+        """
+        Generate proposals using BaseStrategy interface.
+        
+        Wraps existing propose_trades() method for backward compatibility
+        while implementing the BaseStrategy interface.
+        
+        Args:
+            context: Strategy context with universe, triggers, regime
+            
+        Returns:
+            List of trade proposals
+        """
+        return self.propose_trades(
+            universe=context.universe,
+            triggers=context.triggers,
+            regime=context.regime
         )
     
     def _min_conviction_threshold(self, regime: str) -> float:
