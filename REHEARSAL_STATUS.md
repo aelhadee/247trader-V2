@@ -42,6 +42,11 @@
 ./scripts/check_rehearsal.sh
 ```
 
+### Visual Timeline
+```bash
+./scripts/timeline.sh
+```
+
 ### Monitor Until Complete (checks every hour)
 ```bash
 ./scripts/notify_when_complete.sh 60
