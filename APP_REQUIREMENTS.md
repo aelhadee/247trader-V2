@@ -580,16 +580,16 @@ To be populated in CI:
 
 | REQ-ID    | Test IDs / Procedure           | Evidence Artifact           | Status      |
 | --------- | ------------------------------ | --------------------------- | ----------- |
-| REQ-K1    | `test_kill_switch_timings`     | logs/alerts with timestamps | Partial     |
-| REQ-E2    | `test_pending_exposure_caps`   | risk decision logs          | Partial     |
-| REQ-ST1   | `test_data_staleness_breaker`  | alert payload               | Implemented |
-| REQ-X1    | `test_idempotent_orders_retry` | venue order count           | Implemented |
-| REQ-AL1   | `test_alert_sla_and_dedupe`    | alert events                | Partial     |
-| REQ-OB1   | `test_latency_slos`            | telemetry export/dashboard  | Planned     |
-| REQ-BT1-3 | `backtest_regression_suite`    | JSON report diff            | Partial     |
-| REQ-CB1   | `retry_policy_fault_injection` | request traces              | Planned     |
-| REQ-STR1  | `test_strategy_interface_pure` | strategy tests/logs         | Planned     |
-| REQ-STR3  | `test_strategy_risk_budgets`   | risk decisions log          | Planned     |
+| REQ-K1    | `test_kill_switch_timings`     | logs/alerts with timestamps | 🟡 Partial (immediate halt verified; <10s cancel timing needs proof) |
+| REQ-E2    | `test_pending_exposure_caps`   | risk decision logs          | ✅ Implemented (5 tests in test_pending_exposure.py) |
+| REQ-ST1   | `test_data_staleness_breaker`  | alert payload               | ✅ Implemented (14 tests in test_stale_quotes.py) |
+| REQ-X1    | `test_idempotent_orders_retry` | venue order count           | ✅ Implemented (8 tests in test_client_order_ids.py) |
+| REQ-AL1   | `test_alert_sla_and_dedupe`    | alert events                | 🟡 Partial (wiring complete; dedupe/escalation need verification) |
+| REQ-OB1   | `test_latency_slos`            | telemetry export/dashboard  | ✅ Implemented (19 tests; docs/LATENCY_TRACKING.md) |
+| REQ-BT1-3 | `backtest_regression_suite`    | JSON report diff            | 🟡 Partial (backtest exists; CI gate missing) |
+| REQ-CB1   | `retry_policy_fault_injection` | request traces              | 🟡 Partial (backoff exists; fault-injection tests missing) |
+| REQ-STR1  | `test_strategy_interface_pure` | strategy tests/logs         | 🔴 Planned (multi-strategy contract not formalized) |
+| REQ-STR3  | `test_strategy_risk_budgets`   | risk decisions log          | 🔴 Planned (per-strategy caps not implemented) |
 
 ---
 
