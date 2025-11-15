@@ -3258,13 +3258,14 @@ class TradingLoop:
                                 bypass_failed_order_cooldown=True,
                             )
                             
-                            if taker_result.success and taker_result.filled_usd > 0:
-                                total_filled_usd += taker_result.filled_usd
+                            taker_filled_usd = taker_result.filled_size * taker_result.filled_price
+                            if taker_result.success and taker_filled_usd > 0:
+                                total_filled_usd += taker_filled_usd
                                 total_filled_units += taker_result.filled_size
-                                total_fees += taker_result.total_fees
+                                total_fees += taker_result.fees
                                 logger.info(
                                     "TWAP: taker fallback filled $%.2f (%.6f %s), total now $%.2f",
-                                    taker_result.filled_usd,
+                                    taker_filled_usd,
                                     taker_result.filled_size,
                                     currency,
                                     total_filled_usd,
