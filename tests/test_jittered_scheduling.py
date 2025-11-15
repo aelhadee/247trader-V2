@@ -19,7 +19,7 @@ from runner.main_loop import TradingLoop
 
 def test_jitter_config_default():
     """Test jitter configuration loads with default 10%."""
-    loop = TradingLoop(config_dir=temp_config_dir)
+    loop = TradingLoop(config_dir="config")
     assert loop.loop_jitter_pct == 10.0
 
 
