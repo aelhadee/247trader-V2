@@ -2130,6 +2130,20 @@ class RiskEngine:
         """Record API error for circuit breaker tracking"""
         self._api_error_count += 1
         logger.warning(f"API error recorded (count: {self._api_error_count})")
+        
+        # Alert on API error burst (2+ consecutive errors)
+        if self._api_error_count >= 2 and self.alert_service:
+            from infra.alerting import AlertSeverity
+            self.alert_service.notify(
+                severity=AlertSeverity.WARNING,
+                title="⚠️ API Error Burst",
+                message=f"{self._api_error_count} consecutive API errors detected",
+                context={
+                    "error_count": self._api_error_count,
+                    "last_success": self._last_api_success.isoformat() if self._last_api_success else None,
+                    "action": "monitoring_for_circuit_breaker"
+                }
+            )
     
     def record_rate_limit(self):
         """Record rate limit hit for circuit breaker tracking"""
