@@ -237,8 +237,8 @@ class TestUniverseValidation:
         }
         
         # Should not raise
-        schema = UniverseSchema(**config)
-        assert schema.clusters.enabled == True
+    schema = UniverseSchema(**config)
+    assert schema.clusters.enabled
     
     def test_empty_cluster_fails(self):
         """Empty cluster definitions fail validation"""
