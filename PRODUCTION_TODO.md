@@ -173,6 +173,7 @@ Status alignment with formal requirements spec (APP_REQUIREMENTS.md). Tracks all
 | REQ-SI1 | Single instance lock (PID file) | runner/main_loop.py: _acquire_lock() | Verified manually |
 | REQ-OB1 | Latency telemetry (p50/p95/p99 tracking) | infra/latency_tracker.py: LatencyTracker | 19 tests in test_latency_tracker.py |
 | REQ-K1 | Kill-switch SLA (<10s cancel, <5s alert, <3s MTTD) | RiskEngine._check_kill_switch() + _handle_stop() + AlertService | 6 tests in test_kill_switch_sla.py |
+| REQ-AL1 | Alert dedupe (60s) + escalation (2m) | infra/alerting.py: AlertService with fingerprinting, fixed window dedupe, escalation with severity boost | 18 tests in test_alert_sla.py |
 | REQ-SEC1 | Secrets handling (env vars, redacted logs) | core/exchange_coinbase.py + all logging | Manual audit passed |
 | REQ-RET1 | Data retention (90-day logs, no PII) | Configured via log rotation | Log config verified |
 
