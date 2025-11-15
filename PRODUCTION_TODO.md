@@ -187,7 +187,7 @@ Status alignment with formal requirements spec (APP_REQUIREMENTS.md). Tracks all
 | REQ-BT2 | Backtest JSON reports (trades, PnL, DD) | Basic backtest output exists | Machine-readable JSON format incomplete | LOW |
 | REQ-BT3 | CI regression gate (±2% tolerance) | Unit tests in CI | Backtest comparison gate not implemented | LOW |
 
-### 🔴 Planned (6 requirements)
+### 🔴 Planned (5 requirements)
 
 | REQ-ID | Requirement | Why Needed | Blocking What | Priority |
 | ------ | ----------- | ---------- | ------------- | -------- |
