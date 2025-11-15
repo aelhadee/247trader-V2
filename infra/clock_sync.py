@@ -1,14 +1,14 @@
 """
 Clock Sync Validation (REQ-TIME1)
 
-Validates host clock is NTP-synced with drift <100ms before trading.
+Validates host clock is NTP-synced with drift <150ms before trading.
 Critical for timestamp-based operations (order timestamps, fill reconciliation, etc.).
 
 Usage:
     validator = ClockSyncValidator()
     
     # Check on startup
-    validator.validate_or_fail(mode="LIVE")  # Raises if drift >100ms
+    validator.validate_or_fail(mode="LIVE")  # Raises if drift >150ms
     
     # Or check without failing
     status = validator.check_sync()
