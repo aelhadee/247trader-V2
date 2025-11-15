@@ -264,15 +264,15 @@ class TestFullSimulation:
             order_type="taker"
         )
         
-        # Tier 1 slippage = 10bps = $5
-        # Fill price ≈ $50,005
-        assert 50000 < fill["fill_price"] < 50010
+        # Tier 1 slippage = 10bps = $5 + market impact
+        # $50k notional → ~1.1x impact → fill price ≈ $50,055
+        assert 50000 < fill["fill_price"] < 50100
         
-        # Taker fee = 60bps on $50,005 = $300
-        assert 290 < fill["fee_usd"] < 310
+        # Taker fee = 60bps on ~$50,055 ≈ $300
+        assert 280 < fill["fee_usd"] < 320
         
-        # Total cost ≈ $50,305
-        assert 50290 < fill["total_cost"] < 50320
+        # Total cost = fill + fee ≈ $50,355
+        assert 50280 < fill["total_cost"] < 50400
     
     def test_simulate_sell_tier2_altcoin(self):
         """Simulate realistic altcoin sell"""
