@@ -64,7 +64,14 @@ class AlertRecord:
 
 
 class AlertService:
-    """Send notifications for critical trading events."""
+    """
+    Send notifications for critical trading events.
+    
+    Features:
+    - Deduplication: Suppress identical alerts within 60s window
+    - Escalation: Boost severity/send to additional webhook after 2m unresolved
+    - History tracking: Maintain alert records for analysis
+    """
 
     def __init__(self, config: AlertConfig) -> None:
         self._config = config
@@ -72,6 +79,10 @@ class AlertService:
         if config.enabled and not config.webhook_url:
             logger.warning("Alerting enabled but no webhook URL set; disabling alerts")
             self._enabled = False
+        
+        # Alert history for dedupe and escalation
+        self._alert_history: Dict[str, AlertRecord] = {}
+        self._last_cleanup: float = time.monotonic()
 
     @classmethod
     def from_config(cls, enabled: bool, raw_config: Optional[Dict[str, Any]]) -> "AlertService":
