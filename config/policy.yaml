@@ -290,6 +290,9 @@ cooldowns:
 loop:
   interval_seconds: 60
   universe_cache_seconds: 300
+  # Jitter applied to interval_seconds to avoid lockstep behavior with other bots
+  # Set to 0.0 to disable jitter
+  jitter_pct: 10.0  # 0-10% random jitter per cycle (prevents synchronized bursts)
 ai:
   enabled: false
   m1_model: gpt-4o
