@@ -146,6 +146,17 @@ if [ ! -f "config/app.yaml" ]; then
 fi
 log_success "Configuration file found"
 
+# 4.5. Validate configuration files (schema + sanity checks)
+log "Validating configuration files..."
+python tools/config_validator.py
+VALIDATOR_EXIT=$?
+if [ $VALIDATOR_EXIT -ne 0 ]; then
+    log_error "Configuration validation failed (exit code: $VALIDATOR_EXIT)"
+    log_error "Fix YAML errors in config/ and rerun"
+    exit 1
+fi
+log_success "Configuration validation passed"
+
 # 5. Verify we're not in read_only mode for LIVE trading
 if [ "$MODE" = "LIVE" ]; then
     if grep -q "read_only: true" config/app.yaml; then
