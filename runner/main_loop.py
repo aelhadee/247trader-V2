@@ -56,7 +56,14 @@ class TradingLoop:
     - Handle errors gracefully
     """
 
-    def __init__(self, config_dir: str = "config"):
+    def __init__(self, config_dir: str = "config", mode_override: Optional[str] = None):
+        """
+        Initialize TradingLoop.
+        
+        Args:
+            config_dir: Path to configuration directory
+            mode_override: Optional mode override for testing (DRY_RUN, PAPER, LIVE)
+        """
         self.config_dir = Path(config_dir)
         from tools.config_validator import validate_all_configs
         validation_errors = validate_all_configs(config_dir)
