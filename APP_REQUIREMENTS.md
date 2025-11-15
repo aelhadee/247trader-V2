@@ -364,7 +364,7 @@ Invalid, missing, or obviously unsafe values in `app`, `policy`, `universe`, or 
 
 **Acceptance:**
 Corrupt, missing, or out-of-bounds configs in tests cause immediate abort with clear messages.
-**Status:** Implemented.
+**Status:** ✅ Implemented (Pydantic-based validation in tools/config_validator.py; TradingLoop validates on init; 12 tests in test_config_validation.py).
 
 ---
 
