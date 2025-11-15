@@ -53,6 +53,7 @@ DEFAULT_STATE = {
     "high_water_mark": 0.0,  # Peak NAV for drawdown calculation
     "zero_trigger_cycles": 0,  # Counter for consecutive cycles with 0 triggers (bounded auto-tune)
     "auto_tune_applied": False,  # Flag to prevent repeated auto-tune adjustments
+    "latency_stats": {},  # Latency statistics by operation
 }
 
 
