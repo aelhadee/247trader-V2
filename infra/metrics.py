@@ -96,6 +96,60 @@ class MetricsRecorder:
             "Number of cycles that resulted in no-trade outcomes, grouped by reason",
             labelnames=("reason",),
         )
+        
+        # NEW: Exposure and portfolio gauges
+        self._exposure_gauge = Gauge(  # type: ignore[assignment]
+            "trader_exposure_pct",
+            "Current portfolio exposure as percentage of NAV",
+            labelnames=("type",),  # type: "at_risk", "pending"
+        )
+        self._positions_gauge = Gauge(  # type: ignore[assignment]
+            "trader_open_positions",
+            "Number of currently open positions",
+        )
+        self._pending_orders_gauge = Gauge(  # type: ignore[assignment]
+            "trader_pending_orders",
+            "Number of pending orders",
+        )
+        
+        # NEW: Execution quality metrics
+        self._fill_ratio_gauge = Gauge(  # type: ignore[assignment]
+            "trader_fill_ratio",
+            "Ratio of filled orders to total orders (0-1)",
+        )
+        self._fills_counter = Counter(  # type: ignore[assignment]
+            "trader_fills_total",
+            "Total number of filled orders",
+            labelnames=("side",),  # side: "buy", "sell"
+        )
+        self._order_rejections_counter = Counter(  # type: ignore[assignment]
+            "trader_order_rejections_total",
+            "Total number of rejected orders",
+            labelnames=("reason",),
+        )
+        
+        # NEW: Circuit breaker state
+        self._circuit_breaker_gauge = Gauge(  # type: ignore[assignment]
+            "trader_circuit_breaker_state",
+            "Circuit breaker state (0=closed/safe, 1=open/tripped)",
+            labelnames=("breaker",),  # breaker: "api_health", "rate_limit", "volatility", etc.
+        )
+        self._circuit_breaker_trips_counter = Counter(  # type: ignore[assignment]
+            "trader_circuit_breaker_trips_total",
+            "Total number of circuit breaker trips",
+            labelnames=("breaker",),
+        )
+        
+        # NEW: API error tracking
+        self._api_errors_counter = Counter(  # type: ignore[assignment]
+            "exchange_api_errors_total",
+            "Total number of API errors",
+            labelnames=("error_type",),
+        )
+        self._api_consecutive_errors_gauge = Gauge(  # type: ignore[assignment]
+            "exchange_api_consecutive_errors",
+            "Current count of consecutive API errors",
+        )
 
     def start(self) -> None:
         if not self._enabled or self._started:
