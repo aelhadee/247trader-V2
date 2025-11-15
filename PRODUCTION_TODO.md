@@ -53,7 +53,7 @@ All 4 critical safety features implemented, tested, and production-ready:
 | 🟢 Done | Ensure graceful shutdown cancels live orders, flushes state, and exits cleanly. | N/A | runner/main_loop._handle_stop() cancels via OrderStateMachine, syncs StateStore, and exits safely. |
 | 🟡 Pending Validation | Use real PnL for circuit breakers. | TBD | Realized PnL tracking exists; need to wire RiskEngine daily/weekly stops to StateStore metrics. |
 | 🟢 Done | **[BLOCKER #2]** Fee-adjusted minimum notional with round-up sizing. | N/A | ExecutionEngine.enforce_product_constraints() verifies net (post-fee) exceeds minimums; bumps size with round_up=True to maintain compliance; 11 tests in test_fee_adjusted_notional.py. |
-| 🔴 TODO | Add latency accounting for API calls, decision cycle, and submission pipeline. | TBD | Required for watchdog timers and alerting accuracy. |
+| � Done | Add latency accounting for API calls, decision cycle, and submission pipeline. | N/A | LatencyTracker tracks all API endpoints and cycle stages with p50/p95/p99 metrics. Integrated with StateStore persistence and AlertService for threshold violations. 19 comprehensive tests passing. See docs/LATENCY_TRACKING.md. |
 | 🔴 TODO | Introduce jittered scheduling to avoid synchronized bursts with other bots. | TBD | Randomize sleep interval per loop respecting policy gates. |
 | 🟡 Pending Validation | Run PAPER/LIVE read-only smoke to observe `_post_trade_refresh` against real fills. | TBD | Confirms reconcile timing against Coinbase latency with live data. |
 | 🟡 Pending Validation | Tune `execution.post_trade_reconcile_wait_seconds` based on observed settle time. | TBD | Default 0.5s may be too short during volatility; measure and adjust. |
