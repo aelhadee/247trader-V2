@@ -429,7 +429,7 @@ Decision cycles **SHALL** apply random jitter (0–10%) to their nominal timing 
 
 **Acceptance:**
 Cycle timestamps in logs show randomized offsets around the configured interval.
-**Status:** Planned.
+**Status:** 🔴 Planned (not implemented; needed to prevent synchronized bursts).
 
 ---
 
