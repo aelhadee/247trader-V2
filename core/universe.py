@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
+@dataclass
 class UniverseAsset:
     """Asset in the trading universe"""
     symbol: str
