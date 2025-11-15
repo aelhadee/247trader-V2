@@ -13,13 +13,16 @@ REQ-STR1: Pure strategy interface (no direct exchange calls)
 """
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, TYPE_CHECKING
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from core.universe import UniverseSnapshot
 from core.triggers import TriggerSignal
-from strategy.rules_engine import TradeProposal
+
+# Avoid circular import - TradeProposal defined in rules_engine
+if TYPE_CHECKING:
+    from strategy.rules_engine import TradeProposal
 
 import logging
 
