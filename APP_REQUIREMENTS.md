@@ -489,7 +489,7 @@ The host clock **SHALL** be NTP-synced with drift < **100ms** relative to a trus
 * PII **SHALL NOT** be collected.
 * Logs **SHALL** be deletable on operator request.
 
-**Status:** Implemented.
+**Status:** ✅ Implemented (log rotation configured; no PII collected; manual deletion supported).
 
 ---
 
