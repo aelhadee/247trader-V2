@@ -75,11 +75,13 @@ def mock_context():
     triggers = [
         TriggerSignal(
             symbol=asset.symbol,
+            trigger_type="momentum",
             strength=0.7,
-            confidence=0.6,
-            volatility=0.02,
-            reasoning=f"Test trigger {i}",
-            asset=asset
+            confidence=0.8,
+            reason=f"Mock trigger for {asset.symbol}",
+            timestamp=datetime.now(timezone.utc),
+            current_price=100.0,
+            volatility=0.3
         )
         for i, asset in enumerate(assets)
     ]
