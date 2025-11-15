@@ -160,9 +160,7 @@ class BacktestEngine:
         # REQ-BT1: Set random seed for deterministic behavior
         if seed is not None:
             import random
-            import numpy as np
             random.seed(seed)
-            np.random.seed(seed)
             logger.info(f"Backtest seed set to {seed} for deterministic results")
         
         # Load modules (same as live)
