@@ -225,6 +225,22 @@ Expected JSON output with live Coinbase data:
 python runner/main_loop.py --interval 15
 ```
 
+## Maintenance Utilities
+
+### Rebuild Positions (fills → state)
+
+If the `positions` block inside `data/.state.json` drifts from actual Coinbase fills (for example after restoring a backup or hitting a reconciliation bug), run the documented maintenance script:
+
+```bash
+# Preview only (no writes)
+python scripts/rebuild_positions.py --hours 72 --state data/.state.json --dry-run
+
+# Persist repaired quantities once satisfied
+python scripts/rebuild_positions.py --hours 72 --state data/.state.json
+```
+
+The utility replays recent fills in read-only mode, recomputes base units/entry prices, and saves via `StateStore`. See `docs/REBUILD_POSITIONS.md` for the full workflow, safety checklist, and rollback steps.
+
 ## Configuration
 
 ### Mode (app.yaml)
