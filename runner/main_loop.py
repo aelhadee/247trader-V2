@@ -1941,15 +1941,51 @@ class TradingLoop:
                 if isinstance(e, requests.exceptions.HTTPError) and e.response and e.response.status_code == 429:
                     self.risk_engine.record_rate_limit()
             
-            self.alerts.notify(
-                AlertSeverity.CRITICAL,
-                "Trading loop exception",
-                str(e),
-                {
-                    "exception": type(e).__name__,
-                    "mode": self.mode,
-                },
-            )
+            # Track exception for burst detection
+            now = datetime.now(timezone.utc)
+            exc_type = type(e).__name__
+            self._exception_history.append((now, exc_type))
+            
+            # Clean old exceptions
+            cutoff = now - timedelta(seconds=self._exception_window_seconds)
+            self._exception_history = [
+                (ts, et) for ts, et in self._exception_history if ts > cutoff
+            ]
+            
+            # Check for exception burst
+            if len(self._exception_history) >= self._exception_threshold:
+                # Count exception types
+                exc_counts = {}
+                for _, et in self._exception_history:
+                    exc_counts[et] = exc_counts.get(et, 0) + 1
+                
+                # Alert with enhanced context
+                self.alerts.notify(
+                    AlertSeverity.CRITICAL,
+                    "🚨 Exception Burst",
+                    f"{len(self._exception_history)} exceptions in {self._exception_window_seconds}s - systemic issue",
+                    {
+                        "exception_count": len(self._exception_history),
+                        "window_seconds": self._exception_window_seconds,
+                        "exception_types": exc_counts,
+                        "latest_exception": exc_type,
+                        "latest_message": str(e),
+                        "mode": self.mode,
+                        "action": "check_for_systemic_issue"
+                    }
+                )
+                logger.error(f"🚨 EXCEPTION BURST: {len(self._exception_history)} exceptions")
+            else:
+                # Single exception alert (existing behavior)
+                self.alerts.notify(
+                    AlertSeverity.CRITICAL,
+                    "Trading loop exception",
+                    str(e),
+                    {
+                        "exception": exc_type,
+                        "mode": self.mode,
+                    },
+                )
             self._audit_cycle(
                 ts=cycle_started,
                 mode=self.mode,
