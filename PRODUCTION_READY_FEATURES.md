@@ -212,14 +212,15 @@ def __init__(self, config_dir: str = "config"):
 
 ```yaml
 risk:
-  min_trade_notional_usd: 100  # Minimum trade size
+  min_trade_notional_usd: 15   # Minimum trade size
 
 microstructure:
   max_expected_slippage_bps: 50  # 0.5% max slippage
   max_spread_bps: 100  # 1.0% max spread
 
-execution:
+ execution:
   default_order_type: "limit_post_only"  # Use maker orders
+  post_only_ttl_seconds: 15              # Maker TTL matches live config
   max_retries: 3  # API retry attempts
 ```
 
@@ -249,8 +250,8 @@ Before enabling LIVE trading:
 ### ✅ Configuration Verified
 - [x] `mode: "DRY_RUN"` in app.yaml (safe default)
 - [x] `read_only: true` in app.yaml (safe default)
-- [x] `min_trade_notional_usd: 100` in policy.yaml
-- [x] `max_total_at_risk_pct: 15.0` in policy.yaml
+- [x] `min_trade_notional_usd: 15` in policy.yaml
+- [x] `max_total_at_risk_pct: 95.0` in policy.yaml
 - [x] Daily/weekly stop losses configured
 
 ### ✅ Risk Limits Active
@@ -258,8 +259,8 @@ Before enabling LIVE trading:
 - [x] Daily stop loss: -3% NLV
 - [x] Weekly stop loss: -7% NLV
 - [x] Max drawdown: 10%
-- [x] Global at-risk cap: 15%
-- [x] Position size limit: 5% per asset
+- [x] Global at-risk cap: 95%
+- [x] Position size limit: 7% per asset
 
 ### ⚠️ Before First LIVE Trade
 1. Run PAPER mode for 1 week minimum
