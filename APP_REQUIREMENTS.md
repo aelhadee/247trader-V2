@@ -178,7 +178,7 @@ The system **SHALL NOT** propose or execute short positions.
 
 * Any proposal with negative quantity/notional or `side='SELL'` without an existing long is rejected.
 * Risk logs show `risk_reason='shorting_disallowed'`.
-  **Status:** Implemented.
+  **Status:** ✅ Implemented.
 
 ---
 
