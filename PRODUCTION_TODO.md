@@ -119,10 +119,11 @@ All 4 critical safety features implemented, tested, and production-ready:
 
 | Status | Task | Owner | Notes |
 | ------ | ---- | ----- | ----- |
+| � Done | **Deterministic backtests with fixed seed (REQ-BT1)** | N/A | BacktestEngine(seed=42) uses random.seed() for reproducible results; 3 tests in test_backtest_regression.py. CLI: --seed argument. |
+| � Done | **Machine-readable JSON reports (REQ-BT2)** | N/A | export_json() creates 4-section report (metadata, summary, trades, regression_keys); 6 tests in test_backtest_regression.py. CLI: --output argument. |
+| 🟢 Done | **CI regression gate with ±2% tolerance (REQ-BT3)** | N/A | compare_baseline.py compares 5 key metrics (total_trades, win_rate, total_pnl_pct, max_drawdown_pct, profit_factor); 8 tests in test_backtest_regression.py. Exit 0=PASS, 1=FAIL, 2=ERROR. See docs/BACKTEST_REGRESSION_SYSTEM.md. |
 | 🔴 TODO | Ensure backtest engine reuses live universe → triggers → risk → execution pipeline. | TBD | Current backtest module diverges from live loop. |
 | 🔴 TODO | Implement slippage/fee model (mid ± bps + Coinbase fees) in simulations. | TBD | Needed for realistic equity curves. |
-| 🔴 TODO | Emit backtest artifacts (trades.json, equity curve, exposure, hit rate). | TBD | Supports regression analysis and CI checks. |
-| 🔴 TODO | Add CI gate that runs unit tests plus short backtest before LIVE deploys. | TBD | Fail pipeline on backtest crashes or invalid metrics to prevent regressions. |
 
 ## Rate Limits & Retries
 
