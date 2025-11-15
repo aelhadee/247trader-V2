@@ -160,7 +160,8 @@ def test_full_cycle():
         except:
             pass
     
-    loop = TradingLoop(config_dir="config")
+    # Force DRY_RUN mode to avoid credential requirements in tests
+    loop = TradingLoop(config_dir="config", mode_override="DRY_RUN")
     try:
         loop.run_cycle()  # Now returns None, logs to audit trail
     finally:
