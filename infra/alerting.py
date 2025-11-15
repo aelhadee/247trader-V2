@@ -231,13 +231,29 @@ class AlertService:
         return elapsed >= self._config.escalation_seconds
 
     def _record_alert(self, fingerprint: str, severity: AlertSeverity, title: str, message: str) -> None:
-        """Record new alert in history."""
+        """
+        Record new alert in history.
+        
+        If dedupe window has expired (>60s from first_seen), resets the alert
+        as a new occurrence (resets first_seen).
+        """
         now = time.monotonic()
         
         if fingerprint in self._alert_history:
-            # Update existing record
-            self._alert_history[fingerprint].last_seen = now
-            self._alert_history[fingerprint].count += 1
+            record = self._alert_history[fingerprint]
+            elapsed = now - record.first_seen
+            
+            # If dedupe window expired, reset as new occurrence
+            if elapsed > self._config.dedupe_seconds:
+                record.first_seen = now
+                record.count = 1
+                record.escalated = False
+                record.resolved = False
+            else:
+                # Within window, just update
+                record.count += 1
+            
+            record.last_seen = now
         else:
             # Create new record
             self._alert_history[fingerprint] = AlertRecord(
