@@ -46,7 +46,7 @@ Core rule: **survive first, optimize later.**
 
 ```yaml
 risk:
-  max_total_at_risk_pct: 0.15          # 15% of NLV in "active risk" positions
+  max_total_at_risk_pct: 0.95          # allow up to 95% of NLV in active risk (day-trader profile)
   max_per_asset_pct: 0.05              # 5% of NLV per coin
   max_per_theme_pct:
     L2: 0.10                           # 10% across ARB/OP/STRK/etc
@@ -62,7 +62,7 @@ risk:
     after_loss_trades: 3               # 3 losing trades in a row → pause new entries
     cooldown_minutes: 60
 
-  min_trade_notional_usd: 100          # skip dust
+  min_trade_notional_usd: 15           # new floor so $300-$1k accounts can still trade after fees
 ```
 
 This keeps you from YOLO-ing concentration or bleeding slowly to death.
@@ -138,7 +138,7 @@ execution:
   default_order_type: "limit_post_only"
   max_slippage_bps: 40                 # 0.4% worst-case from mid
   cancel_after_seconds: 60             # for passive orders
-  post_only_ttl_seconds: 4             # cancel resting maker orders quickly if unfilled
+  post_only_ttl_seconds: 15            # aligned with maker_max_ttl_sec for liquid pairs
   partial_fill_min_pct: 0.25
 
   spread_checks:
