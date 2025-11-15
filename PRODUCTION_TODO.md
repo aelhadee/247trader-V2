@@ -217,7 +217,7 @@ Deployed to production on 2025-11-15 at 18:33 PST. All safety validations passed
 | ------ | ---- | ----- | ----- |
 | 🟢 Done | Validate YAML configs against schemas (Pydantic/JSON Schema) on startup. | N/A | Implemented config_validator with Pydantic schemas for policy.yaml, universe.yaml, signals.yaml. Validates on TradingLoop init. Fails fast on misconfiguration. 12 comprehensive tests added (test_config_validation.py). All 132 tests passing. See tools/config_validator.py. |
 | 🔴 TODO | Enforce secrets via environment/secret store only (no file fallbacks in repo). | TBD | Lock down credential handling. |
-| 🔴 TODO | Stamp config version/hash into each audit log entry. | TBD | Enables provenance tracking. |
+| � Done | Stamp config version/hash into each audit log entry. | N/A | ✅ DUPLICATE: Already marked complete at line 31. SHA256 hash (16 chars) in every audit log entry for drift detection. See core/audit_log.py lines 61, 84. |
 | 🔴 TODO | Add config sanity checks (theme vs asset caps, totals coherence). | TBD | Prevents contradictory limits. |
 | 🟢 Done | **[BLOCKER #4]** Enforce staging vs production runtime gates. | N/A | Multi-layer mode/read_only validation with early fail-fast; ExecutionEngine.execute() raises ValueError if LIVE + read_only=true; TradingLoop enforces read_only=true for non-LIVE modes; defaults to DRY_RUN + read_only=true; 12 tests in test_environment_gates.py. See docs/ENVIRONMENT_RUNTIME_GATES.md. |
 
