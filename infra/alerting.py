@@ -234,8 +234,9 @@ class AlertService:
         """
         Record new alert in history.
         
-        If dedupe window has expired (>60s from first_seen), resets the alert
-        as a new occurrence (resets first_seen).
+        Only resets first_seen after escalation or resolution, not just after
+        dedupe window expires. This allows escalation (2m) to trigger even if
+        dedupe window (60s) has expired.
         """
         now = time.monotonic()
         
@@ -243,14 +244,22 @@ class AlertService:
             record = self._alert_history[fingerprint]
             elapsed = now - record.first_seen
             
-            # If dedupe window expired, reset as new occurrence
-            if elapsed > self._config.dedupe_seconds:
+            # Reset as new occurrence only if:
+            # 1) Already escalated (alert lifecycle complete), OR
+            # 2) Dedupe window expired AND escalation window also expired
+            should_reset = (
+                record.escalated or
+                record.resolved or
+                elapsed > max(self._config.dedupe_seconds, self._config.escalation_seconds)
+            )
+            
+            if should_reset:
                 record.first_seen = now
                 record.count = 1
                 record.escalated = False
                 record.resolved = False
             else:
-                # Within window, just update
+                # Within lifecycle, just update count
                 record.count += 1
             
             record.last_seen = now
