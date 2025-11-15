@@ -302,7 +302,7 @@ class StrategyRegistry:
         
         return all_proposals
     
-    def _dedupe_proposals(self, proposals: List[TradeProposal]) -> List[TradeProposal]:
+    def _dedupe_proposals(self, proposals: List[Any]) -> List[Any]:
         """
         Deduplicate proposals by symbol, keeping highest confidence.
         
