@@ -328,13 +328,14 @@ def test_kill_switch_no_new_orders_after_activation(mock_lock, kill_switch_file,
     # Execute: Try to execute with kill-switch active
     from core.risk import PortfolioState
     portfolio = PortfolioState(
-        nav=10000.0,
-        cash_usd=10000.0,
+        account_value_usd=10000.0,
         open_positions={},
-        pending_orders={},
         daily_pnl_pct=0.0,
-        weekly_pnl_pct=0.0,
         max_drawdown_pct=0.0,
+        trades_today=0,
+        trades_this_hour=0,
+        weekly_pnl_pct=0.0,
+        pending_orders={},
     )
     
     risk_result = loop.risk_engine.check_all(proposals=[proposal], portfolio=portfolio)
