@@ -299,6 +299,8 @@ portfolio_management:
   trim_tolerance_pct: 0.25
   trim_min_value_usd: 10.0
   trim_max_liquidations: 5
+  # Auto-trim escalation alerting
+  max_trim_failures_before_alert: 3  # Alert after 3 consecutive trim failures
   trim_preferred_quotes:
   - USDC
   - USD
