@@ -581,6 +581,78 @@ class BacktestEngine:
         self.daily_pnl = 0.0
         self.daily_trade_count = 0
         # Note: consecutive_losses NOT reset daily - only on wins
+    
+    def export_json(self, output_path: str) -> None:
+        """
+        Export backtest results to machine-readable JSON (REQ-BT2).
+        
+        Includes:
+        - Metadata (start/end dates, initial capital, seed)
+        - Summary metrics (PnL, win rate, Sharpe, max DD)
+        - All trades with entry/exit details
+        - Comparison-friendly format for CI regression gate (REQ-BT3)
+        
+        Args:
+            output_path: Path to save JSON file
+        """
+        # Build comprehensive report
+        report = {
+            "metadata": {
+                "version": "1.0",
+                "generated_at": datetime.now().isoformat(),
+                "seed": self.seed,
+                "initial_capital_usd": self.initial_capital,
+                "final_capital_usd": round(self.capital, 2),
+                "config_dir": str(self.config_dir),
+            },
+            "summary": {
+                "total_trades": self.metrics.total_trades,
+                "winning_trades": self.metrics.winning_trades,
+                "losing_trades": self.metrics.losing_trades,
+                "win_rate": round(self.metrics.win_rate, 4),
+                "total_pnl_usd": round(self.metrics.total_pnl_usd, 2),
+                "total_pnl_pct": round(self.metrics.total_pnl_pct, 2),
+                "avg_win_pct": round(self.metrics.avg_win_pct, 2),
+                "avg_loss_pct": round(self.metrics.avg_loss_pct, 2),
+                "max_drawdown_pct": round(self.metrics.max_drawdown_pct, 2),
+                "max_consecutive_losses": self.metrics.max_consecutive_losses,
+                "profit_factor": round(self.metrics.profit_factor, 2) if self.metrics.profit_factor else None,
+                "sharpe_ratio": round(self.metrics.sharpe_ratio, 2) if self.metrics.sharpe_ratio else None,
+            },
+            "trades": [
+                {
+                    "symbol": t.symbol,
+                    "side": t.side,
+                    "entry_time": t.entry_time.isoformat(),
+                    "entry_price": round(t.entry_price, 2),
+                    "exit_time": t.exit_time.isoformat() if t.exit_time else None,
+                    "exit_price": round(t.exit_price, 2) if t.exit_price else None,
+                    "exit_reason": t.exit_reason,
+                    "size_usd": round(t.size_usd, 2),
+                    "pnl_usd": round(t.pnl_usd, 2),
+                    "pnl_pct": round(t.pnl_pct, 2),
+                    "hold_time_hours": round(t.hold_time.total_seconds() / 3600, 2) if t.hold_time else None,
+                }
+                for t in self.metrics.trades
+            ],
+            "regression_keys": {
+                # Key metrics for CI comparison (REQ-BT3)
+                "total_trades": self.metrics.total_trades,
+                "win_rate": round(self.metrics.win_rate, 4),
+                "total_pnl_pct": round(self.metrics.total_pnl_pct, 2),
+                "max_drawdown_pct": round(self.metrics.max_drawdown_pct, 2),
+                "profit_factor": round(self.metrics.profit_factor, 2) if self.metrics.profit_factor else None,
+            }
+        }
+        
+        # Write to file
+        output_file = Path(output_path)
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        with open(output_file, 'w') as f:
+            json.dump(report, f, indent=2)
+        
+        logger.info(f"Backtest report exported to {output_path}")
 
 
 def main():
