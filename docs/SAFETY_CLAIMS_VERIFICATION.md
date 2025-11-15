@@ -46,27 +46,34 @@ exchange:
 
 ---
 
-### ✅ CLAIM 2: "app_run_live.sh auto-confirms LIVE mode without prompt"
+### ✅ CLAIM 2: "app_run_live.sh auto-confirms LIVE mode without prompt" - **FIXED**
 
-**Status:** **TRUE**
+**Status:** **FIXED** ✅
 
-**Evidence:**
+**Original Evidence:**
 ```bash
-# app_run_live.sh lines 235-240
+# app_run_live.sh lines 235-240 (BEFORE)
 if [ "$MODE" = "LIVE" ]; then
     log_warning "⚠️  WARNING: LIVE TRADING MODE ⚠️"
-    log_warning "This will place REAL ORDERS with REAL MONEY"
     log_warning "Auto-confirming launch (no interactive prompt)"
 fi
 ```
 
-**Impact:** MEDIUM - Launcher warns but doesn't block
+**Fix Applied:**
+```bash
+# app_run_live.sh (AFTER)
+if [ "$MODE" = "LIVE" ]; then
+    log_warning "⚠️  WARNING: LIVE TRADING MODE ⚠️"
+    read -p "Type 'YES' in all caps to proceed with LIVE trading: " CONFIRM
+    if [ "$CONFIRM" != "YES" ]; then
+        log_error "LIVE mode confirmation failed. Exiting."
+        exit 1
+    fi
+fi
+```
 
-**Note:** Script defaults to LIVE mode (line 92: `MODE="LIVE"`), though it CAN be overridden with `--dry-run` or `--paper` flags.
-
-**Recommendation:** Either:
-1. Require explicit `--live` flag to enable LIVE mode, OR
-2. Add interactive confirmation prompt for LIVE mode
+**Impact:** MEDIUM → RESOLVED
+**Fix Duration:** 10 minutes
 
 ---
 
