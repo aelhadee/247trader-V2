@@ -12,48 +12,9 @@ Validates:
 
 import pytest
 import time
-import yaml
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 from runner.main_loop import TradingLoop
-
-
-@pytest.fixture
-def temp_config_dir(tmp_path):
-    """Create temporary config directory with test configs."""
-    config_dir = tmp_path / "config"
-    config_dir.mkdir()
-    
-    # Minimal app.yaml
-    app_yaml = config_dir / "app.yaml"
-    app_yaml.write_text(yaml.dump({
-        "app": {"mode": "DRY_RUN"},
-        "exchange": {"api_key": "test", "api_secret": "test", "read_only": True},
-        "logging": {"level": "INFO"}
-    }))
-    
-    # policy.yaml with jitter
-    policy_yaml = config_dir / "policy.yaml"
-    policy_yaml.write_text(yaml.dump({
-        "loop": {"interval_seconds": 60, "jitter_pct": 10.0},
-        "risk": {"max_total_at_risk_pct": 15.0},
-        "execution": {"maker_fee_bps": 40, "taker_fee_bps": 60},
-        "latency": {
-            "api_thresholds_ms": {},
-            "stage_budgets": {},
-            "total_seconds": 45.0
-        }
-    }))
-    
-    # Minimal signals.yaml
-    signals_yaml = config_dir / "signals.yaml"
-    signals_yaml.write_text(yaml.dump({"triggers": {}}))
-    
-    # Minimal universe.yaml
-    universe_yaml = config_dir / "universe.yaml"
-    universe_yaml.write_text(yaml.dump({"tiers": {}}))
-    
-    return str(config_dir)
 
 
 def test_jitter_config_default(temp_config_dir):
