@@ -2801,8 +2801,11 @@ class TradingLoop:
                     currency, target_currency
                 )
             )
+            
+            logger.info(f"    🔍 Convert check: target={target_currency}, uuid={target_account_uuid is not None}, can_convert={can_attempt_convert}")
 
             if can_attempt_convert:
+                logger.info(f"    🔄 Attempting convert: {units_to_liquidate:.8f} {currency} → {target_currency}")
                 convert_result = self.executor.convert_asset(
                     currency,
                     target_currency,
@@ -2811,13 +2814,19 @@ class TradingLoop:
                     target_account_uuid,
                 )
                 success = bool(convert_result and convert_result.get("success"))
+                if success:
+                    logger.info(f"    ✅ Convert successful")
+                else:
+                    logger.warning(f"    ❌ Convert failed: {convert_result.get('error') if convert_result else 'no result'}")
             else:
                 if target_currency and target_account_uuid:
                     logger.debug(
-                        "Skipping convert %s→%s (convert not supported)",
+                        "    ⏭️  Skipping convert %s→%s (convert not supported)",
                         currency,
                         target_currency,
                     )
+                else:
+                    logger.debug(f"    ⏭️  Skipping convert (no target configured)")
 
             if not success:
                 tier = self._infer_tier_from_config(candidate.get("pair")) or 3
