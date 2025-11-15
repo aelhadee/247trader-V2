@@ -171,13 +171,35 @@ class MetricsRecorder:
             return
         if start_http_server is None:  # pragma: no cover - guarded above
             return
-        try:
-            start_http_server(self._port)
-            self._started = True
-            logger.info("Prometheus metrics exporter listening on 0.0.0.0:%s", self._port)
-        except OSError as exc:
-            self._enabled = False
-            logger.error("Failed to start metrics exporter on port %s: %s", self._port, exc)
+        
+        # Auto-retry on port conflict
+        ports_to_try = [self._port, self._port + 1, self._port + 2, self._port + 3]
+        last_error = None
+        
+        for port in ports_to_try:
+            try:
+                start_http_server(port)
+                self._started = True
+                if port != self._port:
+                    logger.warning(
+                        "Port %s in use, successfully bound to port %s instead",
+                        self._port, port
+                    )
+                    self._port = port  # Update to actual port
+                logger.info("Prometheus metrics exporter listening on 0.0.0.0:%s", self._port)
+                return
+            except OSError as exc:
+                last_error = exc
+                if port != ports_to_try[-1]:  # Not the last port
+                    logger.debug("Port %s in use, trying next port...", port)
+                continue
+        
+        # All ports exhausted
+        self._enabled = False
+        logger.error(
+            "Failed to start metrics exporter after trying ports %s: %s",
+            ports_to_try, last_error
+        )
 
     def observe_cycle(self, stats: CycleStats) -> None:
         if self._enabled:

@@ -38,6 +38,16 @@ if [ -f "data/247trader-v2.pid" ]; then
     # Clean up stale PID file
     rm -f data/247trader-v2.pid
 fi
+
+# Clean up orphaned metrics exporter on port 9090
+METRICS_PORT=9090
+METRICS_PID=$(lsof -ti:$METRICS_PORT 2>/dev/null || true)
+if [ -n "$METRICS_PID" ]; then
+    echo "🔄 Cleaning up orphaned metrics exporter on port $METRICS_PORT (PID: $METRICS_PID)..."
+    kill -9 $METRICS_PID 2>/dev/null || true
+    sleep 1
+    echo "✅ Metrics port freed"
+fi
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
