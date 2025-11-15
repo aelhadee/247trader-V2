@@ -310,6 +310,36 @@ class UniverseManager:
             total_eligible=len(tier_1) + len(tier_2) + len(tier_3)
         )
         
+        # Alert on empty universe (CRITICAL operational issue)
+        eligible_count = len(tier_1) + len(tier_2) + len(tier_3)
+        min_eligible = self.config.get("universe", {}).get("min_eligible_assets", 2)
+        if eligible_count < min_eligible:
+            if hasattr(self, 'alert_service') and self.alert_service:
+                from infra.alerting import AlertSeverity
+                
+                # Collect ineligibility reasons
+                ineligible_reasons = {}
+                for symbol, asset_list in [("tier1", tier_1), ("tier2", tier_2), ("tier3", tier_3)]:
+                    for asset in asset_list:
+                        if not asset.eligible and asset.ineligible_reason:
+                            reason = asset.ineligible_reason
+                            ineligible_reasons[reason] = ineligible_reasons.get(reason, 0) + 1
+                
+                self.alert_service.notify(
+                    severity=AlertSeverity.CRITICAL,
+                    title="🚨 Empty Universe",
+                    message=f"Only {eligible_count} eligible assets (minimum: {min_eligible}) - trading halted",
+                    context={
+                        "eligible_count": eligible_count,
+                        "threshold": min_eligible,
+                        "excluded_count": len(excluded),
+                        "ineligibility_reasons": ineligible_reasons,
+                        "regime": regime,
+                        "action": "trading_paused"
+                    }
+                )
+                logger.error(f"🚨 EMPTY UNIVERSE: {eligible_count}/{min_eligible} eligible assets")
+        
         # Cache result
         self._cache = snapshot
         self._cache_time = datetime.now(timezone.utc)
