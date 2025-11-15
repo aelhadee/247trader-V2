@@ -96,12 +96,19 @@ class AlertService:
             env_key = raw_config.get("webhook_env", "ALERT_WEBHOOK_URL")
             webhook_url = os.getenv(env_key, "")
 
+        escalation_webhook_url = raw_config.get("escalation_webhook_url")
+        if escalation_webhook_url and "${" in escalation_webhook_url:
+            escalation_webhook_url = os.path.expandvars(escalation_webhook_url)
+
         min_sev = AlertSeverity.from_string(
             raw_config.get("min_severity", "warning"),
             default=AlertSeverity.WARNING,
         )
         dry_run = bool(raw_config.get("dry_run", False))
         timeout = float(raw_config.get("timeout_seconds", 5.0))
+        dedupe_seconds = float(raw_config.get("dedupe_seconds", 60.0))
+        escalation_seconds = float(raw_config.get("escalation_seconds", 120.0))
+        escalation_severity_boost = int(raw_config.get("escalation_severity_boost", 1))
 
         config = AlertConfig(
             enabled=enabled,
@@ -109,6 +116,10 @@ class AlertService:
             min_severity=min_sev,
             dry_run=dry_run,
             timeout=timeout,
+            dedupe_seconds=dedupe_seconds,
+            escalation_seconds=escalation_seconds,
+            escalation_webhook_url=escalation_webhook_url or None,
+            escalation_severity_boost=escalation_severity_boost,
         )
         return cls(config)
 
