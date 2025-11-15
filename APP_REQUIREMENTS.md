@@ -341,7 +341,7 @@ For every order, the system **SHALL**:
 
 **Acceptance:**
 After any trade, position and PnL reflect fees, and audit logs contain the full chain.
-**Status:** Implemented.
+**Status:** ✅ Implemented (ExecutionEngine.preview_order → execute → reconcile_fills pipeline; full audit trail in audit logs; 12 tests in test_reconcile_fills.py).
 
 ---
 
