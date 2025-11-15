@@ -110,21 +110,20 @@ class UniverseManager:
         return cls(config=config, exchange=exchange, state_store=state_store, alert_service=alert_service)
     
     def _load_config(self) -> dict:
-        """Load universe configuration"""
-        if not self.config_path.exists():
-            raise FileNotFoundError(f"Universe config not found: {self.config_path}")
-        
-        with open(self.config_path) as f:
-            config = yaml.safe_load(f)
-        
+        """
+        Load universe configuration (uses self.config directly).
+        Note: This method now just returns self.config since it's passed in constructor.
+        Kept for backward compatibility with any internal callers.
+        """
         # Check if dynamic mode is enabled
-        universe_config = config.get('universe', {})
+        universe_config = self.config.get('universe', {})
         if universe_config.get('method') == 'dynamic_discovery':
             logger.info("Using dynamic universe discovery from Coinbase")
-            config = self._build_dynamic_universe(config)
+            config = self._build_dynamic_universe(self.config)
+            return config
         
-        logger.info(f"Loaded universe config with {len(config.get('tiers', {}))} tiers")
-        return config
+        logger.info(f"Loaded universe config with {len(self.config.get('tiers', {}))} tiers")
+        return self.config
     
     def _build_dynamic_universe(self, config: dict) -> dict:
         """
