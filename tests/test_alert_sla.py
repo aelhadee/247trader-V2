@@ -246,7 +246,7 @@ class TestAlertEscalation:
     
     def test_escalation_not_triggered_if_resolved(self, alert_service, mock_urllib):
         """Verify resolved alerts don't escalate."""
-        with patch('time.monotonic', side_effect=[0.0, 0.1, 60.0, 121.0, 121.1]):
+        with patch('time.monotonic', create_time_sequence(0.0, 60.0, 121.0)):
             # First alert at t=0
             alert_service.notify(
                 severity=AlertSeverity.WARNING,
