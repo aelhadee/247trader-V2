@@ -590,7 +590,7 @@ To be populated in CI:
 | REQ-X1    | `test_idempotent_orders_retry` | venue order count           | ✅ Implemented (8 tests in test_client_order_ids.py) |
 | REQ-AL1   | `test_alert_sla_and_dedupe`    | alert events                | 🟡 Partial (wiring complete; dedupe/escalation need verification) |
 | REQ-OB1   | `test_latency_slos`            | telemetry export/dashboard  | ✅ Implemented (19 tests; docs/LATENCY_TRACKING.md) |
-| REQ-BT1-3 | `backtest_regression_suite`    | JSON report diff            | 🟡 Partial (backtest exists; CI gate missing) |
+| REQ-BT1-3 | `backtest_regression_suite`    | JSON report diff            | ✅ Implemented (17 tests in test_backtest_regression.py; docs/BACKTEST_REGRESSION_SYSTEM.md) |
 | REQ-CB1   | `retry_policy_fault_injection` | request traces              | 🟡 Partial (backoff exists; fault-injection tests missing) |
 | REQ-STR1  | `test_strategy_interface_pure` | strategy tests/logs         | ✅ Implemented (11 tests in test_strategy_framework.py::TestBaseStrategyInterface) |
 | REQ-STR2  | `test_strategy_feature_flags`  | strategy loading logs       | ✅ Implemented (8 tests in test_strategy_framework.py::TestStrategyRegistry) |
