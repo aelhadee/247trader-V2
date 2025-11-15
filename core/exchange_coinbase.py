@@ -180,6 +180,10 @@ class CoinbaseExchange:
     def _record_api_metrics(self, endpoint: str, channel: str, duration: float, status: str) -> None:
         if self.metrics:
             self.metrics.record_api_call(endpoint, channel, duration, status)
+        if self.latency_tracker:
+            # Record latency with operation name that includes endpoint
+            operation = f"api_{endpoint}"
+            self.latency_tracker.record(operation, duration * 1000.0, {"channel": channel, "status": status})
 
     def _public_get(self, url: str, *, params: Optional[Dict[str, Any]] = None,
                     timeout: float = 10.0, label: str = "public_get") -> requests.Response:
