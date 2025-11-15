@@ -1,0 +1,89 @@
+# Strategy Configuration for Multi-Strategy Framework
+#
+# Each strategy can be independently enabled/disabled and configured with:
+# - Risk budgets (per-strategy caps enforced before global caps)
+# - Strategy-specific parameters
+#
+# REQ-STR2: Feature flags (enabled defaults to false for new strategies)
+# REQ-STR3: Per-strategy risk budgets
+
+strategies:
+  # ============================================================================
+  # RulesEngine: Default deterministic baseline strategy
+  # ============================================================================
+  rules_engine:
+    # Enable/disable strategy (REQ-STR2)
+    enabled: true
+    
+    # Strategy type (maps to class in registry.py)
+    type: "rules_engine"
+    
+    # Human-readable description
+    description: |
+      Deterministic rules-based strategy (baseline).
+      - Mean reversion on strong assets
+      - Momentum on breakouts  
+      - Volume confirmation required
+      - No AI, no magic
+    
+    # Per-strategy risk budgets (REQ-STR3)
+    # Applied BEFORE global caps in RiskEngine
+    risk_budgets:
+      # Maximum % of account at risk from this strategy
+      max_at_risk_pct: 15.0
+      
+      # Maximum number of trades per cycle from this strategy
+      max_trades_per_cycle: 5
+    
+    # Strategy-specific parameters
+    # (RulesEngine loads these from policy.yaml for now)
+    params: {}
+  
+  # ============================================================================
+  # Example: Mean Reversion Strategy (disabled by default per REQ-STR2)
+  # ============================================================================
+  # mean_reversion:
+  #   enabled: false  # Must explicitly enable new strategies
+  #   type: "mean_reversion"
+  #   description: |
+  #     Mean reversion on oversold conditions.
+  #     - RSI < 30 with volume spike
+  #     - Quick exits on profit targets
+  #   risk_budgets:
+  #     max_at_risk_pct: 5.0
+  #     max_trades_per_cycle: 3
+  #   params:
+  #     rsi_threshold: 30
+  #     volume_spike_multiplier: 2.0
+  #     take_profit_pct: 2.0
+  
+  # ============================================================================
+  # Example: Momentum Breakout Strategy (disabled by default)
+  # ============================================================================
+  # momentum_breakout:
+  #   enabled: false
+  #   type: "momentum"
+  #   description: |
+  #     Momentum strategy on confirmed breakouts.
+  #     - 52-week high with volume
+  #     - Trailing stops
+  #   risk_budgets:
+  #     max_at_risk_pct: 10.0
+  #     max_trades_per_cycle: 3
+  #   params:
+  #     lookback_days: 365
+  #     volume_confirmation: 1.5
+  #     trailing_stop_pct: 5.0
+
+# ============================================================================
+# Global Strategy Settings
+# ============================================================================
+global:
+  # Dedupe proposals by symbol across strategies (keep highest confidence)
+  dedupe_by_symbol: true
+  
+  # Maximum total proposals across all strategies before risk checks
+  max_total_proposals_per_cycle: 10
+  
+  # Log proposal details for analysis
+  log_proposal_details: true
