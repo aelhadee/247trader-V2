@@ -24,10 +24,11 @@ from core.triggers import TriggerSignal
 
 # Create mock strategies for performance testing
 class MockStrategy(BaseStrategy):
-    """Mock strategy for performance testing."""
+    """Mock strategy for performance testing"""
     
     def __init__(self, name: str, delay_ms: float = 0):
-        super().__init__(name=name, enabled=True)
+        config = {"enabled": True, "description": "Mock strategy for testing"}
+        super().__init__(name=name, config=config)
         self.delay_ms = delay_ms
     
     def generate_proposals(self, context: StrategyContext) -> List[TradeProposal]:
