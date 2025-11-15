@@ -4,7 +4,7 @@
 app:
   name: "247trader-v2"
   version: "2.0.0"
-  mode: "LIVE"  # DRY_RUN | PAPER | LIVE (safe default)
+  mode: "PAPER"  # DRY_RUN | PAPER | LIVE (24h rehearsal before LIVE)
 
 exchange:
   name: "coinbase"
