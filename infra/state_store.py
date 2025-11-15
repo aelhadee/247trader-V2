@@ -54,6 +54,7 @@ DEFAULT_STATE = {
     "zero_trigger_cycles": 0,  # Counter for consecutive cycles with 0 triggers (bounded auto-tune)
     "auto_tune_applied": False,  # Flag to prevent repeated auto-tune adjustments
     "latency_stats": {},  # Latency statistics by operation
+    "red_flag_bans": {},  # symbol -> {reason, banned_at_iso, expires_at_iso} for flagged/scam assets
 }
 
 
