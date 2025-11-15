@@ -132,8 +132,11 @@ All 4 critical safety features implemented and tested:
 3. ✅ **Outlier/Bad-Tick Guards** (15 tests) - Prevents false breakouts from bad data
 4. ✅ **Environment Runtime Gates** (12 tests) - Enforces safety ladder (DRY_RUN → PAPER → LIVE)
 
-**Total new tests:** 47  
-**Total passing tests:** 178  
+**Total new tests:** 66  
+**Total passing tests:** 197  
 **System status:** Production-ready for LIVE trading scale-up
+
+**Latest additions:**
+- ✅ Latency Tracking (REQ-OB1): 19 tests added, full p50/p95/p99 telemetry with StateStore persistence and AlertService integration
 
 ---
