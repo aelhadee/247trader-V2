@@ -56,33 +56,43 @@ class MockStrategy(BaseStrategy):
 @pytest.fixture
 def mock_context():
     """Create mock StrategyContext for testing."""
+    # Create mock assets
+    assets = [
+        UniverseAsset(
+            symbol=f"SYMBOL{i}-USD",
+            tier=1 if i < 5 else (2 if i < 15 else 3),
+            allocation_min_pct=1.0,
+            allocation_max_pct=10.0,
+            volume_24h=1000000,
+            spread_bps=10,
+            depth_usd=50000,
+            eligible=True
+        )
+        for i in range(20)
+    ]
+    
     # Create mock triggers
     triggers = [
         TriggerSignal(
-            symbol=f"SYMBOL{i}-USD",
+            symbol=asset.symbol,
             strength=0.7,
             confidence=0.6,
             volatility=0.02,
             reasoning=f"Test trigger {i}",
-            asset=TradableAsset(
-                symbol=f"SYMBOL{i}-USD",
-                base="SYMBOL{i}",
-                quote="USD",
-                tier=1,
-                min_order_size=0.001,
-                precision=8
-            )
+            asset=asset
         )
-        for i in range(20)  # 20 triggers for testing
+        for i, asset in enumerate(assets)
     ]
     
     # Create mock universe
     universe = UniverseSnapshot(
-        tier_1_assets=[t.asset for t in triggers[:5]],
-        tier_2_assets=[t.asset for t in triggers[5:15]],
-        tier_3_assets=[t.asset for t in triggers[15:20]],
-        eligible_count=20,
-        timestamp=datetime.now(timezone.utc)
+        tier_1_assets=[a for a in assets if a.tier == 1],
+        tier_2_assets=[a for a in assets if a.tier == 2],
+        tier_3_assets=[a for a in assets if a.tier == 3],
+        excluded_assets=[],
+        total_eligible=20,
+        timestamp=datetime.now(timezone.utc),
+        regime="normal"
     )
     
     return StrategyContext(
