@@ -12,124 +12,124 @@
       "available": 36.4,
       "hold": 0.0,
       "total": 36.4,
-      "usd_value": 5.914636
+      "usd_value": 5.948124
     },
     "POPCAT": {
       "available": 0.18,
       "hold": 0.0,
       "total": 0.18,
-      "usd_value": 0.019953
+      "usd_value": 0.019754999999999998
     },
     "XLM": {
-      "available": 93.93405846,
+      "available": 36.09192349,
       "hold": 0.0,
-      "total": 93.93405846,
-      "usd_value": 24.69935010067701
+      "total": 36.09192349,
+      "usd_value": 9.457617861128325
     },
     "ADA": {
       "available": 19.92329487,
       "hold": 0.0,
       "total": 19.92329487,
-      "usd_value": 10.186780667031
+      "usd_value": 10.0781987099895
     },
     "BONK": {
       "available": 889587.0,
       "hold": 0.0,
       "total": 889587.0,
-      "usd_value": 10.030093425
+      "usd_value": 10.012301685
     },
     "PENGU": {
       "available": 371.0,
       "hold": 0.0,
       "total": 371.0,
-      "usd_value": 4.8495265
+      "usd_value": 4.8962725
     },
     "UNI": {
       "available": 1.093593,
       "hold": 0.0,
       "total": 1.093593,
-      "usd_value": 7.8088008165
+      "usd_value": 7.989243661500001
     },
     "AERO": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.081928
+      "usd_value": 0.0847475
     },
     "FET": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.028159999999999998
+      "usd_value": 0.029740000000000003
     },
     "WLFI": {
-      "available": 165.1,
+      "available": 57.5,
       "hold": 0.0,
-      "total": 165.1,
-      "usd_value": 23.29561
+      "total": 57.5,
+      "usd_value": 8.187137499999999
     },
     "HBAR": {
-      "available": 909.4,
+      "available": 812.5,
       "hold": 0.0,
-      "total": 909.4,
-      "usd_value": 142.93949199999997
+      "total": 812.5,
+      "usd_value": 127.35125
     },
     "ZK": {
       "available": 0.21905562,
       "hold": 0.0,
       "total": 0.21905562,
-      "usd_value": 0.010239754956899999
+      "usd_value": 0.0109801629525
     },
     "DOGE": {
-      "available": 145.6,
+      "available": 52.7,
       "hold": 0.0,
-      "total": 145.6,
-      "usd_value": 23.442328
+      "total": 52.7,
+      "usd_value": 8.5882555
     },
     "XRP": {
       "available": 0.001546,
       "hold": 0.0,
       "total": 0.001546,
-      "usd_value": 0.003535702
+      "usd_value": 0.0034949649
     },
     "BTC": {
       "available": 0.00068841,
       "hold": 0.0,
       "total": 0.00068841,
-      "usd_value": 65.61570965669999
+      "usd_value": 65.90779857765
     }
   },
   "managed_positions": {},
   "cash_balances": {
     "USDC": 0.198016312468,
     "USDT": 2.33462704,
-    "USD": 154.53937963477642
+    "USD": 59.886084671740335
   },
   "open_orders": {},
   "recent_orders": [],
   "pending_markers": {},
   "last_fill_times": {},
   "fill_history": {},
-  "last_reconcile_at": "2025-11-14T12:58:04.182233+00:00",
+  "last_reconcile_at": "2025-11-15T12:59:15.130116+00:00",
   "last_reset_date": "2025-11-15",
-  "last_reset_hour": 11,
+  "last_reset_hour": 13,
   "events": [
     {
-      "at": "2025-11-14T02:56:43.747324+00:00",
+      "at": "2025-11-15T12:27:19.091346+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T02:56:49.479020+00:00",
+      "at": "2025-11-15T12:27:22.591380+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T02:57:36.625015+00:00",
+      "at": "2025-11-15T12:28:09.774241+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -137,21 +137,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T02:57:42.396237+00:00",
+      "at": "2025-11-15T12:28:13.384553+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T02:57:47.725935+00:00",
+      "at": "2025-11-15T12:28:17.023059+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T02:58:41.153149+00:00",
+      "at": "2025-11-15T12:29:09.820248+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -159,21 +159,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T02:58:46.430946+00:00",
+      "at": "2025-11-15T12:29:13.493627+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T02:58:51.576106+00:00",
+      "at": "2025-11-15T12:29:17.074493+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T02:59:41.589490+00:00",
+      "at": "2025-11-15T12:30:13.834223+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -181,21 +181,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T02:59:47.640060+00:00",
+      "at": "2025-11-15T12:30:17.649316+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T02:59:55.902760+00:00",
+      "at": "2025-11-15T12:30:21.098042+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:00:44.216993+00:00",
+      "at": "2025-11-15T12:31:14.430174+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -203,21 +203,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:00:49.761924+00:00",
+      "at": "2025-11-15T12:31:18.234501+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:00:54.807958+00:00",
+      "at": "2025-11-15T12:31:21.823111+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:01:45.097554+00:00",
+      "at": "2025-11-15T12:32:15.794645+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -225,21 +225,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:01:50.893629+00:00",
+      "at": "2025-11-15T12:32:19.446863+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:01:55.884286+00:00",
+      "at": "2025-11-15T12:32:22.748420+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:02:46.014585+00:00",
+      "at": "2025-11-15T12:33:15.237511+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -247,21 +247,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:02:51.803080+00:00",
+      "at": "2025-11-15T12:33:18.883677+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:02:57.008919+00:00",
+      "at": "2025-11-15T12:33:22.251157+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:03:44.889848+00:00",
+      "at": "2025-11-15T12:34:19.263580+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -269,21 +269,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:03:50.812525+00:00",
+      "at": "2025-11-15T12:34:23.033112+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:03:58.160813+00:00",
+      "at": "2025-11-15T12:34:26.311889+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:04:47.194290+00:00",
+      "at": "2025-11-15T12:35:24.268451+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -291,21 +291,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:04:52.782853+00:00",
+      "at": "2025-11-15T12:35:27.564608+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:04:58.407791+00:00",
+      "at": "2025-11-15T12:35:31.246682+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:05:43.574995+00:00",
+      "at": "2025-11-15T12:36:23.018882+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -313,21 +313,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:05:49.080015+00:00",
+      "at": "2025-11-15T12:36:27.645555+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:05:54.598655+00:00",
+      "at": "2025-11-15T12:36:32.524932+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:06:43.132859+00:00",
+      "at": "2025-11-15T12:37:24.373740+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -335,21 +335,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:06:56.793319+00:00",
+      "at": "2025-11-15T12:37:28.070045+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:07:02.480074+00:00",
+      "at": "2025-11-15T12:37:31.378215+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:07:45.362125+00:00",
+      "at": "2025-11-15T12:38:19.926620+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -357,21 +357,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:07:50.936709+00:00",
+      "at": "2025-11-15T12:38:23.679938+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:07:56.402151+00:00",
+      "at": "2025-11-15T12:38:27.167053+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:08:46.008255+00:00",
+      "at": "2025-11-15T12:39:15.299427+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -379,21 +379,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:08:51.248438+00:00",
+      "at": "2025-11-15T12:39:20.899272+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:08:56.865468+00:00",
+      "at": "2025-11-15T12:39:28.245205+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:09:51.701652+00:00",
+      "at": "2025-11-15T12:40:13.017410+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -401,21 +401,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:09:57.587585+00:00",
+      "at": "2025-11-15T12:40:17.142629+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:10:03.080685+00:00",
+      "at": "2025-11-15T12:40:20.929798+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:10:56.481476+00:00",
+      "at": "2025-11-15T12:41:11.635835+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -423,28 +423,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:11:01.676602+00:00",
+      "at": "2025-11-15T12:41:16.004160+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:11:06.943154+00:00",
+      "at": "2025-11-15T12:41:19.736198+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:14:26.570401+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-14T03:14:31.863048+00:00",
+      "at": "2025-11-15T12:42:16.549798+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -452,21 +445,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:14:37.047137+00:00",
+      "at": "2025-11-15T12:42:20.308302+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:14:42.084711+00:00",
+      "at": "2025-11-15T12:42:23.768586+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:16:05.980906+00:00",
+      "at": "2025-11-15T12:43:14.330298+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -474,21 +467,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:16:11.330290+00:00",
+      "at": "2025-11-15T12:43:17.843362+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:16:33.573677+00:00",
+      "at": "2025-11-15T12:43:21.086567+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:16:38.604442+00:00",
+      "at": "2025-11-15T12:44:20.187497+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -496,21 +489,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:16:44.115008+00:00",
+      "at": "2025-11-15T12:44:23.833609+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:16:49.203279+00:00",
+      "at": "2025-11-15T12:44:26.993265+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:17:38.816393+00:00",
+      "at": "2025-11-15T12:45:18.548525+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -518,21 +511,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:17:44.280170+00:00",
+      "at": "2025-11-15T12:45:22.142719+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:17:49.524480+00:00",
+      "at": "2025-11-15T12:45:25.746793+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:18:35.814364+00:00",
+      "at": "2025-11-15T12:46:15.691809+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -540,21 +533,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:18:41.185822+00:00",
+      "at": "2025-11-15T12:46:19.254750+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:18:46.573725+00:00",
+      "at": "2025-11-15T12:46:22.743933+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:19:41.289140+00:00",
+      "at": "2025-11-15T12:47:11.073583+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -562,21 +555,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:19:46.794293+00:00",
+      "at": "2025-11-15T12:47:14.813229+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:19:51.956931+00:00",
+      "at": "2025-11-15T12:47:18.257102+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:20:35.904575+00:00",
+      "at": "2025-11-15T12:48:05.614194+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -584,21 +577,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:20:43.496704+00:00",
+      "at": "2025-11-15T12:48:09.170772+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:20:48.658405+00:00",
+      "at": "2025-11-15T12:48:12.710382+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:21:35.917082+00:00",
+      "at": "2025-11-15T12:49:01.653746+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -606,21 +599,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:21:41.390143+00:00",
+      "at": "2025-11-15T12:49:05.351547+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:21:46.836251+00:00",
+      "at": "2025-11-15T12:49:08.873408+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:22:35.786018+00:00",
+      "at": "2025-11-15T12:50:07.575213+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -628,21 +621,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:22:41.331439+00:00",
+      "at": "2025-11-15T12:50:11.164179+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:22:46.170889+00:00",
+      "at": "2025-11-15T12:50:14.520969+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:23:39.475924+00:00",
+      "at": "2025-11-15T12:51:06.125042+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -650,21 +643,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:23:44.743063+00:00",
+      "at": "2025-11-15T12:51:09.621300+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:23:50.141786+00:00",
+      "at": "2025-11-15T12:51:13.093781+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:24:40.793210+00:00",
+      "at": "2025-11-15T12:52:04.543120+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -672,21 +665,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:24:46.324630+00:00",
+      "at": "2025-11-15T12:52:08.463322+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:24:51.823639+00:00",
+      "at": "2025-11-15T12:52:12.039083+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:25:37.445804+00:00",
+      "at": "2025-11-15T12:53:05.187422+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -694,21 +687,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:25:42.417703+00:00",
+      "at": "2025-11-15T12:53:08.863415+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:25:47.493348+00:00",
+      "at": "2025-11-15T12:53:12.618977+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:26:38.381420+00:00",
+      "at": "2025-11-15T12:54:11.096298+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -716,21 +709,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:26:43.585547+00:00",
+      "at": "2025-11-15T12:54:15.035516+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:27:06.664176+00:00",
+      "at": "2025-11-15T12:54:18.518898+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:27:11.744480+00:00",
+      "at": "2025-11-15T12:55:11.215950+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -738,28 +731,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T03:27:17.212800+00:00",
+      "at": "2025-11-15T12:55:14.927420+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T03:27:22.724753+00:00",
+      "at": "2025-11-15T12:55:18.533724+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T12:57:03.935942+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-14T12:57:08.554819+00:00",
+      "at": "2025-11-15T12:56:13.815620+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -767,21 +753,21 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T12:57:13.794494+00:00",
+      "at": "2025-11-15T12:56:17.424846+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T12:57:18.790880+00:00",
+      "at": "2025-11-15T12:56:20.806646+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T12:58:04.182233+00:00",
+      "at": "2025-11-15T12:57:09.116777+00:00",
       "event": "reconcile",
       "positions": 15,
       "open_orders": 0,
@@ -789,56 +775,72 @@
       "orders_seen": []
     },
     {
-      "at": "2025-11-14T12:58:09.433139+00:00",
+      "at": "2025-11-15T12:57:13.477246+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-14T12:58:14.364692+00:00",
+      "at": "2025-11-15T12:57:16.813010+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-15T05:26:16.762591+00:00",
+      "at": "2025-11-15T12:58:13.836204+00:00",
+      "event": "reconcile",
+      "positions": 15,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-15T12:58:17.296657+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-15T05:27:25.804306+00:00",
+      "at": "2025-11-15T12:58:20.531521+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-15T05:33:52.083633+00:00",
+      "at": "2025-11-15T12:59:15.130116+00:00",
+      "event": "reconcile",
+      "positions": 15,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-15T12:59:19.078714+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-15T05:36:23.023592+00:00",
+      "at": "2025-11-15T12:59:22.551555+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-15T05:37:31.775664+00:00",
+      "at": "2025-11-15T13:19:04.814074+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
       "created": []
     },
     {
-      "at": "2025-11-15T11:42:44.679237+00:00",
+      "at": "2025-11-15T13:19:39.599304+00:00",
       "event": "open_orders_sync",
       "open_orders": 0,
       "closed": [],
@@ -846,7 +848,8 @@
     }
   ],
   "high_water_mark": 10000.0,
-  "zero_trigger_cycles": 0,
-  "auto_tune_applied": false,
-  "last_open_orders_sync": "2025-11-15T11:42:44.679237+00:00"
+  "zero_trigger_cycles": 44,
+  "auto_tune_applied": true,
+  "latency_stats": {},
+  "last_open_orders_sync": "2025-11-15T13:19:39.599304+00:00"
 }

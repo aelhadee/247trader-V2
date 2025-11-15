@@ -191,7 +191,7 @@ Status alignment with formal requirements spec (APP_REQUIREMENTS.md). Tracks all
 | REQ-STR1 | Pure strategy interface (no direct exchange calls) | Multi-strategy support | Adding new strategies beyond RulesEngine | HIGH |
 | REQ-STR2 | Per-strategy feature flags (enable/disable toggles) | Safe strategy rollout | Multi-strategy operation | HIGH |
 | REQ-STR3 | Per-strategy risk budgets (caps per strategy) | Isolate strategy risk | Multi-strategy capital allocation | HIGH |
-| REQ-SCH1 | Jittered scheduling (0-10% cycle randomization) | Prevent lockstep with exchange/other bots | Production scale-up | MEDIUM |
+| REQ-SCH1 | ✅ Jittered scheduling (0-10% cycle randomization) | Prevent lockstep with exchange/other bots | Production scale-up | ✅ IMPLEMENTED |
 | REQ-SEC2 | Secret rotation policy (90-day rotation + tracking) | Security compliance | Production certification | MEDIUM |
 | REQ-TIME1 | Clock sync gate (NTP drift <100ms validation) | Timestamp reliability | Production safety | MEDIUM |
 
