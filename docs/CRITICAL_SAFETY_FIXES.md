@@ -140,7 +140,7 @@ Per PRODUCTION_TODO.md, these critical items remain:
 
 ### Governance
 - 🔴 Red-flagged assets (manual exclusion list)
-- 🔴 Canonical symbol mapping (handle WBTC/renBTC → BTC)
+- � Canonical symbol mapping (handle WBTC/renBTC → BTC)
 - 🔴 Shadow DRY_RUN reconciliation (parallel risk checks)
 - 🔴 Secrets handling (rotate keys, env var validation)
 
