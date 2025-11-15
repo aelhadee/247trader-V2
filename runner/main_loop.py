@@ -2829,13 +2829,20 @@ class TradingLoop:
                     logger.debug(f"    ⏭️  Skipping convert (no target configured)")
 
             if not success:
+                logger.info(f"    🔄 Fallback: attempting market order via TWAP")
                 tier = self._infer_tier_from_config(candidate.get("pair")) or 3
+                logger.info(f"    📊 Inferred tier: T{tier}, pair: {candidate.get('pair')}")
+                
                 # For emergency trims (BTC/ETH that are normally exempt), force immediate execution
                 is_emergency = currency in ['BTC', 'ETH']
                 if is_emergency:
                     logger.warning(
-                        f"⚠️  Emergency trim for {currency}: forcing taker execution to bypass maker-first delays"
+                        f"    ⚡ EMERGENCY TRIM for {currency}: forcing taker execution to bypass maker-first delays"
                     )
+                else:
+                    logger.info(f"    ⏱️  Standard TWAP liquidation (maker-first)")
+                
+                logger.info(f"    🚀 Executing _sell_via_market_order({currency}, {units_to_liquidate:.8f}, ${min(freed_usd, remaining_excess_usd):.2f}, T{tier}, force_taker={is_emergency})")
                 
                 success = self._sell_via_market_order(
                     currency,
@@ -2848,12 +2855,10 @@ class TradingLoop:
 
                 if success:
                     logger.info(
-                        "Auto trim sold %s via TWAP fallback (~$%.2f)",
-                        currency,
-                        min(freed_usd, remaining_excess_usd),
+                        f"    ✅ Market order SUCCESS: sold {currency} via {'EMERGENCY TAKER' if is_emergency else 'TWAP'} (~${min(freed_usd, remaining_excess_usd):.2f})"
                     )
                 else:
-                    logger.warning("Auto trim failed to reduce %s position", currency)
+                    logger.warning(f"    ❌ Market order FAILED: could not reduce {currency} position")
                     continue
             else:
                 logger.info(
