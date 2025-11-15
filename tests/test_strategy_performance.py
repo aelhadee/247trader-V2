@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from strategy.registry import StrategyRegistry
 from strategy.base_strategy import BaseStrategy, StrategyContext
 from strategy.rules_engine import TradeProposal
-from core.universe import UniverseSnapshot, TradableAsset
+from core.universe import UniverseSnapshot, UniverseAsset
 from core.triggers import TriggerSignal
 
 
@@ -45,7 +45,7 @@ class MockStrategy(BaseStrategy):
                 confidence=0.5 + (i * 0.1),
                 reasoning=f"{self.name} - trigger {i}",
                 strategy_name=self.name,
-                asset=None,
+                asset=trigger.asset,
                 stop_loss_pct=8.0,
                 take_profit_pct=15.0,
                 max_hold_hours=48
