@@ -26,13 +26,30 @@ class CycleStats:
 
 
 class MetricsRecorder:
-    """Expose trading loop stats via Prometheus if available."""
+    """
+    Expose trading loop stats via Prometheus if available.
+    
+    Singleton pattern to prevent duplicate metric registration errors.
+    """
+    _instance: Optional['MetricsRecorder'] = None
+    _initialized: bool = False
 
-    def __init__(self, enabled: bool, port: int = 9100) -> None:
+    def __new__(cls, enabled: bool = True, port: int = 9100):
+        """Ensure only one MetricsRecorder instance exists."""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __init__(self, enabled: bool = True, port: int = 9100) -> None:
+        # Skip re-initialization if already initialized
+        if self._initialized:
+            return
+            
         self._prom_available = Counter is not None
         self._enabled = bool(enabled) and self._prom_available
         self._port = port
         self._started = False
+        self._initialized = True
 
         self._last_cycle_stats: Optional[CycleStats] = None
         self._last_stage_durations: Dict[str, float] = {}
