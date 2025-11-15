@@ -1,260 +1,518 @@
-""""""
+"""""""""
+
+Performance benchmarks for multi-strategy framework (REQ-STR4).
 
 Performance benchmarks for multi-strategy framework (REQ-STR4)Performance benchmarks for multi-strategy framework (REQ-STR4)
 
+Tests strategy aggregation latency, memory usage, and scalability using
+
+RulesEngine (baseline strategy) with realistic context data.
 
 
-Tests strategy aggregation latency, memory usage, and scalability.Tests multi-strategy aggregation latency, memory usage, and scalability.
+
+REQ-STR4 Requirement: Multi-strategy aggregation must complete in under 100msTests strategy aggregation latency, memory usage, and scalability.Tests multi-strategy aggregation latency, memory usage, and scalability.
+
+"""
 
 Uses RulesEngine (baseline strategy) with realistic context data.
 
-NOTE: These are lightweight performance tests focused on the aggregation layer.
+import pytest
 
-REQ-STR4: Multi-strategy aggregation must complete in <100ms for 10 strategiesThey use the actual StrategyRegistry with RulesEngine (our baseline strategy).
+import timeNOTE: These are lightweight performance tests focused on the aggregation layer.
 
-""""""
+import tracemalloc
 
+from datetime import datetime, timezoneREQ-STR4: Multi-strategy aggregation must complete in <100ms for 10 strategiesThey use the actual StrategyRegistry with RulesEngine (our baseline strategy).
 
+from pathlib import Path
 
-import pytestimport pytest
-
-import timeimport time
-
-import tracemallocimport tracemalloc
-
-from datetime import datetime, timezonefrom datetime import datetime, timezone
-
-from pathlib import Pathfrom typing import List, Dict, Any
-
-import tempfilefrom pathlib import Path
-
-import yamlimport tempfile
+import tempfile""""""
 
 import yaml
 
+
+
 from strategy.registry import StrategyRegistry
 
-from strategy.base_strategy import StrategyContextfrom strategy.registry import StrategyRegistry
+from strategy.base_strategy import StrategyContextimport pytestimport pytest
 
-from core.universe import UniverseSnapshot, UniverseAssetfrom strategy.base_strategy import StrategyContext
+from core.universe import UniverseSnapshot, UniverseAsset
 
-from core.triggers import TriggerSignalfrom core.universe import UniverseSnapshot, UniverseAsset
-
-from core.triggers import TriggerSignal
+from core.triggers import TriggerSignalimport timeimport time
 
 
 
-@pytest.fixtureimport pytest
+import tracemallocimport tracemalloc
 
-def temp_config():import time
+@pytest.fixture
 
-    """Create a temporary strategies.yaml for testing"""import tracemalloc
+def temp_config():from datetime import datetime, timezonefrom datetime import datetime, timezone
 
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:from datetime import datetime, timezone
+    """Create temporary strategies.yaml for testing."""
 
-        config = {from typing import List
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:from pathlib import Pathfrom typing import List, Dict, Any
 
-            "strategies": {from dataclasses import dataclass
+        config = {
+
+            "strategies": {import tempfilefrom pathlib import Path
 
                 "rules_engine": {
 
-                    "enabled": True,from strategy.registry import StrategyRegistry
+                    "enabled": True,import yamlimport tempfile
 
-                    "type": "rules_engine",from strategy.base_strategy import BaseStrategy, StrategyContext
+                    "type": "rules_engine",
 
-                    "description": "Baseline rules engine for testing",from strategy.rules_engine import TradeProposal
+                    "description": "Baseline rules engine",import yaml
 
-                    "risk_budgets": {from core.universe import UniverseSnapshot, UniverseAsset
+                    "risk_budgets": {
 
-                        "max_at_risk_pct": 15.0,from core.triggers import TriggerSignal
+                        "max_at_risk_pct": 15.0,from strategy.registry import StrategyRegistry
 
                         "max_trades_per_cycle": 10
 
-                    },
+                    },from strategy.base_strategy import StrategyContextfrom strategy.registry import StrategyRegistry
 
-                    "params": {}# Create mock strategies for performance testing
+                    "params": {}
 
-                }class MockStrategy(BaseStrategy):
+                }from core.universe import UniverseSnapshot, UniverseAssetfrom strategy.base_strategy import StrategyContext
 
-            }    """Mock strategy for performance testing"""
+            }
 
-        }    
+        }from core.triggers import TriggerSignalfrom core.universe import UniverseSnapshot, UniverseAsset
 
-        yaml.dump(config, f)    def __init__(self, name: str, delay_ms: float = 0):
+        yaml.dump(config, f)
 
-        temp_path = Path(f.name)        config = {"enabled": True, "description": "Mock strategy for testing"}
+        temp_path = Path(f.name)from core.triggers import TriggerSignal
 
-            super().__init__(name=name, config=config)
+    
 
-    yield temp_path        self.delay_ms = delay_ms
+    yield temp_path
 
-        
+    
 
-    # Cleanup    def generate_proposals(self, context: StrategyContext) -> List[TradeProposal]:
+    try:@pytest.fixtureimport pytest
 
-    try:        """Generate mock proposals with optional delay."""
+        temp_path.unlink()
 
-        temp_path.unlink()        if self.delay_ms > 0:
+    except:def temp_config():import time
 
-    except:            time.sleep(self.delay_ms / 1000.0)
+        pass
 
-        pass        
+    """Create a temporary strategies.yaml for testing"""import tracemalloc
 
-        # Generate 3 proposals per strategy
 
-        proposals = []
 
-@pytest.fixture        for i, trigger in enumerate(context.triggers[:3]):
+@pytest.fixture    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:from datetime import datetime, timezone
 
-def mock_context():            proposals.append(TradeProposal(
+def mock_context():
 
-    """Create a realistic strategy context for testing"""                symbol=trigger.symbol,
+    """Create realistic strategy context for testing."""        config = {from typing import List
 
-                    side="BUY",
+    assets = [
 
-    # Create 20 test assets across tiers                size_pct=2.0,
+        UniverseAsset(            "strategies": {from dataclasses import dataclass
 
-    assets = [                confidence=0.5 + (i * 0.1),
+            symbol=f"ASSET{i}-USD",
 
-        UniverseAsset(                reasoning=f"{self.name} - trigger {i}",
+            tier=1 if i < 5 else (2 if i < 15 else 3),                "rules_engine": {
 
-            symbol=f"ASSET{i}-USD",                strategy_name=self.name,
+            precision=2,
 
-            tier=1 if i < 5 else (2 if i < 15 else 3),                asset=trigger.asset,
+            min_size=0.01,                    "enabled": True,from strategy.registry import StrategyRegistry
 
-            precision=2,                stop_loss_pct=8.0,
+            lot_size=0.01,
 
-            min_size=0.01,                take_profit_pct=15.0,
-
-            lot_size=0.01,                max_hold_hours=48
-
-            min_notional=10.0,            ))
-
-            current_price=100.0 + i,        return proposals
-
-            volume_24h=1_000_000 + (i * 100_000),
-
-            spread_bps=10.0,
-
-            depth_bid_usd=50_000,@pytest.fixture
-
-            depth_ask_usd=50_000,def temp_config():
-
-            timestamp=datetime.now(timezone.utc)    """Create a temporary strategies.yaml for testing"""
-
-        )    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
-
-        for i in range(20)        config = {
-
-    ]            "strategies": {
-
-                    "rules_engine": {
-
-    # Create trigger signals                    "enabled": True,
-
-    triggers = [                    "type": "rules_engine",
-
-        TriggerSignal(                    "description": "Baseline rules engine for testing",
-
-            symbol=asset.symbol,                    "risk_budgets": {
-
-            trigger_type="momentum",                        "max_at_risk_pct": 15.0,
-
-            strength=0.7,                        "max_trades_per_cycle": 10
-
-            confidence=0.8,                    },
-
-            reason=f"Mock trigger for {asset.symbol}",                    "params": {}
-
-            timestamp=datetime.now(timezone.utc),                }
-
-            current_price=asset.current_price,            }
-
-            volatility=0.3        }
-
-        )        yaml.dump(config, f)
-
-        for asset in assets        temp_path = Path(f.name)
-
-    ]    
-
-        yield temp_path
-
-    # Create universe snapshot    
-
-    universe = UniverseSnapshot(    # Cleanup
-
-        tier_1_assets=assets[:5],    try:
-
-        tier_2_assets=assets[5:15],        temp_path.unlink()
-
-        tier_3_assets=assets[15:],    except:
-
-        excluded_assets=[],        pass
-
-        total_eligible=20,
-
-        timestamp=datetime.now(timezone.utc),
-
-        regime="normal"@pytest.fixture
-
-    )def mock_context():
-
-        """Create a mock strategy context with test data"""
-
-    return StrategyContext(    
-
-        universe=universe,    # Create 20 test assets across tiers
-
-        triggers=triggers,    assets = [
-
-        regime="normal",        UniverseAsset(
-
-        timestamp=datetime.now(timezone.utc),            symbol=f"ASSET{i}-USD",
-
-        cycle_number=1,            tier=1 if i < 5 else (2 if i < 15 else 3),
-
-        state={},            precision=2,
-
-        risk_constraints=None            min_size=0.01,
-
-    )            lot_size=0.01,
-
-            min_notional=10.0,
+            min_notional=10.0,                    "type": "rules_engine",from strategy.base_strategy import BaseStrategy, StrategyContext
 
             current_price=100.0 + i,
 
-class TestMultiStrategyPerformance:            volume_24h=1_000_000 + (i * 100_000),
+            volume_24h=1_000_000 + (i * 100_000),                    "description": "Baseline rules engine for testing",from strategy.rules_engine import TradeProposal
 
-    """Test multi-strategy aggregation performance"""            spread_bps=10.0,
+            spread_bps=10.0,
 
-                depth_bid_usd=50_000,
+            depth_bid_usd=50_000,                    "risk_budgets": {from core.universe import UniverseSnapshot, UniverseAsset
 
-    def test_single_strategy_latency(self, temp_config, mock_context):            depth_ask_usd=50_000,
+            depth_ask_usd=50_000,
 
-        """Test single strategy (RulesEngine) avg latency < 50ms"""            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc)                        "max_at_risk_pct": 15.0,from core.triggers import TriggerSignal
 
-        registry = StrategyRegistry(config_path=temp_config)        )
+        )
 
-                for i in range(20)
+        for i in range(20)                        "max_trades_per_cycle": 10
 
-        # Warm-up run    ]
+    ]
 
-        registry.generate_proposals(mock_context)    
+                        },
 
-            # Create trigger signals
+    triggers = [
 
-        # Measure over 10 iterations    triggers = [
+        TriggerSignal(                    "params": {}# Create mock strategies for performance testing
 
-        iterations = 10        TriggerSignal(
+            symbol=asset.symbol,
 
-        times = []            symbol=asset.symbol,
+            trigger_type="momentum",                }class MockStrategy(BaseStrategy):
 
-                    trigger_type="momentum",
+            strength=0.7,
 
-        for _ in range(iterations):            strength=0.7,
+            confidence=0.8,            }    """Mock strategy for performance testing"""
 
-            start = time.perf_counter()            confidence=0.8,
+            reason=f"Mock trigger for {asset.symbol}",
+
+            timestamp=datetime.now(timezone.utc),        }    
+
+            current_price=asset.current_price,
+
+            volatility=0.3        yaml.dump(config, f)    def __init__(self, name: str, delay_ms: float = 0):
+
+        )
+
+        for asset in assets        temp_path = Path(f.name)        config = {"enabled": True, "description": "Mock strategy for testing"}
+
+    ]
+
+                super().__init__(name=name, config=config)
+
+    universe = UniverseSnapshot(
+
+        tier_1_assets=assets[:5],    yield temp_path        self.delay_ms = delay_ms
+
+        tier_2_assets=assets[5:15],
+
+        tier_3_assets=assets[15:],        
+
+        excluded_assets=[],
+
+        total_eligible=20,    # Cleanup    def generate_proposals(self, context: StrategyContext) -> List[TradeProposal]:
+
+        timestamp=datetime.now(timezone.utc),
+
+        regime="normal"    try:        """Generate mock proposals with optional delay."""
+
+    )
+
+            temp_path.unlink()        if self.delay_ms > 0:
+
+    return StrategyContext(
+
+        universe=universe,    except:            time.sleep(self.delay_ms / 1000.0)
+
+        triggers=triggers,
+
+        regime="normal",        pass        
+
+        timestamp=datetime.now(timezone.utc),
+
+        cycle_number=1        # Generate 3 proposals per strategy
+
+    )
+
+        proposals = []
+
+
+
+class TestMultiStrategyPerformance:@pytest.fixture        for i, trigger in enumerate(context.triggers[:3]):
+
+    """Test multi-strategy aggregation performance."""
+
+    def mock_context():            proposals.append(TradeProposal(
+
+    def test_single_strategy_latency(self, temp_config, mock_context):
+
+        """Test single strategy avg latency under 50ms."""    """Create a realistic strategy context for testing"""                symbol=trigger.symbol,
+
+        registry = StrategyRegistry(config_path=temp_config)
+
+        registry.generate_proposals(mock_context)  # Warm-up                    side="BUY",
+
+        
+
+        times = []    # Create 20 test assets across tiers                size_pct=2.0,
+
+        for _ in range(10):
+
+            start = time.perf_counter()    assets = [                confidence=0.5 + (i * 0.1),
+
+            proposals_by_strategy = registry.generate_proposals(mock_context)
+
+            elapsed_ms = (time.perf_counter() - start) * 1000        UniverseAsset(                reasoning=f"{self.name} - trigger {i}",
+
+            times.append(elapsed_ms)
+
+                    symbol=f"ASSET{i}-USD",                strategy_name=self.name,
+
+        avg_ms = sum(times) / len(times)
+
+        assert avg_ms < 50, f"Avg latency {avg_ms:.1f}ms exceeds 50ms"            tier=1 if i < 5 else (2 if i < 15 else 3),                asset=trigger.asset,
+
+        assert "rules_engine" in proposals_by_strategy
+
+                precision=2,                stop_loss_pct=8.0,
+
+    def test_repeated_aggregation_consistency(self, temp_config, mock_context):
+
+        """Test 100 runs maintain consistent performance."""            min_size=0.01,                take_profit_pct=15.0,
+
+        registry = StrategyRegistry(config_path=temp_config)
+
+                    lot_size=0.01,                max_hold_hours=48
+
+        times = []
+
+        for _ in range(100):            min_notional=10.0,            ))
+
+            start = time.perf_counter()
+
+            registry.generate_proposals(mock_context)            current_price=100.0 + i,        return proposals
+
+            times.append((time.perf_counter() - start) * 1000)
+
+                    volume_24h=1_000_000 + (i * 100_000),
+
+        avg_ms = sum(times) / len(times)
+
+        std_dev = (sum((t - avg_ms) ** 2 for t in times) / len(times)) ** 0.5            spread_bps=10.0,
+
+        assert std_dev < avg_ms, f"High variance: std={std_dev:.1f}ms"
+
+                depth_bid_usd=50_000,@pytest.fixture
+
+    def test_proposal_generation_scales_linearly(self, temp_config, mock_context):
+
+        """Test proposal generation scales linearly with triggers."""            depth_ask_usd=50_000,def temp_config():
+
+        registry = StrategyRegistry(config_path=temp_config)
+
+                    timestamp=datetime.now(timezone.utc)    """Create a temporary strategies.yaml for testing"""
+
+        times = []
+
+        for count in [5, 10, 20, 40]:        )    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+
+            limited_context = StrategyContext(
+
+                universe=mock_context.universe,        for i in range(20)        config = {
+
+                triggers=mock_context.triggers[:count],
+
+                regime=mock_context.regime,    ]            "strategies": {
+
+                timestamp=mock_context.timestamp,
+
+                cycle_number=mock_context.cycle_number                    "rules_engine": {
+
+            )
+
+                # Create trigger signals                    "enabled": True,
+
+            iter_times = []
+
+            for _ in range(5):    triggers = [                    "type": "rules_engine",
+
+                start = time.perf_counter()
+
+                registry.generate_proposals(limited_context)        TriggerSignal(                    "description": "Baseline rules engine for testing",
+
+                iter_times.append((time.perf_counter() - start) * 1000)
+
+                        symbol=asset.symbol,                    "risk_budgets": {
+
+            times.append(sum(iter_times) / len(iter_times))
+
+                    trigger_type="momentum",                        "max_at_risk_pct": 15.0,
+
+        scale_factor = times[-1] / times[0] if times[0] > 0 else 1
+
+        assert scale_factor < 10, f"Scaling 5→40 triggers: {scale_factor:.1f}x too slow"            strength=0.7,                        "max_trades_per_cycle": 10
+
+
+
+            confidence=0.8,                    },
+
+class TestMemoryUsage:
+
+    """Test memory usage and leak detection."""            reason=f"Mock trigger for {asset.symbol}",                    "params": {}
+
+    
+
+    def test_no_memory_leak_over_200_cycles(self, temp_config, mock_context):            timestamp=datetime.now(timezone.utc),                }
+
+        """Test no memory leak over 200 cycles."""
+
+        registry = StrategyRegistry(config_path=temp_config)            current_price=asset.current_price,            }
+
+        
+
+        tracemalloc.start()            volatility=0.3        }
+
+        for _ in range(10):  # Warm-up
+
+            registry.generate_proposals(mock_context)        )        yaml.dump(config, f)
+
+        
+
+        snapshot_before = tracemalloc.take_snapshot()        for asset in assets        temp_path = Path(f.name)
+
+        for _ in range(200):
+
+            registry.generate_proposals(mock_context)    ]    
+
+        snapshot_after = tracemalloc.take_snapshot()
+
+        tracemalloc.stop()        yield temp_path
+
+        
+
+        stats = snapshot_after.compare_to(snapshot_before, 'lineno')    # Create universe snapshot    
+
+        total_growth_mb = sum(stat.size_diff for stat in stats) / (1024 * 1024)
+
+        assert abs(total_growth_mb) < 15, f"Memory grew {total_growth_mb:.2f}MB"    universe = UniverseSnapshot(    # Cleanup
+
+    
+
+    def test_context_creation_memory_efficiency(self, mock_context):        tier_1_assets=assets[:5],    try:
+
+        """Test StrategyContext creation is memory-efficient."""
+
+        tracemalloc.start()        tier_2_assets=assets[5:15],        temp_path.unlink()
+
+        snapshot_before = tracemalloc.take_snapshot()
+
+                tier_3_assets=assets[15:],    except:
+
+        contexts = []
+
+        for i in range(1000):        excluded_assets=[],        pass
+
+            contexts.append(StrategyContext(
+
+                universe=mock_context.universe,        total_eligible=20,
+
+                triggers=mock_context.triggers,
+
+                regime="normal",        timestamp=datetime.now(timezone.utc),
+
+                timestamp=datetime.now(timezone.utc),
+
+                cycle_number=i        regime="normal"@pytest.fixture
+
+            ))
+
+            )def mock_context():
+
+        snapshot_after = tracemalloc.take_snapshot()
+
+        tracemalloc.stop()        """Create a mock strategy context with test data"""
+
+        
+
+        stats = snapshot_after.compare_to(snapshot_before, 'lineno')    return StrategyContext(    
+
+        total_mb = sum(stat.size_diff for stat in stats) / (1024 * 1024)
+
+        assert total_mb < 50, f"1000 contexts used {total_mb:.2f}MB"        universe=universe,    # Create 20 test assets across tiers
+
+
+
+        triggers=triggers,    assets = [
+
+class TestREQSTR4Compliance:
+
+    """Test REQ-STR4 multi-strategy aggregation requirements."""        regime="normal",        UniverseAsset(
+
+    
+
+    def test_meets_latency_requirement_single_strategy(self, temp_config, mock_context):        timestamp=datetime.now(timezone.utc),            symbol=f"ASSET{i}-USD",
+
+        """REQ-STR4: Single strategy completes in under 100ms."""
+
+        registry = StrategyRegistry(config_path=temp_config)        cycle_number=1,            tier=1 if i < 5 else (2 if i < 15 else 3),
+
+        registry.generate_proposals(mock_context)  # Warm-up
+
+                state={},            precision=2,
+
+        max_latency_ms = 0
+
+        for _ in range(20):        risk_constraints=None            min_size=0.01,
+
+            start = time.perf_counter()
+
+            registry.generate_proposals(mock_context)    )            lot_size=0.01,
+
+            max_latency_ms = max(max_latency_ms, (time.perf_counter() - start) * 1000)
+
+                    min_notional=10.0,
+
+        assert max_latency_ms < 100, f"Peak latency {max_latency_ms:.1f}ms exceeds 100ms"
+
+                current_price=100.0 + i,
+
+    def test_memory_stable_under_sustained_load(self, temp_config, mock_context):
+
+        """REQ-STR4: Memory stable under sustained load."""class TestMultiStrategyPerformance:            volume_24h=1_000_000 + (i * 100_000),
+
+        registry = StrategyRegistry(config_path=temp_config)
+
+            """Test multi-strategy aggregation performance"""            spread_bps=10.0,
+
+        tracemalloc.start()
+
+        for _ in range(20):  # Warm-up                depth_bid_usd=50_000,
+
+            registry.generate_proposals(mock_context)
+
+            def test_single_strategy_latency(self, temp_config, mock_context):            depth_ask_usd=50_000,
+
+        mem_samples = []
+
+        for i in range(500):        """Test single strategy (RulesEngine) avg latency < 50ms"""            timestamp=datetime.now(timezone.utc)
+
+            if i % 100 == 0:
+
+                mem_samples.append(tracemalloc.get_traced_memory()[0] / (1024 * 1024))        registry = StrategyRegistry(config_path=temp_config)        )
+
+            registry.generate_proposals(mock_context)
+
+                        for i in range(20)
+
+        tracemalloc.stop()
+
+                # Warm-up run    ]
+
+        mem_growth = mem_samples[-1] - mem_samples[0]
+
+        assert mem_growth < 20, f"Memory grew {mem_growth:.2f}MB over 500 cycles"        registry.generate_proposals(mock_context)    
+
+    
+
+    def test_framework_ready_for_multi_strategy(self, temp_config, mock_context):            # Create trigger signals
+
+        """REQ-STR4: Framework operational for multiple strategies."""
+
+        registry = StrategyRegistry(config_path=temp_config)        # Measure over 10 iterations    triggers = [
+
+        
+
+        strategies = registry.list_strategies()        iterations = 10        TriggerSignal(
+
+        assert len(strategies) > 0, "No strategies loaded"
+
+                times = []            symbol=asset.symbol,
+
+        enabled = registry.get_enabled_strategies()
+
+        assert len(enabled) > 0, "No strategies enabled"                    trigger_type="momentum",
+
+        
+
+        proposals_by_strategy = registry.generate_proposals(mock_context)        for _ in range(iterations):            strength=0.7,
+
+        assert len(proposals_by_strategy) > 0, "No proposals generated"
+
+                    start = time.perf_counter()            confidence=0.8,
+
+        assert hasattr(registry, 'aggregate_proposals'), "Missing aggregation method"
 
             proposals_by_strategy = registry.generate_proposals(mock_context)            reason=f"Mock trigger for {asset.symbol}",
 
