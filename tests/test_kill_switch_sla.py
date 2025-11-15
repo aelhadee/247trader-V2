@@ -9,6 +9,9 @@ Verifies that on kill-switch activation:
 
 This test uses mocked exchange and timing instrumentation to verify
 the SLA requirements without real network calls.
+
+NOTE: Run these tests in isolation to avoid Prometheus registry conflicts:
+    pytest tests/test_kill_switch_sla.py -v
 """
 
 import sys
@@ -18,22 +21,13 @@ from typing import Any, Dict, List
 from unittest.mock import Mock, MagicMock, patch
 import pytest
 
+# Mock metrics module before importing main_loop to avoid Prometheus registry conflicts
+if 'infra.metrics' not in sys.modules:
+    mock_metrics = MagicMock()
+    mock_metrics.MetricsRecorder = MagicMock(return_value=MagicMock())
+    mock_metrics.CycleStats = MagicMock
+    sys.modules['infra.metrics'] = mock_metrics
 
-@pytest.fixture(scope="function", autouse=True)
-def _mock_metrics_to_avoid_registry_conflicts():
-    """
-    Mock metrics module at import time to avoid Prometheus registry conflicts.
-    
-    Each TradingLoop instantiation tries to register Prometheus metrics, which fails
-    if the same metrics are already registered. This fixture mocks the entire metrics
-    module before main_loop is imported to prevent registration.
-    """
-    # Mock at sys.modules level (already done at module level above)
-    # This fixture just ensures isolation per test function
-    yield
-
-
-# Import after mock is set up
 from runner.main_loop import TradingLoop
 from core.order_state import OrderStatus
 from infra.alerting import AlertSeverity
