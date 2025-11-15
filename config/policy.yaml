@@ -46,7 +46,7 @@ risk:
   # Freqtrade: 3 concurrent trades, -10% stop, 0.05 BTC stake (~$2.5k @ $50k BTC)
   # Jesse: 1x leverage, $10k initial balance
   # Hummingbot: Manual position sizing, no built-in pyramiding
-  max_total_at_risk_pct: 80.0  # TEMPORARILY RAISED from 25% to accommodate existing positions (inject capital to restore 25%)
+  max_total_at_risk_pct: 25.0  # Conservative LIVE profile (≤25% NAV at risk). Was 80% temporarily to stop trim thrashing.
   count_external_positions: false
   managed_position_tag: 247trader
   external_exposure_buffer_pct: 5.0
