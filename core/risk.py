@@ -16,6 +16,7 @@ import logging
 
 from strategy.rules_engine import TradeProposal
 from infra.alerting import AlertSeverity
+from infra.symbols import merge_symbol_value_map, normalize_symbol
 
 logger = logging.getLogger(__name__)
 
@@ -76,13 +77,77 @@ class PortfolioState:
     current_time: Optional[datetime] = None  # Current time (simulation or real)
     weekly_pnl_pct: float = 0.0
     pending_orders: Optional[Dict[str, Dict[str, float]]] = None
-    managed_positions: Optional[Dict[str, bool]] = None
+    managed_positions: Optional[Dict[str, Dict[str, Any]]] = None
 
     def __post_init__(self):
         if self.pending_orders is None:
             self.pending_orders = {}
         if self.managed_positions is None:
             self.managed_positions = {}
+        self.open_positions = self._canonicalize_positions(self.open_positions or {})
+        self.pending_orders = self._canonicalize_pending_orders(self.pending_orders or {})
+        self.managed_positions = self._canonicalize_managed_positions(self.managed_positions or {})
+
+    NUMERIC_POSITION_FIELDS = ("usd", "usd_value", "units")
+
+    @staticmethod
+    def _safe_float(value: Any) -> Optional[float]:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    def _canonicalize_positions(self, positions: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+        canonical: Dict[str, Dict[str, Any]] = {}
+        for raw_symbol, payload in (positions or {}).items():
+            symbol = normalize_symbol(raw_symbol)
+            if not symbol:
+                continue
+            entry = canonical.setdefault(symbol, {})
+            if isinstance(payload, dict):
+                for key, value in payload.items():
+                    if key in self.NUMERIC_POSITION_FIELDS:
+                        numeric = self._safe_float(value)
+                        if numeric is None:
+                            continue
+                        entry[key] = entry.get(key, 0.0) + numeric
+                    elif key not in entry:
+                        entry[key] = value
+            else:
+                numeric = self._safe_float(payload)
+                if numeric is None:
+                    continue
+                entry["usd"] = entry.get("usd", 0.0) + numeric
+        return canonical
+
+    def _canonicalize_pending_orders(self, pending: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, float]]:
+        canonical: Dict[str, Dict[str, float]] = {}
+        for side, orders in (pending or {}).items():
+            if not isinstance(orders, dict):
+                continue
+            side_bucket = canonical.setdefault(side, {})
+            for raw_symbol, value in orders.items():
+                symbol = normalize_symbol(raw_symbol)
+                if not symbol:
+                    continue
+                numeric = self._safe_float(value)
+                if numeric is None:
+                    continue
+                side_bucket[symbol] = side_bucket.get(symbol, 0.0) + numeric
+        return canonical
+
+    def _canonicalize_managed_positions(self, managed: Dict[str, Any]) -> Dict[str, Any]:
+        canonical: Dict[str, Any] = {}
+        for raw_symbol, payload in (managed or {}).items():
+            symbol = normalize_symbol(raw_symbol)
+            if not symbol:
+                continue
+            if symbol in canonical and isinstance(canonical[symbol], dict) and isinstance(payload, dict):
+                merged = {**canonical[symbol], **payload}
+                canonical[symbol] = merged
+            else:
+                canonical[symbol] = payload
+        return canonical
     
     @property
     def nav(self) -> float:
@@ -94,7 +159,8 @@ class PortfolioState:
     
     def get_position_usd(self, symbol: str) -> float:
         """Get USD value of a position (enforces schema)"""
-        pos = self.open_positions.get(symbol, {})
+    symbol = normalize_symbol(symbol)
+    pos = self.open_positions.get(symbol, {})
         if not isinstance(pos, dict):
             return 0.0
         if "usd" in pos:
@@ -140,9 +206,9 @@ class PortfolioState:
 
     def get_external_exposure_usd(self) -> float:
         """Return exposure for positions not tagged as managed."""
-        total = self.get_total_exposure_usd()
-        managed = self.get_managed_exposure_usd()
-        return max(total - managed, 0.0)
+    total = self.get_total_exposure_usd()
+    managed = self.get_managed_exposure_usd()
+    return max(total - managed, 0.0)
 
     def _pending_orders_for_side(self, side: str) -> Dict[str, float]:
         orders = self.pending_orders or {}
@@ -166,19 +232,12 @@ class PortfolioState:
                     continue
             return total
 
-        lookup_keys = {symbol}
-        if '-' in symbol:
-            base = symbol.split('-', 1)[0]
-            lookup_keys.add(base)
-        else:
-            lookup_keys.add(f"{symbol}-USD")
-
-        for key in lookup_keys:
-            if key in orders:
-                try:
-                    return float(orders[key])
-                except (TypeError, ValueError):
-                    return 0.0
+        canonical_symbol = normalize_symbol(symbol)
+        if canonical_symbol in orders:
+            try:
+                return float(orders[canonical_symbol])
+            except (TypeError, ValueError):
+                return 0.0
         return 0.0
 
 
