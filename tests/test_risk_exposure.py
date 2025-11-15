@@ -131,3 +131,40 @@ def test_external_exposure_counts_beyond_buffer(base_policy):
     result = risk._check_global_at_risk([proposal], portfolio)
     assert not result.approved
     assert "max_total_at_risk_pct" in result.violated_checks
+
+
+def test_portfolio_state_canonicalizes_symbol_variants(base_policy):
+    managed_meta = {
+        "btc-usd": {
+            "entry_price": 27000,
+            "entry_time": datetime.now(timezone.utc).isoformat(),
+        }
+    }
+    pending = {
+        "buy": {"BTCUSD": 25.0, "btc-usd": 5.0},
+        "sell": {"btc/usd": 10.0},
+    }
+    portfolio = _portfolio(
+        1000.0,
+        {"btc-usd": {"usd": 50.0}, "BTCUSD": {"usd": 25.0}},
+        managed=managed_meta,
+        pending=pending,
+    )
+
+    assert list(portfolio.open_positions.keys()) == ["BTC-USD"]
+    assert portfolio.get_position_usd("BTCUSD") == pytest.approx(75.0)
+    assert portfolio.get_pending_notional_usd("buy", "BTC-USD") == pytest.approx(30.0)
+    assert portfolio.get_pending_notional_usd("sell", "btc-usd") == pytest.approx(10.0)
+
+
+def test_risk_engine_uses_canonical_pending_orders(base_policy):
+    risk = RiskEngine(policy=base_policy)
+    portfolio = _portfolio(
+        5000.0,
+        {"WBTCUSD": {"usd": 1000.0}},
+        pending={"buy": {"wbtc-usd": 250.0, "WBTCUSD": 50.0}},
+    )
+
+    pending_map = risk._build_pending_buy_map(portfolio)
+    assert list(pending_map.keys()) == ["BTC-USD"]
+    assert pending_map["BTC-USD"] == pytest.approx(300.0)
