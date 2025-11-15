@@ -1957,8 +1957,19 @@ class TradingLoop:
             import requests
             if isinstance(e, (requests.exceptions.RequestException, requests.exceptions.HTTPError)):
                 self.risk_engine.record_api_error()
-                if isinstance(e, requests.exceptions.HTTPError) and e.response and e.response.status_code == 429:
-                    self.risk_engine.record_rate_limit()
+                
+                # Record API error metrics
+                error_type = type(e).__name__
+                if isinstance(e, requests.exceptions.HTTPError) and e.response:
+                    error_type = f"HTTP_{e.response.status_code}"
+                    if e.response.status_code == 429:
+                        self.risk_engine.record_rate_limit()
+                        self.metrics.record_circuit_breaker_state("rate_limit", True)
+                
+                # Get consecutive error count from risk engine (via circuit snapshot)
+                circuit_state = self.risk_engine.circuit_snapshot()
+                consecutive_errors = circuit_state.get("api_error_count", 0)
+                self.metrics.record_api_error(error_type, consecutive_errors)
             
             # Track exception for burst detection
             now = datetime.now(timezone.utc)
