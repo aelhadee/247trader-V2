@@ -1,12 +1,25 @@
 """
-Performance Benchmarks for Strategy Registry (REQ-STR4)
+Performance benchmarks for multi-strategy framework (REQ-STR4)
 
-Verifies multi-strategy performance with 10+ strategies:
-- Proposal aggregation latency < 100ms
-- Memory usage stable (no leaks)
-- CPU usage reasonable
-- Deduplication performance
+Tests multi-strategy aggregation latency, memory usage, and scalability.
+
+NOTE: These are lightweight performance tests focused on the aggregation layer.
+They use the actual StrategyRegistry with RulesEngine (our baseline strategy).
 """
+
+import pytest
+import time
+import tracemalloc
+from datetime import datetime, timezone
+from typing import List, Dict, Any
+from pathlib import Path
+import tempfile
+import yaml
+
+from strategy.registry import StrategyRegistry
+from strategy.base_strategy import StrategyContext
+from core.universe import UniverseSnapshot, UniverseAsset
+from core.triggers import TriggerSignal
 
 import pytest
 import time
