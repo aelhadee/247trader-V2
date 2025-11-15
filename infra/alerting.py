@@ -43,6 +43,24 @@ class AlertConfig:
     min_severity: AlertSeverity
     dry_run: bool
     timeout: float = 5.0
+    dedupe_seconds: float = 60.0  # Dedupe identical alerts within 60s
+    escalation_seconds: float = 120.0  # Escalate unresolved alerts after 2m
+    escalation_webhook_url: Optional[str] = None  # Optional separate escalation webhook
+    escalation_severity_boost: int = 1  # Boost severity by N levels on escalation
+
+
+@dataclass
+class AlertRecord:
+    """Track alert history for dedupe and escalation."""
+    fingerprint: str
+    severity: AlertSeverity
+    title: str
+    message: str
+    first_seen: float  # time.monotonic()
+    last_seen: float  # time.monotonic()
+    count: int = 1
+    escalated: bool = False
+    resolved: bool = False
 
 
 class AlertService:
