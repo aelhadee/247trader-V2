@@ -1802,6 +1802,9 @@ class TradingLoop:
             cycle_duration = (cycle_end - cycle_started).total_seconds()
             logger.info(f"CYCLE COMPLETE: {cycle_duration:.2f}s")
             
+            # Update latency stats in state store and check thresholds
+            self._update_and_check_latency_thresholds()
+            
         except Exception as e:
             # Hard rule: any unexpected error => NO_TRADE this cycle
             logger.exception(f"Error in run_cycle: {e}")
