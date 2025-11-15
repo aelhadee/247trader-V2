@@ -546,7 +546,7 @@ class BacktestEngine:
         self.metrics.update(trade)
         
         logger.debug(
-            f"CLOSE {trade.symbol} @ ${exit_price:,.2f} | "
+            f"CLOSE {trade.symbol} @ ${exit_fill_price:,.2f} (mid: ${mid_price:,.2f}) | "
             f"PnL: ${trade.pnl_usd:+,.2f} ({trade.pnl_pct:+.2f}%) | "
             f"Reason: {reason} | Hold: {trade.hold_time}"
         )
