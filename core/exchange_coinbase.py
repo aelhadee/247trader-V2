@@ -380,11 +380,16 @@ class CoinbaseExchange:
             if succeeded:
                 return payload
 
-            # Exponential backoff with jitter if not last attempt
+            # Exponential backoff with full jitter if not last attempt (REQ-CB1)
+            # Full jitter formula (AWS best practice): random(0, min(cap, base * 2^attempt))
+            # This prevents thundering herd by spreading retries across full backoff window
             if attempt < max_retries - 1:
                 import random
-                backoff = (2 ** attempt) + random.uniform(0, 1)  # 1-2s, 2-3s, 4-5s
-                logger.info(f"Retrying in {backoff:.1f}s...")
+                base_delay = 1.0  # Base delay in seconds
+                max_delay = 30.0  # Cap at 30 seconds
+                exp_backoff = min(max_delay, base_delay * (2 ** attempt))
+                backoff = random.uniform(0, exp_backoff)  # Full jitter: 0 to exp_backoff
+                logger.info(f"Retrying in {backoff:.1f}s (full jitter, attempt {attempt + 1}/{max_retries})...")
                 time.sleep(backoff)
         
         # All retries exhausted
