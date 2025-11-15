@@ -81,6 +81,7 @@ class AuditLogger:
                 "mode": mode,
                 "status": self._determine_status(final_orders, no_trade_reason),
                 "no_trade_reason": no_trade_reason,
+                "config_hash": config_hash,  # Configuration drift detection
             }
 
             if stage_latencies:
