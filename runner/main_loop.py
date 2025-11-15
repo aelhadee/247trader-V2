@@ -819,7 +819,7 @@ class TradingLoop:
         # CRITICAL: Hydrate pending_orders from open_orders to count toward risk caps
         pending_orders = self._build_pending_orders_from_state(state)
 
-        return PortfolioState(
+        portfolio_state = PortfolioState(
             account_value_usd=account_value_usd,
             open_positions=positions,
             daily_pnl_pct=daily_pnl_pct,
@@ -834,6 +834,11 @@ class TradingLoop:
             pending_orders=pending_orders,
             managed_positions=dict(state.get("managed_positions", {})),
         )
+        
+        # Record portfolio metrics
+        self._record_portfolio_metrics(portfolio_state)
+        
+        return portfolio_state
 
     def _build_account_snapshot(self, accounts: List[dict]) -> Dict[str, Any]:
         """Aggregate Coinbase account balances into USD-valued snapshot for risk."""
