@@ -148,11 +148,22 @@ class BacktestEngine:
     
     Simulates trading loop with historical data.
     No AI - pure rules tuning.
+    
+    REQ-BT1: Deterministic with fixed seed.
     """
     
-    def __init__(self, config_dir: str = "config", initial_capital: float = 10_000.0):
+    def __init__(self, config_dir: str = "config", initial_capital: float = 10_000.0, seed: Optional[int] = None):
         self.config_dir = Path(config_dir)
         self.initial_capital = initial_capital
+        self.seed = seed
+        
+        # REQ-BT1: Set random seed for deterministic behavior
+        if seed is not None:
+            import random
+            import numpy as np
+            random.seed(seed)
+            np.random.seed(seed)
+            logger.info(f"Backtest seed set to {seed} for deterministic results")
         
         # Load modules (same as live)
         import yaml
