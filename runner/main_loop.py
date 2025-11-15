@@ -1956,6 +1956,45 @@ class TradingLoop:
                     "total_budget": total_budget,
                 },
             )
+    
+    def _update_and_check_latency_thresholds(self) -> None:
+        """
+        Update latency stats in StateStore and check for threshold violations.
+        
+        Checks API latency thresholds and alerts on persistent slowness.
+        """
+        if not self.latency_tracker:
+            return
+        
+        # Persist latency stats to state store
+        latency_data = self.latency_tracker.to_state_dict()
+        self.state_store.update_latency_stats(latency_data)
+        
+        # Check API latency thresholds from policy
+        latency_cfg = self.policy_config.get("latency", {}) or {}
+        api_thresholds = latency_cfg.get("api_thresholds_ms", {}) or {}
+        
+        violations = []
+        for operation, threshold_ms in api_thresholds.items():
+            mean_latency = self.latency_tracker.check_threshold(operation, threshold_ms)
+            if mean_latency is not None:
+                violations.append({
+                    "operation": operation,
+                    "mean_ms": mean_latency,
+                    "threshold_ms": threshold_ms,
+                })
+        
+        if violations and self.alerts.is_enabled():
+            message = "; ".join(
+                f"{v['operation']} {v['mean_ms']:.1f}ms > {v['threshold_ms']}ms"
+                for v in violations
+            )
+            self.alerts.notify(
+                AlertSeverity.WARNING,
+                "API latency threshold exceeded",
+                message,
+                {"violations": violations},
+            )
 
     def _purge_ineligible_holdings(self, universe) -> None:
         """Sell holdings that are excluded or currently ineligible.
