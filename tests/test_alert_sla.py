@@ -74,8 +74,8 @@ def create_time_sequence(*phases):
             self.phases = list(phases)
             self.current_phase = 0
             self.call_count = 0
-            # Assume ~20 monotonic() calls per notify() for safety
-            self.calls_per_notify = 20
+            # Each notify() makes ~3 monotonic() calls (cleanup check, dedupe check, escalation check)
+            self.calls_per_notify = 3
         
         def __call__(self):
             self.call_count += 1
