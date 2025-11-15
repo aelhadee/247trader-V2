@@ -241,8 +241,8 @@ def test_kill_switch_cancel_timing_sla(mock_lock, kill_switch_file, mock_exchang
     assert mock_exchange.cancel_orders.called or mock_exchange.cancel_order.called
     
     # Assert: Orders transitioned to CANCELED
-    assert loop.executor.order_state_machine._orders["test_order_1"].status == OrderStatus.CANCELED
-    assert loop.executor.order_state_machine._orders["test_order_2"].status == OrderStatus.CANCELED
+    assert loop.executor.order_state_machine.orders["test_order_1"].status == OrderStatus.CANCELED.value
+    assert loop.executor.order_state_machine.orders["test_order_2"].status == OrderStatus.CANCELED.value
     
     # Assert: Running flag cleared
     assert not loop._running
