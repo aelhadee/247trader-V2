@@ -120,7 +120,7 @@ Changing regime in config/logical state immediately alters effective caps/sizes 
 Each strategy module **SHALL** expose a pure interface:
 
 ```text
-generate_proposals(market_snapshot, state) -> list[TradeProposal]
+generate_proposals(context: StrategyContext) -> list[TradeProposal]
 ```
 
 and **SHALL NOT**:
@@ -131,7 +131,7 @@ and **SHALL NOT**:
 
 **Acceptance:**
 Static/code search and tests confirm that strategies only import allowed interfaces and only return `TradeProposal` objects or empty lists.
-**Status:** 🔴 Planned (contract partly implicit in RulesEngine; needs formal strategy module abstraction for multi-strategy support).
+**Status:** ✅ Implemented (`strategy/base_strategy.py`: BaseStrategy abstract class enforces pure interface; strategies receive immutable StrategyContext; 29 tests in `tests/test_strategy_framework.py`).
 
 ---
 
@@ -142,7 +142,7 @@ Each strategy **SHALL** be toggleable by config (e.g., `strategy.<name>.enabled:
 
 * When disabled, strategy logs show "skipped (disabled)" and emit **no** proposals.
 * When enabled, logs show strategy-specific metrics (e.g., proposals_count).
-  **Status:** 🔴 Planned (no per-strategy toggle mechanism exists).
+  **Status:** ✅ Implemented (`config/strategies.yaml`: per-strategy `enabled` flags; StrategyRegistry filters by enabled; new strategies default to `enabled: false`; comprehensive test coverage in `test_strategy_framework.py::TestStrategyRegistry`).
 
 ---
 
@@ -156,7 +156,7 @@ These caps are applied **before** global caps in the Risk Engine.
 
 **Acceptance:**
 If a single strategy attempts to exceed its own budget, excess proposals are dropped or downscaled with `risk_reason='strategy_cap'`, even if global caps are still available.
-**Status:** 🔴 Planned (only global caps implemented; per-strategy budgets needed for multi-strategy).
+**Status:** ✅ Implemented (`core/risk.py::_check_strategy_caps()` enforces max_at_risk_pct per strategy BEFORE global caps; `strategy/base_strategy.py::validate_proposals()` enforces max_trades_per_cycle; metadata passed via proposal.metadata['strategy_max_at_risk_pct']; comprehensive tests verify enforcement).
 
 ---
 
