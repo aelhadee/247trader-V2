@@ -108,7 +108,7 @@ The system **SHALL** apply regime multipliers `{bull, chop, bear, crash} = {1.2,
 
 **Acceptance:**
 Changing regime in config/logical state immediately alters effective caps/sizes and is visible in logs.
-**Status:** Implemented.
+**Status:** ✅ Implemented.
 
 ---
 
