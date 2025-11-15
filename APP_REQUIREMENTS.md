@@ -505,7 +505,7 @@ For Coinbase REST 429/5xx responses, the system **SHALL**:
 
 **Acceptance:**
 Fault-injection tests show compliant retry patterns and correct abort behavior on ambiguous failures.
-**Status:** Planned.
+**Status:** 🟡 Partial (CoinbaseExchange._req implements exponential backoff with jitter for 429/5xx; full jitter formula and 6-attempt cap need verification; fault-injection tests not implemented).
 
 ---
 
