@@ -778,7 +778,8 @@ class CoinbaseExchange:
                     "quote_currency": it.get("quote_currency_id") or it.get("quote_currency"),
                     "status": it.get("status", ""),
                     "price": it.get("price"),
-                    "volume_24h": it.get("volume_24h") or it.get("quote_volume_24h") or 0,
+                    # CRITICAL: Use quote-denominated volume (USD), not base volume (BTC/ETH/etc)
+                    "volume_24h": it.get("approximate_quote_24h_volume") or it.get("quote_volume_24h") or it.get("volume_24h") or 0,
                     "base_increment": it.get("base_increment") or it.get("base_min_size"),
                     "quote_increment": it.get("quote_increment"),
                     "price_increment": it.get("price_increment"),
