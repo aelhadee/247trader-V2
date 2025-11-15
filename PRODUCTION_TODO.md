@@ -220,12 +220,9 @@ Status alignment with formal requirements spec (APP_REQUIREMENTS.md). Tracks all
 | REQ-CB1 | Retry policy (exponential backoff + jitter) | CoinbaseExchange._req implements backoff for 429/5xx | Full jitter formula verification + fault-injection tests | MEDIUM |
 | REQ-STR4 | Multi-strategy aggregation | StrategyRegistry.aggregate_proposals() implemented | Performance testing under load with 10+ strategies | LOW |
 
-### 🔴 Planned (2 requirements)
+### 🔴 Planned (0 requirements)
 
-| REQ-ID | Requirement | Why Needed | Blocking What | Priority |
-| ------ | ----------- | ---------- | ------------- | -------- |
-| REQ-SEC2 | Secret rotation policy (90-day rotation + tracking) | Security compliance | Production certification | MEDIUM |
-| REQ-TIME1 | Clock sync gate (NTP drift <100ms validation) | Timestamp reliability | Production safety | MEDIUM |
+**All planned requirements now implemented!**
 
 ### 🎯 Requirements Coverage Summary
 
