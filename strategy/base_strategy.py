@@ -22,7 +22,7 @@ from core.triggers import TriggerSignal
 
 # Avoid circular import - TradeProposal defined in rules_engine
 if TYPE_CHECKING:
-    from strategy.rules_engine import TradeProposal
+    from strategy.rules_engine import TradeProposal  # noqa: F401
 
 import logging
 

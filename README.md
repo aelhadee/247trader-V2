@@ -35,67 +35,25 @@ Clean architecture trading bot for Coinbase Advanced Trade.
 - `APP_REQUIREMENTS.md` - Formal specification (34 REQ-* items with SLAs)
 - `PRODUCTION_TODO.md` - Current blockers and implementation status
 
-## Architecture Status
+## Architecture
 
-**Overall Implementation**: 85-90% complete vs `proposed_architecture.md`
+**Core Components:**
+- **Universe Manager** (`core/universe.py`) - 3-tier asset filtering with dynamic discovery
+- **Trigger Engine** (`core/triggers.py`) - Volume spikes, breakouts, reversals, momentum
+- **Rules Engine** (`strategy/rules_engine.py`) - Deterministic trade proposals
+- **Risk Engine** (`core/risk.py`) - Hard constraint enforcement (kill-switch, stops, limits)
+- **Execution Engine** (`core/execution.py`) - DRY_RUN/PAPER/LIVE modes with fee-aware sizing
+- **Exchange Connector** (`core/exchange_coinbase.py`) - JWT + HMAC auth, all Coinbase endpoints
+- **Main Loop** (`runner/main_loop.py`) - Universe → Triggers → Rules → Risk → Execution
 
-| Component | Status | Implementation | Notes |
-|-----------|--------|----------------|-------|
-| **Core Modules** | ✅ 100% | Complete | All deterministic components working |
-| Universe Manager | ✅ 100% | `core/universe.py` | 3-tier system + dynamic discovery |
-| Trigger Engine | ✅ 100% | `core/triggers.py` | Volume spikes, breakouts, reversals, momentum |
-| Rules Engine | ✅ 100% | `strategy/rules_engine.py` | Deterministic trade proposals |
-| Risk Engine | ✅ 100% | `core/risk.py` | Hard constraint enforcement |
-| Exchange Connector | ✅ 100% | `core/exchange_coinbase.py` | JWT + HMAC auth, all endpoints |
-| Execution Engine | ✅ 100% | (integrated) | DRY_RUN/PAPER/LIVE modes |
-| State Management | ✅ 100% | `data/.state.json` | Atomic writes, cooldowns |
-| Main Loop | ✅ 100% | `runner/main_loop.py` | Exact sequence per architecture |
-| **Data Models** | ✅ 95% | Complete | All core models implemented |
-| Asset | ✅ 100% | `UniverseSnapshot` | Symbol, tier, constraints |
-| Trigger | ✅ 100% | `Trigger` dataclass | Type, confidence, evidence |
-| Proposal | ✅ 100% | Trade proposal dict | Symbol, side, size, stops, targets |
-| RiskCheck | ✅ 100% | `RiskCheckResult` | Approved, rejected, reasons |
-| Position | ✅ 90% | Basic tracking | Simulated in PAPER mode |
-| **Configuration** | ✅ 100% | Complete | All YAML configs working |
-| app.yaml | ✅ 100% | Mode, logging, intervals | |
-| policy.yaml | ✅ 95% | Risk limits, parameters | 95% of trading_parameters.md |
-| universe.yaml | ✅ 100% | 3-tier + dynamic config | Static or dynamic discovery |
-| **Execution Modes** | ✅ 100% | Complete | All modes functional |
-| DRY_RUN | ✅ 100% | Logs only, no execution | Tested with live data |
-| PAPER | ✅ 100% | Simulated fills | Ready for 1-week validation |
-| LIVE | ✅ 100% | Real orders | Safety features implemented |
-| **Safety Features** | ✅ 100% | Complete | All guardrails in place |
-| Kill Switch | ✅ 100% | `data/KILL_SWITCH` file | Immediate halt |
-| Daily Stop Loss | ✅ 100% | -3% max in policy.yaml | Enforced by risk engine |
-| Position Limits | ✅ 100% | 5% max per asset | Enforced by risk engine |
-| Trade Frequency | ✅ 100% | 10/day, 4/hour limits | Enforced by risk engine |
-| Cooldowns | ✅ 100% | 3 losses = 60 min pause | State tracked |
-| LIVE Confirmation | ✅ 100% | Requires typing "YES" | In run_live.sh |
-| **Optional Components** | ⏳ 40% | Partially Implemented | Some features working |
-| AI Layer (M1/M2/M3) | 🔲 0% | Not implemented | Optional per architecture |
-| Audit Log (SQLite) | 🔲 0% | Not implemented | State store sufficient for now |
-| Cluster Exposure | ✅ 100% | Config enforced | RiskEngine checks cluster limits |
-| Orderbook Depth | ✅ 100% | Enforced | ExecutionEngine preview checks 2× depth |
-| Regime Detection | 🔲 0% | Not implemented | Hardcoded "chop" for now |
+**Safety Features:**
+- ✅ Kill-switch (<3s detection, <10s cancel, <5s alert)
+- ✅ Circuit breakers (data staleness, exchange health, slippage violations)
+- ✅ Environment gates (DRY_RUN → PAPER → LIVE with read_only validation)
+- ✅ Fee-adjusted sizing (maker/taker fees included in min notional checks)
+- ✅ Outlier/bad-tick guards (rejects >10% price moves without volume confirmation)
 
-**What's Working**:
-- ✅ Live Coinbase data (JWT authentication, OHLCV candles)
-- ✅ Real trigger detection (detected HBAR +7.8%, XRP +3.5%)
-- ✅ Proposal generation with proper stops/targets
-- ✅ Risk checks enforcing all policy.yaml limits
-- ✅ Production launcher with safety features
-- ✅ Dynamic universe discovery (11 tier1 assets found)
-
-**What's Missing (Optional)**:
-- AI layer for news/tape analysis (system designed to work without it)
-- Comprehensive audit trail (basic history in state store)
-- Regime detection (currently hardcoded to "chop")
-- Cluster exposure enforcement (configured but not checked)
-
-**Compliance**:
-- Architecture match: 85-90% (core 100%, optional features 0%)
-- Parameter match: 95% (trading_parameters.md → policy.yaml)
-- Design intent: 100% (rules-first system working as specified)
+See `PRODUCTION_TODO.md` for detailed implementation status and `APP_REQUIREMENTS.md` for formal specifications.
 
 ## Structure
 
