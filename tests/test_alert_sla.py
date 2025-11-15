@@ -120,7 +120,7 @@ class TestAlertDeduplication:
     
     def test_dedupe_expires_after_60s(self, alert_service, mock_urllib):
         """Verify dedupe expires after 60s, allowing re-notification."""
-        with patch('time.monotonic', side_effect=[0.0, 0.1, 61.0, 61.1]):
+        with patch('time.monotonic', create_time_sequence(0.0, 30.0, 61.0)):
             # First alert at t=0
             alert_service.notify(
                 severity=AlertSeverity.WARNING,
@@ -128,7 +128,7 @@ class TestAlertDeduplication:
                 message="Test message",
             )
             
-            # Second alert at t=0.1 (within 60s) - deduped
+            # Second alert at t=30 (within 60s) - deduped
             alert_service.notify(
                 severity=AlertSeverity.WARNING,
                 title="Test Alert",
