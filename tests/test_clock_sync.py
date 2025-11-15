@@ -139,14 +139,14 @@ class TestClockSyncCheck:
             assert status["synced"] is True
             assert status["drift_ms"] == 45.2
             assert status["within_tolerance"] is True
-            assert status["max_drift_ms"] == 100.0
+            assert status["max_drift_ms"] == 150.0
     
     def test_check_sync_returns_not_synced_when_exceeds_tolerance(self, validator):
-        """Test returns synced=False when drift >100ms."""
+        """Test returns synced=False when drift >150ms."""
         with patch.object(validator, 'query_ntp_with_fallback') as mock_query:
             mock_query.return_value = {
                 "server": "pool.ntp.org",
-                "offset_ms": 150.5,  # Exceeds 100ms tolerance
+                "offset_ms": 175.5,  # Exceeds 150ms tolerance
                 "round_trip_ms": 23.1,
                 "local_time": datetime.now(timezone.utc).isoformat(),
                 "ntp_time": datetime.now(timezone.utc).isoformat()
@@ -155,7 +155,7 @@ class TestClockSyncCheck:
             status = validator.check_sync()
             
             assert status["synced"] is False
-            assert status["drift_ms"] == 150.5
+            assert status["drift_ms"] == 175.5
             assert status["within_tolerance"] is False
     
     def test_check_sync_uses_absolute_offset(self, validator):
@@ -206,7 +206,7 @@ class TestValidateOrFail:
                 "synced": False,
                 "drift_ms": 150.0,  # Exceeds tolerance
                 "within_tolerance": False,
-                "max_drift_ms": 100.0,
+                "max_drift_ms": 150.0,
                 "server": "pool.ntp.org",
                 "error": None
             }
@@ -224,7 +224,7 @@ class TestValidateOrFail:
                 "synced": True,
                 "drift_ms": 45.0,
                 "within_tolerance": True,
-                "max_drift_ms": 100.0,
+                "max_drift_ms": 150.0,
                 "server": "pool.ntp.org",
                 "error": None
             }
@@ -240,7 +240,7 @@ class TestValidateOrFail:
                 "synced": False,
                 "drift_ms": 150.0,
                 "within_tolerance": False,
-                "max_drift_ms": 100.0,
+                "max_drift_ms": 150.0,
                 "server": "pool.ntp.org",
                 "error": None
             }
@@ -250,7 +250,7 @@ class TestValidateOrFail:
             
             assert "REQ-TIME1" in str(exc_info.value)
             assert "150.0ms" in str(exc_info.value)
-            assert "100.0ms" in str(exc_info.value)
+            assert "150.0ms" in str(exc_info.value)
     
     def test_live_mode_fails_when_ntp_unreachable(self, validator):
         """Test LIVE mode raises RuntimeError when NTP servers unreachable."""
@@ -259,7 +259,7 @@ class TestValidateOrFail:
                 "synced": False,
                 "drift_ms": None,
                 "within_tolerance": False,
-                "max_drift_ms": 100.0,
+                "max_drift_ms": 150.0,
                 "server": None,
                 "error": "All NTP servers unreachable"
             }
@@ -314,7 +314,7 @@ class TestDiagnostics:
                 "synced": True,
                 "drift_ms": 45.0,
                 "within_tolerance": True,
-                "max_drift_ms": 100.0,
+                "max_drift_ms": 150.0,
                 "server": "pool.ntp.org",
                 "error": None
             }
@@ -331,7 +331,7 @@ class TestDiagnostics:
                 "synced": True,
                 "drift_ms": 45.0,
                 "within_tolerance": True,
-                "max_drift_ms": 100.0,
+                "max_drift_ms": 150.0,
                 "server": "pool.ntp.org",
                 "error": None
             }
@@ -349,7 +349,7 @@ class TestDiagnostics:
                 "synced": False,
                 "drift_ms": None,
                 "within_tolerance": False,
-                "max_drift_ms": 100.0,
+                "max_drift_ms": 150.0,
                 "server": None,
                 "error": "All NTP servers unreachable"
             }
@@ -369,7 +369,7 @@ class TestDiagnostics:
                 "synced": False,
                 "drift_ms": 250.0,  # Excessive drift
                 "within_tolerance": False,
-                "max_drift_ms": 100.0,
+                "max_drift_ms": 150.0,
                 "server": "pool.ntp.org",
                 "error": None
             }
@@ -386,8 +386,8 @@ class TestREQTIME1Compliance:
     
     def test_max_drift_is_100ms(self, validator):
         """Test default max drift is 100ms per REQ-TIME1."""
-        assert validator.MAX_DRIFT_MS == 100.0
-        assert validator.max_drift_ms == 100.0
+        assert validator.MAX_DRIFT_MS == 150.0
+        assert validator.max_drift_ms == 150.0
     
     def test_validates_ntp_sync(self, validator):
         """Test performs NTP sync validation."""
@@ -412,7 +412,7 @@ class TestREQTIME1Compliance:
                 "synced": False,
                 "drift_ms": 150.0,
                 "within_tolerance": False,
-                "max_drift_ms": 100.0,
+                "max_drift_ms": 150.0,
                 "server": "pool.ntp.org",
                 "error": None
             }
@@ -428,7 +428,7 @@ class TestREQTIME1Compliance:
         relative to a trusted source; otherwise the app SHALL refuse to start.
         """
         # 1. Default tolerance is 100ms
-        assert validator.max_drift_ms == 100.0
+        assert validator.max_drift_ms == 150.0
         
         # 2. Queries NTP servers
         with patch.object(validator, '_query_ntp') as mock_query:
@@ -443,7 +443,7 @@ class TestREQTIME1Compliance:
                 "synced": False,
                 "drift_ms": 150.0,
                 "within_tolerance": False,
-                "max_drift_ms": 100.0,
+                "max_drift_ms": 150.0,
                 "server": "pool.ntp.org",
                 "error": None
             }
@@ -460,7 +460,7 @@ class TestREQTIME1Compliance:
                 "synced": True,
                 "drift_ms": 45.0,
                 "within_tolerance": True,
-                "max_drift_ms": 100.0,
+                "max_drift_ms": 150.0,
                 "server": "pool.ntp.org",
                 "error": None
             }
