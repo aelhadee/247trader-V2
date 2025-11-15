@@ -159,8 +159,8 @@ class PortfolioState:
     
     def get_position_usd(self, symbol: str) -> float:
         """Get USD value of a position (enforces schema)"""
-    symbol = normalize_symbol(symbol)
-    pos = self.open_positions.get(symbol, {})
+        symbol = normalize_symbol(symbol)
+        pos = self.open_positions.get(symbol, {})
         if not isinstance(pos, dict):
             return 0.0
         if "usd" in pos:
@@ -206,9 +206,9 @@ class PortfolioState:
 
     def get_external_exposure_usd(self) -> float:
         """Return exposure for positions not tagged as managed."""
-    total = self.get_total_exposure_usd()
-    managed = self.get_managed_exposure_usd()
-    return max(total - managed, 0.0)
+        total = self.get_total_exposure_usd()
+        managed = self.get_managed_exposure_usd()
+        return max(total - managed, 0.0)
 
     def _pending_orders_for_side(self, side: str) -> Dict[str, float]:
         orders = self.pending_orders or {}
