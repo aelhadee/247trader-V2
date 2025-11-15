@@ -118,7 +118,7 @@ tiers:
       max_drawdown_pct: 15.0
       max_hold_period_hours: 72
       max_spread_bps: 60
-      min_24h_volume_usd: 5000000
+      min_24h_volume_usd: 2000000  # Reduced from $5M to $2M (event-driven tokens)
     event_types_allowed:
     - major_exchange_listing
     - mainnet_launch
