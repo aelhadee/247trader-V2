@@ -18,10 +18,27 @@ from typing import Any, Dict, List
 from unittest.mock import Mock, MagicMock, patch
 import pytest
 
-# Mock metrics module before importing main_loop
-mock_metrics = MagicMock()
-sys.modules['infra.metrics'] = mock_metrics
 
+@pytest.fixture(scope="module", autouse=True)
+def mock_metrics_module():
+    """Mock metrics module for all tests in this file to avoid Prometheus registry conflicts."""
+    # Save original module if it exists
+    original_metrics = sys.modules.get('infra.metrics')
+    
+    # Mock the module
+    mock_metrics = MagicMock()
+    sys.modules['infra.metrics'] = mock_metrics
+    
+    yield mock_metrics
+    
+    # Restore original module
+    if original_metrics is not None:
+        sys.modules['infra.metrics'] = original_metrics
+    else:
+        sys.modules.pop('infra.metrics', None)
+
+
+# Import after mock is set up
 from runner.main_loop import TradingLoop
 from core.order_state import OrderStatus
 from infra.alerting import AlertSeverity
