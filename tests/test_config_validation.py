@@ -490,7 +490,7 @@ class TestSanityChecks:
                 "daily_stop_pnl_pct": -3.0,
                 "weekly_stop_pnl_pct": -7.0,
                 "max_drawdown_pct": 10.0,
-                "max_trades_per_day": 15,
+                "max_trades_per_day": 120,  # Was 15 - increased to pass hourly check (5×24=120)
                 "max_trades_per_hour": 5,
                 "max_new_trades_per_hour": 3,
                 "max_open_positions": 5,
