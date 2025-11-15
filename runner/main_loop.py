@@ -1686,7 +1686,12 @@ class TradingLoop:
                         },
                     )
                 else:
+                    # Record per-symbol rejections for metrics
                     if getattr(risk_result, "proposal_rejections", None):
+                        for symbol, reasons in risk_result.proposal_rejections.items():
+                            for rejection_reason in reasons:
+                                self.metrics.record_order_rejection(rejection_reason)
+                        
                         logger.warning(
                             "Risk check FAILED: %s | rejections=%s",
                             reason,
