@@ -89,7 +89,8 @@ class CoinbaseExchange:
     """
     
     def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None,
-                 read_only: bool = True, metrics: Optional["MetricsRecorder"] = None):
+                 read_only: bool = True, metrics: Optional["MetricsRecorder"] = None,
+                 latency_tracker: Optional["LatencyTracker"] = None):
         # Load credentials from JSON file if available
         secret_file = os.getenv("CB_API_SECRET_FILE")
         if secret_file and os.path.exists(secret_file) and not api_key:
@@ -107,6 +108,7 @@ class CoinbaseExchange:
         self.api_secret = secret_raw
         self.read_only = read_only
         self.metrics = metrics
+        self.latency_tracker = latency_tracker
         
         # Authentication mode
         self._mode = "hmac"
