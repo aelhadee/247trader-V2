@@ -119,7 +119,7 @@ class BaseStrategy(ABC):
         return self._description
     
     @abstractmethod
-    def generate_proposals(self, context: StrategyContext) -> List[TradeProposal]:
+    def generate_proposals(self, context: StrategyContext) -> List[Any]:
         """
         Generate trade proposals based on strategy logic.
         
@@ -129,7 +129,7 @@ class BaseStrategy(ABC):
             context: Immutable context with market data and constraints
             
         Returns:
-            List of trade proposals (can be empty)
+            List of trade proposals (TradeProposal objects, can be empty)
             
         Raises:
             Must not raise exceptions; log errors and return empty list
