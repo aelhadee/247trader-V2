@@ -167,7 +167,7 @@ The system **SHALL** compute triggers (e.g., breakout, volume spike) with config
 
 **Acceptance:**
 Synthetic OHLCV feeds cause trigger firing only when score ≥ threshold; counts capped by `max_triggers_per_cycle`.
-**Status:** Implemented.
+**Status:** ✅ Implemented.
 
 ---
 
