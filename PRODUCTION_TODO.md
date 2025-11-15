@@ -208,9 +208,9 @@ Status alignment with formal requirements spec (APP_REQUIREMENTS.md). Tracks all
 ### 📌 Next Priorities (Per APP_REQUIREMENTS.md §6)
 
 **Before LIVE Scale-Up:**
-1. ✅ Complete kill-switch timing proof (REQ-K1)
-2. ✅ Verify alert dedupe/escalation (REQ-AL1)
-3. ⚠️ Implement jittered scheduling (REQ-SCH1) - **Critical for production**
+1. ✅ ~~Complete kill-switch timing proof (REQ-K1)~~ - **DONE**
+2. Verify alert dedupe/escalation (REQ-AL1) - live 60s dedupe + 2m escalation verification
+3. ✅ ~~Implement jittered scheduling (REQ-SCH1)~~ - **DONE**
 
 **Before Multi-Strategy:**
 1. Implement strategy module contract (REQ-STR1-3)
