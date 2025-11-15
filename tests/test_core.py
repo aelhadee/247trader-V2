@@ -49,7 +49,8 @@ def test_trigger_scanning():
     from core.universe import UniverseManager
     from core.triggers import TriggerEngine
     
-    mgr = UniverseManager(config_path="config/universe.yaml")
+    # Use classmethod for backward compatibility with config_path API
+    mgr = UniverseManager.from_config_path("config/universe.yaml")
     snapshot = mgr.get_universe(regime="chop")
     
     engine = TriggerEngine()
