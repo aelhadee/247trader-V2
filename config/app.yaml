@@ -89,10 +89,16 @@ monitoring:
   metrics_enabled: true
   metrics_port: 9090
   
-  # Alerts (future)
+  # Alerts with dedupe and escalation
   alerts_enabled: false
   alerts:
     webhook_env: "ALERT_WEBHOOK_URL"
     min_severity: "warning"
     dry_run: false
     timeout_seconds: 5
+    # Deduplication: suppress identical alerts within 60s window
+    dedupe_seconds: 60.0
+    # Escalation: boost severity after 2m unresolved
+    escalation_seconds: 120.0
+    escalation_webhook_url: "${ESCALATION_WEBHOOK_URL}"  # Optional separate webhook
+    escalation_severity_boost: 1  # INFO→WARNING, WARNING→CRITICAL
