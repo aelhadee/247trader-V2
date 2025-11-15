@@ -1,5 +1,21 @@
-profile: day_trader
+profile: conservative  # Aligned with Freqtrade/Jesse defaults for safer production operation
 profiles:
+  # CONSERVATIVE: Mirrors Freqtrade (3 concurrent, -10% stop) and Jesse (1x leverage, $10k balance)
+  # Recommended for: Initial deployment, limited capital (<$5k), low-risk tolerance
+  conservative:
+    min_conviction: 0.40  # High bar for entry (vs Freqtrade's default strategy filters)
+    tier_sizing:
+      T1: 0.015  # 1.5% of NAV per T1 trade (≈$150 on $10k)
+      T2: 0.010  # 1.0% of NAV per T2 trade
+      T3: 0.005  # 0.5% of NAV per T3 trade (disabled by default)
+    max_position_pct:
+      T1: 0.03   # Max 3% per T1 asset (2 adds allowed)
+      T2: 0.02   # Max 2% per T2 asset
+      T3: 0.01   # Max 1% per T3 asset
+    min_trade_notional: 10.0  # $10 minimum (matches dust_threshold)
+  
+  # SWING_TRADER: Medium-term holds with lower conviction bar
+  # Recommended for: Multi-day holds, trend-following strategies
   swing_trader:
     min_conviction: 0.34
     tier_sizing:
@@ -11,6 +27,9 @@ profiles:
       T2: 0.03
       T3: 0.02
     min_trade_notional: 9.0
+  
+  # DAY_TRADER: Original aggressive profile (95% at-risk, 40 trades/day)
+  # Recommended for: Advanced users, supervised operation, proven strategies
   day_trader:
     min_conviction: 0.3
     tier_sizing:
@@ -21,7 +40,7 @@ profiles:
       T1: 0.07
       T2: 0.045
       T3: 0.025
-  min_trade_notional: 15.0
+    min_trade_notional: 15.0
 risk:
   max_total_at_risk_pct: 95.0
   count_external_positions: false
