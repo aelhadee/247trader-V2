@@ -840,6 +840,24 @@ class RiskEngine:
                 len(combined_pending_map),
             )
 
+        # 3a. Per-strategy risk caps (REQ-STR3) - enforce BEFORE global caps
+        result = self._check_strategy_caps(
+            proposals,
+            portfolio,
+            pending_buy_override_usd=pending_buy_override,
+        )
+        if not result.approved:
+            _merge_rejections(result.proposal_rejections)
+            return RiskCheckResult(
+                approved=False,
+                reason=result.reason,
+                violated_checks=result.violated_checks,
+                proposal_rejections=proposal_rejections,
+            )
+        if result.filtered_proposals is not None:
+            _merge_rejections(result.proposal_rejections)
+            proposals = result.filtered_proposals
+
         # 3b. Global at-risk limit (existing + proposed)
         result = self._check_global_at_risk(
             proposals,
