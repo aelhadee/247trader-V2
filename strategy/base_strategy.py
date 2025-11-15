@@ -189,9 +189,13 @@ class BaseStrategy(ABC):
             if self.name not in proposal.tags:
                 proposal.tags.append(self.name)
             
-            # Add strategy metadata
+            # Add strategy metadata (REQ-STR3: pass risk budgets to RiskEngine)
             proposal.metadata["strategy"] = self.name
             proposal.metadata["strategy_enabled"] = self._enabled
+            if self.max_at_risk_pct is not None:
+                proposal.metadata["strategy_max_at_risk_pct"] = self.max_at_risk_pct
+            if self.max_trades_per_cycle is not None:
+                proposal.metadata["strategy_max_trades_per_cycle"] = self.max_trades_per_cycle
             
             validated.append(proposal)
         
