@@ -2698,7 +2698,13 @@ class TradingLoop:
             max_liqs -= 1
 
         if not trimmed_any:
+            self.metrics.record_trim_attempt("failed", consecutive_failures=0)
             return False
+
+        # Record successful trim
+        liquidated_usd = excess_usd - remaining_excess_usd
+        self.metrics.record_trim_attempt("success", consecutive_failures=0, liquidated_usd=liquidated_usd)
+        logger.info(f"Auto trim completed: liquidated ${liquidated_usd:.2f}")
 
         try:
             self._reconcile_exchange_state()
