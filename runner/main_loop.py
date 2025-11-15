@@ -2963,6 +2963,7 @@ class TradingLoop:
         usd_target: Optional[float] = None,
         tier: Optional[int] = None,
         preferred_pair: Optional[str] = None,
+        force_taker: bool = False,
     ) -> bool:
         """
         Liquidate a position using maker-only TWAP (Time-Weighted Average Price) slices.
@@ -2970,6 +2971,10 @@ class TradingLoop:
         This replaces the legacy market-order purge path with a safer post-only flow that
         respects slippage budgets, quote freshness, and depth checks. Orders are sliced
         into configurable USD notional chunks and refreshed on a fixed cadence.
+        
+        Args:
+            force_taker: If True, bypass maker-first TWAP and immediately execute with IOC
+                         for emergency trims (BTC/ETH over risk cap).
         """
         if balance <= 0:
             logger.debug("TWAP purge skipped: zero balance for %s", currency)
