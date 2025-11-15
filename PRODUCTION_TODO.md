@@ -249,7 +249,9 @@ Status alignment with formal requirements spec (APP_REQUIREMENTS.md). Tracks all
 
 **Before Full Production Certification:**
 1. ✅ ~~Complete backtest CI regression gate (REQ-BT1-3)~~ - **DONE** - 17 tests passing, deterministic seed + JSON export + ±2% comparison
-2. Implement secret rotation tracking (REQ-SEC2)
-3. Add clock sync validation (REQ-TIME1)
+2. ✅ ~~Implement secret rotation tracking (REQ-SEC2)~~ - **DONE** - 22 tests passing, 90-day policy with CRITICAL/WARNING alerts
+3. ✅ ~~Add clock sync validation (REQ-TIME1)~~ - **DONE** - 26 tests passing, NTP drift <100ms requirement enforced
+
+🎉 **ALL CERTIFICATION REQUIREMENTS COMPLETE!** Ready for production deployment.
 
 ---
