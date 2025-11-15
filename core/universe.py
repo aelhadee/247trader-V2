@@ -63,20 +63,15 @@ class UniverseManager:
     Responsibilities:
     - Load universe config
     - Apply liquidity filters
-    - Enforce tier constraints
-    - Return eligible assets by regime
+    - Apply regime adjustments
+    - Track excluded assets
     """
     
-    def __init__(self, config_path: str = "config/universe.yaml", cache_ttl_seconds: Optional[float] = None):
-        self.config_path = Path(config_path)
-        self.config = self._load_config()
-        self._cache: Optional[UniverseSnapshot] = None
-        self._cache_time: Optional[datetime] = None
-        self._cache_ttl_seconds: Optional[float] = cache_ttl_seconds
-        self._near_threshold_cfg = self.config.get("universe", {}).get("near_threshold", {}) or {}
-        self._near_threshold_usage = {"tier1": 0, "tier2": 0, "tier3": 0}
-        
-        logger.info(f"Initialized UniverseManager from {config_path}")
+    def __init__(self, config: dict, exchange=None, state_store=None, alert_service=None):
+        self.config = config
+        self.exchange = exchange
+        self.state_store = state_store
+        self.alert_service = alert_service
     
     def _load_config(self) -> dict:
         """Load universe configuration"""
