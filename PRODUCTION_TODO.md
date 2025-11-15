@@ -43,7 +43,36 @@ All operational readiness items completed:
 - `docs/CONFIG_HASH_STAMPING.md`
 - `docs/CONFIG_SANITY_CHECKS.md`
 
-## 🚀 MULTI-STRATEGY FRAMEWORK: COMPLETE ✅
+## � PAPER REHEARSAL: IN PROGRESS (62.5%)
+
+**Status:** 24-hour validation running - ETA: 2025-11-16 13:35 PST
+
+**Progress:** 900/1,440 cycles (62.5% complete)
+- Bot Health: EXCELLENT (PID 51186, 5h52m uptime, 56.5MB memory)
+- Errors: 0 (zero exceptions)
+- Config Hash: d5f70d631a57af91 (consistent)
+- All NO_TRADE cycles (low volatility - expected)
+
+**Monitoring:**
+- Quick check: `./scripts/check_rehearsal.sh`
+- Auto-notify: `./scripts/notify_when_complete.sh 60`
+- Status guide: `REHEARSAL_STATUS.md`
+
+**Post-Completion:**
+1. Run `./scripts/analyze_rehearsal.sh` (generates GO/NO-GO report)
+2. Review `logs/paper_rehearsal_final_report.md`
+3. If GO: Follow `docs/LIVE_DEPLOYMENT_CHECKLIST.md` (7 phases)
+4. If NO-GO: Fix issues and re-run rehearsal
+
+**Documentation:**
+- `docs/PAPER_REHEARSAL_GUIDE.md` (procedures)
+- `docs/PAPER_REHEARSAL_MID_STATUS.md` (62% checkpoint)
+- `docs/LIVE_DEPLOYMENT_CHECKLIST.md` (deployment guide)
+- `REHEARSAL_STATUS.md` (quick reference)
+
+---
+
+## �🚀 MULTI-STRATEGY FRAMEWORK: COMPLETE ✅
 
 **Status:** Production-ready for adding new trading strategies beyond baseline RulesEngine
 
