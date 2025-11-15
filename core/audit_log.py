@@ -57,7 +57,8 @@ class AuditLogger:
                   risk_violations: Optional[List[str]] = None,
                   proposal_rejections: Optional[Dict[str, List[str]]] = None,
                   state_store: Optional[Any] = None,
-                  stage_latencies: Optional[Dict[str, float]] = None) -> None:
+                  stage_latencies: Optional[Dict[str, float]] = None,
+                  config_hash: Optional[str] = None) -> None:
         """
         Log a complete trading cycle.
         
