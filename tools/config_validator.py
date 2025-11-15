@@ -463,9 +463,212 @@ def validate_signals(config_dir: Path) -> List[str]:
     return errors
 
 
+def validate_sanity_checks(config_dir: Path) -> List[str]:
+    """
+    Perform logical consistency checks across configuration files.
+    
+    Detects:
+    - Contradictions (e.g., pyramiding enabled but max_adds=0)
+    - Unsafe values (e.g., stop_loss > take_profit)
+    - Deprecated keys (e.g., old parameter names)
+    - Missing required fields for mode
+    
+    Args:
+        config_dir: Path to config directory
+        
+    Returns:
+        List of sanity check error messages (empty if all pass)
+    """
+    errors = []
+    
+    try:
+        # Load all configs
+        policy_path = config_dir / "policy.yaml"
+        policy = load_yaml_file(policy_path)
+        
+        # === CONTRADICTION CHECKS ===
+        
+        # Check: Pyramiding enabled but no adds allowed
+        risk = policy.get("risk", {})
+        if risk.get("allow_pyramiding", False):
+            if risk.get("max_adds_per_asset_per_day", 0) == 0:
+                errors.append(
+                    "CONTRADICTION: risk.allow_pyramiding=true but max_adds_per_asset_per_day=0 "
+                    "(no adds possible). Set allow_pyramiding=false or increase max_adds."
+                )
+        
+        # Check: Position sizing pyramiding vs risk pyramiding mismatch
+        pos_sizing = policy.get("position_sizing", {})
+        if pos_sizing.get("allow_pyramiding", False) and not risk.get("allow_pyramiding", False):
+            errors.append(
+                "CONTRADICTION: position_sizing.allow_pyramiding=true but risk.allow_pyramiding=false. "
+                "Both must be aligned."
+            )
+        
+        # Check: Max pyramid positions set but pyramiding disabled
+        if pos_sizing.get("max_pyramid_positions", 0) > 0 and not pos_sizing.get("allow_pyramiding", False):
+            errors.append(
+                "CONTRADICTION: position_sizing.max_pyramid_positions > 0 but allow_pyramiding=false. "
+                "Enable pyramiding or set max_pyramid_positions=0."
+            )
+        
+        # === UNSAFE VALUE CHECKS ===
+        
+        # Check: Stop loss >= take profit (impossible to profit)
+        stop_loss = risk.get("stop_loss_pct", 0)
+        take_profit = risk.get("take_profit_pct", 0)
+        if stop_loss > 0 and take_profit > 0:  # Both must be set
+            if stop_loss >= take_profit:
+                errors.append(
+                    f"UNSAFE: risk.stop_loss_pct ({stop_loss}%) >= take_profit_pct ({take_profit}%). "
+                    f"Take profit must exceed stop loss for profitable trades."
+                )
+        
+        # Check: Negative percentages (should be positive magnitudes)
+        if stop_loss < 0:
+            errors.append(
+                f"UNSAFE: risk.stop_loss_pct ({stop_loss}%) is negative. "
+                f"Specify as positive magnitude (e.g., 10.0 for -10% stop)."
+            )
+        if take_profit < 0:
+            errors.append(
+                f"UNSAFE: risk.take_profit_pct ({take_profit}%) is negative. "
+                f"Specify as positive magnitude."
+            )
+        
+        # Check: Max position size exceeds total at-risk cap
+        max_position_pct = risk.get("max_position_size_pct", 0)
+        max_at_risk_pct = risk.get("max_total_at_risk_pct", 0)
+        if max_position_pct > max_at_risk_pct:
+            errors.append(
+                f"UNSAFE: risk.max_position_size_pct ({max_position_pct}%) > max_total_at_risk_pct ({max_at_risk_pct}%). "
+                f"Single position would exceed total exposure cap."
+            )
+        
+        # Check: Max open positions * max position size exceeds total cap
+        max_open_positions = risk.get("max_open_positions", 0)
+        theoretical_max = max_open_positions * max_position_pct
+        if theoretical_max > max_at_risk_pct:
+            errors.append(
+                f"UNSAFE: max_open_positions ({max_open_positions}) × max_position_size_pct ({max_position_pct}%) "
+                f"= {theoretical_max}% exceeds max_total_at_risk_pct ({max_at_risk_pct}%). "
+                f"System cannot fill all positions."
+            )
+        
+        # Check: Daily stop >= weekly stop (should be tighter)
+        daily_stop = abs(risk.get("daily_stop_pnl_pct", 0))
+        weekly_stop = abs(risk.get("weekly_stop_pnl_pct", 0))
+        if daily_stop > 0 and weekly_stop > 0:
+            if daily_stop >= weekly_stop:
+                errors.append(
+                    f"UNSAFE: daily_stop_pnl_pct ({-daily_stop}%) >= weekly_stop_pnl_pct ({-weekly_stop}%). "
+                    f"Daily stop should be tighter than weekly stop."
+                )
+        
+        # Check: Min order > max order (execution impossible)
+        exec_config = policy.get("execution", {})
+        min_notional = exec_config.get("min_notional_usd", 0)
+        if min_notional > 0:
+            min_trade_notional = risk.get("min_trade_notional_usd", 0)
+            if min_trade_notional > 0 and min_notional > min_trade_notional:
+                errors.append(
+                    f"UNSAFE: execution.min_notional_usd ({min_notional}) > risk.min_trade_notional_usd ({min_trade_notional}). "
+                    f"Execution layer minimum exceeds trade sizing minimum."
+                )
+        
+        # Check: Position sizing min > max order
+        pos_min = pos_sizing.get("min_order_usd", 0)
+        pos_max = pos_sizing.get("max_order_usd", 0)
+        if pos_min > 0 and pos_max > 0:
+            if pos_min > pos_max:
+                errors.append(
+                    f"UNSAFE: position_sizing.min_order_usd ({pos_min}) > max_order_usd ({pos_max}). "
+                    f"No orders can be placed within range."
+                )
+        
+        # Check: Unreasonable spread/slippage thresholds
+        liquidity = policy.get("liquidity", {})
+        max_spread_bps = liquidity.get("max_spread_bps", 0)
+        if max_spread_bps > 1000:  # > 10%
+            errors.append(
+                f"UNSAFE: liquidity.max_spread_bps ({max_spread_bps}) > 1000 (10%). "
+                f"Extremely wide spread threshold may indicate misconfiguration."
+            )
+        
+        max_slippage_bps = exec_config.get("max_slippage_bps", 0)
+        if max_slippage_bps > 500:  # > 5%
+            errors.append(
+                f"UNSAFE: execution.max_slippage_bps ({max_slippage_bps}) > 500 (5%). "
+                f"Excessive slippage tolerance may lead to poor fills."
+            )
+        
+        # === DEPRECATED KEY CHECKS ===
+        
+        # Check: Old exposure parameter name
+        if "max_exposure_pct" in risk:
+            errors.append(
+                "DEPRECATED: risk.max_exposure_pct renamed to max_total_at_risk_pct. "
+                "Update config to use new parameter name."
+            )
+        
+        # Check: Old cache parameter (removed from UniverseManager)
+        universe_path = config_dir / "universe.yaml"
+        universe = load_yaml_file(universe_path)
+        if "cache_ttl_seconds" in universe:
+            errors.append(
+                "DEPRECATED: universe.cache_ttl_seconds removed. "
+                "Use universe.refresh_interval_hours instead."
+            )
+        
+        # === MODE-SPECIFIC CHECKS ===
+        
+        # Check: LIVE mode requirements (when we detect LIVE intent)
+        # Note: This is advisory since mode is set at runtime via CLI
+        
+        if risk.get("max_total_at_risk_pct", 0) > 50:
+            errors.append(
+                f"WARNING: max_total_at_risk_pct ({risk['max_total_at_risk_pct']}%) > 50%. "
+                f"Consider using conservative profile (25%) for LIVE mode. "
+                f"High exposure suitable for PAPER/DRY_RUN only."
+            )
+        
+        # Check: Missing circuit breaker config
+        circuit_breaker = policy.get("circuit_breaker", {})
+        if not circuit_breaker:
+            errors.append(
+                "MISSING: policy.circuit_breaker section not found. "
+                "Circuit breakers are required for safe operation."
+            )
+        
+        # Check: Data staleness threshold too permissive
+        data_config = policy.get("data", {})
+        max_age_s = data_config.get("max_age_s", 0)
+        if max_age_s > 300:  # > 5 minutes
+            errors.append(
+                f"UNSAFE: data.max_age_s ({max_age_s}s) > 300s (5 min). "
+                f"Stale data threshold too permissive for fast markets."
+            )
+        
+    except FileNotFoundError as e:
+        errors.append(f"Sanity checks failed: {e}")
+    except Exception as e:
+        errors.append(f"Sanity checks failed: Unexpected error - {e}")
+    
+    if not errors:
+        logger.info("✅ Configuration sanity checks passed")
+    else:
+        logger.warning(f"⚠️  {len(errors)} sanity check issue(s) found")
+    
+    return errors
+
+
 def validate_all_configs(config_dir: str = "config") -> List[str]:
     """
     Validate all configuration files.
+    
+    Performs:
+    1. Schema validation (Pydantic type checks)
+    2. Sanity checks (logical consistency)
     
     Args:
         config_dir: Path to config directory (string or Path)
@@ -483,9 +686,15 @@ def validate_all_configs(config_dir: str = "config") -> List[str]:
     config_path = Path(config_dir)
     
     all_errors = []
+    
+    # Schema validation
     all_errors.extend(validate_policy(config_path))
     all_errors.extend(validate_universe(config_path))
     all_errors.extend(validate_signals(config_path))
+    
+    # Sanity checks (only if schema validation passed)
+    if not all_errors:
+        all_errors.extend(validate_sanity_checks(config_path))
     
     if not all_errors:
         logger.info("✅ All config files validated successfully")
