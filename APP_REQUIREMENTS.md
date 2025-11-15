@@ -377,7 +377,7 @@ The default mode **SHALL** be read-only (no real orders). LIVE mode **SHALL** re
 
 **Acceptance:**
 Attempting to run in LIVE without satisfying gates or without explicit confirmation is blocked with a clear log/error.
-**Status:** Implemented.
+**Status:** ✅ Implemented (multi-layer mode/read_only validation; ExecutionEngine raises ValueError if LIVE + read_only; 12 tests in test_environment_gates.py).
 
 ---
 
