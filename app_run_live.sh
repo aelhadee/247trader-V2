@@ -11,7 +11,14 @@
 clear
 set -e  # Exit on error
 set -u  # Exit on undefined variable
-export CB_API_SECRET_FILE="/Users/ahmed/coding-stuff/trader/cb_api.json"
+
+# Load credentials from JSON file and export as environment variables
+# This is compatible with the new secrets hardening (environment-only credentials)
+CRED_FILE="/Users/ahmed/coding-stuff/trader/cb_api.json"
+if [ -f "$CRED_FILE" ]; then
+    export CB_API_KEY=$(jq -r '.name' "$CRED_FILE")
+    export CB_API_SECRET=$(jq -r '.privateKey' "$CRED_FILE")
+fi
 
 # Kill existing instances before starting (prevents instance lock errors)
 if [ -f "data/247trader-v2.pid" ]; then
@@ -109,23 +116,26 @@ if [ ! -d ".venv" ]; then
 fi
 log_success "Virtual environment found"
 
-# 2. Check if Coinbase credentials are set
-if [ -z "${CB_API_SECRET_FILE:-}" ]; then
-    if [ ! -f "/Users/ahmed/coding-stuff/trader/cb_api.json" ]; then
-        log_error "Coinbase credentials not found"
-        log "Please set CB_API_SECRET_FILE environment variable or place cb_api.json in /Users/ahmed/coding-stuff/trader/"
-        exit 1
+# 2. Check if Coinbase credentials are loaded
+if [ -z "${CB_API_KEY:-}" ] || [ -z "${CB_API_SECRET:-}" ]; then
+    # Try loading from default file location
+    if [ -f "$CRED_FILE" ]; then
+        export CB_API_KEY=$(jq -r '.name' "$CRED_FILE")
+        export CB_API_SECRET=$(jq -r '.privateKey' "$CRED_FILE")
+        log_success "Loaded credentials from: $CRED_FILE"
     else
-        export CB_API_SECRET_FILE="/Users/ahmed/coding-stuff/trader/cb_api.json"
-        log_success "Using credentials from: $CB_API_SECRET_FILE"
+        log_error "Coinbase credentials not found"
+        log "Please set CB_API_KEY and CB_API_SECRET environment variables"
+        log "Or place cb_api.json at: $CRED_FILE"
+        exit 1
     fi
 else
-    log_success "Using credentials from: $CB_API_SECRET_FILE"
+    log_success "Using credentials from environment variables"
 fi
 
-# 3. Check if credentials file exists
-if [ ! -f "$CB_API_SECRET_FILE" ]; then
-    log_error "Credentials file not found: $CB_API_SECRET_FILE"
+# 3. Verify credentials are valid (basic format check)
+if [ -z "$CB_API_KEY" ] || [ -z "$CB_API_SECRET" ]; then
+    log_error "Credentials are empty after loading"
     exit 1
 fi
 
@@ -171,6 +181,9 @@ echo ""
 # Show account balance before starting (safety check)
 log "Fetching account balance..."
 BALANCE=$(python3 <<EOF
+import os
+os.environ['CB_API_KEY'] = os.environ.get('CB_API_KEY', '')
+os.environ['CB_API_SECRET'] = os.environ.get('CB_API_SECRET', '')
 try:
     from core.exchange_coinbase import CoinbaseExchange
     ex = CoinbaseExchange()
