@@ -19,21 +19,25 @@ from unittest.mock import Mock, MagicMock, patch
 import pytest
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(autouse=True)
 def mock_metrics_module():
     """Mock metrics module for all tests in this file to avoid Prometheus registry conflicts."""
-    # Save original module if it exists
-    original_metrics = sys.modules.get('infra.metrics')
+    # Save original if it exists (likely already mocked or real)
+    original_module = sys.modules.get('infra.metrics')
     
-    # Mock the module
+    # Create fresh mock for each test
     mock_metrics = MagicMock()
+    mock_metrics.MetricsRecorder = MagicMock(return_value=MagicMock())
+    mock_metrics.CycleStats = MagicMock
     sys.modules['infra.metrics'] = mock_metrics
     
-    yield mock_metrics
+    # Also mock the Prometheus registry to prevent duplicate registration
+    with patch('prometheus_client.REGISTRY', MagicMock()):
+        yield mock_metrics
     
-    # Restore original module
-    if original_metrics is not None:
-        sys.modules['infra.metrics'] = original_metrics
+    # Restore if there was an original, otherwise remove
+    if original_module is not None:
+        sys.modules['infra.metrics'] = original_module
     else:
         sys.modules.pop('infra.metrics', None)
 
