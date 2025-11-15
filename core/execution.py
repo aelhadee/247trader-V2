@@ -80,7 +80,8 @@ class ExecutionEngine:
     """
     
     def __init__(self, mode: str = "DRY_RUN", exchange: Optional[CoinbaseExchange] = None,
-                 policy: Optional[Dict] = None, state_store: Optional[StateStore] = None):
+                 policy: Optional[Dict] = None, state_store: Optional[StateStore] = None,
+                 alert_service=None):
         """
         Initialize execution engine.
         
@@ -89,12 +90,19 @@ class ExecutionEngine:
             mode: "DRY_RUN" | "PAPER" | "LIVE"
             exchange: Coinbase exchange instance
             policy: Policy configuration dict (optional, for reading limits)
+            alert_service: AlertService for operational notifications
         """
         self.mode = mode.upper()
         self.exchange = exchange or get_exchange()
         self.policy = policy or {}
         self.state_store = state_store
+        self.alert_service = alert_service
         self.order_state_machine = get_order_state_machine()
+        
+        # Order rejection tracking for burst detection
+        self._rejection_history = []  # List of (timestamp, symbol, reason) tuples
+        self._rejection_window_seconds = 600  # 10 minutes
+        self._rejection_threshold = 3
         
         # Load limits from policy or use defaults
         execution_config = self.policy.get("execution", {})
