@@ -75,7 +75,8 @@ def test_rules_engine():
     from core.triggers import TriggerEngine
     from strategy.rules_engine import RulesEngine
     
-    mgr = UniverseManager(config_path="config/universe.yaml")
+    # Use classmethod for backward compatibility with config_path API
+    mgr = UniverseManager.from_config_path("config/universe.yaml")
     snapshot = mgr.get_universe(regime="chop")
     
     trigger_engine = TriggerEngine()
