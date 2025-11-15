@@ -88,7 +88,7 @@ The system **SHALL** build an eligible symbol list from configuration, enforcing
 
 **Acceptance:**
 Symbols breaching thresholds are excluded; logs contain `symbol`, `tier`, and `exclusion_reason`.
-**Status:** Implemented.
+**Status:** ✅ Implemented.
 
 ---
 
