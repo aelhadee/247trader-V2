@@ -133,12 +133,13 @@ All 4 critical safety features implemented and tested:
 3. ✅ **Outlier/Bad-Tick Guards** (15 tests) - Prevents false breakouts from bad data
 4. ✅ **Environment Runtime Gates** (12 tests) - Enforces safety ladder (DRY_RUN → PAPER → LIVE)
 
-**Total new tests:** 73  
-**Total passing tests:** 204  
+**Total new tests:** 91  
+**Total passing tests:** 222  
 **System status:** Production-ready for LIVE trading scale-up
 
 **Latest additions:**
 - ✅ Kill-Switch SLA Verification (REQ-K1): 6 tests added, verified <10s order cancellation, <5s alert latency, <3s detection MTTD
+- ✅ Alert Dedupe & Escalation (REQ-AL1): 18 tests added, comprehensive verification of 60s deduplication, 2m escalation, severity boosting, fingerprinting
 - ✅ Latency Tracking (REQ-OB1): 19 tests added, full p50/p95/p99 telemetry with StateStore persistence and AlertService integration
 - ✅ Jittered Scheduling (REQ-SCH1): 1 test added, 0-10% randomized sleep intervals to prevent lockstep behavior
 
