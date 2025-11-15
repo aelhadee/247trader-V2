@@ -533,6 +533,13 @@ class ExecutionEngine:
         if self.maker_max_ttl_seconds <= 0:
             return 0
 
+        if getattr(self, "_explicit_post_only_ttl", 0) > 0:
+            ttl = int(self._explicit_post_only_ttl)
+            if attempt_index > 0:
+                decay = self.maker_reprice_decay if 0 < self.maker_reprice_decay < 1 else 0.7
+                ttl = int(round(max(ttl * decay, 1)))
+            return max(ttl, 1)
+
         # Check if this is a purge order - use special longer TTL
         is_purge = client_order_id and client_order_id.startswith("purge_")
         
