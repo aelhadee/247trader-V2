@@ -261,15 +261,14 @@ class TradingLoop:
         logger.info(f"Initialized TradingLoop in {self.mode} mode")
     
     def _handle_stop(self, *_):
-        """
-        Handle shutdown signals with graceful cleanup.
-        
+        """Handle shutdown signals with graceful cleanup.
+
         Strategy:
         1. Set _running = False to stop after current cycle
         2. Cancel all active orders from OrderStateMachine
         3. Flush StateStore to disk
         4. Log cleanup summary
-        
+
         Safety:
         - Only cancels orders if not in DRY_RUN mode
         - Logs all actions for audit trail
@@ -3023,7 +3022,7 @@ class TradingLoop:
                     executed_exits.append(result)
                     
                     # Remove from managed_positions after successful exit
-                    self._remove_managed_position(proposal.symbol.replace("-USD", ""))
+                    self._remove_managed_position(proposal.symbol)
                 else:
                     logger.warning(f"⚠️ Exit failed: {proposal.symbol} - {result.error}")
                     
@@ -3040,11 +3039,12 @@ class TradingLoop:
         try:
             state = self.state_store.load()
             managed = state.get("managed_positions", {})
-            if symbol in managed:
-                del managed[symbol]
+            normalized = normalize_symbol(symbol)
+            if normalized in managed:
+                del managed[normalized]
                 state["managed_positions"] = managed
                 self.state_store.save(state)
-                logger.debug(f"Removed {symbol} from managed_positions")
+                logger.debug(f"Removed {normalized} from managed_positions")
         except Exception as e:
             logger.warning(f"Failed to remove managed position {symbol}: {e}")
 
