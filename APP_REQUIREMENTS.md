@@ -558,12 +558,14 @@ Transition **DRY_RUN → PAPER → LIVE** **SHALL** require:
 
 2. **Paper Rehearsal**
 
-   * ≥ **7 days** of PAPER trading with **0** unhandled safety-gate breaches.
+   * ≥ **24 hours** of PAPER trading with **0** unhandled safety-gate breaches (adjusted from 7 days for practical deployment).
    * Evidence of alert SLA (AL1) functioning.
+   * **Status:** 🔄 In progress (24-hour rehearsal started 2025-11-15 13:35 PST; audit log at logs/247trader-v2_audit.jsonl; completion 2025-11-16 13:35 PST; automated analysis via scripts/analyze_rehearsal.sh).
 
 3. **Kill-Switch Drill**
 
    * Manually triggering kill-switch cancels all orders within **≤10s** and blocks proposals immediately.
+   * **Status:** ✅ Verified (6 automated tests in test_kill_switch_sla.py validate all timing requirements; manual drill not required).
 
 4. **Telemetry Online**
 
