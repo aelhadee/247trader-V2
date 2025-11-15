@@ -16,7 +16,8 @@ from typing import List
 from dataclasses import dataclass
 
 from strategy.registry import StrategyRegistry
-from strategy.base_strategy import BaseStrategy, StrategyContext, TradeProposal
+from strategy.base_strategy import BaseStrategy, StrategyContext
+from strategy.rules_engine import TradeProposal
 from core.universe import UniverseSnapshot, TradableAsset
 from core.triggers import TriggerSignal
 
