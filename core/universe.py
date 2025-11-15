@@ -78,6 +78,10 @@ class UniverseManager:
         self._cache_time: Optional[datetime] = None
         refresh_hours = config.get('universe', {}).get('refresh_interval_hours', 1)
         self._cache_ttl = timedelta(hours=refresh_hours)
+        
+        # Initialize near-threshold configuration
+        self._near_threshold_cfg = config.get('universe', {}).get('near_threshold_override', {})
+        self._near_threshold_usage: dict[str, int] = {}
     
     def _load_config(self) -> dict:
         """Load universe configuration"""
