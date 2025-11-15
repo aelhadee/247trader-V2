@@ -43,15 +43,26 @@ All operational readiness items completed:
 - `docs/CONFIG_HASH_STAMPING.md`
 - `docs/CONFIG_SANITY_CHECKS.md`
 
-## � PAPER REHEARSAL: IN PROGRESS (62.5%)
+## ✅ LIVE TRADING: OPERATIONAL
 
-**Status:** 24-hour validation running - ETA: 2025-11-16 13:35 PST
+**Status:** Production deployment successful - Running in LIVE mode with real capital
 
-**Progress:** 900/1,440 cycles (62.5% complete)
-- Bot Health: EXCELLENT (PID 51186, 5h52m uptime, 56.5MB memory)
-- Errors: 0 (zero exceptions)
-- Config Hash: d5f70d631a57af91 (consistent)
-- All NO_TRADE cycles (low volatility - expected)
+**Current Performance:**
+- Mode: LIVE (read_only=False)
+- Account Balance: $258.82 (from $194.53 starting balance)
+- Exposure: 23.9% ($61.95 at risk) - Within 25.0% cap ✅
+- Bot Health: EXCELLENT (zero errors, clean cycles)
+- Cycle Latency: ~11s average (target <45s) ✅
+- Auto-trim: Operational (checking every cycle, no action needed)
+- Universe: 9 eligible assets (3 core, 6 rotational)
+- Market Conditions: Low volatility (0 triggers, chop regime)
+
+**Safety Validations (2025-11-15 18:33:06):**
+- ✅ Secret rotation: OK (last rotated 0.3 days ago, due in 89.7 days)
+- ✅ Clock sync: 60.3ms drift (< 150ms threshold)
+- ✅ Single-instance lock: Acquired (PID 8409)
+- ✅ Config validation: All files passed
+- ✅ Kill switch: Monitored and ready
 
 **Monitoring:**
 - Quick check: `./scripts/check_rehearsal.sh`
