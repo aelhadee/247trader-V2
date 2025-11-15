@@ -476,14 +476,14 @@ CI **SHALL** compare key backtest metrics to a baseline and fail if deviation ex
 **REQ-SEC2 (Secret rotation)**
 Secrets **SHALL** be rotated at least every **90 days**, and the rotation event **SHALL** be logged (without exposing secret values).
 
-**Status:** 🔴 Planned (no automated rotation policy or tracking).
+**Status:** ✅ Implemented (infra/secret_rotation.py: SecretRotationTracker tracks rotation dates; CRITICAL alert when >90 days overdue, WARNING at 83 days; metadata persisted in data/secret_rotation.json; never logs secret values; 22 tests in test_secret_rotation.py).
 
 ---
 
 **REQ-TIME1 (Clock sync gate)**
 The host clock **SHALL** be NTP-synced with drift < **100ms** relative to a trusted source; otherwise the app **SHALL** refuse to start.
 
-**Status:** 🔴 Planned (no clock drift validation on startup).
+**Status:** ✅ Implemented (infra/clock_sync.py: ClockSyncValidator queries NTP servers (pool.ntp.org, time.apple.com, etc.); fails LIVE startup if drift >100ms; skips in DRY_RUN, warns in PAPER; 26 tests in test_clock_sync.py; integrated into runner/main_loop.py _startup_validations()).
 
 ---
 
