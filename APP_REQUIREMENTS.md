@@ -258,7 +258,7 @@ the system **SHALL**:
 
 **Acceptance:**
 Aged data in test harness triggers an immediate halt and a logged alert; no new orders appear while stale.
-**Status:** Implemented.
+**Status:** ✅ Implemented (quote age >5s per policy.yaml, OHLCV age checked; circuit breakers block trading; 14 tests in test_stale_quotes.py).
 
 ---
 
