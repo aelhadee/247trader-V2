@@ -648,6 +648,34 @@ class TradingLoop:
         with open(path) as f:
             return yaml.safe_load(f)
     
+    def _compute_config_hash(self) -> str:
+        """
+        Compute SHA256 hash of critical configuration files.
+        
+        Used for configuration drift detection in audit logs and multi-instance deployments.
+        Includes: policy.yaml, signals.yaml, universe.yaml
+        
+        Returns:
+            Hex-encoded SHA256 hash (first 16 chars for brevity)
+        """
+        import hashlib
+        
+        config_files = ["policy.yaml", "signals.yaml", "universe.yaml"]
+        hasher = hashlib.sha256()
+        
+        for filename in config_files:
+            config_path = self.config_dir / filename
+            try:
+                with open(config_path, 'rb') as f:
+                    hasher.update(f.read())
+            except Exception as e:
+                logger.warning(f"Failed to read {filename} for config hash: {e}")
+                hasher.update(b"ERROR")
+        
+        full_hash = hasher.hexdigest()
+        # Return first 16 chars for brevity (64 bits, collision-resistant for our use case)
+        return full_hash[:16]
+    
     def _apply_bounded_auto_loosen(self) -> None:
         """
         Apply bounded auto-loosening to regime thresholds after prolonged zero-trigger period.
