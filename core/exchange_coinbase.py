@@ -397,16 +397,14 @@ class CoinbaseExchange:
 
         Returns a Quote with bid/ask/mid/spread and 24h volume.
         """
-        ctx = self.latency_tracker.measure("api_get_quote", {"symbol": symbol}) if self.latency_tracker else None
-        try:
-            self._rate_limit("quote")
-            logger.debug(f"Fetching quote for {symbol}")
-            return self._get_quote_impl(symbol)
-        finally:
-            if ctx:
-                ctx.__exit__(None, None, None)
+        if self.latency_tracker:
+            with self.latency_tracker.measure("api_get_quote", {"symbol": symbol}):
+                return self._get_quote_impl(symbol)
+        return self._get_quote_impl(symbol)
     
     def _get_quote_impl(self, symbol: str) -> Quote:
+        self._rate_limit("quote")
+        logger.debug(f"Fetching quote for {symbol}")
 
         best_bid = best_ask = last = 0.0
         volume_24h = 0.0
