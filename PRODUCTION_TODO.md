@@ -175,11 +175,10 @@ Status alignment with formal requirements spec (APP_REQUIREMENTS.md). Tracks all
 | REQ-SEC1 | Secrets handling (env vars, redacted logs) | core/exchange_coinbase.py + all logging | Manual audit passed |
 | REQ-RET1 | Data retention (90-day logs, no PII) | Configured via log rotation | Log config verified |
 
-### 🟡 Partial Implementation (7 requirements)
+### 🟡 Partial Implementation (6 requirements)
 
 | REQ-ID | Requirement | What's Done | What's Missing | Priority |
 | ------ | ----------- | ----------- | -------------- | -------- |
-| REQ-K1 | Kill-switch SLA (<10s cancel, <5s alert) | File-based kill-switch blocks proposals immediately; alert fires | End-to-end <10s cancel timing proof needed | HIGH |
 | REQ-AL1 | Alert SLA (60s dedupe, 2m escalation) | AlertService wired to RiskEngine; critical alerts fire | Dedupe and escalation logic need live verification | MEDIUM |
 | REQ-CB1 | Retry policy (exponential backoff + jitter) | CoinbaseExchange._req implements backoff for 429/5xx | Full jitter formula verification + fault-injection tests | MEDIUM |
 | REQ-BT1 | Backtest determinism (fixed seed) | backtest/engine.py exists with BacktestEngine | Fixed seed support incomplete | LOW |
