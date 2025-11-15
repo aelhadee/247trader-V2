@@ -252,3 +252,4 @@ Each REQ above includes an **Acceptance** statement. Build automated tests or sc
 * Several items are **Partial/Planned**—close §9 before LIVE.
 * Keep this as a **living RTM**: CI should fail if any SHALL lacks proof or regresses.
 
+a
