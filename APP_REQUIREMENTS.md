@@ -453,7 +453,7 @@ Backtests **SHALL** output a machine-readable JSON report including:
 **REQ-BT3 (Regression gate)**
 CI **SHALL** compare key backtest metrics to a baseline and fail if deviation exceeds **±2%** for predefined metrics (e.g., total PnL, max drawdown, trade count).
 
-**Status (BT1-3):** Partial (baseline backtest exists; determinism and CI gate need finishing).
+**Status (BT1-3):** 🟡 Partial (backtest/engine.py exists with BacktestEngine; deterministic seed support incomplete; machine-readable JSON report incomplete; CI regression gate not implemented).
 
 ---
 
