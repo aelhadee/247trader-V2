@@ -11,8 +11,6 @@ import yaml
 
 from tools.config_validator import (
     validate_policy,
-    validate_universe,
-    validate_signals,
     validate_all_configs,
     PolicySchema,
     UniverseSchema,
