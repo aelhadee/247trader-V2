@@ -13,7 +13,6 @@ clusters:
     - DOT-USD
     - ATOM-USD
     LAYER2:
-    - MATIC-USD
     - OP-USD
     - ARB-USD
     MEME:
