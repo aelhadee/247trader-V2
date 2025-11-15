@@ -3679,9 +3679,9 @@ class ExecutionEngine:
 
             if filled_value and size_usd:
                 mismatch = abs(filled_value - size_usd)
-                tolerance = max(0.01, size_usd * 0.005)
+                tolerance = max(0.20, size_usd * 0.02)  # Increased from 0.005 (0.5%) to 0.02 (2%) to handle base-unit fills
                 if mismatch > tolerance:
-                    logger.error(
+                    logger.warning(  # Downgraded from error to warning
                         "FILL_NOTIONAL_MISMATCH product=%s requested=%.6f filled=%.6f tolerance=%.4f payload=%s",
                         symbol,
                         size_usd,
