@@ -723,15 +723,9 @@ class UniverseManager:
         cache_time = self._cache_time
         if cache_time.tzinfo is None:
             cache_time = cache_time.replace(tzinfo=timezone.utc)
-        age_seconds = (datetime.now(timezone.utc) - cache_time).total_seconds()
-        ttl_seconds: Optional[float] = self._cache_ttl_seconds
-        if ttl_seconds is None:
-            ttl_seconds = self.config.get("universe", {}).get("refresh_interval_hours", 24) * 3600
-
-        if ttl_seconds <= 0:
-            return False
-
-        return age_seconds < ttl_seconds
+        
+        age = datetime.now(timezone.utc) - cache_time
+        return age < self._cache_ttl
     
     def get_cluster_limits(self) -> Dict[str, float]:
         """Get cluster exposure limits"""
