@@ -229,7 +229,7 @@ Total at-risk, per-asset, and per-theme exposures **SHALL NOT** exceed configure
 
 **Acceptance:**
 Any proposal/order that would breach a cap is rejected with a structured risk record (`risk_reason`, `cap_type`, `current_pct`, `proposed_pct`).
-**Status:** Implemented.
+**Status:** ✅ Implemented.
 
 ---
 
