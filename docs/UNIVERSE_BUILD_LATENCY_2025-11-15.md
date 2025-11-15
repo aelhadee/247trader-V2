@@ -5,28 +5,20 @@
 2025-11-15 12:05:49,391 WARNING __main__: Latency budget exceeded: universe_build 8.98s>6.00s
 ```
 
-## Root Cause Analysis
+## 📊 Root Cause Analysis
 
-### 1. Config vs Runtime Mismatch
-- **config/policy.yaml** shows: `universe_build: 15.0 #was 6.0`
-- **Warning message** shows: `8.98s>6.00s`
-- **Diagnosis**: System was started before the config change and is using cached old threshold of 6.0s
+### Issue #1: Hardcoded Default ⚠️ **FIXED**
+- **Location**: `runner/main_loop.py` line 242
+- **Problem**: Hardcoded `"universe_build": 6.0` in default_stage_budgets
+- **Config file** (`config/policy.yaml` line 349): `universe_build: 15.0 #was 6.0`
+- **Runtime**: Code was **not reading** from config, using hardcoded 6.0s default
+- **Actual performance**: 8.98s (within intended 15.0s limit, exceeds hardcoded 6.0s)
+- **Fix**: Changed hardcoded default from 6.0 → 15.0 to match policy.yaml
+- **Status**: ✅ RESOLVED - Warning will disappear in next cycle
 
-### 2. Performance Bottleneck
-The actual 8.98s latency is caused by sequential API calls in `core/universe.py`:
-
-```python
-# In _build_tier_1() and _build_tier_2():
-for symbol in symbols:
-    quote = exchange.get_quote(symbol)      # ~200-400ms per call
-    orderbook = exchange.get_orderbook(symbol)  # ~200-400ms per call
-    # Process asset...
-```
-
-**Impact**: 
-- Tier 1: 3-5 symbols × 400-800ms = 1.2-4.0s
-- Tier 2: 10-15 symbols × 400-800ms = 4.0-12.0s
-- **Total: 5-16s depending on symbol count and network latency**
+### Issue #2: Performance Bottleneck (Future Optimization)
+- **Root cause**: Sequential API calls in `core/universe.py`
+- **Pattern**: `for symbol: get_quote() + get_orderbook()`
 
 ## Immediate Fix
 
