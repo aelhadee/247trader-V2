@@ -131,7 +131,7 @@ and **SHALL NOT**:
 
 **Acceptance:**
 Static/code search and tests confirm that strategies only import allowed interfaces and only return `TradeProposal` objects or empty lists.
-**Status:** Planned (contract partly implicit today).
+**Status:** 🔴 Planned (contract partly implicit in RulesEngine; needs formal strategy module abstraction for multi-strategy support).
 
 ---
 
