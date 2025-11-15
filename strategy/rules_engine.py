@@ -52,7 +52,7 @@ class TradeProposal:
             self.timestamp = datetime.now(timezone.utc)
 
 
-class RulesEngine:
+class RulesEngine(BaseStrategy):
     """
     Deterministic trading rules.
     
@@ -65,9 +65,26 @@ class RulesEngine:
     - Mean reversion on strong assets
     - Momentum on breakouts
     - Volume confirmation required
+    
+    Now implements BaseStrategy interface for multi-strategy framework.
     """
     
-    def __init__(self, config: Dict):
+    def __init__(self, name: str = "rules_engine", config: Optional[Dict] = None):
+        """
+        Initialize RulesEngine.
+        
+        Args:
+            name: Strategy name (for multi-strategy framework)
+            config: Strategy configuration (for multi-strategy framework)
+        """
+        # For backward compatibility, support both old and new init signatures
+        if config is None:
+            config = {"enabled": True, "params": {}}
+        
+        # Call BaseStrategy init
+        super().__init__(name=name, config=config)
+        
+        # Original config (for backward compatibility with existing code)
         self.config = config
         
         # Load policy.yaml for production trading parameters
