@@ -678,15 +678,15 @@ blacklist: [BTC3L-USD, BTC3S-USD]
 
 # config/policy.yaml
 risk:
-  max_total_at_risk_pct: 0.15
-  max_per_asset_pct: 0.05
+  max_total_at_risk_pct: 0.95
+  max_per_asset_pct: 0.07
   max_per_theme_pct:
     L2: 0.10
     MEME: 0.05
   max_trades_per_day: 10
   daily_stop_pnl_pct: -0.03
   weekly_stop_pnl_pct: -0.07
-  min_trade_notional_usd: 100
+  min_trade_notional_usd: 15
 
 liquidity:
   max_spread_bps: 60
