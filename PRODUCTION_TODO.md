@@ -21,6 +21,7 @@ All 4 critical safety features implemented, tested, and production-ready:
 - `docs/EXCHANGE_STATUS_CIRCUIT_BREAKER.md`
 - `docs/OUTLIER_BAD_TICK_GUARDS.md`
 - `docs/ENVIRONMENT_RUNTIME_GATES.md`
+- `docs/LATENCY_TRACKING.md` (NEW: comprehensive latency monitoring guide)
 
 ---
 
