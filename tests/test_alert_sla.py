@@ -57,26 +57,33 @@ def mock_urllib():
 
 def create_time_sequence(*phases):
     """
-    Create a time generator for mocking time.monotonic().
+    Helper to create a time sequence generator for mocking time.monotonic().
     
-    Each phase represents a time value that will be returned for ~15 calls.
-    This handles the multiple time.monotonic() calls within each notify().
+    Returns time values that stay constant within each notify() call but
+    advance between calls. Uses a single phase value for all monotonic()
+    calls within one notify() invocation.
     
-    Example: create_time_sequence(0.0, 30.0, 60.0) will return:
-    - 0.0 for first ~15 calls
-    - 30.0 for next ~15 calls
-    - 60.0 for remaining calls
+    Example:
+        create_time_sequence(0.0, 30.0, 61.0) returns:
+        - 0.0 for all calls during first notify()
+        - 30.0 for all calls during second notify()
+        - 61.0 for all calls during third notify()
     """
     class TimeGenerator:
         def __init__(self, phases):
-            self.phases = phases
+            self.phases = list(phases)
+            self.current_phase = 0
             self.call_count = 0
-            self.calls_per_phase = 15
+            # Assume ~20 monotonic() calls per notify() for safety
+            self.calls_per_notify = 20
         
         def __call__(self):
             self.call_count += 1
-            phase_index = min((self.call_count - 1) // self.calls_per_phase, len(self.phases) - 1)
-            return self.phases[phase_index]
+            # Advance phase every calls_per_notify calls
+            if self.call_count > (self.current_phase + 1) * self.calls_per_notify:
+                if self.current_phase < len(self.phases) - 1:
+                    self.current_phase += 1
+            return self.phases[self.current_phase]
     
     return TimeGenerator(phases)
 
