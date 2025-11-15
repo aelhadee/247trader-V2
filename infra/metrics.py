@@ -224,6 +224,114 @@ class MetricsRecorder:
 
     def last_no_trade_reason(self) -> Optional[str]:
         return self._last_no_trade_reason
+    
+    def record_exposure(self, at_risk_pct: float, pending_pct: float = 0.0) -> None:
+        """Record portfolio exposure percentages"""
+        if self._enabled and self._exposure_gauge:
+            self._exposure_gauge.labels(type="at_risk").set(max(at_risk_pct, 0.0))
+            self._exposure_gauge.labels(type="pending").set(max(pending_pct, 0.0))
+    
+    def record_open_positions(self, count: int) -> None:
+        """Record number of open positions"""
+        if self._enabled and self._positions_gauge:
+            self._positions_gauge.set(max(count, 0))
+    
+    def record_pending_orders(self, count: int) -> None:
+        """Record number of pending orders"""
+        if self._enabled and self._pending_orders_gauge:
+            self._pending_orders_gauge.set(max(count, 0))
+    
+    def record_fill_ratio(self, fills: int, total_orders: int) -> None:
+        """Record fill ratio (execution quality metric)"""
+        if self._enabled and self._fill_ratio_gauge:
+            ratio = fills / total_orders if total_orders > 0 else 0.0
+            self._fill_ratio_gauge.set(max(min(ratio, 1.0), 0.0))
+    
+    def record_fill(self, side: str) -> None:
+        """Record a filled order"""
+        if self._enabled and self._fills_counter:
+            self._fills_counter.labels(side=side).inc()
+    
+    def record_order_rejection(self, reason: str) -> None:
+        """Record an order rejection"""
+        if self._enabled and self._order_rejections_counter:
+            # Normalize reason to keep cardinality bounded
+            normalized_reason = self._normalize_rejection_reason(reason)
+            self._order_rejections_counter.labels(reason=normalized_reason).inc()
+    
+    def record_circuit_breaker_state(self, breaker_name: str, is_open: bool) -> None:
+        """Record circuit breaker state (0=closed/safe, 1=open/tripped)"""
+        if self._enabled and self._circuit_breaker_gauge:
+            self._circuit_breaker_gauge.labels(breaker=breaker_name).set(1 if is_open else 0)
+    
+    def record_circuit_breaker_trip(self, breaker_name: str) -> None:
+        """Record a circuit breaker trip event"""
+        if self._enabled:
+            if self._circuit_breaker_gauge:
+                self._circuit_breaker_gauge.labels(breaker=breaker_name).set(1)
+            if self._circuit_breaker_trips_counter:
+                self._circuit_breaker_trips_counter.labels(breaker=breaker_name).inc()
+    
+    def record_api_error(self, error_type: str, consecutive_count: int) -> None:
+        """Record API error and consecutive error count"""
+        if self._enabled:
+            if self._api_errors_counter:
+                # Normalize error type to keep cardinality bounded
+                normalized_type = self._normalize_error_type(error_type)
+                self._api_errors_counter.labels(error_type=normalized_type).inc()
+            if self._api_consecutive_errors_gauge:
+                self._api_consecutive_errors_gauge.set(max(consecutive_count, 0))
+    
+    def reset_consecutive_api_errors(self) -> None:
+        """Reset consecutive API error count (on successful API call)"""
+        if self._enabled and self._api_consecutive_errors_gauge:
+            self._api_consecutive_errors_gauge.set(0)
+    
+    @staticmethod
+    def _normalize_rejection_reason(reason: str) -> str:
+        """Normalize rejection reasons to keep label cardinality bounded"""
+        reason_lower = reason.lower()
+        
+        # Map to canonical categories
+        if "insufficient" in reason_lower or "balance" in reason_lower:
+            return "insufficient_funds"
+        elif "limit" in reason_lower or "max" in reason_lower:
+            return "limit_exceeded"
+        elif "cooldown" in reason_lower or "spacing" in reason_lower:
+            return "cooldown_active"
+        elif "exposure" in reason_lower or "cap" in reason_lower:
+            return "exposure_cap"
+        elif "size" in reason_lower or "notional" in reason_lower:
+            return "size_constraint"
+        elif "circuit" in reason_lower or "breaker" in reason_lower:
+            return "circuit_breaker"
+        elif "regime" in reason_lower or "volatility" in reason_lower:
+            return "regime_block"
+        elif "kill" in reason_lower or "stop" in reason_lower:
+            return "kill_switch_or_stop"
+        else:
+            return "other"
+    
+    @staticmethod
+    def _normalize_error_type(error_type: str) -> str:
+        """Normalize API error types to keep label cardinality bounded"""
+        error_lower = error_type.lower()
+        
+        # Map to canonical categories
+        if "timeout" in error_lower:
+            return "timeout"
+        elif "429" in error_lower or "rate" in error_lower:
+            return "rate_limit"
+        elif "401" in error_lower or "403" in error_lower or "auth" in error_lower:
+            return "auth_error"
+        elif "404" in error_lower:
+            return "not_found"
+        elif "500" in error_lower or "502" in error_lower or "503" in error_lower:
+            return "server_error"
+        elif "connection" in error_lower or "network" in error_lower:
+            return "connection_error"
+        else:
+            return "other"
 
 
 __all__ = ["MetricsRecorder", "CycleStats"]
