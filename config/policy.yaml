@@ -326,3 +326,34 @@ circuit_breaker:
   api_error_window_minutes: 5
   rate_limit_threshold: 3
   rate_limit_window_minutes: 10
+
+# Latency thresholds for watchdog timers and alerting
+latency:
+  # API call latency thresholds in milliseconds (mean over last N calls)
+  api_thresholds_ms:
+    api_list_products: 2000        # Product list should complete in 2s
+    api_get_accounts: 1500          # Account fetch in 1.5s
+    api_list_open_orders: 1500      # Open orders in 1.5s
+    api_list_fills: 2000            # Fill history in 2s
+    api_get_quote: 500              # Single quote in 500ms
+    api_place_order: 2000           # Order placement in 2s
+    api_cancel_order: 1500          # Order cancellation in 1.5s
+    api_preview_order: 1000         # Order preview in 1s
+  
+  # Decision cycle stage budgets in seconds
+  stage_budgets:
+    order_reconcile: 2.0
+    universe_build: 6.0
+    trigger_scan: 6.0
+    rules_engine: 4.0
+    risk_engine: 4.0
+    execution: 15.0
+    open_order_maintenance: 3.0
+    exit_checks: 3.0
+    exit_execution: 3.0
+  
+  # Total cycle budget in seconds (fail-safe for runaway cycles)
+  total_seconds: 45.0
+  
+  # Alert on persistent slowness (trigger after N consecutive violations)
+  alert_after_violations: 3
