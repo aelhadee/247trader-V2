@@ -18,6 +18,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 import logging
+
 from infra.symbols import normalize_symbol
 
 try:  # Optional dependency for redis-backed state store
