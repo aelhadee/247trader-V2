@@ -97,7 +97,7 @@ if depth_20bps_usd < min_depth_required:
 ```yaml
 # config/policy.yaml
 risk:
-  min_trade_notional_usd: 100  # $100 minimum
+  min_trade_notional_usd: 15   # $15 minimum (matches day-trader profile)
 ```
 
 ### Implementation
@@ -105,7 +105,7 @@ risk:
 def __init__(self, mode: str = "DRY_RUN", exchange: Optional[CoinbaseExchange] = None,
              policy: Optional[Dict] = None):
     # Load from policy
-    self.min_notional_usd = risk_config.get("min_trade_notional_usd", 100.0)
+  self.min_notional_usd = risk_config.get("min_trade_notional_usd", 15.0)
 
 def preview_order(self, symbol: str, side: str, size_usd: float):
     if size_usd < self.min_notional_usd:
@@ -116,9 +116,9 @@ def preview_order(self, symbol: str, side: str, size_usd: float):
 ```
 
 ### Impact
-- Default: **$100 minimum** per trade
-- Coinbase fees ~0.6% = $0.60 on $100 trade
-- Prevents $10 trades with $0.06 fees (0.6% loss)
+- Default: **$15 minimum** per trade (day-trader profile)
+- Coinbase fees ~0.6% = $0.09 on $15 trade (still manageable)
+- Prevents repeated sub-$10 dust entries that would fail or burn fees
 - Ensures trades are economically viable
 
 ---
