@@ -80,6 +80,7 @@ class TradingLoop:
         
         # Compute config hash for audit trail (configuration drift detection)
         self.config_hash = self._compute_config_hash()
+        logger.info(f"Configuration hash: {self.config_hash} (policy+signals+universe)")
 
         loop_policy_cfg = self.policy_config.get("loop") or {}
         loop_app_cfg = self.app_config.get("loop") or {}
