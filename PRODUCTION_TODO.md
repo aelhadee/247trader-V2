@@ -105,7 +105,7 @@ All 4 critical safety features implemented, tested, and production-ready:
 
 | Status | Task | Owner | Notes |
 | ------ | ---- | ----- | ----- |
-| 🔴 TODO | Integrate `exclusions.red_flags` and `temporary_ban_hours` into UniverseManager. | TBD | Persist flagged assets in StateStore and suppress from universe selection for the configured cool-off window. |
+| � Done | Integrate `exclusions.red_flags` and `temporary_ban_hours` into UniverseManager. | N/A | StateStore tracks red flag bans with auto-expiration; UniverseManager loads and excludes flagged assets during universe build. 14 comprehensive tests in test_red_flag_exclusions.py. See docs/RED_FLAG_EXCLUSIONS.md. |
 
 ## State & Reconciliation
 
