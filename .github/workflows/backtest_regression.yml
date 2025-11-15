@@ -1,0 +1,162 @@
+name: Backtest Regression Gate
+
+# Run on pull requests to catch strategy regressions before merge
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'strategy/**'
+      - 'core/**'
+      - 'config/**'
+      - 'backtest/**'
+
+jobs:
+  backtest-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Run current backtest (Q4 2024)
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          python backtest/engine.py \
+            --start 2024-09-01 \
+            --end 2024-11-30 \
+            --seed 42 \
+            --output results/current_q4.json
+      
+      - name: Compare against baseline (±2% tolerance)
+        id: regression_check
+        run: |
+          python backtest/compare_baseline.py \
+            --baseline baseline/2024_q4_baseline.json \
+            --current results/current_q4.json \
+            --tolerance 2.0
+        continue-on-error: false
+      
+      - name: Upload comparison results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: backtest-results
+          path: |
+            results/current_q4.json
+            baseline/2024_q4_baseline.json
+          retention-days: 30
+      
+      - name: Comment on PR (on failure)
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const current = JSON.parse(fs.readFileSync('results/current_q4.json', 'utf8'));
+            const baseline = JSON.parse(fs.readFileSync('baseline/2024_q4_baseline.json', 'utf8'));
+            
+            const metrics = ['total_trades', 'win_rate', 'total_pnl_pct', 'max_drawdown_pct', 'profit_factor'];
+            let comment = '## ⚠️ Backtest Regression Detected\n\n';
+            comment += 'One or more metrics deviated beyond ±2% tolerance:\n\n';
+            comment += '| Metric | Baseline | Current | Deviation | Status |\n';
+            comment += '|--------|----------|---------|-----------|--------|\n';
+            
+            metrics.forEach(metric => {
+              const base = baseline.regression_keys[metric];
+              const curr = current.regression_keys[metric];
+              const deviation = base === 0 ? 100 : ((curr - base) / Math.abs(base)) * 100;
+              const status = Math.abs(deviation) > 2 ? '❌' : '✅';
+              comment += `| ${metric} | ${base} | ${curr} | ${deviation.toFixed(2)}% | ${status} |\n`;
+            });
+            
+            comment += '\n**Action Required:** Review changes that may have affected strategy performance.\n';
+            comment += 'If improvements are intentional, update baseline with documentation.';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Run backtest regression tests
+        run: |
+          pytest tests/test_backtest_regression.py -v --tb=short
+      
+      - name: Run all unit tests
+        run: |
+          pytest tests/ -v --tb=short \
+            --ignore=tests/test_live_smoke.py \
+            --cov=backtest \
+            --cov=core \
+            --cov=strategy \
+            --cov-report=xml \
+            --cov-report=term-missing
+      
+      - name: Upload coverage
+        if: always()
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install linters
+        run: |
+          pip install ruff mypy black
+      
+      - name: Run ruff
+        run: ruff check .
+      
+      - name: Run mypy
+        run: mypy backtest/ core/ strategy/
+        continue-on-error: true
+      
+      - name: Check black formatting
+        run: black --check .
+        continue-on-error: true
