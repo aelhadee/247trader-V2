@@ -266,8 +266,8 @@ Aged data in test harness triggers an immediate halt and a logged alert; no new 
 If the exchange or a product is reported as down/disabled, trading **SHALL** be blocked for affected symbols.
 
 **Acceptance:**
-Toggling a product/exchange health flag to “disabled” causes new proposals/orders for that symbol to be rejected with `risk_reason='product_disabled'`.
-**Status:** Implemented.
+Toggling a product/exchange health flag to "disabled" causes new proposals/orders for that symbol to be rejected with `risk_reason='product_disabled'`.
+**Status:** ✅ Implemented (RiskEngine._filter_degraded_products blocks POST_ONLY/LIMIT_ONLY/CANCEL_ONLY/OFFLINE; 9 tests in test_exchange_status_circuit.py).
 
 ---
 
