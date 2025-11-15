@@ -99,8 +99,6 @@ class RateLimitStats:
             wait_ms = wait_time_seconds * 1000.0
             self.total_wait_time_ms += wait_ms
             self.max_wait_time_ms = max(self.max_wait_time_ms, wait_ms)
-        else:
-            self.total_requests += 1
     
     def utilization_pct(self) -> float:
         """Calculate blocked request percentage"""
