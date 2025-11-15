@@ -555,6 +555,28 @@ def validate_sanity_checks(config_dir: Path) -> List[str]:
                 f"System cannot fill all positions."
             )
         
+        # Check: Sum of theme caps exceeds global cap
+        max_per_theme_pct = risk.get("max_per_theme_pct", {})
+        if max_per_theme_pct:
+            theme_cap_sum = sum(max_per_theme_pct.values())
+            if theme_cap_sum > max_at_risk_pct:
+                themes_str = ", ".join(f"{k}:{v}%" for k, v in max_per_theme_pct.items())
+                errors.append(
+                    f"UNSAFE: Sum of theme caps ({theme_cap_sum}%: {themes_str}) exceeds "
+                    f"max_total_at_risk_pct ({max_at_risk_pct}%). "
+                    f"Cannot satisfy all theme allocations simultaneously."
+                )
+        
+        # Check: Per-asset cap exceeds per-theme cap
+        max_per_asset_pct = risk.get("max_per_asset_pct", 0)
+        if max_per_asset_pct > 0 and max_per_theme_pct:
+            for theme, theme_cap in max_per_theme_pct.items():
+                if max_per_asset_pct > theme_cap:
+                    errors.append(
+                        f"UNSAFE: max_per_asset_pct ({max_per_asset_pct}%) > theme '{theme}' cap ({theme_cap}%). "
+                        f"Single asset would breach theme limit."
+                    )
+        
         # Check: Daily stop >= weekly stop (should be tighter)
         daily_stop = abs(risk.get("daily_stop_pnl_pct", 0))
         weekly_stop = abs(risk.get("weekly_stop_pnl_pct", 0))
