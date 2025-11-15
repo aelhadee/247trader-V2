@@ -720,10 +720,13 @@ def validate_sanity_checks(config_dir: Path) -> List[str]:
         # Note: This is advisory since mode is set at runtime via CLI
         
         if risk.get("max_total_at_risk_pct", 0) > 50:
-            errors.append(
-                f"WARNING: max_total_at_risk_pct ({risk['max_total_at_risk_pct']}%) > 50%. "
-                f"Consider using conservative profile (25%) for LIVE mode. "
-                f"High exposure suitable for PAPER/DRY_RUN only."
+            # Log advisory warning but don't block startup
+            # User may intentionally run high exposure (e.g., temporarily to accommodate existing positions)
+            logger.warning(
+                "max_total_at_risk_pct (%.1f%%) > 50%%. "
+                "Consider using conservative profile (25%%) for LIVE mode. "
+                "High exposure suitable for PAPER/DRY_RUN only.",
+                risk['max_total_at_risk_pct']
             )
         
         # Check: Missing circuit breaker config
