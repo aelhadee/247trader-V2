@@ -438,6 +438,8 @@ Cycle timestamps in logs show randomized offsets around the configured interval.
 **REQ-BT1 (Deterministic backtests)**
 Backtests **SHALL** be deterministic (fixed seed, deterministic data ordering) so repeated runs with the same inputs yield identical outputs.
 
+**Status:** ✅ Implemented (backtest/engine.py: BacktestEngine(seed=42) sets random.seed() for reproducible results; CLI --seed argument; 3 tests in test_backtest_regression.py).
+
 ---
 
 **REQ-BT2 (Backtest report format)**
@@ -448,12 +450,14 @@ Backtests **SHALL** output a machine-readable JSON report including:
 * Max drawdown.
 * Exposure by theme/asset.
 
+**Status:** ✅ Implemented (backtest/engine.py: export_json() creates 4-section report with metadata, summary, trades, regression_keys; CLI --output argument; 6 tests in test_backtest_regression.py).
+
 ---
 
 **REQ-BT3 (Regression gate)**
 CI **SHALL** compare key backtest metrics to a baseline and fail if deviation exceeds **±2%** for predefined metrics (e.g., total PnL, max drawdown, trade count).
 
-**Status (BT1-3):** 🟡 Partial (backtest/engine.py exists with BacktestEngine; deterministic seed support incomplete; machine-readable JSON report incomplete; CI regression gate not implemented).
+**Status:** ✅ Implemented (backtest/compare_baseline.py compares 5 key metrics with ±2% tolerance: total_trades, win_rate, total_pnl_pct, max_drawdown_pct, profit_factor; exit 0=PASS, 1=FAIL, 2=ERROR; 8 tests in test_backtest_regression.py; see docs/BACKTEST_REGRESSION_SYSTEM.md).
 
 ---
 
