@@ -229,6 +229,7 @@ class TradingLoop:
             exchange=self.exchange,
             policy=self.policy_config,
             state_store=self.state_store,
+            alert_service=self.alerts,  # Wire alerts for rejection bursts and reconcile mismatches
         )
         
         self.position_manager = PositionManager(
