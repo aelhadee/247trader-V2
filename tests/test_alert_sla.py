@@ -60,9 +60,24 @@ class TestAlertDeduplication:
     
     def test_dedupe_identical_alerts_within_60s(self, alert_service, mock_urllib):
         """Verify identical alerts within 60s are deduped."""
-        # Provide enough time values for all monotonic() calls
-        time_values = [0.0] * 20 + [30.0] * 20 + [59.0] * 20
-        with patch('time.monotonic', side_effect=time_values):
+        # Create time generator that returns time values based on call count
+        class TimeGenerator:
+            def __init__(self):
+                self.phase = 0  # Track which notify() we're in
+                self.call_count = 0
+            
+            def __call__(self):
+                self.call_count += 1
+                # Each notify() makes ~5-10 calls to monotonic()
+                # Return time based on which phase we're in
+                if self.call_count <= 15:
+                    return 0.0
+                elif self.call_count <= 30:
+                    return 30.0
+                else:
+                    return 59.0
+        
+        with patch('time.monotonic', TimeGenerator()):
             # First alert should go through
             alert_service.notify(
                 severity=AlertSeverity.WARNING,
