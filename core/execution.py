@@ -133,9 +133,10 @@ class ExecutionEngine:
         self.failed_order_cooldown_seconds = int(execution_config.get(
             "failed_order_cooldown_seconds", 0
         ))
-        self.post_only_ttl_seconds = int(execution_config.get(
+        self._explicit_post_only_ttl = int(execution_config.get(
             "post_only_ttl_seconds", 0
         ) or 0)
+        self.post_only_ttl_seconds = self._explicit_post_only_ttl
         self.convert_api_retry_seconds = int(execution_config.get(
             "convert_api_retry_seconds", 900
         ))
