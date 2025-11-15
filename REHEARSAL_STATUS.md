@@ -23,7 +23,15 @@
 - **Observations:**
   - 100% NO_TRADE cycles (low volatility - expected)
   - No circuit breaker trips
-  - Config hash consistent (some null due to timing, non-blocking)
+  - Config hash consistent
+  
+- **Incident Recovery:**
+  - 13:14-13:50 PST: Bot crashed due to UniverseManager cache initialization bug
+  - Fixed: timedelta import + cache attribute initialization
+  - Downtime: ~36 minutes
+  - Impact: None (PAPER mode, no trades)
+  - Status: Fully recovered and operating normally
+  - Details: See `docs/INCIDENT_UNIVERSEMANAGER_CACHE_2025-11-15.md`
 
 ---
 
