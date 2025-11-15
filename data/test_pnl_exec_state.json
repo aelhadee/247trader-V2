@@ -7,7 +7,7 @@
   "last_loss_time": null,
   "last_win_time": null,
   "cooldowns": {
-    "BTC-USD": "2025-11-15T17:46:08.837103+00:00"
+    "BTC-USD": "2025-11-15T18:10:00.613852+00:00"
   },
   "positions": {},
   "managed_positions": {},
@@ -24,5 +24,6 @@
   "high_water_mark": 0.0,
   "zero_trigger_cycles": 0,
   "auto_tune_applied": false,
-  "latency_stats": {}
+  "latency_stats": {},
+  "red_flag_bans": {}
 }

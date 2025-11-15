@@ -57,10 +57,10 @@
       "symbol": "BTC-USD",
       "side": "SELL",
       "size_usd": 100.0,
-      "timestamp": "2025-11-15T17:16:08.700667+00:00",
+      "timestamp": "2025-11-15T17:40:00.482381+00:00",
       "status": "open",
-      "first_seen": "2025-11-15T17:16:08.701199+00:00",
-      "updated_at": "2025-11-15T17:16:08.701199+00:00"
+      "first_seen": "2025-11-15T17:40:00.482889+00:00",
+      "updated_at": "2025-11-15T17:40:00.482889+00:00"
     },
     "coid_47db88a9cc9b172c": {
       "order_id": "real-order-123",
@@ -569,15 +569,25 @@
   },
   "recent_orders": [],
   "pending_markers": {
-    "BTC-USD:SELL:247trader_coid_e9da577267da13c1": {
+    "BTC-USD:SELL:247trader_coid_5100ce328dda144c": {
       "product_id": "BTC-USD",
       "base": "BTC",
       "side": "SELL",
-      "client_order_id": "247trader_coid_e9da577267da13c1",
+      "client_order_id": "247trader_coid_5100ce328dda144c",
       "order_id": "real-order-123",
       "notional_usd": 100.61,
-      "since": "2025-11-15T17:16:08.694619+00:00",
-      "expires_at": "2025-11-15T17:19:08.694619+00:00"
+      "since": "2025-11-15T17:37:34.109564+00:00",
+      "expires_at": "2025-11-15T17:40:34.109564+00:00"
+    },
+    "BTC-USD:SELL:247trader_coid_dda58e1d1d129ed2": {
+      "product_id": "BTC-USD",
+      "base": "BTC",
+      "side": "SELL",
+      "client_order_id": "247trader_coid_dda58e1d1d129ed2",
+      "order_id": "real-order-123",
+      "notional_usd": 100.61,
+      "since": "2025-11-15T17:40:00.476877+00:00",
+      "expires_at": "2025-11-15T17:43:00.476877+00:00"
     }
   },
   "last_fill_times": {},
@@ -1185,10 +1195,27 @@
       "product_id": null,
       "side": "SELL",
       "quote_size_usd": null
+    },
+    {
+      "at": "2025-11-15T17:37:34.116906+00:00",
+      "event": "order_opened",
+      "order_key": "test_duplicate_123",
+      "product_id": null,
+      "side": "SELL",
+      "quote_size_usd": null
+    },
+    {
+      "at": "2025-11-15T17:40:00.482889+00:00",
+      "event": "order_opened",
+      "order_key": "test_duplicate_123",
+      "product_id": null,
+      "side": "SELL",
+      "quote_size_usd": null
     }
   ],
   "high_water_mark": 0.0,
   "zero_trigger_cycles": 0,
   "auto_tune_applied": false,
-  "latency_stats": {}
+  "latency_stats": {},
+  "red_flag_bans": {}
 }
