@@ -219,7 +219,7 @@ Status alignment with formal requirements spec (APP_REQUIREMENTS.md). Tracks all
 | REQ-BT2 | Backtest JSON reports (machine-readable) | backtest/engine.py: export_json() with 4 sections (metadata, summary, trades, regression_keys) | 6 tests in test_backtest_regression.py |
 | REQ-BT3 | CI regression gate (±2% tolerance on 5 metrics) | backtest/compare_baseline.py with automated comparison | 8 tests in test_backtest_regression.py |
 | REQ-SEC2 | Secret rotation policy (90-day tracking + alerts) | infra/secret_rotation.py: SecretRotationTracker with CRITICAL alert when >90 days | 22 tests in test_secret_rotation.py |
-| REQ-TIME1 | Clock sync gate (NTP drift <100ms validation) | infra/clock_sync.py: ClockSyncValidator fails LIVE startup if drift >100ms | 26 tests in test_clock_sync.py |
+| REQ-TIME1 | Clock sync gate (NTP drift <150ms validation) | infra/clock_sync.py: ClockSyncValidator fails LIVE startup if drift >150ms (adjusted from 100ms for production network jitter) | 26 tests in test_clock_sync.py + 3 regression tests |
 
 ### ✅ Implemented & Verified (29 requirements - ALL COMPLETE!)
 
