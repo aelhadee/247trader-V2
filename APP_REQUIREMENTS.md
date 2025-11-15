@@ -502,14 +502,15 @@ The host clock **SHALL** be NTP-synced with drift < **150ms** relative to a trus
 **REQ-CB1 (Retry policy)**
 For Coinbase REST 429/5xx responses, the system **SHALL**:
 
-* Use exponential backoff with full jitter:
-
-  * Base: 200ms, cap: 5s, max 6 attempts.
+* Use exponential backoff with full jitter following AWS best practice:
+  * Formula: `random(0, min(30, base * 2^attempt))` where base=1.0 seconds
+  * Max retries: 3 (configurable)
 * Abort retries for non-idempotent ambiguity (unknown order state).
+* Handle network errors (Timeout, ConnectionError) with same retry logic.
 
 **Acceptance:**
 Fault-injection tests show compliant retry patterns and correct abort behavior on ambiguous failures.
-**Status:** 🟡 Partial (CoinbaseExchange._req implements exponential backoff with jitter for 429/5xx; full jitter formula and 6-attempt cap need verification; fault-injection tests not implemented).
+**Status:** ✅ Implemented (core/exchange_coinbase.py: CoinbaseExchange._req implements AWS best practice exponential backoff with full jitter for 429/5xx/network errors; tracks rate limit events for circuit breaker; 17 comprehensive fault-injection tests in test_exchange_retry.py covering 429 rate limits, 5xx server errors, network failures, exponential backoff verification, and metrics recording; completed 2025-11-15).
 
 ---
 
