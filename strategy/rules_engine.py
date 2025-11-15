@@ -6,6 +6,8 @@ Pattern: Jesse-style pure strategy + Freqtrade-style protections
 
 This is your baseline. Must be profitable WITHOUT AI.
 AI (M1/M2/M3) can only adjust/veto, never create.
+
+Now inherits from BaseStrategy for multi-strategy framework compatibility.
 """
 
 from typing import List, Optional, Dict, Tuple, Any
@@ -17,6 +19,7 @@ from pathlib import Path
 
 from core.universe import UniverseAsset, UniverseSnapshot
 from core.triggers import TriggerSignal
+from strategy.base_strategy import BaseStrategy, StrategyContext
 
 logger = logging.getLogger(__name__)
 
