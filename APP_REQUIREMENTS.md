@@ -298,7 +298,7 @@ a per-symbol cooldown **SHALL** block new entries for:
 
 **Acceptance:**
 Entry attempts within cooldown windows are rejected with `risk_reason='cooldown'` for all entry paths (all strategies).
-**Status:** Partial (ensure central enforcement).
+**Status:** ✅ Implemented (RiskEngine._filter_cooled_symbols enforces cooldowns; StateStore.apply_symbol_cooldown sets cooldowns; integrated in main_loop).
 
 ---
 
