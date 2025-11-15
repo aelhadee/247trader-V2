@@ -1044,7 +1044,7 @@ class StateStore:
     def mark_position_managed(self, symbol: str) -> None:
         """Explicitly mark a position as managed by the bot."""
 
-        normalized = symbol if "-" in symbol else f"{symbol}-USD"
+        normalized = self._normalize_symbol(symbol)
         state = self.load()
         state.setdefault("managed_positions", {})[normalized] = True
         self.save(state)
@@ -1116,23 +1116,24 @@ class StateStore:
         """
         state = self.load()
         managed = state.setdefault("managed_positions", {})
+        normalized = self._normalize_symbol(symbol)
         
-        if symbol not in managed:
-            logger.debug(f"Cannot update targets for non-managed position: {symbol}")
+        if normalized not in managed:
+            logger.debug(f"Cannot update targets for non-managed position: {normalized}")
             return
         
         # Update targets (preserve existing if new value is None)
-        if isinstance(managed[symbol], dict):
+        if isinstance(managed[normalized], dict):
             if stop_loss_pct is not None:
-                managed[symbol]["stop_loss_pct"] = stop_loss_pct
+                managed[normalized]["stop_loss_pct"] = stop_loss_pct
             if take_profit_pct is not None:
-                managed[symbol]["take_profit_pct"] = take_profit_pct
+                managed[normalized]["take_profit_pct"] = take_profit_pct
             if max_hold_hours is not None:
-                managed[symbol]["max_hold_hours"] = max_hold_hours
+                managed[normalized]["max_hold_hours"] = max_hold_hours
         else:
             # Old format (boolean) - upgrade to dict
-            logger.debug(f"Upgrading managed_position {symbol} from boolean to dict format")
-            managed[symbol] = {
+            logger.debug(f"Upgrading managed_position {normalized} from boolean to dict format")
+            managed[normalized] = {
                 "entry_price": None,  # Will be set on next fill
                 "entry_time": None,
                 "stop_loss_pct": stop_loss_pct,
@@ -1142,7 +1143,7 @@ class StateStore:
         
         self.save(state)
         logger.debug(
-            f"Updated {symbol} targets: SL={stop_loss_pct}%, TP={take_profit_pct}%, "
+            f"Updated {normalized} targets: SL={stop_loss_pct}%, TP={take_profit_pct}%, "
             f"max_hold={max_hold_hours}h"
         )
 
