@@ -121,13 +121,14 @@ def test_kill_switch_alert_sla_under_5s(mock_lock, kill_switch_file, mock_exchan
     # Execute: Measure alert timing
     from core.risk import PortfolioState
     portfolio = PortfolioState(
-        nav=10000.0,
-        cash_usd=10000.0,
+        account_value_usd=10000.0,
         open_positions={},
-        pending_orders={},
         daily_pnl_pct=0.0,
-        weekly_pnl_pct=0.0,
         max_drawdown_pct=0.0,
+        trades_today=0,
+        trades_this_hour=0,
+        weekly_pnl_pct=0.0,
+        pending_orders={},
     )
     
     start_time = time.monotonic()
