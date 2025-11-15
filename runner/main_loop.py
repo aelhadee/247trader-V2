@@ -2566,9 +2566,32 @@ class TradingLoop:
             sort_by="performance",
         )
 
+        # Fallback: if no candidates at min_value threshold, try again with lower threshold
+        if not candidates and min_liq_value > self.executor.min_notional_usd:
+            logger.warning(
+                f"No candidates at min_value=${min_liq_value}, retrying with ${self.executor.min_notional_usd}"
+            )
+            candidates = self.executor.get_liquidation_candidates(
+                min_value_usd=self.executor.min_notional_usd,
+                sort_by="value",  # Switch to lowest-value first for forced trim
+            )
+
         if not candidates:
-            logger.warning("Auto trim skipped: no liquidation candidates available")
+            logger.warning("Auto trim skipped: no liquidation candidates available (checked all holdings)")
+            # Emit counter for monitoring
+            if hasattr(self, '_trim_skip_counter'):
+                self._trim_skip_counter = getattr(self, '_trim_skip_counter', 0) + 1
+                if self._trim_skip_counter >= 3:
+                    logger.error(
+                        f"Auto trim failed {self._trim_skip_counter} consecutive times with {exposure_pct:.1f}% exposure. "
+                        f"Manual intervention required: inject capital or liquidate positions manually."
+                    )
+            else:
+                self._trim_skip_counter = 1
             return False
+        
+        # Reset counter on success finding candidates
+        self._trim_skip_counter = 0
 
         accounts = self._require_accounts("auto_trim")
         preferred_target = next(
