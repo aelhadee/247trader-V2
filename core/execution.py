@@ -1076,8 +1076,13 @@ class ExecutionEngine:
                                 'pair': pair,
                                 'change_24h_pct': change_24h_pct
                             })
-                    except Exception:
-                        pass
+                            logger.debug(f"Added candidate (via USDC): {currency} ${value_usd:.2f} ({change_24h_pct:+.2f}%)")
+                        else:
+                            skipped_below_min += 1
+                            logger.debug(f"Skipping {currency} (${value_usd:.2f}): below min_value_usd=${min_value_usd:.2f}")
+                    except Exception as e:
+                        failed_to_price += 1
+                        logger.debug(f"Failed to price {currency} (balance={balance:.6f}): {e}")
             
             # Sort based on strategy
             if sort_by == "performance":
