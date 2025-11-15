@@ -2561,14 +2561,21 @@ class TradingLoop:
         target_pct = max(0.0, max_total_at_risk - buffer_pct)
         tolerance_usd = max((tolerance_pct / 100.0) * nav, 0.0)
 
+        logger.info(f"🔧 TRIM STEP 5: Calculating trim target")
+        logger.info(f"  📊 Target = cap {max_total_at_risk:.1f}% - buffer {buffer_pct:.1f}% = {target_pct:.1f}%")
+
         excess_pct = max(0.0, exposure_pct - target_pct)
         excess_usd = (excess_pct / 100.0) * nav
+        
+        logger.info(f"  📊 Excess = {exposure_pct:.1f}% - {target_pct:.1f}% = {excess_pct:.1f}% (${excess_usd:.2f})")
+        logger.info(f"  📊 Tolerance USD = ${tolerance_usd:.2f}, Min notional = ${self.executor.min_notional_usd:.2f}")
 
         if excess_usd <= max(tolerance_usd, self.executor.min_notional_usd):
+            logger.info(f"  ✅ Excess ${excess_usd:.2f} below threshold ${max(tolerance_usd, self.executor.min_notional_usd):.2f}, no trim needed")
             return False
 
         logger.warning(
-            "Global exposure %.1f%% exceeds cap %.1f%%. Trimming portfolio toward %.1f%% target (excess $%.2f)",
+            "🔧 TRIM STEP 6: TRIM REQUIRED - Global exposure %.1f%% exceeds cap %.1f%%. Trimming portfolio toward %.1f%% target (excess $%.2f)",
             exposure_pct,
             max_total_at_risk,
             target_pct,
