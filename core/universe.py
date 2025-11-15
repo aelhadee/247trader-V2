@@ -72,6 +72,11 @@ class UniverseManager:
         self.exchange = exchange
         self.state_store = state_store
         self.alert_service = alert_service
+        
+        # Initialize cache attributes
+        self._cache: Optional[UniverseSnapshot] = None
+        self._cache_time: Optional[datetime] = None
+        self._cache_ttl_seconds: Optional[float] = config.get('universe', {}).get('refresh_interval_hours', 1) * 3600
     
     def _load_config(self) -> dict:
         """Load universe configuration"""
