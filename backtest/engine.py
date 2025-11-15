@@ -153,7 +153,7 @@ class BacktestEngine:
     REQ-BT1: Deterministic with fixed seed.
     """
     
-    def __init__(self, config_dir: str = "config", initial_capital: float = 10_000.0, seed: Optional[int] = None):
+    def __init__(self, config_dir: str = "config", initial_capital: float = 10_000.0, seed: Optional[int] = None, slippage_config: Optional[SlippageConfig] = None):
         self.config_dir = Path(config_dir)
         self.initial_capital = initial_capital
         self.seed = seed
@@ -174,6 +174,10 @@ class BacktestEngine:
         self.regime_detector = RegimeDetector()
         self.rules_engine = RulesEngine(config={})
         self.risk_engine = RiskEngine(self.policy_config, universe_manager=self.universe_mgr)
+        
+        # Slippage model for realistic fills
+        self.slippage_model = SlippageModel(slippage_config or SlippageConfig())
+        logger.info("Slippage model initialized with Coinbase fees (maker 40bps, taker 60bps)")
         
         # Backtest state
         self.capital = initial_capital
