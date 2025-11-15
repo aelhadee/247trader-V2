@@ -29,31 +29,39 @@ from core.triggers import TriggerSignal
 @pytest.fixture
 def mock_universe():
     """Create mock universe snapshot."""
-    assets = [
+    tier_1 = [
         UniverseAsset(
             symbol="BTC-USD",
-            tier="T1",
-            theme="crypto",
-            quote_currency="USD",
-            base_increment="0.00000001",
-            quote_increment="0.01",
-            min_market_funds="1.00"
-        ),
+            tier=1,
+            allocation_min_pct=2.0,
+            allocation_max_pct=15.0,
+            volume_24h=1000000000.0,
+            spread_bps=5.0,
+            depth_usd=500000.0,
+            eligible=True
+        )
+    ]
+    tier_2 = [
         UniverseAsset(
             symbol="ETH-USD",
-            tier="T2",
-            theme="crypto",
-            quote_currency="USD",
-            base_increment="0.0000001",
-            quote_increment="0.01",
-            min_market_funds="1.00"
+            tier=2,
+            allocation_min_pct=1.0,
+            allocation_max_pct=10.0,
+            volume_24h=500000000.0,
+            spread_bps=8.0,
+            depth_usd=300000.0,
+            eligible=True
         )
     ]
     
     return UniverseSnapshot(
-        assets_by_symbol={a.symbol: a for a in assets},
-        total_eligible=2,
-        timestamp=datetime.now(timezone.utc)
+        timestamp=datetime.now(timezone.utc),
+        regime="chop",
+        tier_1_assets=tier_1,
+        tier_2_assets=tier_2,
+        tier_3_assets=[],
+        excluded_assets=[],
+        total_eligible=2
     )
 
 
