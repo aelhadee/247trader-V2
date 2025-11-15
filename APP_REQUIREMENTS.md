@@ -353,7 +353,7 @@ Sizing **SHALL** include maker/taker fees consistently in:
 
 **Acceptance:**
 Edge cases near min notional behave identically in risk and execution; tests confirm fee assumptions are identical.
-**Status:** Partial (align all call sites).
+**Status:** ✅ Implemented (ExecutionEngine uses configurable maker 40bps/taker 60bps fees; enforce_product_constraints ensures post-fee compliance; 11 tests in test_fee_adjusted_notional.py).
 
 ---
 
