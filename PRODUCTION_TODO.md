@@ -65,21 +65,27 @@ All operational readiness items completed:
 - ✅ Kill switch: Monitored and ready
 
 **Monitoring:**
-- Quick check: `./scripts/check_rehearsal.sh`
-- Auto-notify: `./scripts/notify_when_complete.sh 60`
-- Status guide: `REHEARSAL_STATUS.md`
+- Live logs: `tail -f logs/live_*.log`
+- Prometheus metrics: `http://localhost:9090/metrics`
+- Audit trail: `logs/247trader-v2_audit.jsonl`
+- Portfolio state: `data/state.db` (SQLite)
 
-**Post-Completion:**
-1. Run `./scripts/analyze_rehearsal.sh` (generates GO/NO-GO report)
-2. Review `logs/paper_rehearsal_final_report.md`
-3. If GO: Follow `docs/LIVE_DEPLOYMENT_CHECKLIST.md` (7 phases)
-4. If NO-GO: Fix issues and re-run rehearsal
+**Recent Activity (Last 4 Cycles):**
+- 18:33:06 - 18:36:29: 4 clean cycles completed
+- NO_TRADE reason: no_candidates_from_triggers (0 triggers in chop regime)
+- Latency range: 10.82s - 15.80s (all within budget)
+- Jitter working: 3.4% - 9.2% randomization per cycle
+
+**Operational Notes:**
+- Auto-trim checks every cycle: exposure 23.9% safely below 25.0% cap
+- Universe building: 9/16 assets eligible (7 excluded for volume)
+- Conservative profile active: 5 max positions, 25% max at-risk
+- Ready for trigger-based entries when market volatility returns
 
 **Documentation:**
-- `docs/PAPER_REHEARSAL_GUIDE.md` (procedures)
-- `docs/PAPER_REHEARSAL_MID_STATUS.md` (62% checkpoint)
+- `docs/REQUIREMENTS_PRODUCTION_ALIGNMENT.md` (requirements coverage)
 - `docs/LIVE_DEPLOYMENT_CHECKLIST.md` (deployment guide)
-- `REHEARSAL_STATUS.md` (quick reference)
+- `docs/RUN_LIVE_README.md` (operations manual)
 
 ---
 
