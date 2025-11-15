@@ -140,9 +140,9 @@ Each strategy **SHALL** be toggleable by config (e.g., `strategy.<name>.enabled:
 
 **Acceptance:**
 
-* When disabled, strategy logs show “skipped (disabled)” and emit **no** proposals.
+* When disabled, strategy logs show "skipped (disabled)" and emit **no** proposals.
 * When enabled, logs show strategy-specific metrics (e.g., proposals_count).
-  **Status:** Planned.
+  **Status:** 🔴 Planned (no per-strategy toggle mechanism exists).
 
 ---
 
