@@ -247,9 +247,10 @@ class ClockSyncValidator:
         
         # LIVE mode: Fail fast on excessive drift
         if not status["synced"]:
+            drift_str = f"{status['drift_ms']:.1f}ms" if status['drift_ms'] is not None else "unknown"
             error_msg = (
                 f"Clock drift exceeds tolerance (REQ-TIME1): "
-                f"{status['drift_ms']:.1f}ms > {self.max_drift_ms}ms. "
+                f"{drift_str} > {self.max_drift_ms}ms. "
                 f"LIVE trading requires accurate timestamps. "
                 f"Fix: Ensure NTP sync is enabled and working. "
                 f"Server: {status['server'] or 'unreachable'}"
