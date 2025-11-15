@@ -2743,37 +2743,56 @@ class TradingLoop:
         remaining_excess_usd = excess_usd
         trimmed_any = False
 
-        for candidate in candidates:
+        logger.info(f"🔧 TRIM STEP 9: Processing {len(candidates)} liquidation candidates (max_liqs={max_liqs})")
+        
+        for idx, candidate in enumerate(candidates, 1):
+            logger.info(f"  🎯 Candidate {idx}/{len(candidates)}: {candidate.get('currency')}")
+            
             if remaining_excess_usd <= tolerance_usd:
+                logger.info(f"    ✅ Trim complete: remaining excess ${remaining_excess_usd:.2f} <= tolerance ${tolerance_usd:.2f}")
                 break
             if max_liqs <= 0:
-                logger.info("Auto trim stopping after reaching liquidation limit")
+                logger.info(f"    ⛔ Stopping: reached liquidation limit")
                 break
 
             balance = float(candidate.get("balance", 0.0) or 0.0)
             price = float(candidate.get("price", 0.0) or 0.0)
             value_usd = float(candidate.get("value_usd", 0.0) or 0.0)
             account_uuid = candidate.get("account_uuid")
+            
+            logger.info(f"    📊 Balance={balance:.8f}, Price=${price:.6f}, Value=${value_usd:.2f}")
 
             if balance <= 0 or price <= 0 or value_usd <= 0 or not account_uuid:
+                logger.warning(f"    ❌ Skipping: invalid data (balance={balance}, price={price}, value=${value_usd}, uuid={account_uuid})")
                 continue
 
             available_usd = min(value_usd, balance * price)
+            logger.info(f"    📊 Available USD: ${available_usd:.2f}")
+            
             if available_usd < self.executor.min_notional_usd:
+                logger.info(f"    ❌ Skipping: available ${available_usd:.2f} < min_notional ${self.executor.min_notional_usd:.2f}")
                 continue
 
             usd_to_free = min(remaining_excess_usd, available_usd)
+            logger.info(f"    📊 USD to free: ${usd_to_free:.2f} (min={remaining_excess_usd:.2f}, {available_usd:.2f})")
+            
             if usd_to_free < self.executor.min_notional_usd:
+                logger.info(f"    ❌ Skipping: usd_to_free ${usd_to_free:.2f} < min_notional ${self.executor.min_notional_usd:.2f}")
                 continue
 
             units_to_liquidate = min(balance, (usd_to_free / price) * (1.0 + slippage_buffer_pct))
+            logger.info(f"    📊 Units to liquidate: {units_to_liquidate:.8f} (slippage_buffer={slippage_buffer_pct:.2%})")
+            
             if units_to_liquidate * price < self.executor.min_notional_usd:
+                logger.info(f"    ❌ Skipping: units value ${units_to_liquidate * price:.2f} < min_notional ${self.executor.min_notional_usd:.2f}")
                 continue
 
             freed_usd = units_to_liquidate * price
+            logger.info(f"    💰 Expected freed USD: ${freed_usd:.2f}")
             success = False
 
             currency = candidate.get("currency")
+            logger.info(f"    🔄 Attempting liquidation of {units_to_liquidate:.8f} {currency} (~${freed_usd:.2f})")
 
             can_attempt_convert = (
                 target_currency
