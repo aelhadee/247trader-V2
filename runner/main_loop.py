@@ -2862,11 +2862,7 @@ class TradingLoop:
                     continue
             else:
                 logger.info(
-                    "Auto trim converted %.6f %s → %s (~$%.2f)",
-                    units_to_liquidate,
-                    currency,
-                    target_currency,
-                    freed_usd,
+                    f"    ✅ CONVERT SUCCESS: {units_to_liquidate:.6f} {currency} → {target_currency} (~${freed_usd:.2f})"
                 )
 
             trimmed_any = True
