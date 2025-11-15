@@ -201,10 +201,8 @@ class AlertService:
         if elapsed > self._config.dedupe_seconds:
             return False
         
-        # Don't dedupe if already escalated (we want visibility of ongoing issues)
-        if record.escalated:
-            return False
-        
+        # Dedupe all alerts within window, including escalated ones
+        # (escalation already provided visibility; no need to spam)
         return True
 
     def _should_escalate(self, fingerprint: str) -> bool:
