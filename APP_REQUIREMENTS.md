@@ -385,8 +385,8 @@ Attempting to run in LIVE without satisfying gates or without explicit confirmat
 The system **SHALL** prevent multiple concurrent trading loops.
 
 **Acceptance:**
-Starting two instances concurrently results in exactly one proceeding; the other exits with a “single-instance lock” message.
-**Status:** Implemented.
+Starting two instances concurrently results in exactly one proceeding; the other exits with a "single-instance lock" message.
+**Status:** ✅ Implemented (PID-based file lock in runner/main_loop.py).
 
 ---
 
