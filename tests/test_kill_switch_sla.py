@@ -94,11 +94,11 @@ def test_kill_switch_blocks_proposals_immediately(mock_lock, kill_switch_file, m
     proposal = TradeProposal(
         symbol="BTC-USD",
         side="BUY",
-        notional_pct=1.0,
+        size_pct=1.0,
+        reason="test_kill_switch",
+        confidence=0.8,
         stop_loss_pct=2.0,
         take_profit_pct=5.0,
-        conviction=0.8,
-        trigger_reasons=["test"],
     )
     
     result = loop.risk_engine.check_all(proposals=[proposal], portfolio=portfolio)
