@@ -2510,33 +2510,52 @@ class TradingLoop:
 
     def _auto_trim_to_risk_cap(self) -> bool:
         """Liquidate enough exposure to fall back under the global risk cap."""
+        
+        logger.info("🔧 TRIM STEP 1: Checking if auto-trim is needed...")
 
         pm_cfg = self.policy_config.get("portfolio_management", {})
         if not pm_cfg.get("auto_trim_to_risk_cap", False):
+            logger.debug("  ❌ Auto trim disabled in config (portfolio_management.auto_trim_to_risk_cap=false)")
             return False
 
         if self.mode == "DRY_RUN":
-            logger.debug("Auto trim skipped: DRY_RUN mode")
+            logger.debug("  ❌ Auto trim skipped: DRY_RUN mode")
             return False
+
+        logger.info("  ✅ Auto trim enabled, proceeding with checks")
 
         risk_cfg = self.policy_config.get("risk", {})
         max_total_at_risk = float(risk_cfg.get("max_total_at_risk_pct", 0.0) or 0.0)
+        logger.info(f"🔧 TRIM STEP 2: Loading risk cap from config: {max_total_at_risk:.1f}%")
+        
         if max_total_at_risk <= 0:
-            logger.debug("Auto trim skipped: invalid max_total_at_risk_pct")
+            logger.debug("  ❌ Auto trim skipped: invalid max_total_at_risk_pct")
             return False
 
         nav = float(self.portfolio.account_value_usd or 0.0)
+        logger.info(f"🔧 TRIM STEP 3: Calculating current exposure (NAV=${nav:.2f})")
+        
         if nav <= 0:
-            logger.debug("Auto trim skipped: no account value data")
+            logger.debug("  ❌ Auto trim skipped: no account value data")
             return False
 
         exposure_usd = self.portfolio.get_total_exposure_usd()
+        logger.info(f"  📊 Base exposure: ${exposure_usd:.2f}")
+        
         exposure_usd += self.portfolio.get_pending_notional_usd("buy")
+        logger.info(f"  📊 + Pending buys: ${self.portfolio.get_pending_notional_usd('buy'):.2f}")
+        
         exposure_pct = (exposure_usd / nav) * 100 if nav else 0.0
+        logger.info(f"  📊 Total exposure: ${exposure_usd:.2f} ({exposure_pct:.1f}%)")
 
         tolerance_pct = float(pm_cfg.get("trim_tolerance_pct", 0.25) or 0.0)
+        logger.info(f"🔧 TRIM STEP 4: Checking if over cap (cap={max_total_at_risk:.1f}%, tolerance={tolerance_pct:.2f}%)")
+        
         if exposure_pct <= max_total_at_risk + tolerance_pct:
+            logger.info(f"  ✅ Exposure {exposure_pct:.1f}% within cap {max_total_at_risk:.1f}% + tolerance {tolerance_pct:.2f}%, no trim needed")
             return False
+        
+        logger.warning(f"  ⚠️  Exposure {exposure_pct:.1f}% EXCEEDS cap {max_total_at_risk:.1f}% (tolerance={tolerance_pct:.2f}%), trim required")
 
         buffer_pct = float(pm_cfg.get("trim_target_buffer_pct", 1.0) or 0.0)
         target_pct = max(0.0, max_total_at_risk - buffer_pct)
