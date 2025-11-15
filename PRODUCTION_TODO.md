@@ -66,7 +66,7 @@ All 4 critical safety features implemented, tested, and production-ready:
 | ------ | ---- | ----- | ----- |
 | 🟢 Done | Fail-closed gating when critical data (accounts, quotes, orders) is unavailable. | N/A | `TradingLoop._abort_cycle_due_to_data` returns NO_TRADE. |
 
-| 🔴 TODO | Maintain canonical symbol mapping (`BTC-USD` vs `BTCUSD`) across modules. | TBD | Prevents mismatches between exchange and strategy layers. |
+| � Done | Maintain canonical symbol mapping (`BTC-USD` vs `BTCUSD`) across modules. | N/A | `infra.symbols` normalizes aliases (WBTC/XBT) and every consumer (state store, portfolio, risk) now reads canonical keys. |
 | � Done | Enforce UTC/monotonic time sanity, including explicit bar windowing. | N/A | All runtime modules now rely on timezone-aware `datetime.now(timezone.utc)`; final `datetime.utcnow()` instance removed from `tools/calculate_pnl.py`. |
 | 🟢 Done | **[BLOCKER #3]** Outlier/bad-tick guards before trigger evaluation. | N/A | TriggerEngine._validate_price_outlier() rejects deviations >10% without volume confirmation; prevents false breakouts; 15 tests in test_outlier_guards.py. See docs/OUTLIER_BAD_TICK_GUARDS.md. |
 | 🟢 Done | Abort cycle if partial snapshot detected during reconcile. | N/A | `_reconcile_exchange_state` raises `CriticalDataUnavailable`. |
