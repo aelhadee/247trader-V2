@@ -15,7 +15,7 @@ All 4 critical safety features implemented, tested, and production-ready:
 3. **✅ Outlier/Bad-Tick Guards** (15 tests) - Rejects price deviations >10% without volume confirmation to prevent false breakouts
 4. **✅ Environment Runtime Gates** (12 tests) - Enforces safety ladder (DRY_RUN → PAPER → LIVE) with explicit read_only validation
 
-**Total new tests:** 47 | **Total passing tests:** 178 | **Status:** Production-ready for LIVE trading scale-up
+**Total new tests:** 66 | **Total passing tests:** 197 | **Status:** Production-ready for LIVE trading scale-up
 
 **Documentation:**
 - `docs/EXCHANGE_STATUS_CIRCUIT_BREAKER.md`
