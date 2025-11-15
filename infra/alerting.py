@@ -191,24 +191,26 @@ class AlertService:
 
     def _should_dedupe(self, fingerprint: str) -> bool:
         """
-        Check if alert should be deduped (within 60s window from first occurrence).
+        Check if alert should be deduped.
         
-        Uses fixed window from first_seen, not sliding window from last_seen.
-        This means alerts are deduped for 60s after first occurrence, then
-        window resets and next alert goes through.
+        Dedupes if:
+        1) Within 60s window from first_seen (standard dedupe), OR
+        2) Already escalated (keep deduping until resolved - escalation provided visibility)
         """
         if fingerprint not in self._alert_history:
             return False
         
         record = self._alert_history[fingerprint]
-        elapsed = time.monotonic() - record.first_seen
         
-        # Don't dedupe if outside window (window expired, will reset on next _record_alert)
+        # Once escalated, keep deduping (escalation already provided visibility)
+        if record.escalated:
+            return True
+        
+        # Standard 60s dedupe window
+        elapsed = time.monotonic() - record.first_seen
         if elapsed > self._config.dedupe_seconds:
             return False
         
-        # Dedupe all alerts within window, including escalated ones
-        # (escalation already provided visibility; no need to spam)
         return True
 
     def _should_escalate(self, fingerprint: str) -> bool:
