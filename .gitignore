@@ -26,7 +26,7 @@ share/python-wheels/
 *.egg
 MANIFEST
 
-reference_code/
+reference_code_ignore_unless_directed_to/
 # Virtual environment
 .venv/
 venv/

@@ -12,6 +12,25 @@ clear
 set -e  # Exit on error
 set -u  # Exit on undefined variable
 export CB_API_SECRET_FILE="/Users/ahmed/coding-stuff/trader/cb_api.json"
+
+# Kill existing instances before starting (prevents instance lock errors)
+if [ -f "data/247trader-v2.pid" ]; then
+    OLD_PID=$(cat data/247trader-v2.pid)
+    if ps -p $OLD_PID > /dev/null 2>&1; then
+        echo "🔄 Stopping existing instance (PID: $OLD_PID)..."
+        kill -2 $OLD_PID 2>/dev/null || true
+        sleep 3
+        # Force kill if still running
+        if ps -p $OLD_PID > /dev/null 2>&1; then
+            echo "⚠️  Force stopping instance..."
+            kill -9 $OLD_PID 2>/dev/null || true
+            sleep 1
+        fi
+        echo "✅ Previous instance stopped"
+    fi
+    # Clean up stale PID file
+    rm -f data/247trader-v2.pid
+fi
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
