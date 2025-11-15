@@ -619,19 +619,3 @@ To be populated in CI:
   * Stay within **per-strategy + global risk caps**.
 * Close the **Partial/Planned** items (especially kill-switch, pending exposure, cooldowns, retry/backoff, and telemetry) before putting real money at scale behind it.
 
-
-Kill switch status drift – APP_REQUIREMENTS.md (lines 79-82) still labels REQ‑K1 “Partial”, yet the code paths are already wired end-to-end: the risk engine blocks trading and fires alerts when data/KILL_SWITCH exists (core/risk.py (lines 997-1017)), the main loop surfaces the flag via the governance config (runner/main_loop.py (lines 462-485)), and the “Critical Gaps Fixed” write-up documents the completed alert wiring (docs/CRITICAL_GAPS_FIXED.md (lines 94-129)).
-Pending exposure actually enforced – REQ‑E2 is marked “Partial” in APP_REQUIREMENTS.md (lines 88-90), but the automated tests cover all combinations of portfolio exposure plus working orders, including exchange open-order fallbacks (tests/test_pending_exposure.py (lines 53-217)). The same suite hydrates pending orders from persisted state, so the acceptance criteria are already satisfied.
-Fee-aware sizing implemented – REQ‑X3 remains “Partial” in APP_REQUIREMENTS.md (lines 118-124), even though the execution engine provides dedicated helpers for gross/net sizing with maker/taker fees (core/execution.py (lines 423-468)) and regression tests verify the fill math and quote reconciliation (tests/test_execution_fill_math.py (lines 1-92)).
-Retry/backoff listed as “Planned” – REQ‑CB1 is still “Planned” in APP_REQUIREMENTS.md (lines 175-179), but the Coinbase connector already performs exponential backoff with jitter for 429/5xx/network faults and skips non-idempotent errors (core/exchange_coinbase.py (lines 278-395)), and the production-readiness report explicitly calls this requirement implemented (docs/PRODUCTION_READINESS_FINAL.md (lines 31-59)).
-Newly discovered gaps missing – The latest readiness assessment highlights risks such as naive datetime usage, lack of operational observability, incomplete alert matrix, and documentation drift (docs/PRODUCTION_READINESS_FINAL.md (lines 14-27)). None of those appear in the requirements’ “Known Gaps” (§9), so the doc isn’t reflecting the current go/no-go gates.
-Next steps
-
-Reconcile APP_REQUIREMENTS.md with the live implementation/tests, updating each REQ status and the RTM to match the verified evidence above.
-Extend §9/§10 to incorporate the newer audit findings (datetime handling, observability, alert coverage) so the requirements remain a reliable single source of truth.
-
-
-
-
-
-
