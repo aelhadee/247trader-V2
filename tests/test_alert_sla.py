@@ -366,7 +366,7 @@ class TestAlertHistoryManagement:
     
     def test_alert_history_records_occurrences(self, alert_service):
         """Verify alert history tracks multiple occurrences."""
-        with patch('time.monotonic', side_effect=[0.0, 10.0, 20.0, 30.0]):
+        with patch('time.monotonic', create_time_sequence(0.0, 10.0, 20.0, 30.0)):
             for i in range(4):
                 alert_service.notify(
                     severity=AlertSeverity.INFO,
