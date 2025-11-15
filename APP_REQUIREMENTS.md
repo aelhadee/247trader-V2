@@ -327,7 +327,7 @@ Retries **SHALL NOT** create duplicate live orders on Coinbase.
 
 **Acceptance:**
 Replay a retry storm; exchange shows only one active order per intended order, with retries mapping to the same client ID.
-**Status:** Implemented.
+**Status:** ✅ Implemented (ExecutionEngine.generate_client_order_id creates SHA256-based deterministic IDs with minute granularity; StateStore deduplication; 8 tests in test_client_order_ids.py).
 
 ---
 
