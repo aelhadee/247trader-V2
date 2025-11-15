@@ -29,7 +29,8 @@ def test_universe_building():
     """Test universe manager"""
     from core.universe import UniverseManager
     
-    mgr = UniverseManager(config_path="config/universe.yaml")
+    # Use classmethod for backward compatibility with config_path API
+    mgr = UniverseManager.from_config_path("config/universe.yaml")
     snapshot = mgr.get_universe(regime="chop")
     
     assert snapshot.total_eligible > 0, "No eligible assets found"
