@@ -1,0 +1,91 @@
+MIT License
+
+Copyright (c) 2025 247trader-v2
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+## DISCLAIMER
+
+**IMPORTANT NOTICE: TRADING RISK DISCLOSURE**
+
+This software is an automated cryptocurrency trading system. Cryptocurrency 
+trading involves substantial risk of loss and is not suitable for every investor.
+
+**BY USING THIS SOFTWARE, YOU ACKNOWLEDGE AND AGREE THAT:**
+
+1. **NO WARRANTY**: The software is provided "AS IS" without warranty of any kind.
+   There is no guarantee of profit or protection against loss.
+
+2. **TRADING RISKS**: Cryptocurrency markets are highly volatile. You can lose 
+   some or all of your invested capital. Past performance does not guarantee 
+   future results.
+
+3. **FINANCIAL RESPONSIBILITY**: You are solely responsible for:
+   - All trading decisions and their outcomes
+   - Understanding the risks before deploying capital
+   - Compliance with applicable laws and regulations
+   - Proper configuration, testing, and monitoring
+   - All financial losses incurred
+
+4. **NO FINANCIAL ADVICE**: This software does not provide financial, investment,
+   legal, or tax advice. Consult qualified professionals before trading.
+
+5. **TECHNICAL RISKS**: Automated trading systems may experience:
+   - Software bugs or failures
+   - Network connectivity issues
+   - Exchange API errors or rate limits
+   - Unexpected market conditions
+   - Configuration errors
+
+6. **REGULATORY COMPLIANCE**: Users are responsible for compliance with all 
+   applicable laws, regulations, and exchange terms of service in their 
+   jurisdiction.
+
+7. **NO LIABILITY**: The authors, contributors, and copyright holders shall not
+   be liable for any direct, indirect, incidental, special, exemplary, or 
+   consequential damages (including but not limited to procurement of substitute
+   goods or services; loss of use, data, or profits; or business interruption)
+   however caused and on any theory of liability, whether in contract, strict
+   liability, or tort (including negligence or otherwise) arising in any way
+   out of the use of this software, even if advised of the possibility of such
+   damage.
+
+8. **TESTING REQUIRED**: Users must thoroughly test the system in paper trading
+   or simulation mode before deploying real capital. Start with minimal capital
+   and scale gradually based on proven performance.
+
+9. **MONITORING REQUIRED**: Automated trading requires continuous monitoring.
+   Never deploy this software without proper oversight, risk controls, and
+   kill-switch mechanisms.
+
+10. **ACCEPTANCE OF RISK**: By using this software, you explicitly accept all
+    risks associated with automated cryptocurrency trading and agree to hold
+    harmless all authors, contributors, and copyright holders.
+
+**IF YOU DO NOT ACCEPT THESE TERMS, DO NOT USE THIS SOFTWARE.**
+
+---
+
+## Commercial Use
+
+For commercial deployment, consulting, or enterprise licensing, contact the
+copyright holder to discuss appropriate licensing terms, support agreements,
+and liability coverage.

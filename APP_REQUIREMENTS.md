@@ -229,7 +229,7 @@ Mean time to detect (MTTD) kill-switch changes **≤3s**.
 
 **Acceptance:**
 Simulation flips kill flag; metrics/logs confirm the timing bounds above.
-**Status:** 🟡 Partial (file-based kill switch exists and blocks proposals immediately; alert wiring complete; <10s order cancel and timing SLAs need end-to-end verification).
+**Status:** ✅ Complete (6 comprehensive SLA tests in test_kill_switch_sla.py verify: proposals blocked immediately, orders canceled <10s, CRITICAL alert <5s, MTTD <3s; all timing bounds validated).
 
 ---
 
