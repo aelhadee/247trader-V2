@@ -114,7 +114,7 @@ position_sizing:
   allow_pyramiding: false  # Aligned with risk.allow_pyramiding=false (conservative profile)
   max_pyramid_positions: 0  # Pyramiding disabled
 liquidity:
-  min_24h_volume_usd: 8000000
+  min_24h_volume_usd: 5000000  # Reduced from $8M to $5M (global fallback)
   max_spread_bps: 80
   min_depth_20bps_usd: 10000
   require_depth_mult: 10
