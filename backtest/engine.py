@@ -169,7 +169,10 @@ class BacktestEngine:
         with open(self.config_dir / "policy.yaml") as f:
             self.policy_config = yaml.safe_load(f)
         
-        self.universe_mgr = UniverseManager(self.config_dir / "universe.yaml")
+        with open(self.config_dir / "universe.yaml") as f:
+            universe_config = yaml.safe_load(f)
+        
+        self.universe_mgr = UniverseManager(universe_config)
         self.trigger_engine = TriggerEngine()
         self.regime_detector = RegimeDetector()
         self.rules_engine = RulesEngine(config={})
