@@ -1161,6 +1161,109 @@ class StateStore:
         state["latency_stats"] = latency_data
         self.save(state)
     
+    def flag_asset_red_flag(self, symbol: str, reason: str, ban_hours: int = 168) -> None:
+        """
+        Flag an asset with a red flag (scam, exploit, regulatory action, etc.).
+        Bans the asset from trading for the specified duration.
+        
+        Args:
+            symbol: Asset symbol (e.g., "PUMP-USD")
+            reason: Red flag reason (e.g., "recent_exploit", "team_rug")
+            ban_hours: Ban duration in hours (default 168 = 7 days)
+        """
+        state = self.load()
+        red_flag_bans = state.get("red_flag_bans", {})
+        
+        now = datetime.now(timezone.utc)
+        expires_at = now + timedelta(hours=ban_hours)
+        
+        red_flag_bans[symbol] = {
+            "reason": reason,
+            "banned_at_iso": now.isoformat(),
+            "expires_at_iso": expires_at.isoformat(),
+        }
+        
+        state["red_flag_bans"] = red_flag_bans
+        self.save(state)
+        
+        logger.warning(
+            f"🚩 RED FLAG: {symbol} banned for {ban_hours}h (reason: {reason}, expires: {expires_at.isoformat()})"
+        )
+    
+    def get_red_flag_banned_symbols(self) -> Dict[str, Dict[str, str]]:
+        """
+        Get all currently banned symbols (red flags).
+        Auto-expires bans that have passed their expiration time.
+        
+        Returns:
+            Dict of symbol -> {reason, banned_at_iso, expires_at_iso}
+        """
+        state = self.load()
+        red_flag_bans = state.get("red_flag_bans", {})
+        
+        if not red_flag_bans:
+            return {}
+        
+        # Clean expired bans
+        now = datetime.now(timezone.utc)
+        expired = []
+        
+        for symbol, ban_info in list(red_flag_bans.items()):
+            try:
+                expires_at = datetime.fromisoformat(ban_info["expires_at_iso"])
+                if expires_at <= now:
+                    expired.append(symbol)
+            except (KeyError, ValueError, TypeError):
+                # Malformed ban entry, remove it
+                expired.append(symbol)
+        
+        if expired:
+            for symbol in expired:
+                del red_flag_bans[symbol]
+            state["red_flag_bans"] = red_flag_bans
+            self.save(state)
+            logger.info(f"Cleared expired red flag bans: {expired}")
+        
+        return red_flag_bans
+    
+    def is_red_flag_banned(self, symbol: str) -> Tuple[bool, Optional[str]]:
+        """
+        Check if a symbol is currently red-flag banned.
+        
+        Args:
+            symbol: Asset symbol to check
+            
+        Returns:
+            (is_banned, reason) tuple
+        """
+        banned_symbols = self.get_red_flag_banned_symbols()
+        if symbol in banned_symbols:
+            ban_info = banned_symbols[symbol]
+            return True, ban_info.get("reason", "unknown")
+        return False, None
+    
+    def clear_red_flag_ban(self, symbol: str) -> bool:
+        """
+        Manually clear a red flag ban for a symbol.
+        
+        Args:
+            symbol: Asset symbol to unban
+            
+        Returns:
+            True if ban was cleared, False if symbol wasn't banned
+        """
+        state = self.load()
+        red_flag_bans = state.get("red_flag_bans", {})
+        
+        if symbol in red_flag_bans:
+            del red_flag_bans[symbol]
+            state["red_flag_bans"] = red_flag_bans
+            self.save(state)
+            logger.info(f"Cleared red flag ban for {symbol}")
+            return True
+        
+        return False
+
     def get_latency_stats(self) -> Dict[str, Any]:
         """
         Get latency statistics from state.
