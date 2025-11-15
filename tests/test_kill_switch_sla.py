@@ -215,7 +215,7 @@ def test_kill_switch_cancel_timing_sla(mock_lock, kill_switch_file, mock_exchang
     )
     
     # Inject orders into OrderStateMachine
-    loop.executor.order_state_machine._orders = {
+    loop.executor.order_state_machine.orders = {
         "test_order_1": mock_order_1,
         "test_order_2": mock_order_2,
     }
