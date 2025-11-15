@@ -62,13 +62,25 @@ def _build_engine(exchange: Mock, ttl_seconds: int = 1) -> ExecutionEngine:
 def _patch_time(monkeypatch: pytest.MonkeyPatch, sequence: list[float]) -> None:
     """Patch time.monotonic to return deterministic values and disable sleep."""
 
+    if not sequence:
+        raise ValueError("sequence must include at least one timestamp")
+
     values = iter(sequence)
+    last_value = sequence[-1]
+    if len(sequence) >= 2:
+        default_step = sequence[-1] - sequence[-2]
+    else:
+        default_step = 0.5
+    if default_step <= 0:
+        default_step = 0.5
 
     def fake_monotonic() -> float:
+        nonlocal last_value
         try:
-            return next(values)
+            last_value = next(values)
         except StopIteration:
-            return sequence[-1]
+            last_value += default_step
+        return last_value
 
     monkeypatch.setattr("core.execution.time.monotonic", fake_monotonic)
     monkeypatch.setattr("core.execution.time.sleep", lambda _x: None)
