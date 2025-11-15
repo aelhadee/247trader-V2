@@ -222,7 +222,7 @@ class StrategyRegistry:
             for name, strategy in self.strategies.items()
         }
     
-    def generate_proposals(self, context: StrategyContext) -> Dict[str, List[TradeProposal]]:
+    def generate_proposals(self, context: StrategyContext) -> Dict[str, List[Any]]:
         """
         Generate proposals from all enabled strategies.
         
