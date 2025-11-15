@@ -68,24 +68,59 @@ class MockStrategy(BaseStrategy):
 
 
 @pytest.fixture
+def temp_config():
+    """Create a temporary strategies.yaml for testing"""
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        config = {
+            "strategies": {
+                "rules_engine": {
+                    "enabled": True,
+                    "type": "rules_engine",
+                    "description": "Baseline rules engine for testing",
+                    "risk_budgets": {
+                        "max_at_risk_pct": 15.0,
+                        "max_trades_per_cycle": 10
+                    },
+                    "params": {}
+                }
+            }
+        }
+        yaml.dump(config, f)
+        temp_path = Path(f.name)
+    
+    yield temp_path
+    
+    # Cleanup
+    try:
+        temp_path.unlink()
+    except:
+        pass
+
+
+@pytest.fixture
 def mock_context():
-    """Create mock StrategyContext for testing."""
-    # Create mock assets
+    """Create a mock strategy context with test data"""
+    
+    # Create 20 test assets across tiers
     assets = [
         UniverseAsset(
-            symbol=f"SYMBOL{i}-USD",
+            symbol=f"ASSET{i}-USD",
             tier=1 if i < 5 else (2 if i < 15 else 3),
-            allocation_min_pct=1.0,
-            allocation_max_pct=10.0,
-            volume_24h=1000000,
-            spread_bps=10,
-            depth_usd=50000,
-            eligible=True
+            precision=2,
+            min_size=0.01,
+            lot_size=0.01,
+            min_notional=10.0,
+            current_price=100.0 + i,
+            volume_24h=1_000_000 + (i * 100_000),
+            spread_bps=10.0,
+            depth_bid_usd=50_000,
+            depth_ask_usd=50_000,
+            timestamp=datetime.now(timezone.utc)
         )
         for i in range(20)
     ]
     
-    # Create mock triggers
+    # Create trigger signals
     triggers = [
         TriggerSignal(
             symbol=asset.symbol,
@@ -97,14 +132,14 @@ def mock_context():
             current_price=100.0,
             volatility=0.3
         )
-        for i, asset in enumerate(assets)
+        for asset in assets
     ]
     
-    # Create mock universe
+    # Create universe snapshot
     universe = UniverseSnapshot(
-        tier_1_assets=[a for a in assets if a.tier == 1],
-        tier_2_assets=[a for a in assets if a.tier == 2],
-        tier_3_assets=[a for a in assets if a.tier == 3],
+        tier_1_assets=assets[:5],
+        tier_2_assets=assets[5:15],
+        tier_3_assets=assets[15:],
         excluded_assets=[],
         total_eligible=20,
         timestamp=datetime.now(timezone.utc),
@@ -117,7 +152,8 @@ def mock_context():
         regime="normal",
         timestamp=datetime.now(timezone.utc),
         cycle_number=1,
-        state={}
+        state={},
+        risk_constraints=None
     )
 
 
