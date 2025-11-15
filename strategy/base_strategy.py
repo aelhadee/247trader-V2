@@ -144,7 +144,7 @@ class BaseStrategy(ABC):
         """
         pass
     
-    def validate_proposals(self, proposals: List[TradeProposal]) -> List[TradeProposal]:
+    def validate_proposals(self, proposals: List[Any]) -> List[Any]:
         """
         Validate proposals before returning.
         
