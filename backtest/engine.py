@@ -475,26 +475,58 @@ class BacktestEngine:
             self._close_trade(trade, exit_time, reason, data_loader)
     
     def _close_trade(self, trade: Trade, exit_time: datetime, reason: str, data_loader):
-        """Close a trade"""
-        exit_price = self._get_current_price(trade.symbol, exit_time, data_loader)
-        if exit_price is None:
-            exit_price = trade.entry_price  # Fallback
+        """Close a trade with realistic slippage and fees"""
+        mid_price = self._get_current_price(trade.symbol, exit_time, data_loader)
+        if mid_price is None:
+            mid_price = trade.entry_price  # Fallback
         
-        trade.exit_price = exit_price
+        # Get asset tier
+        asset = self.universe_mgr.get_asset_by_symbol(trade.symbol)
+        tier = getattr(asset, "tier", "tier2") if asset else "tier2"
+        
+        # Calculate exit side (opposite of entry)
+        exit_side = "sell" if trade.side == "BUY" else "buy"
+        
+        # Calculate realistic fill price for exit
+        quantity = trade.size_usd / trade.entry_price
+        exit_fill_price = self.slippage_model.calculate_fill_price(
+            mid_price=mid_price,
+            side=exit_side,
+            tier=tier,
+            order_type="taker",
+            notional_usd=trade.size_usd
+        )
+        
+        trade.exit_price = exit_fill_price
         trade.exit_time = exit_time
         trade.exit_reason = reason
         
-        # Calculate PnL
+        # Calculate PnL with realistic fees on both entry and exit
+        # Note: entry_price already includes entry slippage/fees from _execute_proposal
         if trade.side == "BUY":
-            trade.pnl_pct = ((exit_price - trade.entry_price) / trade.entry_price) * 100
-        else:  # SELL (short)
-            trade.pnl_pct = ((trade.entry_price - exit_price) / trade.entry_price) * 100
+            # For buy-then-sell: bought at entry_price (with slippage), selling at exit_fill_price (with slippage)
+            pnl_usd, pnl_pct, total_fees = self.slippage_model.calculate_pnl(
+                entry_price=trade.entry_price,
+                exit_price=exit_fill_price,
+                quantity=quantity,
+                entry_order_type="taker",
+                exit_order_type="taker"
+            )
+        else:  # SHORT (not implemented in production but keep logic)
+            pnl_usd, pnl_pct, total_fees = self.slippage_model.calculate_pnl(
+                entry_price=exit_fill_price,  # Reversed for short
+                exit_price=trade.entry_price,
+                quantity=quantity,
+                entry_order_type="taker",
+                exit_order_type="taker"
+            )
         
-        trade.pnl_usd = (trade.pnl_pct / 100.0) * trade.size_usd
+        trade.pnl_usd = pnl_usd
+        trade.pnl_pct = pnl_pct
         
         # Update capital
-        self.capital += trade.pnl_usd
-        self.daily_pnl += trade.pnl_usd
+        self.capital += pnl_usd
+        self.daily_pnl += pnl_usd
         
         # Update loss streak
         if trade.pnl_usd < 0:
