@@ -62,20 +62,37 @@ regime:
     position_size_multiplier: 0.0
   enabled: true
 risk:
-  cooldown_after_loss_trades: 4
-  cooldown_minutes: 90
-  daily_stop_pnl_pct: -3.0
-  max_drawdown_pct: 10.0
+  max_total_at_risk_pct: 95.0
+  max_position_size_pct: 7.0
+  max_per_asset_pct: 7.0
+  min_position_size_pct: 0.5
+  max_open_positions: 12
   max_per_theme_pct:
     DEFI: 10.0
     L2: 10.0
     MEME: 5.0
-  max_position_size_pct: 5.0
-  max_total_at_risk_pct: 15.0
-  max_trades_per_day: 10
-  max_trades_per_hour: 4
-  min_position_size_pct: 0.5
-  min_trade_notional_usd: 100
+  daily_stop_pnl_pct: -3.0
+  weekly_stop_pnl_pct: -7.0
+  max_drawdown_pct: 10.0
+  max_trades_per_day: 40
+  max_trades_per_hour: 8
+  max_new_trades_per_hour: 8
+  min_seconds_between_trades: 120
+  per_symbol_trade_spacing_seconds: 600
+  cooldown_after_loss_trades: 3
+  cooldown_minutes: 60
+  per_symbol_cooldown_enabled: true
+  per_symbol_cooldown_minutes: 30
+  per_symbol_cooldown_after_stop: 60
+  min_trade_notional_usd: 15
+  dust_threshold_usd: 10.0
+  allow_adds_when_over_cap: true
+  count_open_orders_in_cap: true
+  count_external_positions: false
+  managed_position_tag: "247trader"
+  external_exposure_buffer_pct: 5.0
+  allow_pyramiding: true
+  pyramid_cooldown_seconds: 300
+  max_adds_per_asset_per_day: 2
   stop_loss_pct: 8.0
   take_profit_pct: 15.0
-  weekly_stop_pnl_pct: -7.0
