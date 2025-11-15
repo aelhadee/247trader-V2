@@ -2958,16 +2958,17 @@ class TradingLoop:
         configured_interval = float(interval_seconds) if interval_seconds else (self.loop_interval_seconds or 60.0)
         configured_interval = max(configured_interval, 1.0)
 
-        logger.info(f"Starting continuous loop (interval={configured_interval}s)")
+        logger.info(f"Starting continuous loop (interval={configured_interval}s, jitter={self.loop_jitter_pct:.1f}%)")
         
         while self._running:
             start = time.monotonic()
             self.run_cycle()
             elapsed = time.monotonic() - start
             
-            # Add ±10% jitter to avoid synchronized bursts
+            # Apply jitter (REQ-SCH1): randomize sleep to prevent lockstep behavior
             import random
-            jitter = random.uniform(-0.1, 0.1) * configured_interval
+            jitter_factor = self.loop_jitter_pct / 100.0  # Convert percentage to decimal
+            jitter = random.uniform(0, jitter_factor) * configured_interval  # 0 to jitter_pct%
             base_sleep = configured_interval - elapsed
             sleep_for = max(1.0, base_sleep + jitter)
             
@@ -2978,7 +2979,28 @@ class TradingLoop:
                 sleep_for += backoff
                 logger.warning(f"High cycle utilization ({utilization:.1%}), adding {backoff}s backoff")
             
-            logger.info(f"Cycle took {elapsed:.2f}s, sleeping {sleep_for:.2f}s (util: {utilization:.1%})")
+            # Track jitter telemetry
+            actual_interval = elapsed + sleep_for
+            jitter_applied_pct = (jitter / configured_interval) * 100.0
+            
+            logger.info(
+                f"Cycle took {elapsed:.2f}s, sleeping {sleep_for:.2f}s "
+                f"(util: {utilization:.1%}, jitter: +{jitter_applied_pct:.1f}%, total: {actual_interval:.1f}s)"
+            )
+            
+            # Store jitter telemetry in state for monitoring
+            try:
+                state = self.state_store.load()
+                jitter_stats = state.get("jitter_stats", {})
+                jitter_stats["last_jitter_pct"] = jitter_applied_pct
+                jitter_stats["last_sleep_seconds"] = sleep_for
+                jitter_stats["last_cycle_seconds"] = elapsed
+                jitter_stats["last_total_interval"] = actual_interval
+                state["jitter_stats"] = jitter_stats
+                self.state_store.save(state)
+            except Exception as e:
+                logger.debug(f"Failed to save jitter stats: {e}")
+            
             time.sleep(sleep_for)
         
         logger.info("Trading loop stopped cleanly.")
