@@ -53,14 +53,10 @@ class TradingLoop:
     - Coordinate core modules
     - Output structured summaries
     - Handle errors gracefully
-            with self._stage_timer("pending_purge"):
-                self.state_store.purge_expired_pending()
-    
+    """
+
     def __init__(self, config_dir: str = "config"):
         self.config_dir = Path(config_dir)
-        
-            with self._stage_timer("state_reconcile"):
-                self._reconcile_exchange_state()
         from tools.config_validator import validate_all_configs
         validation_errors = validate_all_configs(config_dir)
         if validation_errors:
@@ -72,9 +68,6 @@ class TradingLoop:
                 if not lines:
                     continue
                 logger.error(f"{idx:>2}. {lines[0]}")
-            with self._stage_timer("order_reconcile"):
-                self.executor.reconcile_open_orders()
-                self.state_store.purge_expired_pending()
             logger.error("=" * 80)
             raise ValueError(f"Invalid configuration: {len(validation_errors)} error(s) found")
         
