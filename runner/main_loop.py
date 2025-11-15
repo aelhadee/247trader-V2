@@ -100,6 +100,10 @@ class TradingLoop:
 
         self.loop_interval_seconds = float(interval_seconds) if interval_seconds else None
         
+        # Jitter configuration (REQ-SCH1: prevent lockstep behavior)
+        jitter_pct = loop_policy_cfg.get("jitter_pct", 10.0)  # Default 10%
+        self.loop_jitter_pct = max(0.0, min(float(jitter_pct), 20.0))  # Clamp 0-20%
+        
         # Mode & safety
         self.mode = self.app_config.get("app", {}).get("mode", "DRY_RUN").upper()
         allowed_modes = {"DRY_RUN", "PAPER", "LIVE"}
