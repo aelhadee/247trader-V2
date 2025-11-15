@@ -91,24 +91,25 @@ class CoinbaseExchange:
     def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None,
                  read_only: bool = True, metrics: Optional["MetricsRecorder"] = None,
                  latency_tracker: Optional["LatencyTracker"] = None):
-        # Load credentials from JSON file if available
-        secret_file = os.getenv("CB_API_SECRET_FILE")
-        if secret_file and os.path.exists(secret_file) and not api_key:
-            try:
-                with open(secret_file, 'r') as f:
-                    creds = json.load(f)
-                    api_key = creds.get("name")
-                    api_secret = creds.get("privateKey", "").replace("\\n", "\n")
-                    logger.info(f"Loaded Coinbase credentials from {secret_file}")
-            except Exception as e:
-                logger.warning(f"Failed to load credentials from {secret_file}: {e}")
+        # SECURITY: Credentials MUST come from environment variables or parameters only.
+        # File-based credential loading removed for security hardening.
+        # Set CB_API_KEY and CB_API_SECRET environment variables before starting.
         
-        self.api_key = api_key or os.getenv("COINBASE_API_KEY", "")
-        secret_raw = (api_secret or os.getenv("COINBASE_API_SECRET", "")).replace("\\n", "\n").strip()
+        # Load from parameters first, then environment variables
+        self.api_key = api_key or os.getenv("CB_API_KEY") or os.getenv("COINBASE_API_KEY", "")
+        secret_raw = (api_secret or os.getenv("CB_API_SECRET") or os.getenv("COINBASE_API_SECRET", "")).replace("\\n", "\n").strip()
         self.api_secret = secret_raw
         self.read_only = read_only
         self.metrics = metrics
         self.latency_tracker = latency_tracker
+        
+        # Validate credentials for non-read-only modes
+        if not read_only:
+            if not self.api_key or not self.api_secret:
+                raise ValueError(
+                    "LIVE mode requires credentials. Set CB_API_KEY and CB_API_SECRET environment variables. "
+                    "For read-only mode, pass read_only=True to bypass this check."
+                )
         
         # Authentication mode
         self._mode = "hmac"
