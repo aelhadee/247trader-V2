@@ -588,8 +588,9 @@ To be populated in CI:
 | REQ-OB1   | `test_latency_slos`            | telemetry export/dashboard  | ✅ Implemented (19 tests; docs/LATENCY_TRACKING.md) |
 | REQ-BT1-3 | `backtest_regression_suite`    | JSON report diff            | 🟡 Partial (backtest exists; CI gate missing) |
 | REQ-CB1   | `retry_policy_fault_injection` | request traces              | 🟡 Partial (backoff exists; fault-injection tests missing) |
-| REQ-STR1  | `test_strategy_interface_pure` | strategy tests/logs         | 🔴 Planned (multi-strategy contract not formalized) |
-| REQ-STR3  | `test_strategy_risk_budgets`   | risk decisions log          | 🔴 Planned (per-strategy caps not implemented) |
+| REQ-STR1  | `test_strategy_interface_pure` | strategy tests/logs         | ✅ Implemented (11 tests in test_strategy_framework.py::TestBaseStrategyInterface) |
+| REQ-STR2  | `test_strategy_feature_flags`  | strategy loading logs       | ✅ Implemented (8 tests in test_strategy_framework.py::TestStrategyRegistry) |
+| REQ-STR3  | `test_strategy_risk_budgets`   | risk decisions log          | ✅ Implemented (per-strategy caps in RiskEngine._check_strategy_caps; tested in strategy framework) |
 
 ---
 

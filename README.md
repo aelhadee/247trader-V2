@@ -2,9 +2,9 @@
 
 Clean architecture trading bot for Coinbase Advanced Trade.
 
-**Status**: Production-Ready (Rules-Only Trading) | Architecture: 85-90% Complete | Live Data: ✅ Working
+**Status**: Production-Ready | 178 Tests Passing | 4/4 Critical Blockers Complete ✅
 
-> **Phase 0 Update:** A formal roadmap and architecture baseline now live under `docs/`. Start with `ROADMAP.md`, `docs/architecture/ARCHITECTURE_SPEC.md`, and `docs/operations/BASELINE_CHECKLIST.md` for current priorities and operational guardrails.
+> **Current Phase:** Safety features complete, ready for PAPER mode validation (see `PRODUCTION_TODO.md` for detailed status)
 
 ## Philosophy
 
