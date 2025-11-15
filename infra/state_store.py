@@ -1148,6 +1148,27 @@ class StateStore:
             f"Updated {normalized} targets: SL={stop_loss_pct}%, TP={take_profit_pct}%, "
             f"max_hold={max_hold_hours}h"
         )
+    
+    def update_latency_stats(self, latency_data: Dict[str, Any]) -> None:
+        """
+        Update latency statistics in state.
+        
+        Args:
+            latency_data: Dict from LatencyTracker.to_state_dict()
+        """
+        state = self.load()
+        state["latency_stats"] = latency_data
+        self.save(state)
+    
+    def get_latency_stats(self) -> Dict[str, Any]:
+        """
+        Get latency statistics from state.
+        
+        Returns:
+            Latency stats dict
+        """
+        state = self.load()
+        return state.get("latency_stats", {})
 
 
 # Singleton instance
