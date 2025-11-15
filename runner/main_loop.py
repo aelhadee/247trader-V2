@@ -2581,7 +2581,7 @@ class TradingLoop:
             # Emit counter for monitoring
             if hasattr(self, '_trim_skip_counter'):
                 self._trim_skip_counter = getattr(self, '_trim_skip_counter', 0) + 1
-                threshold = self.policy.get("portfolio_management", {}).get("max_trim_failures_before_alert", 3)
+                threshold = self.policy_config.get("portfolio_management", {}).get("max_trim_failures_before_alert", 3)
                 if self._trim_skip_counter >= threshold:
                     logger.error(
                         f"Auto trim failed {self._trim_skip_counter} consecutive times with {exposure_pct:.1f}% exposure. "
@@ -2594,13 +2594,13 @@ class TradingLoop:
                             title="Auto-Trim Failure Escalation",
                             message=(
                                 f"Auto-trim failed {self._trim_skip_counter} consecutive times with "
-                                f"{exposure_pct:.1f}% exposure vs {self.policy['risk']['max_total_at_risk_pct']:.1f}% cap. "
+                                f"{exposure_pct:.1f}% exposure vs {self.policy_config['risk']['max_total_at_risk_pct']:.1f}% cap. "
                                 f"Manual intervention required: inject capital or liquidate positions manually."
                             ),
                             context={
                                 "consecutive_failures": self._trim_skip_counter,
                                 "current_exposure_pct": exposure_pct,
-                                "exposure_cap_pct": self.policy['risk']['max_total_at_risk_pct'],
+                                "exposure_cap_pct": self.policy_config['risk']['max_total_at_risk_pct'],
                                 "excess_usd": excess_usd,
                             }
                         )
