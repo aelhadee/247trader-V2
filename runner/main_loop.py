@@ -1450,14 +1450,30 @@ class TradingLoop:
             
             logger.info(f"Triggers: {len(triggers)} detected")
             
-            # Step 3: Generate trade proposals
-            logger.info("Step 3: Generating trade proposals...")
+            # Step 3: Generate trade proposals (multi-strategy framework)
+            logger.info("Step 3: Generating trade proposals from enabled strategies...")
             with self._stage_timer("rules_engine"):
-                proposals = self.rules_engine.propose_trades(
+                # Build StrategyContext for all strategies
+                from strategy.base_strategy import StrategyContext
+                from datetime import timezone
+                strategy_context = StrategyContext(
                     universe=universe,
                     triggers=triggers,
-                    regime=self.current_regime
+                    regime=self.current_regime,
+                    timestamp=cycle_started.replace(tzinfo=timezone.utc) if cycle_started.tzinfo is None else cycle_started,
+                    cycle_number=self.portfolio.cycle_count + 1,
+                    state=self.state_store.load(),
                 )
+                
+                # Generate proposals from all enabled strategies (REQ-STR1-2)
+                proposals = self.strategy_registry.aggregate_proposals(
+                    context=strategy_context,
+                    dedupe_by_symbol=True  # Keep highest confidence per symbol
+                )
+                
+                # Log per-strategy breakdown
+                enabled_strategies = self.strategy_registry.get_enabled_strategies()
+                logger.info(f"Active strategies: {[s.name for s in enabled_strategies]}")
             proposals_count = len(proposals or [])
             
             if not proposals:
