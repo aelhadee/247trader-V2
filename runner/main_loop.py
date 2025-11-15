@@ -1662,11 +1662,20 @@ class TradingLoop:
             if not risk_result.approved or not risk_result.approved_proposals:
                 reason = risk_result.reason or "all_proposals_blocked_by_risk"
                 
+                # Record no-trade reason for metrics
+                self.metrics.record_no_trade_reason(reason)
+                
                 # Check if this was a circuit breaker trip
-                if any(check in ['rate_limit_cooldown', 'api_health', 'exchange_connectivity', 
-                               'exchange_health', 'volatility_crash'] 
-                       for check in risk_result.violated_checks):
+                circuit_breaker_checks = ['rate_limit_cooldown', 'api_health', 'exchange_connectivity', 
+                                         'exchange_health', 'volatility_crash']
+                if any(check in circuit_breaker_checks for check in risk_result.violated_checks):
                     logger.error(f"CIRCUIT BREAKER TRIPPED: {reason}")
+                    
+                    # Record circuit breaker trip metrics
+                    for check in risk_result.violated_checks:
+                        if check in circuit_breaker_checks:
+                            self.metrics.record_circuit_breaker_trip(check)
+                    
                     self.alerts.notify(
                         AlertSeverity.CRITICAL,
                         "Circuit breaker tripped",
