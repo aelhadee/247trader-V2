@@ -472,7 +472,7 @@ CI **SHALL** compare key backtest metrics to a baseline and fail if deviation ex
 **REQ-SEC2 (Secret rotation)**
 Secrets **SHALL** be rotated at least every **90 days**, and the rotation event **SHALL** be logged (without exposing secret values).
 
-**Status:** Planned.
+**Status:** 🔴 Planned (no automated rotation policy or tracking).
 
 ---
 
