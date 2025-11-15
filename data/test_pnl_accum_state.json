@@ -4,20 +4,51 @@
   "trades_today": 0,
   "trades_this_hour": 0,
   "consecutive_losses": 0,
-  "last_loss_time": "2025-11-12T20:19:08.392083+00:00",
-  "last_win_time": "2025-11-12T20:19:08.394146+00:00",
-  "cooldowns": {},
+  "last_loss_time": "2025-11-15T11:44:12.819591+00:00",
+  "last_win_time": "2025-11-15T11:44:12.821142+00:00",
+  "cooldowns": {
+    "BTC-USD": "2025-11-15T12:12:33.498516+00:00"
+  },
   "positions": {},
   "managed_positions": {},
   "cash_balances": {},
   "open_orders": {},
   "recent_orders": [],
+  "pending_markers": {},
+  "last_fill_times": {
+    "BTC-USD:BUY": "2025-11-15T11:44:12.817398+00:00",
+    "BTC-USD:SELL": "2025-11-15T11:44:12.818091+00:00",
+    "ETH-USD:BUY": "2025-11-15T11:44:12.818872+00:00",
+    "ETH-USD:SELL": "2025-11-15T11:44:12.819591+00:00",
+    "SOL-USD:BUY": "2025-11-15T11:44:12.820419+00:00",
+    "SOL-USD:SELL": "2025-11-15T11:44:12.821142+00:00"
+  },
+  "fill_history": {
+    "BTC-USD:BUY": [
+      "2025-11-15T11:44:12.817398+00:00"
+    ],
+    "BTC-USD:SELL": [
+      "2025-11-15T11:44:12.818091+00:00"
+    ],
+    "ETH-USD:BUY": [
+      "2025-11-15T11:44:12.818872+00:00"
+    ],
+    "ETH-USD:SELL": [
+      "2025-11-15T11:44:12.819591+00:00"
+    ],
+    "SOL-USD:BUY": [
+      "2025-11-15T11:44:12.820419+00:00"
+    ],
+    "SOL-USD:SELL": [
+      "2025-11-15T11:44:12.821142+00:00"
+    ]
+  },
   "last_reconcile_at": null,
-  "last_reset_date": "2025-11-12",
-  "last_reset_hour": 20,
+  "last_reset_date": "2025-11-15",
+  "last_reset_hour": 11,
   "events": [
     {
-      "at": "2025-11-12T20:19:08.388766+00:00",
+      "at": "2025-11-15T11:44:12.817398+00:00",
       "event": "fill",
       "symbol": "BTC-USD",
       "side": "BUY",
@@ -25,10 +56,11 @@
       "price": 50000.0,
       "notional_usd": 500.0,
       "fees": 10.0,
-      "pnl": null
+      "pnl": null,
+      "mark_price": 50000.0
     },
     {
-      "at": "2025-11-12T20:19:08.389773+00:00",
+      "at": "2025-11-15T11:44:12.818091+00:00",
       "event": "fill",
       "symbol": "BTC-USD",
       "side": "SELL",
@@ -36,10 +68,11 @@
       "price": 49000.0,
       "notional_usd": 490.0,
       "fees": 10.0,
-      "pnl": -30.0
+      "pnl": -30.0,
+      "mark_price": 49000.0
     },
     {
-      "at": "2025-11-12T20:19:08.391121+00:00",
+      "at": "2025-11-15T11:44:12.818872+00:00",
       "event": "fill",
       "symbol": "ETH-USD",
       "side": "BUY",
@@ -47,10 +80,11 @@
       "price": 3000.0,
       "notional_usd": 3000.0,
       "fees": 10.0,
-      "pnl": null
+      "pnl": null,
+      "mark_price": 3000.0
     },
     {
-      "at": "2025-11-12T20:19:08.392083+00:00",
+      "at": "2025-11-15T11:44:12.819591+00:00",
       "event": "fill",
       "symbol": "ETH-USD",
       "side": "SELL",
@@ -58,10 +92,11 @@
       "price": 2950.0,
       "notional_usd": 2950.0,
       "fees": 10.0,
-      "pnl": -70.0
+      "pnl": -70.0,
+      "mark_price": 2950.0
     },
     {
-      "at": "2025-11-12T20:19:08.393195+00:00",
+      "at": "2025-11-15T11:44:12.820419+00:00",
       "event": "fill",
       "symbol": "SOL-USD",
       "side": "BUY",
@@ -69,10 +104,11 @@
       "price": 100.0,
       "notional_usd": 1000.0,
       "fees": 5.0,
-      "pnl": null
+      "pnl": null,
+      "mark_price": 100.0
     },
     {
-      "at": "2025-11-12T20:19:08.394146+00:00",
+      "at": "2025-11-15T11:44:12.821142+00:00",
       "event": "fill",
       "symbol": "SOL-USD",
       "side": "SELL",
@@ -80,7 +116,8 @@
       "price": 120.0,
       "notional_usd": 1200.0,
       "fees": 5.0,
-      "pnl": 190.0
+      "pnl": 190.0,
+      "mark_price": 120.0
     }
   ],
   "high_water_mark": 0.0,

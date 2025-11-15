@@ -328,7 +328,7 @@ execution:
     T3: 60
     default: 60
   # Auto-convert USD → USDC to honor preferred quote (when needed for BUYs)
-  auto_convert_preferred_quote: false
+  auto_convert_preferred_quote: true
   # Clamp tiny trades up to the minimum notional to avoid rejects
   clamp_small_trades: true
   # Use market orders instead of post-only limits for very small trades (to avoid repeated dust failures)
