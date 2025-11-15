@@ -249,6 +249,8 @@ def test_kill_switch_state_persistence(mock_lock, kill_switch_file, mock_exchang
     
     # Execute: Trigger kill-switch check
     from core.risk import PortfolioState
+    from strategy.rules_engine import TradeProposal
+    
     portfolio = PortfolioState(
         account_value_usd=10000.0,
         open_positions={},
@@ -260,7 +262,16 @@ def test_kill_switch_state_persistence(mock_lock, kill_switch_file, mock_exchang
         pending_orders={},
     )
     
-    result = loop.risk_engine.check_all(proposals=[], portfolio=portfolio)
+    # Need a proposal to trigger kill-switch check
+    proposal = TradeProposal(
+        symbol="BTC-USD",
+        side="BUY",
+        size_pct=1.0,
+        reason="test_kill_switch",
+        confidence=0.8,
+    )
+    
+    result = loop.risk_engine.check_all(proposals=[proposal], portfolio=portfolio)
     
     # Assert: Result contains halt reason
     assert not result.approved
