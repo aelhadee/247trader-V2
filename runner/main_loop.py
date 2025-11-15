@@ -2024,6 +2024,42 @@ class TradingLoop:
                 started_at=cycle_started,
             )
 
+    def _record_portfolio_metrics(self, portfolio: PortfolioState) -> None:
+        """Record portfolio state metrics for dashboards"""
+        if not self.metrics.is_enabled():
+            return
+        
+        # Calculate at-risk exposure (open positions value / NAV)
+        nav = portfolio.account_value_usd
+        if nav > 0:
+            positions_value = sum(
+                float(pos.get("usd", 0.0) or pos.get("usd_value", 0.0) or 0.0)
+                for pos in portfolio.open_positions.values()
+            )
+            at_risk_pct = (positions_value / nav) * 100.0
+            
+            # Calculate pending exposure (pending orders / NAV)
+            pending_value = sum(
+                float(order.get("usd", 0.0) or 0.0)
+                for order in portfolio.pending_orders.values()
+            )
+            pending_pct = (pending_value / nav) * 100.0
+            
+            # Record exposure gauges
+            self.metrics.record_exposure(at_risk_pct, pending_pct)
+        
+        # Count open positions (excluding dust)
+        threshold = max(self.executor.min_notional_usd, 5.0)
+        open_count = sum(
+            1 for pos in portfolio.open_positions.values()
+            if float(pos.get("usd", 0.0) or pos.get("usd_value", 0.0) or 0.0) >= threshold
+        )
+        self.metrics.record_open_positions(open_count)
+        
+        # Count pending orders
+        pending_count = len(portfolio.pending_orders)
+        self.metrics.record_pending_orders(pending_count)
+    
     def _record_cycle_metrics(
         self,
         *,
