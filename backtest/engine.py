@@ -156,7 +156,7 @@ class BacktestEngine:
     REQ-BT1: Deterministic with fixed seed.
     """
     
-    def __init__(self, config_dir: str = "config", initial_capital: float = 10_000.0, seed: Optional[int] = None, slippage_config: Optional[SlippageConfig] = None):
+    def __init__(self, config_dir: str = "config", initial_capital: float = 10_000.0, seed: Optional[int] = None, slippage_config: Optional[SlippageConfig] = None, data_loader: Optional[DataLoader] = None):
         self.config_dir = Path(config_dir)
         self.initial_capital = initial_capital
         self.seed = seed
@@ -175,15 +175,20 @@ class BacktestEngine:
         with open(self.config_dir / "universe.yaml") as f:
             universe_config = yaml.safe_load(f)
         
+        # Initialize MockExchange with realistic simulation
+        self.data_loader = data_loader
+        self.mock_exchange = None  # Will be initialized when run() is called with data_loader
+        self.cost_model = get_cost_model()
+        
         self.universe_mgr = UniverseManager(universe_config)
         self.trigger_engine = TriggerEngine()
         self.regime_detector = RegimeDetector()
         self.rules_engine = RulesEngine(config={})
         self.risk_engine = RiskEngine(self.policy_config, universe_manager=self.universe_mgr)
         
-        # Slippage model for realistic fills
+        # Slippage model for realistic fills (DEPRECATED - now using CostModel)
         self.slippage_model = SlippageModel(slippage_config or SlippageConfig())
-        logger.info("Slippage model initialized with Coinbase fees (maker 40bps, taker 60bps)")
+        logger.info("Cost model initialized: maker 40bps, taker 60bps, tier-based spreads")
         
         # Backtest state
         self.capital = initial_capital
