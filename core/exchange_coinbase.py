@@ -681,7 +681,7 @@ class CoinbaseExchange:
         Returns:
             List of OHLCV candles (oldest to newest)
         """
-        self._rate_limit("ohlcv")
+        self._rate_limit("get_ohlcv", is_private=False)
         
         # Map shorthand intervals to Coinbase granularity
         interval_map = {
