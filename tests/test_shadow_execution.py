@@ -283,13 +283,16 @@ def test_shadow_execution_with_fresh_quote(execution_engine, shadow_log_file):
 def test_shadow_execution_stale_quote(execution_engine, mock_exchange, shadow_log_file):
     """Test shadow execution rejects stale quote"""
     # Mock stale quote
-    stale_quote = Quote(
-        symbol="BTC-USD",
-        bid=50000.0,
-        ask=50050.0,
-        spread_bps=10.0,
-        timestamp=datetime.now(timezone.utc) - timedelta(seconds=60)  # 60s old
-    )
+    stale_quote = Quote()
+    stale_quote.symbol = "BTC-USD"
+    stale_quote.bid = 50000.0
+    stale_quote.ask = 50050.0
+    stale_quote.mid = 50025.0
+    stale_quote.spread_bps = 10.0
+    stale_quote.last = 50025.0
+    stale_quote.volume_24h = 1000000.0
+    stale_quote.timestamp = datetime.now(timezone.utc) - timedelta(seconds=60)  # 60s old
+    
     mock_exchange.get_quote.return_value = stale_quote
     
     result = execution_engine.execute(
