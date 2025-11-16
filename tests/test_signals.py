@@ -97,14 +97,18 @@ def spike_candles() -> List[OHLCV]:
     candles = []
     
     for i in range(100):
-        # Flat until last candle with sharp 2.5% spike
-        if i < 99:
+        # Flat until last 4 candles (1 hour), then spike on last candle
+        if i < 96:
             price = 50000.0
             volume = 1000.0
+        elif i < 99:
+            # Building volume in last hour
+            price = 50000.0 + (i - 95) * 200.0  # Gradual move
+            volume = 2500.0  # 2.5x volume
         else:
-            # Sharp 2.5% spike in last 15min
+            # Final sharp spike: 2.5% total
             price = 51250.0  # 2.5% up from 50000
-            volume = 3000.0  # 3x volume
+            volume = 3500.0  # 3.5x volume
         
         candles.append(OHLCV(
             symbol="BTC-USD",
