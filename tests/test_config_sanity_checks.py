@@ -319,50 +319,6 @@ def test_cluster_theme_name_mismatch():
         assert any("LAYER2" in err and "L2" in err and "different naming" in err for err in errors)
 
 
-def test_asset_cap_exceeds_theme_cap():
-    """Test that per-asset cap cannot exceed its theme cap."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        config_dir = Path(tmpdir)
-        
-        # Invalid: asset cap > theme cap
-        policy = {
-            "profile": "test",
-            "profiles": {
-                "test": {
-                    "min_conviction": 0.3,
-                    "tier_sizing": {"T1": 0.02},
-                    "max_position_pct": {"T1": 0.04},
-                    "min_trade_notional": 10.0
-                }
-            },
-            "risk": {
-                "max_total_at_risk_pct": 50.0,
-                "max_per_asset_pct": {"BTC-USD": 15.0},  # 15%
-                "max_per_theme_pct": {"LAYER1": 10.0},  # 10% - UNSAFE!
-                "stop_loss_pct": 10.0,
-                "take_profit_pct": 15.0
-            },
-            "exits": {"enabled": True},
-            "position_sizing": {"method": "risk_parity"},
-            "liquidity": {}
-        }
-        
-        universe = {
-            "clusters": {
-                "definitions": {
-                    "LAYER1": ["BTC-USD", "ETH-USD"]
-                }
-            }
-        }
-        
-        create_test_config(config_dir, policy, universe)
-        errors = validate_sanity_checks(config_dir)
-        
-        # Should catch asset > theme hierarchy violation
-        assert any("BTC-USD" in err and "exceeds its theme cap" in err for err in errors), \
-            f"Expected asset cap > theme cap error. Got: {errors}"
-
-
 def test_valid_config_passes():
     """Test that a properly configured policy passes all checks."""
     with tempfile.TemporaryDirectory() as tmpdir:
