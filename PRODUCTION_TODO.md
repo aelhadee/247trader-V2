@@ -30,6 +30,7 @@ All operational readiness items completed:
 5. **✅ Comprehensive Metrics** - 16 metrics across 6 categories (exposure, positions, orders, fills, circuit breakers, API health)
 6. **✅ Config Hash Stamping** - SHA256 hash (16 chars) in every audit log entry for drift detection
 7. **✅ Config Sanity Checks** - Contradictions, unsafe values, deprecated keys validated at startup
+8. **✅ Safety Fixes (2025-11-15 18:45 PST)** - Config defaults changed to DRY_RUN/read_only=true, LIVE confirmation gate added, test suite fixed (6/6 passing), API inconsistencies resolved
 
 **Documentation:**
 - `docs/EXCHANGE_STATUS_CIRCUIT_BREAKER.md`
