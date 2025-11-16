@@ -1739,32 +1739,15 @@ class ExecutionEngine:
         
         # Validate mode
         if self.mode == "DRY_RUN":
-            logger.info(f"DRY_RUN: Would execute {side} ${size_usd:.2f} of {symbol}")
-            # Generate deterministic ID for dry run tracking
-            if not client_order_id:
-                client_order_id = self.generate_client_order_id(symbol, side, size_usd)
-            
-            # Track order state even in DRY_RUN for monitoring
-            self.order_state_machine.create_order(
-                client_order_id=client_order_id,
+            # Shadow execution - log comprehensive details without submitting
+            return self._execute_shadow(
                 symbol=symbol,
                 side=side,
                 size_usd=size_usd,
-                route="dry_run"
-            )
-            # Immediately transition to terminal state (not actually submitted)
-            self.order_state_machine.transition(client_order_id, OrderStatus.FILLED)
-            
-            return ExecutionResult(
-                success=True,
-                order_id=f"dry_run_{client_order_id}",
-                symbol=symbol,
-                side=side,
-                filled_size=0.0,
-                filled_price=0.0,
-                fees=0.0,
-                slippage_bps=0.0,
-                route="dry_run"
+                client_order_id=client_order_id,
+                tier=tier,
+                confidence=confidence,
+                conviction=None  # Extract from metadata if needed
             )
         
         if self.mode == "PAPER":
