@@ -1915,14 +1915,15 @@ class ExecutionEngine:
             logger.error(f"Shadow execution error: {e}")
             
             # Use dummy quote for logging
-            from core.exchange_coinbase import Quote
-            quote = Quote(
-                symbol=symbol,
-                bid=0.0,
-                ask=0.0,
-                spread_bps=0.0,
-                timestamp=datetime.now(timezone.utc)
-            )
+            quote = Mock()
+            quote.symbol = symbol
+            quote.bid = 0.0
+            quote.ask = 0.0
+            quote.mid = 0.0
+            quote.spread_bps = 0.0
+            quote.last = 0.0
+            quote.volume_24h = 0.0
+            quote.timestamp = datetime.now(timezone.utc)
         
         # Log shadow order
         try:
