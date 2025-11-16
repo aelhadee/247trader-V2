@@ -237,6 +237,45 @@ class SlippageModel:
         
         return pnl_usd, pnl_pct, total_fees_usd
     
+    def simulate_partial_fill(
+        self,
+        requested_quantity: float,
+        tier: Literal["tier1", "tier2", "tier3"] = "tier2",
+    ) -> tuple[float, bool]:
+        """
+        Simulate partial fill for maker orders in low liquidity.
+        
+        Args:
+            requested_quantity: Desired quantity
+            tier: Asset tier (tier3 more likely to partial fill)
+        
+        Returns:
+            (filled_quantity, is_partial)
+            - filled_quantity: Amount actually filled
+            - is_partial: True if partially filled
+        """
+        if not self.config.enable_partial_fills:
+            return requested_quantity, False
+        
+        # Partial fill more likely for tier3 (low liquidity)
+        import random
+        probability = self.config.partial_fill_probability
+        if tier == "tier3":
+            probability *= 2.0  # 2x chance for tier3
+        elif tier == "tier1":
+            probability *= 0.5  # Half chance for tier1
+        
+        if random.random() < probability:
+            # Partial fill: 50-99% of requested
+            fill_pct = random.uniform(
+                self.config.partial_fill_min_pct, 
+                0.99
+            )
+            filled = requested_quantity * fill_pct
+            return filled, True
+        
+        return requested_quantity, False
+    
     def simulate_fill(
         self,
         mid_price: float,
@@ -244,6 +283,7 @@ class SlippageModel:
         quantity: float,
         tier: Literal["tier1", "tier2", "tier3"] = "tier2",
         order_type: Optional[Literal["maker", "taker"]] = None,
+        volatility_pct: Optional[float] = None,
     ) -> dict:
         """
         Simulate a complete fill with all details.
@@ -254,21 +294,30 @@ class SlippageModel:
             quantity: Position size
             tier: Asset tier
             order_type: "maker" or "taker"
+            volatility_pct: Recent volatility for slippage adjustment
         
         Returns:
-            Dict with fill_price, gross_notional, total_cost, fee_usd, slippage_bps
+            Dict with fill_price, gross_notional, total_cost, fee_usd, slippage_bps, 
+            filled_quantity, is_partial_fill
         """
         order_type = order_type or self.config.default_order_type
-        notional_usd = mid_price * quantity
         
-        # Calculate fill price with slippage
+        # Simulate partial fill for maker orders
+        filled_quantity = quantity
+        is_partial = False
+        if order_type == "maker":
+            filled_quantity, is_partial = self.simulate_partial_fill(quantity, tier)
+        
+        notional_usd = mid_price * filled_quantity
+        
+        # Calculate fill price with slippage (including volatility adjustment)
         fill_price = self.calculate_fill_price(
-            mid_price, side, tier, order_type, notional_usd
+            mid_price, side, tier, order_type, notional_usd, volatility_pct
         )
         
         # Calculate costs with fees
         gross_notional, total_cost = self.calculate_total_cost(
-            fill_price, quantity, side, order_type
+            fill_price, filled_quantity, side, order_type
         )
         
         # Calculate fee
@@ -284,7 +333,10 @@ class SlippageModel:
         return {
             "mid_price": mid_price,
             "fill_price": fill_price,
-            "quantity": quantity,
+            "quantity": filled_quantity,
+            "requested_quantity": quantity,
+            "is_partial_fill": is_partial,
+            "fill_pct": (filled_quantity / quantity) * 100 if quantity > 0 else 0,
             "gross_notional": gross_notional,
             "total_cost": total_cost,
             "fee_usd": fee_usd,
