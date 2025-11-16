@@ -304,6 +304,7 @@ class TradingLoop:
         # State
         self.portfolio = self._init_portfolio_state()
         self.current_regime = "chop"  # TODO: Replace with regime detector
+        self.cycle_count = 0  # Track cycle number for strategy context
         
         # Exception burst tracking for alert detection
         self._exception_history = []  # List of (timestamp, exception_type) tuples
