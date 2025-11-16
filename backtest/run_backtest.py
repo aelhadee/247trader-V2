@@ -177,6 +177,7 @@ def main():
     parser.add_argument("--end", default="2024-11-10", help="End date (YYYY-MM-DD)")
     parser.add_argument("--capital", type=float, default=10_000.0, help="Initial capital")
     parser.add_argument("--interval", type=int, default=60, help="Minutes between cycles")
+    parser.add_argument("--seed", type=int, default=None, help="Random seed for deterministic results")
     
     args = parser.parse_args()
     
