@@ -32,6 +32,16 @@ class SlippageConfig:
     # 1.0 = no impact, 1.5 = 50% increase in slippage
     market_impact_multiplier: float = 1.2
     
+    # Volatility-based slippage scaling
+    # High volatility → wider spreads → more slippage
+    volatility_multiplier: float = 1.5  # Max 1.5x slippage in high vol
+    high_volatility_threshold_pct: float = 5.0  # 5% move = high vol
+    
+    # Partial fill simulation
+    enable_partial_fills: bool = True
+    partial_fill_probability: float = 0.1  # 10% chance of partial fill
+    partial_fill_min_pct: float = 0.5  # At least 50% filled
+    
     # Default to taker orders (conservative assumption)
     default_order_type: Literal["maker", "taker"] = "taker"
 
