@@ -260,7 +260,7 @@ class BacktestEngine:
     def run(self, 
             start_date: datetime,
             end_date: datetime,
-            data_loader: Optional[DataLoader] = None,  # DataLoader instance
+            data_loader: Optional[DataLoader] = None,  # DataLoader instance or callable
             interval_minutes: int = 15) -> BacktestMetrics:
         """
         Run backtest over date range.
@@ -268,7 +268,7 @@ class BacktestEngine:
         Args:
             start_date: Start datetime
             end_date: End datetime
-            data_loader: DataLoader instance (or use one passed to __init__)
+            data_loader: DataLoader instance or callable function (or use one passed to __init__)
             interval_minutes: Minutes between cycles
             
         Returns:
@@ -280,6 +280,11 @@ class BacktestEngine:
         
         if self.data_loader is None:
             raise ValueError("data_loader must be provided either to __init__ or run()")
+        
+        # Wrap callable data_loader functions for MockExchange compatibility
+        if callable(self.data_loader) and not isinstance(self.data_loader, DataLoader):
+            logger.info("Wrapping callable data_loader for MockExchange compatibility")
+            self.data_loader = DataLoaderAdapter(self.data_loader)
         
         # Initialize MockExchange with data_loader
         self.mock_exchange = MockExchange(
