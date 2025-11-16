@@ -184,6 +184,31 @@ Pre-existing test failures should be addressed but **don't block deployment**:
 ./run_tests.sh tests/test_core.py tests/test_config_validation.py tests/test_clock_sync.py
 ```
 
+### 🔍 Detailed Failure Output
+
+```bash
+# Show full error tracebacks for failures
+./run_tests.sh tests/test_core.py -v --tb=short
+
+# Even more verbose with full tracebacks
+./run_tests.sh tests/test_core.py -vv --tb=long
+
+# Show only failures, not full output
+./run_tests.sh tests/test_core.py -v --tb=short -x  # Stop at first failure
+
+# Show last failed tests only
+./run_tests.sh --lf -v  # Re-run only last failures
+
+# Capture output (don't suppress print statements)
+./run_tests.sh tests/test_core.py -v -s
+
+# Summary of all failures at end
+./run_tests.sh tests/test_auto_trim.py --tb=line  # One line per failure
+
+# Full details for specific test
+./run_tests.sh tests/test_auto_trim.py::test_auto_trim_to_risk_cap_converts_excess_exposure -vv
+```
+
 ### 🐌 Slow Test Runs
 
 **Warning:** Full suite takes 15-30+ minutes due to:
