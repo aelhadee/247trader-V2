@@ -9,7 +9,16 @@ Run before enabling LIVE mode to validate:
 - Quote quality
 - Fill reconciliation
 
-Run with: CB_API_SECRET_FILE=<path> pytest tests/test_live_smoke.py -v
+Setup:
+  # Set credentials in environment
+  export CB_API_KEY='your-api-key'
+  export CB_API_SECRET='your-api-secret'
+  
+  # Or source the helper script
+  source scripts/load_credentials.sh
+
+Run:
+  pytest tests/test_live_smoke.py -v
 
 These tests are skipped if credentials are not available.
 """
