@@ -214,7 +214,7 @@ class TestUniverseRedFlagIntegration:
     
     def test_config_red_flags_list(self, universe_config):
         """Config contains expected red flag types"""
-        mgr = UniverseManager(config_path=str(universe_config))
+        mgr = UniverseManager.from_config_path(str(universe_config))
         exclusions = mgr.config.get("exclusions", {})
         red_flags = exclusions.get("red_flags", [])
         
