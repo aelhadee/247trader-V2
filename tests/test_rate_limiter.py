@@ -44,7 +44,9 @@ class TestTokenBucket:
     def test_bucket_does_not_exceed_capacity(self):
         """Bucket cannot exceed capacity even with long wait"""
         bucket = TokenBucket(capacity=10.0, refill_rate=10.0)
-        time.sleep(2.0)  # Wait much longer than needed
+        
+        # Simulate 2 seconds passing (much longer than needed)
+        bucket.last_update -= 2.0
         bucket.refill()
         
         assert bucket.tokens == 10.0  # Capped at capacity
