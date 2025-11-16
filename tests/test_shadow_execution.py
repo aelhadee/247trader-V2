@@ -27,6 +27,26 @@ def shadow_logger(shadow_log_file):
     return ShadowExecutionLogger(str(shadow_log_file))
 
 
+def create_test_quote(symbol="BTC-USD", bid=50000.0, ask=50050.0, timestamp=None):
+    """Helper to create test quotes"""
+    if timestamp is None:
+        timestamp = datetime.now(timezone.utc)
+    mid = (bid + ask) / 2
+    spread_bps = ((ask - bid) / mid) * 10000
+    
+    # Create a mock quote object with all required attributes
+    quote = Mock(spec=Quote)
+    quote.symbol = symbol
+    quote.bid = bid
+    quote.ask = ask
+    quote.mid = mid
+    quote.spread_bps = spread_bps
+    quote.last = mid
+    quote.volume_24h = 1000000.0
+    quote.timestamp = timestamp
+    return quote
+
+
 @pytest.fixture
 def mock_exchange():
     """Mock exchange with quote data"""
@@ -34,16 +54,7 @@ def mock_exchange():
     exchange.read_only = True
     
     # Default quote
-    quote = Quote()
-    quote.symbol = "BTC-USD"
-    quote.bid = 50000.0
-    quote.ask = 50050.0
-    quote.mid = 50025.0
-    quote.spread_bps = 10.0
-    quote.last = 50025.0
-    quote.volume_24h = 1000000.0
-    quote.timestamp = datetime.now(timezone.utc)
-    
+    quote = create_test_quote()
     exchange.get_quote = Mock(return_value=quote)
     
     # Default orderbook
