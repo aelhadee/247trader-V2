@@ -414,6 +414,63 @@ jq '.pnl' data/.state.json
 - [ ] Trade frequency (as expected for volatility)
 - [ ] PnL tracking accuracy (compare to Coinbase)
 
+**Analytics Monitoring:**
+
+```bash
+# Check trade logging
+echo "=== Trade Logging Status ==="
+ls -lh data/trades/ 2>/dev/null || echo "⚠️  Trade directory missing"
+
+# Today's trades
+TODAY=$(date +%Y%m%d)
+if [ -f "data/trades/${TODAY}.csv" ]; then
+    COUNT=$(tail -n +2 "data/trades/${TODAY}.csv" | wc -l)
+    echo "✅ $COUNT trades logged today"
+    echo "Latest trades:"
+    tail -3 "data/trades/${TODAY}.csv"
+else
+    echo "ℹ️  No trades today yet"
+fi
+
+# Check daily report generation
+echo ""
+echo "=== Daily Reports ==="
+ls -lht reports/daily_*.json 2>/dev/null | head -5 || echo "ℹ️  No daily reports yet"
+
+# Check cooldown state
+echo ""
+echo "=== Trade Pacing State ==="
+python -c "
+import json
+from datetime import datetime
+try:
+    with open('data/state.json') as f:
+        state = json.load(f)
+    print(f\"Trades today: {state.get('trade_count_today', 0)}/{state.get('max_trades_per_day', '?')}\")
+    print(f\"Trades this hour: {state.get('trade_count_hour', 0)}/{state.get('max_trades_per_hour', '?')}\")
+    print(f\"Last trade: {state.get('last_trade_time', 'Never')}\")
+    
+    if 'cooldowns' in state and state['cooldowns']:
+        print(f\"Active cooldowns: {len(state['cooldowns'])}\")
+        for symbol, until in list(state['cooldowns'].items())[:5]:
+            print(f\"  {symbol}: until {until}\")
+    else:
+        print('No active cooldowns')
+except Exception as e:
+    print(f\"❌ Error reading state: {e}\")
+"
+```
+
+**Analytics Checklist:**
+- [ ] **Trades logged to CSV** (`data/trades/YYYYMMDD.csv` created after trades)
+- [ ] **Entry/exit pairs complete** (BUY creates entry, SELL creates exit with PnL)
+- [ ] **SQLite database updated** (`data/trades/trades.db` if enabled)
+- [ ] **Cooldowns applied** (visible in state.json after trades)
+- [ ] **Spacing enforced** (check audit logs for "Too soon" rejections)
+- [ ] **Daily report generated** (reports/daily_YYYYMMDD.json created 23:50-23:59 UTC)
+- [ ] **Report metrics populated** (trade_count, win_rate, total_pnl, sharpe_ratio)
+- [ ] **Trade limits respected** (hourly/daily counts don't exceed config)
+
 ### 6.2 Success Criteria for Burn-In
 
 **Must achieve ALL within 48-72 hours:**
