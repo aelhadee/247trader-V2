@@ -4,7 +4,7 @@ Prometheus metrics exporter for 247trader-v2
 Exposes trading metrics in Prometheus format for Grafana visualization.
 """
 
-from prometheus_client import Counter, Gauge, Histogram, start_http_server
+from prometheus_client import Counter, Gauge, Histogram, start_http_server, CollectorRegistry, REGISTRY
 import logging
 from typing import Optional
 
@@ -14,37 +14,48 @@ logger = logging.getLogger(__name__)
 class PrometheusExporter:
     """Export trading metrics to Prometheus"""
     
-    def __init__(self, port: int = 8000):
+    def __init__(self, port: int = 8000, registry: Optional[CollectorRegistry] = None):
         self.port = port
+        self.registry = registry or REGISTRY
         
-        # Trading metrics
-        self.trades_total = Counter('trader_trades_total', 'Total number of trades', ['side', 'symbol'])
-        self.trade_pnl = Gauge('trader_trade_pnl_usd', 'Trade PnL in USD', ['symbol'])
-        self.daily_pnl = Gauge('trader_daily_pnl_usd', 'Daily PnL in USD')
-        self.daily_pnl_pct = Gauge('trader_daily_pnl_pct', 'Daily PnL percentage')
-        self.account_value = Gauge('trader_account_value_usd', 'Total account value in USD')
-        
-        # Position metrics
-        self.open_positions = Gauge('trader_open_positions', 'Number of open positions')
-        self.position_value = Gauge('trader_position_value_usd', 'Position value in USD', ['symbol'])
-        self.exposure_pct = Gauge('trader_exposure_pct', 'Total exposure as % of account')
-        
-        # Risk metrics
-        self.max_drawdown = Gauge('trader_max_drawdown_pct', 'Maximum drawdown percentage')
-        self.risk_rejections = Counter('trader_risk_rejections_total', 'Risk check rejections', ['reason'])
-        self.circuit_breaker_trips = Counter('trader_circuit_breaker_trips', 'Circuit breaker activations', ['type'])
-        
-        # System metrics
-        self.cycle_duration = Histogram('trader_cycle_duration_seconds', 'Trading loop cycle duration')
-        self.api_latency = Histogram('trader_api_latency_seconds', 'Exchange API latency', ['endpoint'])
-        self.api_errors = Counter('trader_api_errors_total', 'API error count', ['endpoint', 'error_type'])
-        self.data_staleness = Gauge('trader_data_staleness_seconds', 'Data staleness in seconds', ['data_type'])
-        
-        # Execution metrics
-        self.orders_placed = Counter('trader_orders_placed_total', 'Orders placed', ['side', 'symbol'])
-        self.orders_filled = Counter('trader_orders_filled_total', 'Orders filled', ['side', 'symbol'])
-        self.orders_canceled = Counter('trader_orders_canceled_total', 'Orders canceled', ['symbol'])
-        self.order_fill_time = Histogram('trader_order_fill_time_seconds', 'Time to fill order')
+        # Try to create metrics, catch duplicates (happens in tests)
+        try:
+            # Trading metrics
+            self.trades_total = Counter('trader_trades_total', 'Total number of trades', ['side', 'symbol'], registry=self.registry)
+            self.trade_pnl = Gauge('trader_trade_pnl_usd', 'Trade PnL in USD', ['symbol'], registry=self.registry)
+            self.daily_pnl = Gauge('trader_daily_pnl_usd', 'Daily PnL in USD', registry=self.registry)
+            self.daily_pnl_pct = Gauge('trader_daily_pnl_pct', 'Daily PnL percentage', registry=self.registry)
+            self.account_value = Gauge('trader_account_value_usd', 'Total account value in USD', registry=self.registry)
+            
+            # Position metrics
+            self.open_positions = Gauge('trader_open_positions', 'Number of open positions', registry=self.registry)
+            self.position_value = Gauge('trader_position_value_usd', 'Position value in USD', ['symbol'], registry=self.registry)
+            self.exposure_pct = Gauge('trader_exposure_pct', 'Total exposure as % of account', registry=self.registry)
+            
+            # Risk metrics
+            self.max_drawdown = Gauge('trader_max_drawdown_pct', 'Maximum drawdown percentage', registry=self.registry)
+            self.risk_rejections = Counter('trader_risk_rejections_total', 'Risk check rejections', ['reason'], registry=self.registry)
+            self.circuit_breaker_trips = Counter('trader_circuit_breaker_trips', 'Circuit breaker activations', ['type'], registry=self.registry)
+            
+            # System metrics
+            self.cycle_duration = Histogram('trader_cycle_duration_seconds', 'Trading loop cycle duration', registry=self.registry)
+            self.api_latency = Histogram('trader_api_latency_seconds', 'Exchange API latency', ['endpoint'], registry=self.registry)
+            self.api_errors = Counter('trader_api_errors_total', 'API error count', ['endpoint', 'error_type'], registry=self.registry)
+            self.data_staleness = Gauge('trader_data_staleness_seconds', 'Data staleness in seconds', ['data_type'], registry=self.registry)
+            
+            # Execution metrics
+            self.orders_placed = Counter('trader_orders_placed_total', 'Orders placed', ['side', 'symbol'], registry=self.registry)
+            self.orders_filled = Counter('trader_orders_filled_total', 'Orders filled', ['side', 'symbol'], registry=self.registry)
+            self.orders_canceled = Counter('trader_orders_canceled_total', 'Orders canceled', ['symbol'], registry=self.registry)
+            self.order_fill_time = Histogram('trader_order_fill_time_seconds', 'Time to fill order', registry=self.registry)
+            
+            self._metrics_initialized = True
+        except ValueError as e:
+            if "Duplicated" in str(e):
+                logger.debug(f"Prometheus metrics already registered (expected in tests): {e}")
+                self._metrics_initialized = False
+            else:
+                raise
         
     def start(self):
         """Start Prometheus HTTP server"""
