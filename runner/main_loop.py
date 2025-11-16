@@ -1397,15 +1397,19 @@ class TradingLoop:
         self._stage_timings = {}
         
         try:
+            logger.info("📋 Step 0: Purging expired pending orders...")
             try:
                 with self._stage_timer("pending_purge"):
-                    self.state_store.purge_expired_pending()
+                    purged_count = self.state_store.purge_expired_pending()
+                    logger.info(f"✅ Purged {purged_count if purged_count else 0} expired pending markers")
             except Exception as exc:
                 logger.debug("Pending purge skipped: %s", exc)
 
+            logger.info("🔄 Step 1: Reconciling exchange state...")
             try:
                 with self._stage_timer("state_reconcile"):
                     self._reconcile_exchange_state()
+                    logger.info("✅ Exchange state reconciliation complete")
             except CriticalDataUnavailable as data_exc:
                 self._abort_cycle_due_to_data(
                     cycle_started,
