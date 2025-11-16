@@ -381,12 +381,18 @@ class BacktestEngine:
         
         # 4. Execute trading cycle using shared pipeline (same as live)
         cycle_number = len(self.closed_trades) + len(self.open_trades) + 1
+        
+        # Create trigger provider callback for historical data
+        def backtest_trigger_provider(universe, current_time, regime):
+            return self._simulate_triggers(universe, current_time, data_loader, regime)
+        
         cycle_result = self.trading_pipeline.execute_cycle(
             current_time=current_time,
             portfolio=portfolio,
             regime=regime,
             cycle_number=cycle_number,
-            state=None  # Backtest doesn't need state dict
+            state=None,  # Backtest doesn't need state dict
+            trigger_provider=backtest_trigger_provider  # Provide historical triggers
         )
         
         # Handle no-trade scenarios
