@@ -765,12 +765,85 @@ def validate_sanity_checks(config_dir: Path) -> List[str]:
         
         # Check: Old cache parameter (removed from UniverseManager)
         universe_path = config_dir / "universe.yaml"
-        universe = load_yaml_file(universe_path)
-        if "cache_ttl_seconds" in universe:
-            errors.append(
-                "DEPRECATED: universe.cache_ttl_seconds removed. "
-                "Use universe.refresh_interval_hours instead."
-            )
+        try:
+            universe = load_yaml_file(universe_path)
+            
+            if "cache_ttl_seconds" in universe:
+                errors.append(
+                    "DEPRECATED: universe.cache_ttl_seconds removed. "
+                    "Use universe.refresh_interval_hours instead."
+                )
+            
+            # === THEME/CLUSTER VALIDATION ===
+            
+            # Check: Cluster definitions vs theme caps alignment
+            clusters_config = universe.get("clusters", {})
+            cluster_defs = clusters_config.get("definitions", {})
+            
+            if cluster_defs and max_per_theme_pct:
+                # Ensure every cluster with symbols has a corresponding theme cap
+                uncapped_clusters = set(cluster_defs.keys()) - set(max_per_theme_pct.keys())
+                if uncapped_clusters:
+                    errors.append(
+                        f"INCOMPLETE: Clusters defined without theme caps: {', '.join(uncapped_clusters)}. "
+                        f"Add corresponding entries to policy.risk.max_per_theme_pct or remove clusters."
+                    )
+                
+                # Ensure every theme cap has a corresponding cluster definition
+                undefined_themes = set(max_per_theme_pct.keys()) - set(cluster_defs.keys())
+                if undefined_themes:
+                    errors.append(
+                        f"INCOMPLETE: Theme caps defined without cluster definitions: {', '.join(undefined_themes)}. "
+                        f"Add corresponding entries to universe.clusters.definitions or remove theme caps."
+                    )
+            
+            # Check: Universe exclusions vs cluster memberships
+            exclusions_config = universe.get("exclusions", {})
+            never_trade = set(exclusions_config.get("never_trade", []))
+            
+            if never_trade and cluster_defs:
+                # Find symbols in clusters that are also in exclusions (contradictory)
+                for cluster_name, symbols in cluster_defs.items():
+                    conflicting = set(symbols) & never_trade
+                    if conflicting:
+                        errors.append(
+                            f"CONTRADICTION: Symbols in cluster '{cluster_name}' are also in "
+                            f"never_trade exclusions: {', '.join(conflicting)}. "
+                            f"Remove from exclusions or cluster."
+                        )
+            
+            # Check: Tier configuration completeness
+            tiers_config = universe.get("tiers", {})
+            expected_tiers = ["tier_1_core", "tier_2_rotational", "tier_3_event_driven"]
+            missing_tiers = [t for t in expected_tiers if t not in tiers_config]
+            if missing_tiers:
+                errors.append(
+                    f"INCOMPLETE: Missing tier definitions in universe.yaml: {', '.join(missing_tiers)}. "
+                    f"Define all three tiers for complete universe configuration."
+                )
+            
+            # Check: Dynamic universe discovery limits
+            dynamic_config = universe.get("universe", {}).get("dynamic_config", {})
+            if dynamic_config:
+                tier1_max = dynamic_config.get("tier1_max_symbols", 0)
+                tier2_max = dynamic_config.get("tier2_max_symbols", 0)
+                tier3_max = dynamic_config.get("tier3_max_symbols", 0)
+                max_universe_size = universe.get("universe", {}).get("max_universe_size", 0)
+                
+                total_tier_max = tier1_max + tier2_max + tier3_max
+                if total_tier_max > max_universe_size:
+                    errors.append(
+                        f"UNSAFE: Sum of tier maximums ({total_tier_max} = "
+                        f"T1:{tier1_max} + T2:{tier2_max} + T3:{tier3_max}) exceeds "
+                        f"max_universe_size ({max_universe_size}). "
+                        f"Adjust tier limits or increase universe size."
+                    )
+        
+        except FileNotFoundError:
+            # Universe file not found - already caught in schema validation
+            pass
+        except Exception as e:
+            errors.append(f"Universe cross-validation failed: {e}")
         
         # === MODE-SPECIFIC CHECKS ===
         
