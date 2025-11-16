@@ -1,318 +1,266 @@
 """
-Tests for Per-Endpoint Rate Limiter
+Tests for per-endpoint rate limiter.
 
-Validates token bucket algorithm, per-endpoint tracking, and alerting.
+Tests token bucket algorithm, endpoint tracking, and alerting.
 """
-import pytest
+
 import time
-from unittest.mock import patch, MagicMock
+import pytest
 from core.rate_limiter import RateLimiter, EndpointQuota, RateLimitStats
 
 
-class TestTokenBucket:
-    """Test token bucket implementation"""
+def test_endpoint_quota_basic():
+    """Test basic token bucket mechanics"""
+    quota = EndpointQuota(name="test_endpoint", requests_per_second=10.0)
     
-    def test_bucket_starts_full(self):
-        """Bucket starts with full capacity"""
-        bucket = TokenBucket(capacity=10.0, refill_rate=5.0)
-        assert bucket.tokens == 10.0
+    # Should have full tokens initially
+    assert quota.available_tokens == pytest.approx(10.0, rel=0.1)
     
-    def test_consume_tokens(self):
-        """Consuming tokens decreases bucket"""
-        bucket = TokenBucket(capacity=10.0, refill_rate=5.0)
-        assert bucket.consume(3.0)
-        assert bucket.tokens == 7.0
+    # Acquire 1 token
+    assert quota.acquire(1.0) is True
+    assert quota.available_tokens == pytest.approx(9.0, rel=0.1)
     
-    def test_cannot_over_consume(self):
-        """Cannot consume more tokens than available"""
-        bucket = TokenBucket(capacity=10.0, refill_rate=5.0)
-        bucket.consume(10.0)  # Empty bucket
-        assert not bucket.consume(1.0)  # Should fail
+    # Acquire 5 more
+    assert quota.acquire(5.0) is True
+    assert quota.available_tokens == pytest.approx(4.0, rel=0.1)
     
-    def test_tokens_refill_over_time(self):
-        """Tokens refill at specified rate"""
-        bucket = TokenBucket(capacity=10.0, refill_rate=10.0)  # 10 tokens/second
-        bucket.consume(10.0)  # Empty bucket
-        
-        # Simulate 0.5 seconds passing
-        bucket.last_refill -= 0.5
-        bucket.refill()
-        
-        # Should have ~5 tokens (10 tokens/s × 0.5s)
-        assert 4.5 <= bucket.tokens <= 5.5
+    # Try to acquire 10 (should fail - insufficient)
+    assert quota.acquire(10.0) is False
     
-    def test_bucket_does_not_exceed_capacity(self):
-        """Bucket cannot exceed capacity even with long wait"""
-        bucket = TokenBucket(capacity=10.0, refill_rate=10.0)
-        
-        # Simulate 2 seconds passing (much longer than needed)
-        bucket.last_refill -= 2.0
-        bucket.refill()
-        
-        assert bucket.tokens == 10.0  # Capped at capacity
-    
-    def test_wait_time_calculation(self):
-        """Wait time calculated correctly"""
-        bucket = TokenBucket(capacity=10.0, refill_rate=10.0)
-        bucket.consume(10.0)  # Empty bucket
-        
-        wait_time = bucket.wait_time(5.0)  # Need 5 tokens
-        
-        # Should need 0.5 seconds (5 tokens / 10 tokens/s)
-        assert 0.45 <= wait_time <= 0.55
-    
-    def test_zero_wait_when_tokens_available(self):
-        """Zero wait time when tokens available"""
-        bucket = TokenBucket(capacity=10.0, refill_rate=10.0)
-        
-        wait_time = bucket.wait_time(5.0)
-        assert wait_time == 0.0
+    # Utilization should reflect 6 calls in last second (60%)
+    # Note: utilization is calls in window / requests_per_second
+    assert quota.utilization >= 0.2  # At least 2 calls recorded
 
 
-class TestRateLimitStats:
-    """Test statistics tracking"""
+def test_endpoint_quota_refill():
+    """Test token refill over time"""
+    quota = EndpointQuota(name="test_endpoint", requests_per_second=10.0)
     
-    def test_stats_start_at_zero(self):
-        """Statistics start at zero"""
-        stats = RateLimitStats()
-        assert stats.total_requests == 0
-        assert stats.blocked_requests == 0
-        assert stats.throttle_events == 0
+    # Exhaust tokens
+    assert quota.acquire(10.0) is True
+    assert quota.available_tokens == pytest.approx(0.0, abs=0.1)
     
-    def test_record_successful_request(self):
-        """Recording request with no wait"""
-        stats = RateLimitStats()
-        stats.record_wait(0.0)
-        
-        assert stats.total_requests == 1
-        assert stats.blocked_requests == 0
+    # Wait 0.5 seconds (should refill 5 tokens at 10/sec)
+    time.sleep(0.5)
+    assert quota.available_tokens == pytest.approx(5.0, rel=0.2)
     
-    def test_record_throttled_request(self):
-        """Recording request with wait time"""
-        stats = RateLimitStats()
-        stats.record_wait(0.5)  # 500ms wait
-        
-        assert stats.total_requests == 1
-        assert stats.blocked_requests == 1
-        assert stats.throttle_events == 1
-        assert stats.total_wait_time_ms == 500.0
-        assert stats.max_wait_time_ms == 500.0
-    
-    def test_utilization_calculation(self):
-        """Utilization percentage calculated correctly"""
-        stats = RateLimitStats()
-        stats.record_wait(0.0)
-        stats.record_wait(0.1)
-        stats.record_wait(0.0)
-        stats.record_wait(0.2)
-        
-        # 2 blocked out of 4 total = 50%
-        assert stats.utilization_pct() == 50.0
+    # Wait another 0.5 seconds (should be full)
+    time.sleep(0.5)
+    assert quota.available_tokens == pytest.approx(10.0, rel=0.1)
 
 
-class TestRateLimiter:
-    """Test rate limiter functionality"""
+def test_endpoint_quota_utilization():
+    """Test utilization tracking"""
+    quota = EndpointQuota(name="test_endpoint", requests_per_second=10.0)
     
-    def test_limiter_initialization(self):
-        """Limiter initializes with correct limits"""
-        limiter = RateLimiter(public_limit=10.0, private_limit=15.0, burst_multiplier=2.0)
-        
-        # Check buckets created correctly
-        assert limiter._public_bucket.capacity == 20.0  # 10 × 2
-        assert limiter._public_bucket.refill_rate == 10.0
-        assert limiter._private_bucket.capacity == 30.0  # 15 × 2
-        assert limiter._private_bucket.refill_rate == 15.0
+    # No calls = 0% utilization
+    assert quota.utilization == 0.0
     
-    def test_acquire_public_endpoint(self):
-        """Acquiring tokens for public endpoint"""
-        limiter = RateLimiter(public_limit=10.0, private_limit=15.0)
-        
-        wait_time = limiter.acquire("public", endpoint="/products")
-        assert wait_time == 0.0  # First request should not wait
+    # Make 5 calls (50% utilization)
+    for _ in range(5):
+        quota.acquire(1.0)
     
-    def test_acquire_private_endpoint(self):
-        """Acquiring tokens for private endpoint"""
-        limiter = RateLimiter(public_limit=10.0, private_limit=15.0)
-        
-        wait_time = limiter.acquire("private", endpoint="/orders")
-        assert wait_time == 0.0
+    assert quota.utilization == pytest.approx(0.5, rel=0.1)
     
-    def test_invalid_channel_raises_error(self):
-        """Invalid channel raises ValueError"""
-        limiter = RateLimiter()
-        
-        with pytest.raises(ValueError, match="Invalid channel"):
-            limiter.acquire("invalid")
+    # Make 5 more (100% utilization)
+    for _ in range(5):
+        quota.acquire(1.0)
     
-    def test_rate_limit_enforced(self):
-        """Rate limit enforced after exhausting tokens"""
-        limiter = RateLimiter(public_limit=5.0, private_limit=5.0, burst_multiplier=1.0)
-        
-        # Exhaust bucket (5 tokens)
-        for _ in range(5):
-            limiter.acquire("public", endpoint="/products", block=False)
-        
-        # Next request should be blocked
-        with pytest.raises(ValueError, match="Rate limit exceeded"):
-            limiter.acquire("public", endpoint="/products", block=False)
+    assert quota.utilization == pytest.approx(1.0, rel=0.1)
     
-    def test_blocking_waits_for_tokens(self):
-        """Blocking acquire waits for tokens to refill"""
-        limiter = RateLimiter(public_limit=10.0, private_limit=10.0, burst_multiplier=1.0)
-        
-        # Exhaust bucket
-        for _ in range(10):
-            limiter.acquire("public", endpoint="/products", block=False)
-        
-        # Mock time.sleep to avoid actual waiting
-        with patch('time.sleep') as mock_sleep:
-            wait_time = limiter.acquire("public", endpoint="/products", block=True)
-            
-            # Should have calculated wait time > 0
-            assert wait_time > 0
-            # Should have called sleep with that wait time
-            assert mock_sleep.called
-    
-    def test_check_available_does_not_consume(self):
-        """check_available does not consume tokens"""
-        limiter = RateLimiter(public_limit=10.0, private_limit=10.0, burst_multiplier=1.0)
-        
-        # Check availability
-        available, wait_time = limiter.check_available("public", tokens=5.0)
-        assert available
-        assert wait_time == 0.0
-        
-        # Tokens should still be available (not consumed)
-        available, _ = limiter.check_available("public", tokens=5.0)
-        assert available
-    
-    def test_stats_tracking(self):
-        """Statistics tracked correctly"""
-        limiter = RateLimiter(public_limit=100.0, private_limit=100.0)  # High limit to avoid throttling
-        
-        limiter.acquire("public", endpoint="/products")
-        limiter.acquire("public", endpoint="/products")
-        limiter.acquire("private", endpoint="/orders")
-        
-        public_stats = limiter.get_stats("public")
-        assert public_stats["total_requests"] == 2
-        assert public_stats["channel"] == "public"
-        
-        private_stats = limiter.get_stats("private")
-        assert private_stats["total_requests"] == 1
-    
-    def test_endpoint_stats(self):
-        """Per-endpoint statistics tracked"""
-        limiter = RateLimiter(public_limit=100.0, private_limit=100.0)
-        
-        limiter.acquire("public", endpoint="/products")
-        limiter.acquire("public", endpoint="/products")
-        limiter.acquire("public", endpoint="/ticker")
-        
-        products_stats = limiter.get_endpoint_stats("/products")
-        assert products_stats["total_requests"] == 2
-        
-        ticker_stats = limiter.get_endpoint_stats("/ticker")
-        assert ticker_stats["total_requests"] == 1
-    
-    def test_reset_stats(self):
-        """Statistics can be reset"""
-        limiter = RateLimiter(public_limit=100.0, private_limit=100.0)
-        
-        limiter.acquire("public", endpoint="/products")
-        limiter.reset_stats()
-        
-        stats = limiter.get_stats("public")
-        assert stats["total_requests"] == 0
-    
-    def test_should_alert_when_utilization_high(self):
-        """Alert triggered when utilization exceeds threshold"""
-        limiter = RateLimiter(public_limit=5.0, private_limit=5.0, burst_multiplier=1.0)
-        
-        # Exhaust 80% of bucket (4 out of 5 tokens)
-        for _ in range(4):
-            limiter.acquire("public", endpoint="/products", block=False)
-        
-        # Force a wait on next request
-        try:
-            limiter.acquire("public", endpoint="/products", block=False)
-        except ValueError:
-            pass  # Expected - bucket exhausted
-        
-        # Note: should_alert checks utilization_pct (blocked/total), not token count
-        # After exhausting bucket, we had 4 successful + 1 failed = 20% blocked
-        # This is below 80% threshold, so no alert
-        assert not limiter.should_alert("public", threshold_pct=80.0)
-    
-    def test_global_stats(self):
-        """Global statistics returned when channel=None"""
-        limiter = RateLimiter(public_limit=100.0, private_limit=100.0)
-        
-        limiter.acquire("public", endpoint="/products")
-        limiter.acquire("private", endpoint="/orders")
-        
-        global_stats = limiter.get_stats()
-        assert "public" in global_stats
-        assert "private" in global_stats
-        assert global_stats["public"]["total_requests"] == 1
-        assert global_stats["private"]["total_requests"] == 1
-    
-    def test_concurrent_channels_independent(self):
-        """Public and private channels have independent limits"""
-        limiter = RateLimiter(public_limit=2.0, private_limit=5.0, burst_multiplier=1.0)
-        
-        # Exhaust public bucket (2 tokens)
-        limiter.acquire("public", endpoint="/products", block=False)
-        limiter.acquire("public", endpoint="/products", block=False)
-        
-        # Private should still have tokens
-        wait_time = limiter.acquire("private", endpoint="/orders", block=False)
-        assert wait_time == 0.0
-    
-    def test_burst_capacity_allows_spikes(self):
-        """Burst capacity allows temporary spikes above steady-state rate"""
-        limiter = RateLimiter(public_limit=5.0, private_limit=5.0, burst_multiplier=2.0)
-        
-        # Can make 10 requests immediately (capacity = 5 × 2)
-        for _ in range(10):
-            limiter.acquire("public", endpoint="/products", block=False)
-        
-        # 11th request should fail
-        with pytest.raises(ValueError, match="Rate limit exceeded"):
-            limiter.acquire("public", endpoint="/products", block=False)
+    # Wait for window to clear
+    time.sleep(1.1)
+    assert quota.utilization == 0.0
 
 
-class TestRateLimiterIntegration:
-    """Integration tests for real-world scenarios"""
+def test_rate_limiter_configuration():
+    """Test rate limiter configuration"""
+    limiter = RateLimiter(alert_threshold=0.8)
     
-    def test_sustained_load(self):
-        """Limiter handles sustained load at rate limit"""
-        limiter = RateLimiter(public_limit=10.0, private_limit=10.0, burst_multiplier=2.0)
-        
-        # Make 15 requests - with burst capacity of 20, should all succeed immediately
-        with patch('time.sleep') as mock_sleep:
-            for i in range(15):
-                limiter.acquire("public", endpoint="/products", block=True)
-            
-            # With burst capacity of 20, first 15 should not require any sleep
-            assert not mock_sleep.called
+    # Configure endpoint quotas
+    limiter.configure({
+        "get_quote": 10.0,
+        "place_order": 5.0,
+        "list_products": 3.0
+    }, default_public=8.0, default_private=12.0)
     
-    def test_bursty_load_then_idle(self):
-        """Limiter handles burst then recovers during idle"""
-        limiter = RateLimiter(public_limit=10.0, private_limit=10.0, burst_multiplier=2.0)
-        
-        # Burst: use all 20 tokens
-        for _ in range(20):
-            limiter.acquire("public", endpoint="/products", block=False)
-        
-        # Simulate 1 second passing (10 tokens refilled at 10/s rate)
-        limiter._public_bucket.last_refill -= 1.0
-        limiter._public_bucket.refill()
-        
-        # Should have ~10 tokens available now
-        for _ in range(10):
-            wait_time = limiter.acquire("public", endpoint="/products", block=False)
-            assert wait_time == 0.0
+    # Check configured endpoints
+    stats = limiter.get_all_stats()
+    assert "get_quote" in stats
+    assert "place_order" in stats
+    assert "list_products" in stats
+    
+    # Verify quotas
+    assert limiter._quotas["get_quote"].requests_per_second == 10.0
+    assert limiter._quotas["place_order"].requests_per_second == 5.0
+
+
+def test_rate_limiter_acquire_wait():
+    """Test acquire with waiting"""
+    limiter = RateLimiter()
+    limiter.configure({"test_endpoint": 5.0})
+    
+    # Acquire 5 tokens (should succeed immediately)
+    start = time.time()
+    assert limiter.acquire("test_endpoint", wait=True) is True
+    duration1 = time.time() - start
+    assert duration1 < 0.1  # Should be instant
+    
+    # Acquire 5 more tokens (should wait ~1 second)
+    start = time.time()
+    for _ in range(5):
+        assert limiter.acquire("test_endpoint", wait=True) is True
+    duration5 = time.time() - start
+    assert duration5 >= 0.8  # Should wait for refill
+
+
+def test_rate_limiter_acquire_no_wait():
+    """Test acquire without waiting"""
+    limiter = RateLimiter()
+    limiter.configure({"test_endpoint": 5.0})
+    
+    # Acquire all tokens
+    for _ in range(5):
+        assert limiter.acquire("test_endpoint", wait=False) is True
+    
+    # Next acquire should fail
+    assert limiter.acquire("test_endpoint", wait=False) is False
+    
+    # Should record violation
+    stats = limiter.get_stats("test_endpoint")
+    assert stats.violations == 1
+
+
+def test_rate_limiter_default_quotas():
+    """Test default quota creation"""
+    limiter = RateLimiter()
+    limiter.configure({}, default_public=10.0, default_private=15.0)
+    
+    # Acquire from unconfigured endpoint (should use default)
+    assert limiter.acquire("unknown_public", is_private=False, wait=False) is True
+    assert limiter.acquire("unknown_private", is_private=True, wait=False) is True
+    
+    # Check that defaults were applied
+    stats_pub = limiter.get_stats("unknown_public", is_private=False)
+    stats_priv = limiter.get_stats("unknown_private", is_private=True)
+    
+    # Should have used defaults (10 and 15 respectively)
+    # Check via available tokens after 1 acquire
+    assert limiter._quotas["unknown_public"].requests_per_second == 10.0
+    assert limiter._quotas["unknown_private"].requests_per_second == 15.0
+
+
+def test_rate_limiter_record():
+    """Test manual recording"""
+    limiter = RateLimiter()
+    limiter.configure({"test_endpoint": 10.0})
+    
+    # Record some calls
+    for _ in range(5):
+        limiter.record("test_endpoint", is_private=False)
+    
+    # Check stats
+    stats = limiter.get_stats("test_endpoint")
+    assert stats.calls_last_second == 5
+    assert stats.utilization == pytest.approx(0.5, rel=0.1)
+    
+    # Record a violation
+    limiter.record("test_endpoint", violated=True)
+    stats = limiter.get_stats("test_endpoint")
+    assert stats.violations == 1
+
+
+def test_rate_limiter_stats():
+    """Test statistics collection"""
+    limiter = RateLimiter(alert_threshold=0.7)
+    limiter.configure({
+        "endpoint_a": 10.0,
+        "endpoint_b": 5.0
+    })
+    
+    # Use endpoints
+    for _ in range(7):
+        limiter.record("endpoint_a")
+    
+    for _ in range(3):
+        limiter.record("endpoint_b")
+    
+    # Get all stats
+    all_stats = limiter.get_all_stats()
+    assert len(all_stats) == 2
+    
+    # Check endpoint_a stats
+    stats_a = all_stats["endpoint_a"]
+    assert stats_a.endpoint == "endpoint_a"
+    assert stats_a.calls_last_second == 7
+    assert stats_a.utilization == pytest.approx(0.7, rel=0.1)
+    
+    # Check endpoint_b stats
+    stats_b = all_stats["endpoint_b"]
+    assert stats_b.calls_last_second == 3
+    assert stats_b.utilization == pytest.approx(0.6, rel=0.1)
+
+
+def test_rate_limiter_wait_time():
+    """Test wait time calculation"""
+    limiter = RateLimiter()
+    limiter.configure({"test_endpoint": 10.0})
+    
+    # Exhaust tokens
+    for _ in range(10):
+        limiter.acquire("test_endpoint", wait=False)
+    
+    # Check wait time for 1 token
+    wait_time = limiter.get_wait_time("test_endpoint")
+    assert wait_time > 0
+    assert wait_time <= 0.2  # At most 0.1s per token at 10/sec
+    
+    # Wait and check again
+    time.sleep(0.5)
+    wait_time = limiter.get_wait_time("test_endpoint")
+    assert wait_time == 0  # Should have refilled ~5 tokens
+
+
+def test_rate_limiter_reset():
+    """Test reset functionality"""
+    limiter = RateLimiter()
+    limiter.configure({"test_endpoint": 10.0})
+    
+    # Use up some quota
+    for _ in range(5):
+        limiter.acquire("test_endpoint", wait=False)
+    limiter.record("test_endpoint", violated=True)
+    
+    # Check state
+    stats = limiter.get_stats("test_endpoint")
+    assert stats.calls_last_second == 5
+    assert stats.violations == 1
+    
+    # Reset
+    limiter.reset("test_endpoint")
+    
+    # Check cleared
+    stats = limiter.get_stats("test_endpoint")
+    assert stats.calls_last_second == 0
+    assert stats.violations == 0
+    assert stats.tokens_available == pytest.approx(10.0, rel=0.1)
+
+
+def test_rate_limiter_high_utilization_warning(caplog):
+    """Test high utilization warnings"""
+    import logging
+    caplog.set_level(logging.WARNING)
+    
+    limiter = RateLimiter(alert_threshold=0.8)
+    limiter.configure({"test_endpoint": 10.0})
+    
+    # Push utilization above threshold
+    for _ in range(9):
+        limiter.acquire("test_endpoint", wait=False)
+    
+    # Check for warning
+    assert any("High rate limit utilization" in record.message for record in caplog.records)
+    assert any("test_endpoint" in record.message for record in caplog.records)
 
 
 if __name__ == "__main__":
