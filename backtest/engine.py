@@ -472,6 +472,64 @@ class BacktestEngine:
             f"Stop: ${trade.stop_loss_price:,.2f} | Target: ${trade.take_profit_price:,.2f}"
         )
     
+    def _execute_proposal_via_mock(self, proposal: TradeProposal, current_time: datetime):
+        """Execute trade proposal via MockExchange (NEW - replaces _execute_proposal)"""
+        if not self.mock_exchange:
+            logger.error("MockExchange not initialized")
+            return
+        
+        # Calculate position size in USD
+        size_usd = (proposal.size_pct / 100.0) * self.capital
+        
+        # Place order through MockExchange
+        try:
+            order_result = self.mock_exchange.place_order(
+                product_id=proposal.symbol,
+                side=proposal.side,
+                quote_size_usd=size_usd,
+                order_type="limit_post_only",  # Default to maker orders
+                maker_cushion_ticks=1
+            )
+            
+            if not order_result.get("success"):
+                logger.debug(f"Order rejected: {order_result.get('status')} for {proposal.symbol}")
+                return
+            
+            # If filled immediately (market order or aggressive limit)
+            if order_result.get("status") == "filled":
+                trade = Trade(
+                    symbol=proposal.symbol,
+                    side=proposal.side,
+                    entry_price=order_result.get("filled_price"),
+                    entry_time=current_time,
+                    size_usd=size_usd,
+                    max_hold_hours=proposal.max_hold_hours
+                )
+                
+                # Set stops
+                if proposal.stop_loss_pct:
+                    trade.stop_loss_price = trade.entry_price * (1 - proposal.stop_loss_pct / 100.0)
+                if proposal.take_profit_pct:
+                    trade.take_profit_price = trade.entry_price * (1 + proposal.take_profit_pct / 100.0)
+                
+                self.open_trades.append(trade)
+                self.daily_trade_count += 1
+                
+                logger.debug(
+                    f"FILLED {trade.symbol} @ ${trade.entry_price:,.2f} | "
+                    f"Size: ${size_usd:,.0f} | Fee: ${order_result.get('fee', 0):.2f} | "
+                    f"Maker: {order_result.get('is_maker', False)}"
+                )
+            else:
+                # Order is pending (limit order on book)
+                logger.debug(
+                    f"ORDER PLACED {proposal.symbol} {proposal.side} ${size_usd:,.0f} @ ${order_result.get('limit_price'):,.2f} "
+                    f"(pending fill)"
+                )
+                
+        except Exception as e:
+            logger.warning(f"Error executing {proposal.symbol}: {e}")
+    
     def _update_open_positions(self, current_time: datetime, data_loader):
         """Update open positions and close if stops hit or max hold exceeded"""
         to_close = []
