@@ -113,22 +113,15 @@ def trading_pipeline(mock_universe_mgr, mock_trigger_engine, mock_regime_detecto
 def portfolio_state():
     """Mock portfolio state"""
     return PortfolioState(
-        timestamp=datetime.now(timezone.utc),
-        mode="DRY_RUN",
-        total_value_usd=10000.0,
-        cash_usd=5000.0,
-        positions={},
-        pending_orders=[],
-        open_positions=0,
-        total_at_risk_usd=0.0,
-        total_at_risk_pct=0.0,
+        account_value_usd=10000.0,
+        open_positions={},
         daily_pnl_pct=0.0,
-        weekly_pnl_pct=0.0,
         max_drawdown_pct=0.0,
+        trades_today=0,
+        trades_this_hour=0,
         consecutive_losses=0,
-        daily_trade_count=0,
-        hourly_trade_count=0,
-        cycle_count=1
+        last_loss_time=None,
+        current_time=datetime.now(timezone.utc)
     )
 
 
