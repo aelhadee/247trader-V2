@@ -1104,7 +1104,7 @@ class CoinbaseExchange:
             return None
         
         try:
-            self._rate_limit("get_order")
+            self._rate_limit("get_order", is_private=True)
             resp = self._req("GET", f"/orders/historical/{order_id}", authenticated=True)
             
             # Response has { "order": {...} } wrapper
