@@ -832,7 +832,7 @@ class CoinbaseExchange:
         Returns:
             List of product details
         """
-        self._rate_limit("products")
+        self._rate_limit("get_products", is_private=False)
         
         logger.debug(f"Fetching products: {product_ids}")
         
