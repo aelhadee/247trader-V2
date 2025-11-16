@@ -359,7 +359,8 @@ def test_asset_cap_exceeds_theme_cap():
         errors = validate_sanity_checks(config_dir)
         
         # Should catch asset > theme hierarchy violation
-        assert any("BTC-USD" in err and "exceeds its theme cap" in err for err in errors)
+        assert any("BTC-USD" in err and "exceeds its theme cap" in err for err in errors), \
+            f"Expected asset cap > theme cap error. Got: {errors}"
 
 
 def test_valid_config_passes():
