@@ -8,6 +8,7 @@ from runner.main_loop import TradingLoop
 def test_auto_trim_to_risk_cap_converts_excess_exposure():
     loop = object.__new__(TradingLoop)
     loop.mode = "LIVE"
+    loop.metrics = MagicMock()  # Add missing metrics attribute
     loop.policy_config = {
         "risk": {"max_total_at_risk_pct": 15.0},
         "portfolio_management": {
