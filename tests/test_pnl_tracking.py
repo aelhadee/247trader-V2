@@ -50,7 +50,8 @@ class TestPositionTracking:
         assert pos["entry_value_usd"] == 500.0  # 0.01 * 50000
         assert pos["fees_paid"] == 10.0
         managed = state.get("managed_positions", {})
-        assert managed.get("BTC-USD") is True
+        assert "BTC-USD" in managed  # Check position is tracked
+        assert managed["BTC-USD"]["entry_price"] == 50000.0
     
     def test_sell_closes_position_and_calculates_pnl(self):
         """SELL order closes position and calculates realized PnL"""
