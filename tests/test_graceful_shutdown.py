@@ -42,7 +42,7 @@ class TestGracefulShutdown:
     def mock_components(self):
         """Mock all external dependencies"""
         with patch('runner.main_loop.CoinbaseExchange') as mock_exchange_cls, \
-             patch('runner.main_loop.StateStore') as mock_state_store_cls, \
+             patch('infra.state_store.StateStore') as mock_state_store_cls, \
              patch('runner.main_loop.AuditLogger') as mock_audit_cls, \
              patch('runner.main_loop.AlertService') as mock_alert_cls, \
              patch('runner.main_loop.UniverseManager') as mock_universe_cls, \
