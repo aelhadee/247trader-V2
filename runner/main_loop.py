@@ -271,7 +271,7 @@ class TradingLoop:
         )
         
         # Initialize ReportGenerator for daily performance reports
-        from analytics.report_generator import ReportGenerator
+        from analytics.performance_report import ReportGenerator
         self.report_generator = ReportGenerator(
             trade_log_dir="data/trades",
             output_dir="reports",
