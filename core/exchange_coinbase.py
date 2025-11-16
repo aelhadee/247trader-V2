@@ -998,7 +998,7 @@ class CoinbaseExchange:
             logger.info("READ_ONLY: would list open orders")
             return []
         try:
-            self._rate_limit("open_orders")
+            self._rate_limit("list_orders", is_private=True)
             # Try primary endpoint: /orders/historical/batch with OPEN status
             query_params = {
                 "order_status": "OPEN",
