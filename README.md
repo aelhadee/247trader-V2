@@ -333,6 +333,38 @@ result = risk_engine.check_all(proposals, portfolio, regime)
 # LIVE: Execute on Coinbase
 ```
 
+## Monitoring
+
+Real-time visibility into trading operations via Prometheus + Grafana:
+
+```bash
+# Start monitoring stack (Prometheus + Grafana)
+./scripts/start_monitoring.sh
+
+# Access dashboards
+# Grafana: http://localhost:3000 (admin/admin)
+# Prometheus: http://localhost:9090
+# Bot Metrics: http://localhost:8000/metrics
+```
+
+**Dashboard Panels:**
+- Account Value & Daily PnL %
+- Open Positions & Exposure Gauge (with thresholds)
+- Max Drawdown & Total Trades
+- Risk Rejections by Reason
+- API Latency (p95) & Circuit Breaker Trips
+- Cycle Duration (p95)
+
+**Key Metrics:**
+- `trader_account_value_usd` - Portfolio value over time
+- `trader_daily_pnl_usd` / `trader_pnl_pct` - Performance tracking
+- `trader_exposure_pct` - Current risk exposure
+- `trader_risk_rejections_total` - Why trades were blocked
+- `trader_circuit_breaker_trips_total` - Safety shutdowns
+- `trader_api_latency_seconds` - Exchange response times
+
+See `docs/MONITORING_SETUP.md` for full setup guide, alerts configuration, and PromQL queries.
+
 ## Next Steps
 
 See `PRODUCTION_TODO.md` for:
