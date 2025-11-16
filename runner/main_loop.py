@@ -1699,6 +1699,7 @@ class TradingLoop:
             
             # Avoid stacking buys while there are outstanding orders for the same base asset
             # Use pending_buy_notional from portfolio snapshot (aggregated from open_orders)
+            logger.info(f"🔍 Step 10: Filtering proposals for pending orders...")
             pending_buy_notional = (pending_orders or {}).get("buy", {})
             filtered = []
             for proposal in proposals:
