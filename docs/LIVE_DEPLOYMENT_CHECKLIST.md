@@ -350,7 +350,7 @@ try:
     
     # ReportGenerator
     os.makedirs('reports', exist_ok=True)
-    report_gen = ReportGenerator(trade_log=trade_log, output_dir='reports')
+    report_gen = ReportGenerator(trade_log=trade_log)
     print('✅ ReportGenerator initialized')
     
     print('')
