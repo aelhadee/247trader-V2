@@ -1617,6 +1617,10 @@ class RiskEngine:
         for idx, reasons in rejection_reasons.items():
             symbol = proposals[idx].symbol
             proposal_rejections.setdefault(symbol, []).extend(reasons)
+            # Record rejection metrics
+            if self.prometheus_exporter:
+                for reason in reasons:
+                    self.prometheus_exporter.record_risk_rejection(reason)
 
         if not filtered:
             logger.warning(
