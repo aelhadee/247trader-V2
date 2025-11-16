@@ -59,8 +59,7 @@ class TradeRecord:
     # Optional sizing
     size_base: Optional[float] = None  # Base currency amount (e.g., BTC)
     
-    # Pricing
-    entry_price: float
+    # Optional pricing
     exit_price: Optional[float] = None
     entry_mid_price: Optional[float] = None  # Mid-market at entry
     exit_mid_price: Optional[float] = None  # Mid-market at exit
