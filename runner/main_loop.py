@@ -2058,8 +2058,10 @@ class TradingLoop:
             logger.info("✅ Metrics recorded")
 
             # Post-cycle maintenance: cancel stale open orders (LIVE/PAPER)
+            logger.info("🧹 Step 16: Post-cycle maintenance (stale orders)...")
             try:
                 if self.mode in ("LIVE", "PAPER"):
+                    logger.info(f"✅ Checking for stale orders in {self.mode} mode...")
                     with self._stage_timer("open_order_maintenance"):
                         self.executor.manage_open_orders()
             except Exception as e:
