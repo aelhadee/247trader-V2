@@ -774,12 +774,8 @@ def validate_sanity_checks(config_dir: Path) -> List[str]:
             
             # Validate take_profit configuration
             take_profit_pct = exits.get("take_profit_pct", 0)
-            if take_profit_pct == 0:
-                warnings.append(
-                    f"INFO: Profile '{active_profile}' has no take_profit_pct configured. "
-                    f"Trades will only exit on stop loss or manual intervention."
-                )
-            elif stop_loss_pct > 0 and take_profit_pct <= stop_loss_pct:
+            # Note: take_profit_pct=0 is valid (exit only on stop or manual intervention)
+            if stop_loss_pct > 0 and take_profit_pct > 0 and take_profit_pct <= stop_loss_pct:
                 errors.append(
                     f"UNSAFE: Profile '{active_profile}' take_profit_pct ({take_profit_pct}) <= "
                     f"stop_loss_pct ({stop_loss_pct}). "
