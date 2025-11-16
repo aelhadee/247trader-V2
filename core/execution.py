@@ -106,6 +106,13 @@ class ExecutionEngine:
         except (ImportError, RuntimeError):
             self.prometheus_exporter = None
         
+        # Initialize TradeLog for trade recording and PnL attribution
+        from analytics.trade_log import TradeLog
+        self.trade_log = TradeLog(log_dir="data/trades", backend="csv", enable_sqlite=True)
+        
+        # Track open trades for exit logging (keyed by symbol)
+        self.open_trades: Dict[str, Any] = {}
+        
         # Order rejection tracking for burst detection
         self._rejection_history = []  # List of (timestamp, symbol, reason) tuples
         self._rejection_window_seconds = 600  # 10 minutes
