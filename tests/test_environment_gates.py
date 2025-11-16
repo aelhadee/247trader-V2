@@ -255,10 +255,15 @@ def test_exchange_respects_read_only():
     with pytest.raises(ValueError, match="Cannot place orders in READ_ONLY mode"):
         exchange_ro.place_order("BTC-USD", "BUY", "0.001", order_type="market")
     
-    # read_only=false should allow (with API keys)
-    exchange_rw = CoinbaseExchange(read_only=False)
+    # read_only=false requires credentials
+    # Test that it requires credentials when read_only=False
+    with pytest.raises(ValueError, match="LIVE mode requires credentials"):
+        CoinbaseExchange(read_only=False)
+    
+    # With credentials, read_only=False should work
+    exchange_rw = CoinbaseExchange(read_only=False, api_key="test_key", api_secret="test_secret")
     assert exchange_rw.read_only == False
-    # (Would allow place_order if API keys present)
+    # (Would allow place_order with valid API keys)
 
 
 # ============================================================================
