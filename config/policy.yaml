@@ -220,15 +220,27 @@ regime:
   bull:
     position_size_multiplier: 1.2
     max_positions: 5
+    allowed_signals:  # Signal filtering for regime
+      - momentum
+      - price_move
+    signal_confidence_boost: 0.05  # +5% confidence in trending regime
   chop:
     position_size_multiplier: 0.8
     max_positions: 3
+    allowed_signals:
+      - mean_reversion
+      - price_move
+    signal_confidence_penalty: 0.1  # -10% confidence (choppy regime harder)
   bear:
     position_size_multiplier: 0.5
     max_positions: 2
+    allowed_signals:
+      - price_move  # Only strong moves in bear
+    signal_confidence_boost: 0.0
   crash:
     position_size_multiplier: 0.0
     max_positions: 0
+    allowed_signals: []  # NO TRADE in crash
 execution:
   # CONSERVATIVE EXECUTION: Aligned with Freqtrade/Hummingbot timing patterns
   # Freqtrade: 10min unfilled timeout, GTC orders
