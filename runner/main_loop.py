@@ -1750,17 +1750,19 @@ class TradingLoop:
 
             logger.info(f"Proposals: {len(proposals)} generated")
             
-            # Step 4: Apply risk checks (including circuit breakers)
-            logger.info("Step 4: Applying risk checks...")
+            # Step 11: Apply risk checks (including circuit breakers)
+            logger.info(f"🛡️  Step 11: Running risk engine checks on {len(proposals)} proposal(s)...")
             with self._stage_timer("risk_engine"):
                 risk_result = self.risk_engine.check_all(
                     proposals=proposals,
                     portfolio=self.portfolio,
                     regime=self.current_regime
                 )
+                logger.info(f"✅ Risk checks complete: approved={risk_result.approved}, filtered={len(risk_result.approved_proposals)}/{len(proposals)}")
             
             # Record successful API operations for circuit breaker tracking
             self.risk_engine.record_api_success()
+            logger.debug("✅ API success recorded for circuit breaker tracking")
             
             # Reset consecutive API error count in metrics
             self.metrics.reset_consecutive_api_errors()
@@ -1772,6 +1774,7 @@ class TradingLoop:
             
             if not risk_result.approved or not risk_result.approved_proposals:
                 reason = risk_result.reason or "all_proposals_blocked_by_risk"
+                logger.warning(f"⚠️  Risk engine BLOCKED all proposals: {reason}")
                 
                 # Record no-trade reason for metrics
                 self.metrics.record_no_trade_reason(reason)
