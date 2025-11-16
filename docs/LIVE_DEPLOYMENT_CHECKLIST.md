@@ -326,7 +326,7 @@ python -c "
 import sys
 from core.trade_limits import TradeLimits
 from analytics.trade_log import TradeLog
-from analytics.performance_report import PerformanceReport
+from analytics.performance_report import ReportGenerator
 from infra.state_store import StateStore
 import yaml
 
@@ -350,7 +350,7 @@ try:
     
     # ReportGenerator
     os.makedirs('reports', exist_ok=True)
-    report_gen = PerformanceReport(trade_log=trade_log, output_dir='reports')
+    report_gen = ReportGenerator(trade_log=trade_log, output_dir='reports')
     print('✅ ReportGenerator initialized')
     
     print('')
