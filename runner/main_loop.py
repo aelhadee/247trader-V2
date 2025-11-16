@@ -262,6 +262,7 @@ class TradingLoop:
             policy=self.policy_config,
             state_store=self.state_store,
             alert_service=self.alerts,  # Wire alerts for rejection bursts and reconcile mismatches
+            risk_engine=self.risk_engine,  # Wire RiskEngine for TradeLimits cooldowns/spacing
         )
         
         self.position_manager = PositionManager(
