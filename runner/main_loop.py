@@ -1839,15 +1839,14 @@ class TradingLoop:
             # Use the filtered approved proposals from risk engine
             approved_proposals = risk_result.approved_proposals
             approved_count = len(approved_proposals or [])
-            logger.info(f"Risk checks PASSED: {len(approved_proposals)}/{len(proposals)} proposals approved")
+            logger.info(f"✅ Risk checks PASSED: {len(approved_proposals)}/{len(proposals)} proposals approved for execution")
             if getattr(risk_result, "proposal_rejections", None):
                 logger.info(
-                    "Risk filtered proposals: %s",
-                    risk_result.proposal_rejections,
+                    f"📊 Rejected proposals: {len(risk_result.proposal_rejections)} filtered by risk engine",
                 )
             
-            # Step 5: Execute trades (respects mode: DRY_RUN/PAPER/LIVE)
-            logger.info(f"Step 5: Executing {len(approved_proposals)} approved trades...")
+            # Step 12: Execute trades (respects mode: DRY_RUN/PAPER/LIVE)
+            logger.info(f"💰 Step 12: Executing {len(approved_proposals)} approved trade(s) in {self.mode} mode...")
 
             adjusted_proposals: List[Tuple[TradeProposal, float]] = []
             final_orders: List[ExecutionResult] = []
