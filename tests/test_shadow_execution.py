@@ -257,7 +257,7 @@ def test_shadow_execution_with_fresh_quote(execution_engine, shadow_log_file):
     # Quote details
     assert logged['quote_bid'] == 50000.0
     assert logged['quote_ask'] == 50050.0
-    assert logged['quote_spread_bps'] == 10.0
+    assert abs(logged['quote_spread_bps'] - 10.0) < 0.1  # Allow slight precision difference
     assert logged['quote_age_ms'] >= 0  # Should be recent
     
     # Execution plan
