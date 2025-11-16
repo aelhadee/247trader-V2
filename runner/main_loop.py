@@ -1644,8 +1644,8 @@ class TradingLoop:
             
             logger.info(f"Triggers: {len(triggers)} detected")
             
-            # Step 3: Generate trade proposals (multi-strategy framework)
-            logger.info("Step 3: Generating trade proposals from enabled strategies...")
+            # Step 9: Generate trade proposals (multi-strategy framework)
+            logger.info(f"💡 Step 9: Generating trade proposals from {len(self.strategy_registry.get_enabled_strategies())} enabled strategies...")
             with self._stage_timer("rules_engine"):
                 # Build StrategyContext for all strategies
                 from strategy.base_strategy import StrategyContext
@@ -1666,12 +1666,13 @@ class TradingLoop:
                 
                 # Log per-strategy breakdown
                 enabled_strategies = self.strategy_registry.get_enabled_strategies()
-                logger.info(f"Active strategies: {[s.name for s in enabled_strategies]}")
+                logger.info(f"✅ Strategy execution complete: {[s.name for s in enabled_strategies]}")
             proposals_count = len(proposals or [])
+            logger.info(f"✅ Generated {proposals_count} trade proposal(s)")
             
             if not proposals:
                 reason = "rules_engine_no_proposals"
-                logger.info(f"NO_TRADE: {reason}")
+                logger.warning(f"⚠️  NO_TRADE: {reason} (strategies generated 0 proposals)")
                 
                 # Note: Zero-trigger sentinel already handled earlier in cycle
                 # No need for separate zero-proposal tracking
