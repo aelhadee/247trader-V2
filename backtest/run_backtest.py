@@ -74,7 +74,8 @@ def run_simple_backtest(
     # Create backtest engine
     engine = BacktestEngine(
         config_dir="config",
-        initial_capital=initial_capital
+        initial_capital=initial_capital,
+        seed=seed
     )
     
     # Wrapper for data_loader that uses pre-loaded data
