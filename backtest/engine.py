@@ -819,6 +819,59 @@ class BacktestEngine:
         self.daily_trade_count = 0
         # Note: consecutive_losses NOT reset daily - only on wins
     
+    def _calculate_volatility(self, symbol: str, current_time: datetime, lookback_hours: int = 24) -> Optional[float]:
+        """
+        Calculate recent volatility as % of price (ATR-style).
+        
+        Args:
+            symbol: Trading pair
+            current_time: Current timestamp
+            lookback_hours: Hours to look back
+        
+        Returns:
+            Volatility as percentage (e.g., 5.0 = 5% volatility) or None if insufficient data
+        """
+        try:
+            # Get recent candles
+            start = current_time - timedelta(hours=lookback_hours)
+            candles_dict = self.data_loader.load_range([symbol], start, current_time, granularity=3600)
+            candles = candles_dict.get(symbol, [])
+            
+            if len(candles) < 10:  # Need at least 10 candles
+                return None
+            
+            # Calculate ATR-style volatility (average true range as % of price)
+            true_ranges = []
+            for i in range(1, len(candles)):
+                prev_close = candles[i-1].close
+                high = candles[i].high
+                low = candles[i].low
+                
+                # True range = max(high-low, abs(high-prev_close), abs(low-prev_close))
+                tr = max(
+                    high - low,
+                    abs(high - prev_close),
+                    abs(low - prev_close)
+                )
+                true_ranges.append(tr)
+            
+            if not true_ranges:
+                return None
+            
+            # ATR as percentage of last close price
+            atr = sum(true_ranges) / len(true_ranges)
+            last_price = candles[-1].close
+            
+            if last_price <= 0:
+                return None
+            
+            volatility_pct = (atr / last_price) * 100
+            return volatility_pct
+            
+        except Exception as e:
+            logger.debug(f"Failed to calculate volatility for {symbol}: {e}")
+            return None
+    
     def export_json(self, output_path: str) -> None:
         """
         Export backtest results to machine-readable JSON (REQ-BT2).
