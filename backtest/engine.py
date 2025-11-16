@@ -659,14 +659,18 @@ class BacktestEngine:
         # Calculate exit side (opposite of entry)
         exit_side = "sell" if trade.side == "BUY" else "buy"
         
-        # Calculate realistic fill price for exit
+        # Calculate recent volatility for exit slippage
+        volatility_pct = self._calculate_volatility(trade.symbol, exit_time, lookback_hours=24)
+        
+        # Calculate realistic fill price for exit (with volatility adjustment)
         quantity = trade.size_usd / trade.entry_price
         exit_fill_price = self.slippage_model.calculate_fill_price(
             mid_price=mid_price,
             side=exit_side,
             tier=tier,
             order_type="taker",
-            notional_usd=trade.size_usd
+            notional_usd=trade.size_usd,
+            volatility_pct=volatility_pct
         )
         
         trade.exit_price = exit_fill_price
