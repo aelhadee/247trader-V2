@@ -55,6 +55,7 @@ data/KILL_SWITCH
 
 # Coverage/pytest
 .pytest_cache/
+.pytest_tmp/
 .coverage*
 htmlcov/
 
