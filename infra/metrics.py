@@ -167,6 +167,17 @@ class MetricsRecorder:
             "exchange_api_consecutive_errors",
             "Current count of consecutive API errors",
         )
+
+    @classmethod
+    def _reset_for_testing(cls) -> None:
+        """
+        Reset singleton state for testing.
+        WARNING: Only call from test fixtures/teardown.
+        """
+        cls._instance = None
+        cls._initialized = False
+
+    def start(self) -> None:
         
         # NEW: Auto-trim tracking
         self._trim_attempts_counter = Counter(  # type: ignore[assignment]
