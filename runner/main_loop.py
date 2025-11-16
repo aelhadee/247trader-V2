@@ -1629,7 +1629,7 @@ class TradingLoop:
                     triggers=triggers,
                     regime=self.current_regime,
                     timestamp=cycle_started.replace(tzinfo=timezone.utc) if cycle_started.tzinfo is None else cycle_started,
-                    cycle_number=self.portfolio.cycle_count + 1,
+                    cycle_number=self.cycle_count + 1,
                     state=self.state_store.load(),
                 )
                 
