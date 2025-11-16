@@ -82,6 +82,64 @@ grep -A 5 "risk:" config/policy.yaml
 - [ ] `allow_pyramiding: false` (no pyramiding initially)
 - [ ] `max_open_orders: 3-5` (limit concurrent positions)
 
+### 2.3 Verify Analytics Configuration
+
+Check trade pacing, logging, and reporting setup:
+
+```bash
+# Validate TradeLimits configuration
+python -c "
+from core.trade_limits import TradeLimits
+from infra.state_store import StateStore
+import yaml
+
+with open('config/policy.yaml') as f:
+    policy = yaml.safe_load(f)
+
+try:
+    state_store = StateStore('data/state.json')
+    trade_limits = TradeLimits(config=policy['risk'], state_store=state_store)
+    print('✅ TradeLimits configuration valid')
+    print(f'   Global spacing: {trade_limits.min_global_spacing_sec}s')
+    print(f'   Per-symbol spacing: {trade_limits.per_symbol_spacing_sec}s')
+    print(f'   Max per hour: {trade_limits.max_trades_per_hour}')
+    print(f'   Max per day: {trade_limits.max_trades_per_day}')
+except ValueError as e:
+    print(f'❌ TradeLimits configuration invalid: {e}')
+    exit(1)
+"
+```
+
+**Analytics Checklist:**
+- [ ] **TradeLimits config validated** (passes validation checks)
+- [ ] **Trade spacing configured** (min 3min global, 15min per-symbol)
+- [ ] **Cooldowns enabled** (10min win, 60min loss, 120min stop-loss)
+- [ ] **Daily limit reasonable** (>= hourly limit × 24)
+- [ ] **TradeLog directory exists** (`mkdir -p data/trades`)
+- [ ] **SQLite backend enabled** (for queryable trade history)
+- [ ] **Daily reports scheduled** (23:50-23:59 UTC window)
+
+**Verify Trade Logging:**
+```bash
+# Ensure trade log directory exists
+mkdir -p data/trades
+
+# Check permissions
+if [ -w data/trades ]; then
+    echo "✅ Trade log directory writable"
+else
+    echo "❌ Trade log directory not writable"
+fi
+
+# Check for existing trade logs
+if [ -f data/trades/trades.db ]; then
+    echo "✅ SQLite database exists"
+    sqlite3 data/trades/trades.db "SELECT COUNT(*) FROM trades;" 2>/dev/null && echo "   Database accessible" || echo "⚠️  Database may be corrupted"
+else
+    echo "ℹ️  SQLite database will be created on first trade"
+fi
+```
+
 ### 2.3 Generate New Config Hash
 
 ```bash
