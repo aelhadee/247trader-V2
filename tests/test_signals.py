@@ -228,7 +228,7 @@ def test_momentum_signal_requires_volume(sample_asset, uptrend_candles):
     for i, c in enumerate(uptrend_candles):
         new_c = OHLCV(
             symbol="BTC-USD",
-            timestamp=c.time,
+            timestamp=c.timestamp,  # Fixed: was c.time
             open=c.open,
             high=c.high,
             low=c.low,
