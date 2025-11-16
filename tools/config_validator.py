@@ -754,10 +754,10 @@ def validate_sanity_checks(config_dir: Path) -> List[str]:
                             f"Single trade size exceeds tier maximum."
                         )
         
-        # Check: Exit configuration completeness for active profile
-        if profiles and active_profile and active_profile in profiles:
-            profile_config = profiles[active_profile]
-            exits = profile_config.get("exits", {})
+        # Check: Exit configuration completeness (top-level, not profile-specific)
+        # Note: stop_loss_pct and take_profit_pct are in risk section, not exits
+        if True:  # Always check exits
+            exits = policy.get("exits", {})
             
             # Validate stop_loss configuration
             stop_loss_pct = exits.get("stop_loss_pct", 0)
