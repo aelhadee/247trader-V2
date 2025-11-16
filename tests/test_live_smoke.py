@@ -50,6 +50,7 @@ def test_coinbase_connection():
     print(f"✅ Coinbase connection established")
 
 
+@skip_without_creds
 def test_account_access():
     """Test account balance fetching"""
     exchange = CoinbaseExchange(read_only=True)
