@@ -269,6 +269,13 @@ class RiskEngine:
         self.exchange = exchange
         self._state_store = state_store  # Optional: for testing or explicit state management
         self.alert_service = alert_service  # Optional: AlertService for critical notifications (kill switch, stops, etc.)
+        
+        # Import Prometheus exporter (will be None if not initialized)
+        try:
+            from infra.prometheus_exporter import get_exporter
+            self.prometheus_exporter = get_exporter() if get_exporter() else None
+        except (ImportError, RuntimeError):
+            self.prometheus_exporter = None
 
         self.execution_config = policy.get("execution", {})
         self.allow_min_bump_in_risk = bool(self.execution_config.get("allow_min_bump_in_risk", False))
