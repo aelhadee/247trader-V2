@@ -1,15 +1,21 @@
 """
 247trader-v2 Backtest: Data Loader
 
-Fetch historical OHLCV data for backtesting.
-Uses Coinbase public API (no auth required).
+Fetch historical OHLCV data for backtesting from multiple sources:
+- Coinbase public API (live fetch, no auth)
+- CSV files (local cache)
+- Parquet files (fast columnar storage)
+
+Compatible with MockExchange for realistic backtesting.
 """
 
 import time
 import requests
-from typing import Dict, List, Optional
-from datetime import datetime, timedelta
+import json
+from typing import Dict, List, Optional, Union
+from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
+from pathlib import Path
 import logging
 
 logger = logging.getLogger(__name__)

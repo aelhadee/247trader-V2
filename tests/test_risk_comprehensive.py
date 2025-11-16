@@ -118,10 +118,9 @@ def sample_proposal():
     return TradeProposal(
         symbol="BTC-USD",
         side="BUY",
-        conviction=0.75,
+        confidence=0.75,
         size_pct=5.0,  # 5% of capital = $500 on 10k
         reason="momentum_breakout",
-        tier="T1",
         stop_loss_pct=5.0,
         take_profit_pct=10.0,
         max_hold_hours=48,
@@ -136,10 +135,9 @@ def test_min_notional_rejects_small_trade(risk_engine, base_portfolio):
     small_proposal = TradeProposal(
         symbol="BTC-USD",
         side="BUY",
-        conviction=0.50,
+        confidence=0.50,
         size_pct=0.05,  # 0.05% of 10k = $5
         reason="test",
-        tier="T1",
     )
     
     result = risk_engine.check_all([small_proposal], base_portfolio)
@@ -178,10 +176,9 @@ def test_per_symbol_position_cap_enforced(risk_engine, base_portfolio):
     btc_proposal = TradeProposal(
         symbol="BTC-USD",
         side="BUY",
-        conviction=0.75,
+        confidence=0.75,
         size_pct=5.0,
         reason="test",
-        tier="T1",
     )
     
     result = risk_engine.check_all([btc_proposal], portfolio_with_btc)
@@ -214,10 +211,9 @@ def test_total_exposure_cap_enforced(risk_engine, base_portfolio):
     new_proposal = TradeProposal(
         symbol="ADA-USD",
         side="BUY",
-        conviction=0.60,
+        confidence=0.60,
         size_pct=10.0,
         reason="test",
-        tier="T2",
     )
     
     result = risk_engine.check_all([new_proposal], portfolio_high_exposure)
@@ -247,10 +243,9 @@ def test_hourly_trade_limit_enforced(risk_engine, base_portfolio):
     proposal = TradeProposal(
         symbol="BTC-USD",
         side="BUY",
-        conviction=0.75,
+        confidence=0.75,
         size_pct=5.0,
         reason="test",
-        tier="T1",
     )
     
     result = risk_engine.check_all([proposal], portfolio_at_limit)
@@ -277,10 +272,9 @@ def test_daily_trade_limit_enforced(risk_engine, base_portfolio):
     proposal = TradeProposal(
         symbol="BTC-USD",
         side="BUY",
-        conviction=0.75,
+        confidence=0.75,
         size_pct=5.0,
         reason="test",
-        tier="T1",
     )
     
     result = risk_engine.check_all([proposal], portfolio_at_limit)
@@ -304,10 +298,9 @@ def test_global_trade_spacing_blocks_rapid_trades(risk_engine, base_portfolio, m
     proposal = TradeProposal(
         symbol="BTC-USD",
         side="BUY",
-        conviction=0.75,
+        confidence=0.75,
         size_pct=5.0,
         reason="test",
-        tier="T1",
     )
     
     result = risk_engine.check_all([proposal], base_portfolio)
@@ -329,10 +322,9 @@ def test_global_trade_spacing_allows_after_cooldown(risk_engine, base_portfolio,
     proposal = TradeProposal(
         symbol="BTC-USD",
         side="BUY",
-        conviction=0.75,
+        confidence=0.75,
         size_pct=5.0,
         reason="test",
-        tier="T1",
     )
     
     result = risk_engine.check_all([proposal], base_portfolio)
@@ -356,10 +348,9 @@ def test_per_symbol_cooldown_after_recent_trade(risk_engine, base_portfolio, moc
     btc_proposal = TradeProposal(
         symbol="BTC-USD",
         side="BUY",
-        conviction=0.75,
+        confidence=0.75,
         size_pct=5.0,
         reason="test",
-        tier="T1",
     )
     
     result = risk_engine.check_all([btc_proposal], base_portfolio)
@@ -383,10 +374,9 @@ def test_kill_switch_blocks_all_trades(risk_engine, base_portfolio, tmp_path):
     proposal = TradeProposal(
         symbol="BTC-USD",
         side="BUY",
-        conviction=0.75,
+        confidence=0.75,
         size_pct=5.0,
         reason="test",
-        tier="T1",
     )
     
     result = risk_engine.check_all([proposal], base_portfolio)
@@ -413,10 +403,9 @@ def test_daily_stop_loss_circuit_breaker(risk_engine, base_portfolio):
     proposal = TradeProposal(
         symbol="BTC-USD",
         side="BUY",
-        conviction=0.75,
+        confidence=0.75,
         size_pct=5.0,
         reason="test",
-        tier="T1",
     )
     
     result = risk_engine.check_all([proposal], portfolio_stopped)
@@ -443,10 +432,9 @@ def test_max_drawdown_circuit_breaker(risk_engine, base_portfolio):
     proposal = TradeProposal(
         symbol="BTC-USD",
         side="BUY",
-        conviction=0.75,
+        confidence=0.75,
         size_pct=5.0,
         reason="test",
-        tier="T1",
     )
     
     result = risk_engine.check_all([proposal], portfolio_drawdown)
@@ -477,10 +465,9 @@ def test_consecutive_loss_cooldown(risk_engine, base_portfolio):
     proposal = TradeProposal(
         symbol="BTC-USD",
         side="BUY",
-        conviction=0.75,
+        confidence=0.75,
         size_pct=5.0,
         reason="test",
-        tier="T1",
     )
     
     result = risk_engine.check_all([proposal], portfolio_losses)
@@ -506,28 +493,25 @@ def test_multiple_proposals_filtered_correctly(risk_engine, base_portfolio):
         TradeProposal(
             symbol="BTC-USD",
             side="BUY",
-            conviction=0.75,
+            confidence=0.75,
             size_pct=5.0,
             reason="momentum",
-            tier="T1",
         ),
         # Too small
         TradeProposal(
             symbol="ETH-USD",
             side="BUY",
-            conviction=0.50,
+            confidence=0.50,
             size_pct=0.05,  # $5 - below minimum
             reason="test",
-            tier="T1",
         ),
         # Valid proposal
         TradeProposal(
             symbol="SOL-USD",
             side="BUY",
-            conviction=0.60,
+            confidence=0.60,
             size_pct=3.0,
             reason="breakout",
-            tier="T2",
         ),
     ]
     
@@ -560,10 +544,9 @@ def test_max_open_positions_enforced(risk_engine, base_portfolio):
     new_proposal = TradeProposal(
         symbol="NEW-USD",
         side="BUY",
-        conviction=0.75,
+        confidence=0.75,
         size_pct=3.0,
         reason="test",
-        tier="T2",
     )
     
     result = risk_engine.check_all([new_proposal], portfolio_full)
