@@ -797,40 +797,8 @@ def validate_sanity_checks(config_dir: Path) -> List[str]:
                     "Trailing stop distance exceeds hard stop, making trailing ineffective."
                 )
         
-        # Check: Max exposure coherence across hierarchies (asset <= theme)
-        if max_per_asset_pct and max_per_theme_pct:
-            try:
-                universe_path = config_dir / "universe.yaml"
-                universe = load_yaml_file(universe_path)
-                cluster_defs = universe.get("clusters", {}).get("definitions", {})
-                
-                # Build reverse mapping: asset -> theme(s)
-                asset_to_themes = {}
-                for theme, symbols in cluster_defs.items():
-                    # Handle both list and dict formats for symbols
-                    if isinstance(symbols, dict):
-                        continue  # Skip non-list cluster definitions
-                    if not isinstance(symbols, list):
-                        symbols = [symbols]  # Convert single string to list
-                    
-                    for symbol in symbols:
-                        if symbol not in asset_to_themes:
-                            asset_to_themes[symbol] = []
-                        asset_to_themes[symbol].append(theme)
-                
-                # Validate per-asset caps don't exceed theme caps
-                for asset, asset_cap in max_per_asset_pct.items():
-                    themes = asset_to_themes.get(asset, [])
-                    for theme in themes:
-                        theme_cap = max_per_theme_pct.get(theme, 100)
-                        if asset_cap > theme_cap:
-                            errors.append(
-                                f"UNSAFE: max_per_asset_pct.{asset} ({asset_cap}%) > "
-                                f"max_per_theme_pct.{theme} ({theme_cap}%). "
-                                f"Single asset cap exceeds its theme cap."
-                            )
-            except Exception:
-                pass  # Universe validation handles missing files
+        # Note: max_per_asset_pct is a global cap (single float), not per-asset dict
+        # So no per-asset => theme hierarchy validation needed
         
         # === DEPRECATED KEY CHECKS ===
         
