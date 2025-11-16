@@ -2318,6 +2318,10 @@ class ExecutionEngine:
                     ttl_seconds if use_maker else "na",
                     status,
                 )
+                
+                # Record order placed metric
+                if self.prometheus_exporter:
+                    self.prometheus_exporter.record_order_placed(symbol, side.lower(), size_usd)
 
                 fills = result.get("fills") or []
                 filled_size, filled_price, fees, filled_value = self._summarize_fills(fills, product_metadata)
