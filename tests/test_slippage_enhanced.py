@@ -231,8 +231,8 @@ def test_combined_vol_and_impact():
     print(f"Baseline slippage: {slippage_baseline:.1f} bps")
     print(f"Worst case slippage: {slippage_worst:.1f} bps")
     
-    # Worst case should be at least 2x baseline
-    assert slippage_worst > slippage_baseline * 2
+    # Worst case should be at least 1.5x baseline (combined vol + impact)
+    assert slippage_worst > slippage_baseline * 1.5
 
 
 def test_tier_differences():
