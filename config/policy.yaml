@@ -79,6 +79,11 @@ risk:
   per_symbol_cooldown_minutes: 30
   per_symbol_cooldown_after_stop: 120  # Was 60min - INCREASED to 2h after stop-out
   
+  # Differentiated per-symbol cooldowns by outcome (NEW)
+  per_symbol_cooldown_win_minutes: 10    # Short cooldown after win (prevents overtrading)
+  per_symbol_cooldown_loss_minutes: 60   # Longer cooldown after loss (time to reassess)
+  # Note: stop_loss uses per_symbol_cooldown_after_stop (120min)
+  
   # Sizing minimums
   min_trade_notional_usd: 10    # Was 15 - REDUCED to $10 (matches dust threshold)
   dust_threshold_usd: 10.0
