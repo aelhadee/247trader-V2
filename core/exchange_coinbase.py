@@ -775,7 +775,7 @@ class CoinbaseExchange:
         Returns:
             List of symbol strings (e.g. ["BTC-USD", "ETH-USD", ...])
         """
-        self._rate_limit("symbols")
+        self._rate_limit("list_symbols", is_private=False)
         
         logger.debug("Fetching available symbols")
         
