@@ -1,0 +1,18 @@
+{
+	"ulid": "01KA655HT85JZZ6B63R1N71XN4",
+	"minTime": 1763280011570,
+	"maxTime": 1763287200000,
+	"stats": {
+		"numSamples": 2400,
+		"numFloatSamples": 2400,
+		"numSeries": 5,
+		"numChunks": 20
+	},
+	"compaction": {
+		"level": 1,
+		"sources": [
+			"01KA655HT85JZZ6B63R1N71XN4"
+		]
+	},
+	"version": 1
+}

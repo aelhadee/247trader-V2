@@ -293,7 +293,7 @@ class BacktestEngine:
             
             # Process any pending limit orders for all active symbols
             universe = self.universe_mgr.get_universe()
-            for asset in universe:
+            for asset in universe.get_all_eligible():
                 try:
                     self.mock_exchange.process_pending_fills(asset.symbol)
                 except Exception as e:
