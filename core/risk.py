@@ -1027,6 +1027,9 @@ class RiskEngine:
         
         if os.path.exists(kill_switch_file):
             logger.error("🚨 KILL SWITCH ACTIVATED - All trading halted")
+            # Record circuit breaker trip
+            if self.prometheus_exporter:
+                self.prometheus_exporter.record_circuit_breaker("kill_switch")
             # Alert on kill switch activation
             if self.alert_service:
                 from infra.alerting import AlertSeverity
