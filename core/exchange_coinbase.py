@@ -1427,7 +1427,7 @@ class CoinbaseExchange:
         Returns:
             Trade status response
         """
-        self._rate_limit("convert_status")
+        self._rate_limit("convert_status", is_private=True)
         
         params = {
             "from_account": from_account,
