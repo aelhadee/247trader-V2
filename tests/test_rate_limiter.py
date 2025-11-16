@@ -306,7 +306,7 @@ class TestRateLimiterIntegration:
             limiter.acquire("public", endpoint="/products", block=False)
         
         # Simulate 1 second passing (10 tokens refilled at 10/s rate)
-        limiter._public_bucket.last_update -= 1.0
+        limiter._public_bucket.last_refill -= 1.0
         limiter._public_bucket.refill()
         
         # Should have ~10 tokens available now
