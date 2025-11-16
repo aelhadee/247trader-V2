@@ -320,13 +320,16 @@ def test_shadow_execution_stale_quote(execution_engine, mock_exchange, shadow_lo
 def test_shadow_execution_wide_spread(execution_engine, mock_exchange, shadow_log_file):
     """Test shadow execution rejects wide spread"""
     # Mock wide spread quote
-    wide_quote = Quote(
-        symbol="BTC-USD",
-        bid=50000.0,
-        ask=50600.0,  # 120bps spread
-        spread_bps=120.0,
-        timestamp=datetime.now(timezone.utc)
-    )
+    wide_quote = Quote()
+    wide_quote.symbol = "BTC-USD"
+    wide_quote.bid = 50000.0
+    wide_quote.ask = 50600.0  # 120bps spread
+    wide_quote.mid = 50300.0
+    wide_quote.spread_bps = 120.0
+    wide_quote.last = 50300.0
+    wide_quote.volume_24h = 1000000.0
+    wide_quote.timestamp = datetime.now(timezone.utc)
+    
     mock_exchange.get_quote.return_value = wide_quote
     
     result = execution_engine.execute(
