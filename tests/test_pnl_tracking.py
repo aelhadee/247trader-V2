@@ -127,7 +127,8 @@ class TestPositionTracking:
         # = 10 - 10 - 10 = -10
         assert pnl_today == pytest.approx(-10.0, abs=0.01)
         managed = state.get("managed_positions", {})
-        assert managed.get("BTC-USD") is True
+        assert "BTC-USD" in managed  # Position should still be managed
+        assert managed["BTC-USD"]["entry_price"] == 50000.0
     
     def test_loss_position_calculates_negative_pnl(self):
         """Losing trade calculates negative PnL"""
