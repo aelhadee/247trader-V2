@@ -204,10 +204,58 @@ class CoinbaseExchange:
             else:
                 self._rate_limit_targets[channel] = parsed if parsed > 0 else None
 
-    def rate_limit_snapshot(self) -> Dict[str, float]:
-        return dict(self._rate_utilization)
+    def rate_limit_snapshot(self) -> Dict[str, Any]:
+        """
+        Get comprehensive rate limit snapshot.
+        
+        Returns:
+            Dict with:
+                - 'legacy_channels': legacy channel utilization (public/private)
+                - 'endpoints': per-endpoint statistics
+                - 'summary': aggregated stats (max utilization, violations, etc.)
+        """
+        # Legacy channel utilization
+        legacy = dict(self._rate_utilization)
+        
+        # Per-endpoint statistics
+        endpoint_stats = self.rate_limiter.get_all_stats()
+        endpoints_dict = {
+            name: {
+                "utilization": stats.utilization,
+                "tokens_available": stats.tokens_available,
+                "calls_last_second": stats.calls_last_second,
+                "violations": stats.violations,
+                "wait_time_seconds": stats.wait_time_seconds
+            }
+            for name, stats in endpoint_stats.items()
+        }
+        
+        # Summary statistics
+        max_util = max((s.utilization for s in endpoint_stats.values()), default=0.0)
+        total_violations = sum(s.violations for s in endpoint_stats.values())
+        high_util_count = sum(1 for s in endpoint_stats.values() if s.utilization >= 0.8)
+        
+        return {
+            "legacy_channels": legacy,
+            "endpoints": endpoints_dict,
+            "summary": {
+                "max_utilization": max_util,
+                "total_violations": total_violations,
+                "high_utilization_endpoints": high_util_count,
+                "endpoint_count": len(endpoint_stats)
+            }
+        }
 
-    def _record_rate_usage(self, channel: str, violated: bool = False) -> None:
+    def _record_rate_usage(self, channel: str, endpoint: Optional[str] = None, violated: bool = False) -> None:
+        """
+        Record rate usage for both legacy channel tracking and new per-endpoint tracking.
+        
+        Args:
+            channel: Channel name ('public' or 'private')
+            endpoint: Endpoint name (e.g., 'list_products', 'place_order')
+            violated: Whether this call resulted in 429 response
+        """
+        # Legacy channel tracking (backward compatibility)
         queue = self._rate_usage[channel]
         now = time.monotonic()
         queue.append(now)
@@ -221,6 +269,11 @@ class CoinbaseExchange:
         violation = violated or (limit is not None and usage >= 1.0)
         if self.metrics:
             self.metrics.record_rate_limit_usage(channel, usage, violated=violation)
+        
+        # New per-endpoint tracking
+        if endpoint:
+            is_private = (channel == "private")
+            self.rate_limiter.record(endpoint, is_private=is_private, violated=violated)
 
     def _record_api_metrics(self, endpoint: str, channel: str, duration: float, status: str) -> None:
         if self.metrics:
