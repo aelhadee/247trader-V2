@@ -1278,7 +1278,7 @@ class CoinbaseExchange:
         if self.read_only:
             raise ValueError("Cannot place orders in READ_ONLY mode")
         
-        self._rate_limit("place_order")
+        self._rate_limit("place_order", is_private=True)
         
         if order_type == "limit_post_only":
             quote = self.get_quote(product_id)
