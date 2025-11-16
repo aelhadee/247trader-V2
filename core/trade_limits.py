@@ -472,3 +472,113 @@ class TradeLimits:
         except Exception as e:
             logger.warning(f"Error getting cooldown status for {symbol}: {e}")
             return {"on_cooldown": False}
+    
+    def _validate_config(self, config: Dict):
+        """
+        Validate TradeLimits configuration.
+        
+        Raises:
+            ValueError: If config is invalid
+        """
+        errors = []
+        
+        # Global spacing validation
+        global_spacing = config.get("min_seconds_between_trades")
+        if global_spacing is not None:
+            if not isinstance(global_spacing, (int, float)):
+                errors.append("min_seconds_between_trades must be numeric")
+            elif global_spacing < 0:
+                errors.append("min_seconds_between_trades must be >= 0")
+            elif global_spacing > 3600:
+                errors.append("min_seconds_between_trades should be <= 3600s (1 hour)")
+        
+        # Per-symbol spacing validation
+        symbol_spacing = config.get("per_symbol_trade_spacing_seconds")
+        if symbol_spacing is not None:
+            if not isinstance(symbol_spacing, (int, float)):
+                errors.append("per_symbol_trade_spacing_seconds must be numeric")
+            elif symbol_spacing < 0:
+                errors.append("per_symbol_trade_spacing_seconds must be >= 0")
+            elif symbol_spacing > 86400:
+                errors.append("per_symbol_trade_spacing_seconds should be <= 86400s (24 hours)")
+        
+        # Frequency limits validation
+        trades_per_hour = config.get("max_new_trades_per_hour") or config.get("max_trades_per_hour")
+        if trades_per_hour is not None:
+            if not isinstance(trades_per_hour, int):
+                errors.append("max_trades_per_hour must be an integer")
+            elif trades_per_hour < 1:
+                errors.append("max_trades_per_hour must be >= 1")
+            elif trades_per_hour > 100:
+                errors.append("max_trades_per_hour should be <= 100")
+        
+        trades_per_day = config.get("max_trades_per_day")
+        if trades_per_day is not None:
+            if not isinstance(trades_per_day, int):
+                errors.append("max_trades_per_day must be an integer")
+            elif trades_per_day < 1:
+                errors.append("max_trades_per_day must be >= 1")
+            elif trades_per_day > 1000:
+                errors.append("max_trades_per_day should be <= 1000")
+            
+            # Ensure daily limit >= hourly limit * 24
+            if trades_per_hour is not None and trades_per_day < (trades_per_hour * 24):
+                errors.append(
+                    f"max_trades_per_day ({trades_per_day}) must be >= "
+                    f"max_trades_per_hour ({trades_per_hour}) * 24 = {trades_per_hour * 24}"
+                )
+        
+        # Cooldown validation
+        cooldown_win = config.get("per_symbol_cooldown_win_minutes")
+        if cooldown_win is not None:
+            if not isinstance(cooldown_win, (int, float)):
+                errors.append("per_symbol_cooldown_win_minutes must be numeric")
+            elif cooldown_win < 0:
+                errors.append("per_symbol_cooldown_win_minutes must be >= 0")
+            elif cooldown_win > 1440:
+                errors.append("per_symbol_cooldown_win_minutes should be <= 1440 (24 hours)")
+        
+        cooldown_loss = config.get("per_symbol_cooldown_loss_minutes")
+        if cooldown_loss is not None:
+            if not isinstance(cooldown_loss, (int, float)):
+                errors.append("per_symbol_cooldown_loss_minutes must be numeric")
+            elif cooldown_loss < 0:
+                errors.append("per_symbol_cooldown_loss_minutes must be >= 0")
+            elif cooldown_loss > 1440:
+                errors.append("per_symbol_cooldown_loss_minutes should be <= 1440 (24 hours)")
+        
+        cooldown_stop = config.get("per_symbol_cooldown_after_stop")
+        if cooldown_stop is not None:
+            if not isinstance(cooldown_stop, (int, float)):
+                errors.append("per_symbol_cooldown_after_stop must be numeric")
+            elif cooldown_stop < 0:
+                errors.append("per_symbol_cooldown_after_stop must be >= 0")
+            elif cooldown_stop > 1440:
+                errors.append("per_symbol_cooldown_after_stop should be <= 1440 (24 hours)")
+        
+        # Consecutive loss cooldown validation
+        loss_streak = config.get("cooldown_after_loss_trades")
+        if loss_streak is not None:
+            if not isinstance(loss_streak, int):
+                errors.append("cooldown_after_loss_trades must be an integer")
+            elif loss_streak < 1:
+                errors.append("cooldown_after_loss_trades must be >= 1")
+            elif loss_streak > 20:
+                errors.append("cooldown_after_loss_trades should be <= 20")
+        
+        loss_cooldown = config.get("cooldown_minutes")
+        if loss_cooldown is not None:
+            if not isinstance(loss_cooldown, (int, float)):
+                errors.append("cooldown_minutes must be numeric")
+            elif loss_cooldown < 0:
+                errors.append("cooldown_minutes must be >= 0")
+            elif loss_cooldown > 1440:
+                errors.append("cooldown_minutes should be <= 1440 (24 hours)")
+        
+        # If there are errors, raise with all issues
+        if errors:
+            error_msg = "TradeLimits configuration validation failed:\n" + "\n".join(f"  - {e}" for e in errors)
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        logger.debug("TradeLimits configuration validated successfully")
