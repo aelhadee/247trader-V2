@@ -1456,9 +1456,14 @@ class TradingLoop:
             else:
                 self.portfolio.pending_orders = pending_orders
 
+            logger.info("✂️  Step 4: Checking if auto-trim needed...")
             try:
                 with self._stage_timer("risk_trim"):
                     trimmed = self._auto_trim_to_risk_cap()
+                    if trimmed:
+                        logger.info(f"✅ Auto-trimmed {len(trimmed)} position(s) to respect risk cap")
+                    else:
+                        logger.info("✅ No trim needed - within risk limits")
             except CriticalDataUnavailable as data_exc:
                 self._abort_cycle_due_to_data(
                     cycle_started,
