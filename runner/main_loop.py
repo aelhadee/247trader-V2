@@ -1715,10 +1715,12 @@ class TradingLoop:
                 # Note: removed "fast guard" short-circuit - let RiskEngine see true state
                 # and make the decision based on actual live orders after reconciliation
                 filtered.append(proposal)
+            
+            logger.info(f"✅ Filtered {len(filtered)}/{proposals_count} proposals (removed {proposals_count - len(filtered)} with pending orders)")
 
             if not filtered:
                 reason = "open_orders_pending"
-                logger.info(f"NO_TRADE: {reason}")
+                logger.warning(f"⚠️  NO_TRADE: {reason} (all proposals have pending orders)")
                 self._audit_cycle(
                     ts=cycle_started,
                     mode=self.mode,
