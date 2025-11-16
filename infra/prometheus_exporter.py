@@ -125,7 +125,13 @@ _exporter: Optional[PrometheusExporter] = None
 
 
 def get_exporter(port: int = 8000) -> PrometheusExporter:
-    """Get or create Prometheus exporter singleton"""
+    """
+    Get or create Prometheus exporter singleton.
+    
+    Returns None if called before initialization (allows optional Prometheus).
+    Main loop should call this with explicit port to initialize, 
+    other components can call without args to get existing instance.
+    """
     global _exporter
     if _exporter is None:
         _exporter = PrometheusExporter(port=port)
