@@ -115,7 +115,7 @@ class TestManageOpenOrders:
         assert order_state.status == OrderStatus.CANCELED.value
     
     def test_cancel_multiple_stale_orders_batch(self):
-        """Test batch canceling multiple stale orders"""
+        """Test canceling multiple stale orders (individual cancellation)"""
         # Create 3 stale orders
         orders = []
         for i in range(3):
@@ -135,18 +135,19 @@ class TestManageOpenOrders:
             order.created_at = datetime.now(timezone.utc) - timedelta(seconds=120)
             orders.append((client_id, order_id))
         
-        # Mock batch cancellation
-        self.mock_exchange.cancel_orders.return_value = {"success": True}
+        # Mock individual cancellation (current implementation uses _safe_cancel)
+        self.mock_exchange.cancel_order.return_value = {"success": True}
         self.mock_exchange.list_open_orders.return_value = []
         
         # Run cancellation
         self.engine.manage_open_orders()
         
-        # Verify batch cancel was called
-        self.mock_exchange.cancel_orders.assert_called_once()
-        call_args = self.mock_exchange.cancel_orders.call_args[0][0]
-        assert len(call_args) == 3
-        assert all(f"order_{i}" in call_args for i in range(3))
+        # Verify individual cancel was called 3 times
+        assert self.mock_exchange.cancel_order.call_count == 3
+        
+        # Verify all order IDs were canceled
+        call_order_ids = [call.args[0] for call in self.mock_exchange.cancel_order.call_args_list]
+        assert all(f"order_{i}" in call_order_ids for i in range(3))
         
         # Verify all orders transitioned to CANCELED
         for client_id, _ in orders:
