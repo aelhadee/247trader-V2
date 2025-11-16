@@ -108,10 +108,30 @@ class CoinbaseExchange:
         # Validate credentials for non-read-only modes
         if not read_only:
             if not self.api_key or not self.api_secret:
+                missing = []
+                if not self.api_key:
+                    missing.append("CB_API_KEY or COINBASE_API_KEY")
+                if not self.api_secret:
+                    missing.append("CB_API_SECRET or COINBASE_API_SECRET")
+                
                 raise ValueError(
-                    "LIVE mode requires credentials. Set CB_API_KEY and CB_API_SECRET environment variables. "
-                    "For read-only mode, pass read_only=True to bypass this check."
+                    f"LIVE/PAPER mode requires credentials. Missing: {', '.join(missing)}\n"
+                    "\n"
+                    "Set environment variables before starting:\n"
+                    "  export CB_API_KEY='your-api-key'\n"
+                    "  export CB_API_SECRET='your-api-secret'\n"
+                    "\n"
+                    "Or source the credentials helper:\n"
+                    "  source scripts/load_credentials.sh\n"
+                    "\n"
+                    "For read-only mode (no trading), pass read_only=True to bypass this check."
                 )
+            
+            # Validate format (basic checks)
+            if len(self.api_key) < 10:
+                raise ValueError("CB_API_KEY appears invalid (too short). Check your credentials.")
+            if len(self.api_secret) < 20:
+                raise ValueError("CB_API_SECRET appears invalid (too short). Check your credentials.")
         
         # Authentication mode
         self._mode = "hmac"
