@@ -191,7 +191,7 @@ class TradingLoop:
                                         latency_tracker=self.latency_tracker)
         
         # Configure rate limits from policy (preferred) or fallback to app.yaml
-        rate_limit_cfg = self.policy.get("rate_limits") or exchange_config.get("rate_limit")
+        rate_limit_cfg = self.policy_config.get("rate_limits") or exchange_config.get("rate_limit")
         self.exchange.configure_rate_limits(rate_limit_cfg)
         state_cfg = self.app_config.get("state") or {}
         self.state_store = create_state_store_from_config(state_cfg)
