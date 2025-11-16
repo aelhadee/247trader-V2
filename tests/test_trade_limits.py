@@ -60,20 +60,18 @@ def sample_proposals():
         TradeProposal(
             symbol="BTC-USD",
             side="buy",
-            size_pct=0.02,0,
+            size_pct=0.02,
             confidence=0.7,
             reason="test",
-            
             stop_loss_pct=10.0,
             take_profit_pct=15.0
         ),
         TradeProposal(
             symbol="ETH-USD",
             side="buy",
-            size_pct=0.02,0,
+            size_pct=0.02,
             confidence=0.6,
             reason="test",
-            
             stop_loss_pct=10.0,
             take_profit_pct=15.0
         )
