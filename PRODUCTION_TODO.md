@@ -43,6 +43,7 @@ All operational readiness items completed:
 - `docs/COMPREHENSIVE_METRICS_IMPLEMENTATION.md`
 - `docs/CONFIG_HASH_STAMPING.md`
 - `docs/CONFIG_SANITY_CHECKS.md`
+- `docs/SAFETY_FIXES_APPLIED.md` (comprehensive fix report 2025-11-15)
 
 ## ✅ LIVE TRADING: OPERATIONAL
 
