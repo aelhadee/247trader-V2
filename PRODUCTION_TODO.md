@@ -191,6 +191,24 @@ Deployed to production on 2025-11-15 at 18:33 PST. All safety validations passed
 
 | Status | Task | Owner | Notes |
 | ------ | ---- | ----- | ----- |
+| 🟢 Done | **Deterministic backtests with fixed seed (REQ-BT1)** | N/A | BacktestEngine(seed=42) uses random.seed() for reproducible results; 3 tests in test_backtest_regression.py. CLI: --seed argument. |
+| 🟢 Done | **Machine-readable JSON reports (REQ-BT2)** | N/A | export_json() creates 4-section report (metadata, summary, trades, regression_keys); 6 tests in test_backtest_regression.py. CLI: --output argument. |
+| 🟢 Done | **CI regression gate with ±2% tolerance (REQ-BT3)** | N/A | compare_baseline.py compares 5 key metrics (total_trades, win_rate, total_pnl_pct, max_drawdown_pct, profit_factor); 8 tests in test_backtest_regression.py. Exit 0=PASS, 1=FAIL, 2=ERROR. See docs/BACKTEST_REGRESSION_SYSTEM.md. |
+| 🟢 Done | **Enhanced slippage model with volatility adjustments** | N/A | Volatility-based slippage (1.0-1.5x multiplier), partial fill simulation for maker orders, ATR-based volatility calculation (24h lookback); 9 tests in test_slippage_enhanced.py. See docs/BACKTEST_SLIPPAGE_ENHANCEMENTS.md. |
+| 🔴 TODO | Ensure backtest engine reuses live universe → triggers → risk → execution pipeline. | TBD | Current backtest module diverges from live loop. |
+
+## Rate Limits & Retries
+
+| Status | Task | Owner | Notes |
+| ------ | ---- | ----- | ----- |
+| 🟢 Done | Apply exponential backoff with jitter for 429/5xx and network faults. | N/A | `CoinbaseExchange._req` retries with capped backoff. |
+| 🟢 Done | **Per-endpoint rate limit tracking with token bucket algorithm** | N/A | RateLimiter with per-endpoint quotas (15 endpoints tracked), proactive throttling at 80%/90% thresholds, 12 tests in test_rate_limiter.py. See docs/RATE_LIMIT_TRACKING.md. |
+| 🟢 Done | Guard against partial snapshots by skipping decisioning when data missing. | N/A | Shared with fail-closed gating above. |
+
+## Backtesting Parity
+
+| Status | Task | Owner | Notes |
+| ------ | ---- | ----- | ----- |
 | � Done | **Deterministic backtests with fixed seed (REQ-BT1)** | N/A | BacktestEngine(seed=42) uses random.seed() for reproducible results; 3 tests in test_backtest_regression.py. CLI: --seed argument. |
 | � Done | **Machine-readable JSON reports (REQ-BT2)** | N/A | export_json() creates 4-section report (metadata, summary, trades, regression_keys); 6 tests in test_backtest_regression.py. CLI: --output argument. |
 | 🟢 Done | **CI regression gate with ±2% tolerance (REQ-BT3)** | N/A | compare_baseline.py compares 5 key metrics (total_trades, win_rate, total_pnl_pct, max_drawdown_pct, profit_factor); 8 tests in test_backtest_regression.py. Exit 0=PASS, 1=FAIL, 2=ERROR. See docs/BACKTEST_REGRESSION_SYSTEM.md. |
