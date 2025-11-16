@@ -1947,8 +1947,9 @@ class TradingLoop:
                         return
 
                     # Execute each adjusted proposal
-                    for proposal, size_usd in adjusted_proposals:
-                        logger.info(f"Executing: {proposal.side} {proposal.symbol} (${size_usd:.2f})")
+                    logger.info(f"📤 Step 12d: Submitting {len(adjusted_proposals)} order(s) to exchange...")
+                    for idx, (proposal, size_usd) in enumerate(adjusted_proposals, 1):
+                        logger.info(f"🔹 Order {idx}/{len(adjusted_proposals)}: {proposal.side} {proposal.symbol} ${size_usd:.2f} (conviction={proposal.conviction:.2f})")
 
                         # Extract tier from proposal asset if available
                         tier = proposal.asset.tier if proposal.asset else None
