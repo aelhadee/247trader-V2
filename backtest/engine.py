@@ -27,6 +27,50 @@ from core.cost_model import get_cost_model
 logger = logging.getLogger(__name__)
 
 
+class DataLoaderAdapter:
+    """
+    Adapter to wrap callable data_loader functions for MockExchange compatibility.
+    
+    MockExchange expects a DataLoader object with get_latest_candle() and load_range() methods.
+    This adapter wraps function-based loaders to provide that interface.
+    """
+    
+    def __init__(self, loader_func):
+        """
+        Args:
+            loader_func: Callable that takes (symbols, start, end) and returns dict[symbol] -> List[Candle]
+        """
+        self.loader_func = loader_func
+        self._cache = {}
+    
+    def load_range(self, symbols: List[str], start: datetime, end: datetime, granularity: int = 900) -> Dict[str, List]:
+        """Load data for symbols over date range"""
+        return self.loader_func(symbols, start, end)
+    
+    def get_latest_candle(self, symbol: str, time: datetime):
+        """Get candle at or before specified time"""
+        # Try to get from a small window
+        window_start = time - timedelta(hours=2)
+        window_end = time + timedelta(minutes=5)
+        
+        data = self.loader_func([symbol], window_start, window_end)
+        candles = data.get(symbol, [])
+        
+        if not candles:
+            return None
+        
+        # Find closest candle at or before time
+        valid_candles = [c for c in candles if c.timestamp <= time]
+        if not valid_candles:
+            return None
+        
+        return max(valid_candles, key=lambda c: c.timestamp)
+    
+    def __call__(self, symbols, start, end):
+        """Allow calling as function for backward compatibility"""
+        return self.loader_func(symbols, start, end)
+
+
 @dataclass
 class Trade:
     """Executed trade"""
