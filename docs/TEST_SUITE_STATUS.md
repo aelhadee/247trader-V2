@@ -225,4 +225,8 @@ Pre-existing test failures should be addressed but **don't block deployment**:
 
 📊 Test suite: ~540/564 passing (~96% pass rate)
 
+⏱️ **Full suite is SLOW**: Takes 15-30+ minutes, some tests may hang
+- **Recommendation**: Run core tests only (`./run_tests.sh tests/test_core.py`)
+- For CI/CD: Use selective test runs or test parallelization
+
 🚀 Safe to deploy to production with current fixes
