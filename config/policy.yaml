@@ -390,6 +390,35 @@ circuit_breaker:
   rate_limit_threshold: 3
   rate_limit_window_minutes: 10
 
+# Per-endpoint rate limit tracking (prevents API quota exhaustion)
+rate_limits:
+  # Coinbase Advanced Trade API limits (as of 2024):
+  # - Public endpoints: 10 requests/second
+  # - Private endpoints: 15 requests/second
+  # - Orders: 10 orders/second
+  
+  # Default quotas (used if endpoint-specific not configured)
+  public: 10.0   # req/sec for public endpoints
+  private: 15.0  # req/sec for private endpoints
+  
+  # Alert thresholds (0.0-1.0 utilization)
+  alert_threshold: 0.8  # Alert at 80% utilization
+  critical_threshold: 0.9  # Critical alert at 90%
+  
+  # Per-endpoint overrides (optional)
+  endpoints:
+    get_quote: 10.0          # Quote fetching
+    get_ohlcv: 10.0          # Candle data
+    list_products: 5.0       # Product listing (less frequent)
+    get_accounts: 10.0       # Account balances
+    list_orders: 10.0        # Order listing
+    list_fills: 10.0         # Fill history
+    place_order: 10.0        # Order placement
+    cancel_order: 10.0       # Order cancellation
+    preview_order: 10.0      # Order preview
+    convert_quote: 5.0       # Currency conversion (less frequent)
+    convert_commit: 5.0      # Conversion execution
+
 # Latency thresholds for watchdog timers and alerting
 latency:
   # API call latency thresholds in milliseconds (mean over last N calls)
