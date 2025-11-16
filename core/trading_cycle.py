@@ -83,7 +83,8 @@ class TradingCyclePipeline:
                       portfolio: PortfolioState,
                       regime: str,
                       cycle_number: int,
-                      state: Optional[Dict[str, Any]] = None) -> CycleResult:
+                      state: Optional[Dict[str, Any]] = None,
+                      trigger_provider: Optional[callable] = None) -> CycleResult:
         """
         Execute one trading cycle through the pipeline.
         
@@ -93,6 +94,8 @@ class TradingCyclePipeline:
             regime: Market regime
             cycle_number: Cycle counter
             state: Optional state dict for strategies
+            trigger_provider: Optional callback(universe, current_time, regime) -> List[TriggerSignal]
+                            Used by backtesting to provide historical triggers
             
         Returns:
             CycleResult with universe, triggers, proposals, approvals
@@ -121,8 +124,13 @@ class TradingCyclePipeline:
             
             # Step 2: Scan for triggers
             logger.debug("Pipeline Step 2: Scanning for triggers")
-            all_assets = universe.get_all_eligible()
-            triggers = self.trigger_engine.scan(all_assets, regime=regime)
+            if trigger_provider:
+                # Backtest mode: use provided trigger callback with historical data
+                triggers = trigger_provider(universe, current_time, regime)
+            else:
+                # Live mode: use trigger engine with live exchange data
+                all_assets = universe.get_all_eligible()
+                triggers = self.trigger_engine.scan(all_assets, regime=regime)
             
             if not triggers or len(triggers) == 0:
                 return CycleResult(
