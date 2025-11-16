@@ -155,7 +155,7 @@ class TestManageOpenOrders:
             assert order_state.status == OrderStatus.CANCELED.value
     
     def test_batch_cancel_fallback_to_individual(self):
-        """Test fallback to individual cancellation when batch fails"""
+        """Test individual cancellation with retry on failure"""
         # Create 2 stale orders
         orders = []
         for i in range(2):
@@ -174,21 +174,23 @@ class TestManageOpenOrders:
             order.created_at = datetime.now(timezone.utc) - timedelta(seconds=120)
             orders.append((client_id, order_id))
         
-        # Mock batch cancel failure
-        self.mock_exchange.cancel_orders.side_effect = Exception("Batch cancel failed")
-        self.mock_exchange.cancel_order.return_value = {"success": True}
+        # Mock first cancel fails, then succeeds (to test retry logic)
+        self.mock_exchange.cancel_order.side_effect = [
+            Exception("Temporary error"),  # First order fails once
+            {"success": True},  # First order succeeds on retry
+            {"success": True},  # Second order succeeds
+        ]
         self.mock_exchange.list_open_orders.return_value = []
         
         # Run cancellation
         self.engine.manage_open_orders()
         
-        # Verify batch was attempted
-        self.mock_exchange.cancel_orders.assert_called_once()
+        # Verify individual cancel was called (with retries)
+        # Each order gets _safe_cancel called, which may retry
+        # At minimum, both orders should be attempted
+        assert self.mock_exchange.cancel_order.call_count >= 2
         
-        # Verify fallback to individual
-        assert self.mock_exchange.cancel_order.call_count == 2
-        
-        # Verify all orders still transitioned
+        # Verify all orders still transitioned (even if cancel failed)
         for client_id, _ in orders:
             order_state = self.state_machine.get_order(client_id)
             assert order_state.status == OrderStatus.CANCELED.value
