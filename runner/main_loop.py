@@ -2041,13 +2041,9 @@ class TradingLoop:
                 if current_hour == 23 and current_minute >= 50:
                     if self._last_report_date != current_date:
                         logger.info("📊 Generating daily performance report...")
-                        report = self.report_generator.generate_daily_report()
+                        report_file = self.report_generator.generate_daily_report()
                         self._last_report_date = current_date
-                        logger.info(
-                            f"✅ Daily report complete: {report.total_trades} trades, "
-                            f"PnL: ${report.pnl_total:.2f} ({report.return_pct_total:.2f}%), "
-                            f"Win rate: {report.win_rate_pct:.1f}%"
-                        )
+                        logger.info(f"✅ Daily report saved: {report_file}")
             except Exception as report_exc:
                 logger.warning(f"Daily report generation failed: {report_exc}", exc_info=True)
             
