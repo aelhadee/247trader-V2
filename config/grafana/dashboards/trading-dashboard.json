@@ -1,0 +1,141 @@
+{
+  "dashboard": {
+    "title": "247trader-v2 Trading Dashboard",
+    "tags": ["trading", "crypto"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Account Value (USD)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "trader_account_value_usd",
+            "legendFormat": "Account Value"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Daily PnL (%)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "trader_daily_pnl_pct",
+            "legendFormat": "Daily PnL %"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Open Positions",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "trader_open_positions",
+            "legendFormat": "Positions"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Exposure %",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "trader_exposure_pct",
+            "legendFormat": "Exposure"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 70, "color": "yellow"},
+                {"value": 90, "color": "red"}
+              ]
+            },
+            "max": 100
+          }
+        },
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 8}
+      },
+      {
+        "id": 5,
+        "title": "Max Drawdown %",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "trader_max_drawdown_pct",
+            "legendFormat": "Drawdown"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 8}
+      },
+      {
+        "id": 6,
+        "title": "Total Trades",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(trader_trades_total)",
+            "legendFormat": "Trades"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 8}
+      },
+      {
+        "id": 7,
+        "title": "Risk Rejections by Reason",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(trader_risk_rejections_total[5m])",
+            "legendFormat": "{{reason}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12}
+      },
+      {
+        "id": 8,
+        "title": "API Latency (95th percentile)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(trader_api_latency_seconds_bucket[5m]))",
+            "legendFormat": "{{endpoint}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12}
+      },
+      {
+        "id": 9,
+        "title": "Circuit Breaker Trips",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "increase(trader_circuit_breaker_trips[1h])",
+            "legendFormat": "{{type}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20}
+      },
+      {
+        "id": 10,
+        "title": "Cycle Duration",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(trader_cycle_duration_seconds_bucket[5m]))",
+            "legendFormat": "95th percentile"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20}
+      }
+    ]
+  }
+}
