@@ -504,7 +504,7 @@ class CoinbaseExchange:
 
         Returns a Quote with bid/ask/mid/spread and 24h volume.
         """
-        self._rate_limit("quote")
+        self._rate_limit("get_quote", is_private=False)
         logger.debug(f"Fetching quote for {symbol}")
 
         best_bid = best_ask = last = 0.0
