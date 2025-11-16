@@ -20,6 +20,9 @@ from core.regime import RegimeDetector
 from strategy.rules_engine import RulesEngine, TradeProposal
 from core.risk import RiskEngine, PortfolioState
 from backtest.slippage_model import SlippageModel, SlippageConfig
+from backtest.mock_exchange import MockExchange
+from backtest.data_loader import DataLoader
+from core.cost_model import get_cost_model
 
 logger = logging.getLogger(__name__)
 
