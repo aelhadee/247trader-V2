@@ -70,6 +70,8 @@ class PrometheusExporter:
     
     def update_from_cycle_stats(self, stats: dict):
         """Update metrics from cycle statistics"""
+        if not self._metrics_initialized:
+            return
         try:
             # Account metrics
             if 'account_value_usd' in stats:
@@ -100,38 +102,77 @@ class PrometheusExporter:
     
     def record_trade(self, symbol: str, side: str, pnl_usd: Optional[float] = None):
         """Record a trade execution"""
-        self.trades_total.labels(side=side.upper(), symbol=symbol).inc()
-        if pnl_usd is not None:
-            self.trade_pnl.labels(symbol=symbol).set(pnl_usd)
+        if not self._metrics_initialized:
+            return
+        try:
+            self.trades_total.labels(side=side.upper(), symbol=symbol).inc()
+            if pnl_usd is not None:
+                self.trade_pnl.labels(symbol=symbol).set(pnl_usd)
+        except Exception as e:
+            logger.debug(f"Error recording trade: {e}")
     
-    def record_order_placed(self, symbol: str, side: str):
+    def record_order_placed(self, symbol: str, side: str, size_usd: float):
         """Record order placement"""
-        self.orders_placed.labels(side=side.upper(), symbol=symbol).inc()
+        if not self._metrics_initialized:
+            return
+        try:
+            self.orders_placed.labels(side=side.upper(), symbol=symbol).inc()
+        except Exception as e:
+            logger.debug(f"Error recording order placed: {e}")
     
-    def record_order_filled(self, symbol: str, side: str, fill_time_seconds: float):
+    def record_order_filled(self, symbol: str, side: str, filled_size: float, fill_pct: float):
         """Record order fill"""
-        self.orders_filled.labels(side=side.upper(), symbol=symbol).inc()
-        self.order_fill_time.observe(fill_time_seconds)
+        if not self._metrics_initialized:
+            return
+        try:
+            self.orders_filled.labels(side=side.upper(), symbol=symbol).inc()
+        except Exception as e:
+            logger.debug(f"Error recording order filled: {e}")
     
     def record_risk_rejection(self, reason: str):
         """Record risk check rejection"""
-        self.risk_rejections.labels(reason=reason).inc()
+        if not self._metrics_initialized:
+            return
+        try:
+            self.risk_rejections.labels(reason=reason).inc()
+        except Exception as e:
+            logger.debug(f"Error recording risk rejection: {e}")
     
     def record_circuit_breaker(self, breaker_type: str):
         """Record circuit breaker activation"""
-        self.circuit_breaker_trips.labels(type=breaker_type).inc()
+        if not self._metrics_initialized:
+            return
+        try:
+            self.circuit_breaker_trips.labels(type=breaker_type).inc()
+        except Exception as e:
+            logger.debug(f"Error recording circuit breaker: {e}")
     
     def record_api_latency(self, endpoint: str, latency_seconds: float):
         """Record API call latency"""
-        self.api_latency.labels(endpoint=endpoint).observe(latency_seconds)
+        if not self._metrics_initialized:
+            return
+        try:
+            self.api_latency.labels(endpoint=endpoint).observe(latency_seconds)
+        except Exception as e:
+            logger.debug(f"Error recording API latency: {e}")
     
     def record_api_error(self, endpoint: str, error_type: str):
         """Record API error"""
-        self.api_errors.labels(endpoint=endpoint, error_type=error_type).inc()
+        if not self._metrics_initialized:
+            return
+        try:
+            self.api_errors.labels(endpoint=endpoint, error_type=error_type).inc()
+        except Exception as e:
+            logger.debug(f"Error recording API error: {e}")
     
     def set_data_staleness(self, data_type: str, age_seconds: float):
         """Update data staleness metric"""
-        self.data_staleness.labels(data_type=data_type).set(age_seconds)
+        if not self._metrics_initialized:
+            return
+        try:
+            self.data_staleness.labels(data_type=data_type).set(age_seconds)
+        except Exception as e:
+            logger.debug(f"Error setting data staleness: {e}")
 
 
 # Singleton instance
