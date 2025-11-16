@@ -325,8 +325,8 @@ echo ""
 python -c "
 import sys
 from core.trade_limits import TradeLimits
-from core.trade_log import TradeLog
-from core.performance_report import PerformanceReport
+from analytics.trade_log import TradeLog
+from analytics.performance_report import PerformanceReport
 from infra.state_store import StateStore
 import yaml
 
@@ -354,7 +354,7 @@ try:
     print('✅ ReportGenerator initialized')
     
     print('')
-    print('Analytics system ready for LIVE deployment')
+    print('✨ Analytics system ready for LIVE deployment')
     sys.exit(0)
     
 except Exception as e:
