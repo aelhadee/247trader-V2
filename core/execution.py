@@ -1780,6 +1780,7 @@ class ExecutionEngine:
                 tier,
                 bypass_slippage_budget,
                 confidence=confidence,
+                exit_reason=exit_reason,
             )
         
         raise ValueError(f"Invalid mode: {self.mode}")
