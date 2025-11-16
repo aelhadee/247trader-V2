@@ -1486,9 +1486,14 @@ class TradingLoop:
                 else:
                     self.portfolio.pending_orders = pending_orders
 
+            logger.info("🔍 Step 5: Checking capacity for new positions...")
             try:
                 with self._stage_timer("capacity_check"):
                     capacity_reason = self._ensure_capacity_for_new_positions()
+                    if capacity_reason:
+                        logger.warning(f"⚠️  Capacity limited: {capacity_reason}")
+                    else:
+                        logger.info("✅ Capacity available for new positions")
             except CriticalDataUnavailable as data_exc:
                 self._abort_cycle_due_to_data(
                     cycle_started,
