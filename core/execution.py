@@ -122,6 +122,9 @@ class ExecutionEngine:
         self._rejection_window_seconds = 600  # 10 minutes
         self._rejection_threshold = 3
         
+        # Shadow execution logger for DRY_RUN mode
+        self.shadow_logger = ShadowExecutionLogger("logs/shadow_orders.jsonl")
+        
         # Load limits from policy or use defaults
         execution_config = self.policy.get("execution", {})
         microstructure_config = self.policy.get("microstructure", {})
