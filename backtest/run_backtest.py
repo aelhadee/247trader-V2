@@ -22,7 +22,8 @@ def run_simple_backtest(
     start_date: str = "2024-11-01",
     end_date: str = "2024-11-10",
     initial_capital: float = 10_000.0,
-    interval_minutes: int = 60
+    interval_minutes: int = 60,
+    seed: int = None
 ) -> BacktestMetrics:
     """
     Run a simple backtest.
