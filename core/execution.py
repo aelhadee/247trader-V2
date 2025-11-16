@@ -2456,7 +2456,7 @@ class ExecutionEngine:
                         fill_pct = (filled_size * filled_price) / size_usd if size_usd > 0 else 0.0
                         self.prometheus_exporter.record_order_filled(symbol, side.lower(), filled_size, fill_pct)
                     
-                    # Log trade entry/exit for analytics
+                    # Log trade entry/exit for analytics and apply cooldowns
                     try:
                         if side.lower() == "buy":
                             # Log new trade entry
@@ -2493,6 +2493,25 @@ class ExecutionEngine:
                             
                             # Log the completed trade
                             self.trade_log.log_exit(trade_record)
+                            
+                            # Apply cooldown based on outcome
+                            try:
+                                # Determine outcome for cooldown
+                                pnl_net = trade_record.pnl_net or 0.0
+                                if exit_reason == "stop_loss" or trade_record.hit_stop_loss:
+                                    outcome = "stop_loss"
+                                elif pnl_net > 0:
+                                    outcome = "win"
+                                else:
+                                    outcome = "loss"
+                                
+                                # Apply cooldown if risk engine available
+                                if hasattr(self, 'risk_engine') and self.risk_engine and hasattr(self.risk_engine, 'trade_limits'):
+                                    self.risk_engine.trade_limits.apply_cooldown(symbol, outcome=outcome)
+                                    logger.debug("Applied %s cooldown for %s", outcome, symbol)
+                            except Exception as cd_exc:
+                                logger.warning("Failed to apply cooldown for %s: %s", symbol, cd_exc)
+                            
                             logger.debug(
                                 "Trade exit logged: %s SELL @ %.6f (PnL: %.2f%%, net: $%.2f)",
                                 symbol,
@@ -2502,6 +2521,11 @@ class ExecutionEngine:
                             )
                         elif side.lower() == "sell":
                             logger.debug("SELL order for %s but no open trade found (may be direct liquidation)", symbol)
+                        
+                        # Record trade for spacing checks (both BUY and SELL)
+                        if hasattr(self, 'risk_engine') and self.risk_engine and hasattr(self.risk_engine, 'trade_limits'):
+                            self.risk_engine.trade_limits.record_trade(symbol)
+                            logger.debug("Recorded trade for %s (spacing check)", symbol)
                     except Exception as log_exc:
                         logger.warning("Failed to log trade for %s: %s", symbol, log_exc)
 
