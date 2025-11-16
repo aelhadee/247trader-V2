@@ -60,20 +60,20 @@ def sample_proposals():
         TradeProposal(
             symbol="BTC-USD",
             side="buy",
-            size_usd=1000.0,
+            size_pct=0.02,0,
             confidence=0.7,
             reason="test",
-            tier=1,
+            
             stop_loss_pct=10.0,
             take_profit_pct=15.0
         ),
         TradeProposal(
             symbol="ETH-USD",
             side="buy",
-            size_usd=500.0,
+            size_pct=0.02,0,
             confidence=0.6,
             reason="test",
-            tier=1,
+            
             stop_loss_pct=10.0,
             take_profit_pct=15.0
         )
@@ -320,10 +320,10 @@ def test_cooldown_blocks_proposal(trade_limits, mock_state_store):
         TradeProposal(
             symbol="BTC-USD",
             side="buy",
-            size_usd=1000.0,
+            size_pct=0.02,0,
             confidence=0.7,
             reason="test",
-            tier=1,
+            
             stop_loss_pct=10.0,
             take_profit_pct=15.0
         )
@@ -350,10 +350,10 @@ def test_cooldown_expires(trade_limits, mock_state_store):
         TradeProposal(
             symbol="BTC-USD",
             side="buy",
-            size_usd=1000.0,
+            size_pct=0.02,0,
             confidence=0.7,
             reason="test",
-            tier=1,
+            
             stop_loss_pct=10.0,
             take_profit_pct=15.0
         )
@@ -375,10 +375,10 @@ def test_symbol_spacing_first_trade(trade_limits, mock_state_store):
         TradeProposal(
             symbol="BTC-USD",
             side="buy",
-            size_usd=1000.0,
+            size_pct=0.02,0,
             confidence=0.7,
             reason="test",
-            tier=1,
+            
             stop_loss_pct=10.0,
             take_profit_pct=15.0
         )
@@ -401,10 +401,10 @@ def test_symbol_spacing_blocked(trade_limits, mock_state_store):
         TradeProposal(
             symbol="BTC-USD",
             side="buy",
-            size_usd=1000.0,
+            size_pct=0.02,0,
             confidence=0.7,
             reason="test",
-            tier=1,
+            
             stop_loss_pct=10.0,
             take_profit_pct=15.0
         )
@@ -429,10 +429,10 @@ def test_symbol_spacing_different_symbols(trade_limits, mock_state_store):
         TradeProposal(
             symbol="ETH-USD",
             side="buy",
-            size_usd=500.0,
+            size_pct=0.02,0,
             confidence=0.6,
             reason="test",
-            tier=1,
+            
             stop_loss_pct=10.0,
             take_profit_pct=15.0
         )
@@ -472,12 +472,12 @@ def test_multiple_proposals_mixed_outcomes(trade_limits, mock_state_store):
     # SOL: clean (no history)
     
     proposals = [
-        TradeProposal(symbol="BTC-USD", side="buy", size_usd=1000, confidence=0.7, 
-                     reason="test", tier=1, stop_loss_pct=10, take_profit_pct=15),
-        TradeProposal(symbol="ETH-USD", side="buy", size_usd=500, confidence=0.6,
-                     reason="test", tier=1, stop_loss_pct=10, take_profit_pct=15),
-        TradeProposal(symbol="SOL-USD", side="buy", size_usd=300, confidence=0.5,
-                     reason="test", tier=2, stop_loss_pct=10, take_profit_pct=15),
+        TradeProposal(symbol="BTC-USD", side="buy", size_pct=1000, confidence=0.7, 
+                     reason="test",  stop_loss_pct=10, take_profit_pct=15),
+        TradeProposal(symbol="ETH-USD", side="buy", size_pct=500, confidence=0.6,
+                     reason="test",  stop_loss_pct=10, take_profit_pct=15),
+        TradeProposal(symbol="SOL-USD", side="buy", size_pct=300, confidence=0.5,
+                     reason="test",  stop_loss_pct=10, take_profit_pct=15),
     ]
     
     approved, rejections = trade_limits.filter_proposals_by_timing(proposals, current_time=now)
