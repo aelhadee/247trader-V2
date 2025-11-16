@@ -39,6 +39,7 @@ skip_without_creds = pytest.mark.skipif(
 
 
 @skip_without_creds
+@skip_without_creds
 def test_coinbase_connection():
     """Test basic Coinbase API connection"""
     exchange = CoinbaseExchange(read_only=True)
@@ -50,6 +51,7 @@ def test_coinbase_connection():
     print(f"✅ Coinbase connection established")
 
 
+@skip_without_creds
 @skip_without_creds
 def test_account_access():
     """Test account balance fetching"""
@@ -74,6 +76,7 @@ def test_account_access():
         print(f"   {curr}: {bal:.6f}")
 
 
+@skip_without_creds
 @skip_without_creds
 def test_quote_freshness():
     """Test quote data quality and freshness"""
@@ -110,6 +113,7 @@ def test_quote_freshness():
             pytest.fail(f"{pair}: Quote fetch failed: {e}")
 
 
+@skip_without_creds
 def test_ohlcv_data():
     """Test historical OHLCV data fetching"""
     exchange = CoinbaseExchange(read_only=True)
@@ -152,6 +156,7 @@ def test_ohlcv_data():
     print(f"✅ OHLCV data OK: {len(candles)} candles, latest @ {latest.timestamp}, age={age_seconds/60:.1f}min")
 
 
+@skip_without_creds
 def test_orderbook_depth():
     """Test orderbook depth fetching"""
     exchange = CoinbaseExchange(read_only=True)
@@ -189,6 +194,7 @@ def test_orderbook_depth():
             pytest.fail(f"{pair}: Orderbook fetch failed: {e}")
 
 
+@skip_without_creds
 def test_universe_building():
     """Test universe manager with real data"""
     exchange = CoinbaseExchange(read_only=True)
@@ -219,6 +225,7 @@ def test_universe_building():
     print(f"✅ Universe built: {len(snapshot.tier1)} tier1 assets")
 
 
+@skip_without_creds
 def test_fill_reconciliation_empty():
     """Test fill reconciliation with no recent fills"""
     exchange = CoinbaseExchange(read_only=True)
@@ -236,6 +243,7 @@ def test_fill_reconciliation_empty():
     print(f"✅ Fill reconciliation OK: {summary.get('fills_processed', 0)} fills processed")
 
 
+@skip_without_creds
 def test_execution_preview():
     """Test order preview without placing"""
     exchange = CoinbaseExchange(read_only=True)
@@ -261,6 +269,7 @@ def test_execution_preview():
         print(f"⚠️  Preview rejected: {preview.get('error', 'unknown')}")
 
 
+@skip_without_creds
 def test_circuit_breaker_data():
     """Test circuit breaker can access required data"""
     exchange = CoinbaseExchange(read_only=True)
@@ -288,6 +297,7 @@ def test_circuit_breaker_data():
     not os.getenv("CB_API_SECRET_FILE"),
     reason="Requires CB_API_SECRET_FILE environment variable"
 )
+@skip_without_creds
 def test_smoke_suite():
     """Run all smoke tests in sequence"""
     print("\n" + "="*80)
