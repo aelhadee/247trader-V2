@@ -1,0 +1,13 @@
+# Prometheus configuration for 247trader-v2
+global:
+  scrape_interval: 15s      # Scrape metrics every 15 seconds
+  evaluation_interval: 15s  # Evaluate rules every 15 seconds
+
+# Scrape configurations
+scrape_configs:
+  - job_name: '247trader'
+    static_configs:
+      - targets: ['localhost:8000']  # Your trading bot metrics endpoint
+        labels:
+          service: '247trader-v2'
+          environment: 'production'
