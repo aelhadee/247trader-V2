@@ -2033,6 +2033,7 @@ class TradingLoop:
                 logger.info("⚠️  NO_TRADE: execution layer filtered all proposals (liquidity/slippage/notional/etc)")
             
             # Audit cycle
+            logger.info("📝 Step 14: Writing cycle audit log...")
             self._audit_cycle(
                 ts=cycle_started,
                 mode=self.mode,
@@ -2044,6 +2045,9 @@ class TradingLoop:
                 no_trade_reason=None if final_orders else "no_orders_after_execution_filter",
                 state_store=self.state_store,
             )
+            logger.info("✅ Audit log written")
+            
+            logger.info("📊 Step 15: Recording cycle metrics...")
             self._record_cycle_metrics(
                 status="executed" if final_orders else "no_orders_after_execution_filter",
                 proposals=proposals_count,
@@ -2051,6 +2055,7 @@ class TradingLoop:
                 executed=executed_count,
                 started_at=cycle_started,
             )
+            logger.info("✅ Metrics recorded")
 
             # Post-cycle maintenance: cancel stale open orders (LIVE/PAPER)
             try:
