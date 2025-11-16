@@ -236,6 +236,18 @@ class BacktestEngine:
         self.rules_engine = RulesEngine(config={})
         self.risk_engine = RiskEngine(self.policy_config, universe_manager=self.universe_mgr)
         
+        # Shared trading cycle pipeline (same as live)
+        from core.trading_cycle import TradingCyclePipeline
+        self.trading_pipeline = TradingCyclePipeline(
+            universe_mgr=self.universe_mgr,
+            trigger_engine=self.trigger_engine,
+            regime_detector=self.regime_detector,
+            risk_engine=self.risk_engine,
+            strategy_registry=None,  # TODO: Add multi-strategy support
+            policy_config=self.policy_config
+        )
+        logger.info("Initialized TradingCyclePipeline for backtest (same as live)")
+        
         # Slippage model for realistic fills (DEPRECATED - now using CostModel)
         self.slippage_model = SlippageModel(slippage_config or SlippageConfig())
         logger.info("Cost model initialized: maker 40bps, taker 60bps, tier-based spreads")
