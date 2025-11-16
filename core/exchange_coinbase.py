@@ -1072,7 +1072,7 @@ class CoinbaseExchange:
             logger.info(f"READ_ONLY: would batch cancel {len(order_ids)} orders")
             return {"success": False, "read_only": True}
         try:
-            self._rate_limit("cancel_orders")
+            self._rate_limit("cancel_orders", is_private=True)
             body = {"order_ids": order_ids}
             resp = self._req("POST", "/orders/batch_cancel", body, authenticated=True)
             
