@@ -807,6 +807,12 @@ def validate_sanity_checks(config_dir: Path) -> List[str]:
                 # Build reverse mapping: asset -> theme(s)
                 asset_to_themes = {}
                 for theme, symbols in cluster_defs.items():
+                    # Handle both list and dict formats for symbols
+                    if isinstance(symbols, dict):
+                        continue  # Skip non-list cluster definitions
+                    if not isinstance(symbols, list):
+                        symbols = [symbols]  # Convert single string to list
+                    
                     for symbol in symbols:
                         if symbol not in asset_to_themes:
                             asset_to_themes[symbol] = []
