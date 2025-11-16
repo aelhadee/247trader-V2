@@ -1452,7 +1452,7 @@ class CoinbaseExchange:
             logger.warning("Read-only mode - would commit convert trade")
             return {"trade": {"id": trade_id, "status": "DRY_RUN"}}
         
-        self._rate_limit("convert_commit")
+        self._rate_limit("convert_commit", is_private=True)
         
         body = {
             "from_account": from_account,
