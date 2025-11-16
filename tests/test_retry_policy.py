@@ -15,7 +15,17 @@ from core.exchange_coinbase import CoinbaseExchange
 @pytest.fixture
 def exchange():
     """Create exchange with minimal config."""
-    return CoinbaseExchange(read_only=True)
+    # Create exchange and mock _headers to avoid credential requirement
+    exc = CoinbaseExchange(read_only=True)
+    
+    # Mock _headers to return dummy headers without requiring credentials
+    from unittest.mock import patch
+    patcher = patch.object(exc, '_headers', return_value={"Content-Type": "application/json"})
+    patcher.start()
+    
+    yield exc
+    
+    patcher.stop()
 
 
 class TestExponentialBackoff:

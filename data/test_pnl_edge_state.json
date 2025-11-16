@@ -6,7 +6,9 @@
   "consecutive_losses": 0,
   "last_loss_time": null,
   "last_win_time": null,
-  "cooldowns": {},
+  "cooldowns": {
+    "BTC-USD": "2025-11-16T02:55:57.620982+00:00"
+  },
   "positions": {
     "BTC-USD": {
       "side": "BUY",
@@ -18,15 +20,15 @@
       "usd_value": 500.0,
       "usd": 500.0,
       "fees_paid": 10.0,
-      "entry_time": "2025-11-16T02:22:17.073767+00:00",
-      "last_updated": "2025-11-16T02:22:17.073767+00:00",
+      "entry_time": "2025-11-16T02:26:54.015729+00:00",
+      "last_updated": "2025-11-16T02:26:54.015729+00:00",
       "last_fill_price": 50000.0
     }
   },
   "managed_positions": {
     "BTC-USD": {
       "entry_price": 50000.0,
-      "entry_time": "2025-11-16T02:22:17.073767+00:00",
+      "entry_time": "2025-11-16T02:26:54.015729+00:00",
       "stop_loss_pct": null,
       "take_profit_pct": null,
       "max_hold_hours": null
@@ -37,11 +39,11 @@
   "recent_orders": [],
   "pending_markers": {},
   "last_fill_times": {
-    "BTC-USD:BUY": "2025-11-16T02:22:17.073767+00:00"
+    "BTC-USD:BUY": "2025-11-16T02:26:54.015729+00:00"
   },
   "fill_history": {
     "BTC-USD:BUY": [
-      "2025-11-16T02:22:17.073767+00:00"
+      "2025-11-16T02:26:54.015729+00:00"
     ]
   },
   "last_reconcile_at": null,
@@ -49,7 +51,7 @@
   "last_reset_hour": 2,
   "events": [
     {
-      "at": "2025-11-16T02:22:17.073767+00:00",
+      "at": "2025-11-16T02:26:54.015729+00:00",
       "event": "fill",
       "symbol": "BTC-USD",
       "side": "BUY",
