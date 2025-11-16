@@ -345,7 +345,7 @@ try:
     # TradeLog
     import os
     os.makedirs('data/trades', exist_ok=True)
-    trade_log = TradeLog(csv_dir='data/trades', use_sqlite=True)
+    trade_log = TradeLog(log_dir='data/trades', backend='csv', enable_sqlite=True)
     print('✅ TradeLog initialized')
     
     # ReportGenerator
