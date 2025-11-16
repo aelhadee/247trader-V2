@@ -42,14 +42,14 @@ class MetricsRecorder:
 
     def __init__(self, enabled: bool = True, port: int = 9100) -> None:
         # Skip re-initialization if already initialized
-        if self._initialized:
+        if self.__class__._initialized:
             return
             
         self._prom_available = Counter is not None
         self._enabled = bool(enabled) and self._prom_available
         self._port = port
         self._started = False
-        self._initialized = True
+        self.__class__._initialized = True
 
         self._last_cycle_stats: Optional[CycleStats] = None
         self._last_stage_durations: Dict[str, float] = {}
