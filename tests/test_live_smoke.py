@@ -10,6 +10,8 @@ Run before enabling LIVE mode to validate:
 - Fill reconciliation
 
 Run with: CB_API_SECRET_FILE=<path> pytest tests/test_live_smoke.py -v
+
+These tests are skipped if credentials are not available.
 """
 
 import pytest
@@ -21,6 +23,22 @@ from core.universe import UniverseManager
 from infra.state_store import StateStore
 
 
+# Check if credentials are available
+def has_credentials():
+    """Check if Coinbase credentials are available"""
+    secret_file = os.environ.get("CB_API_SECRET_FILE")
+    if secret_file and os.path.exists(secret_file):
+        return True
+    return bool(os.environ.get("COINBASE_API_KEY") and os.environ.get("COINBASE_API_SECRET"))
+
+
+skip_without_creds = pytest.mark.skipif(
+    not has_credentials(),
+    reason="Coinbase credentials not available (set CB_API_SECRET_FILE or COINBASE_API_KEY/SECRET)"
+)
+
+
+@skip_without_creds
 def test_coinbase_connection():
     """Test basic Coinbase API connection"""
     exchange = CoinbaseExchange(read_only=True)
