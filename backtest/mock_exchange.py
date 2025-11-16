@@ -132,7 +132,7 @@ class MockExchange:
         
         # Cancel expired orders
         for order in list(self.orders.values()):
-            if order.is_expired:
+            if order.is_expired(self.current_time):
                 self._cancel_order_internal(order.order_id, reason="ttl_expired")
     
     def get_quote(self, product_id: str) -> Quote:
