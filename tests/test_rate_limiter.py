@@ -289,15 +289,13 @@ class TestRateLimiterIntegration:
         """Limiter handles sustained load at rate limit"""
         limiter = RateLimiter(public_limit=10.0, private_limit=10.0, burst_multiplier=2.0)
         
-        # Make 15 requests (5 immediate, 10 throttled)
-        start = time.perf_counter()
-        for i in range(15):
-            limiter.acquire("public", endpoint="/products", block=True)
-        elapsed = time.perf_counter() - start
-        
-        # Should take ~0.5 seconds (first 20 free via burst, then 5 more need refill)
-        # But we only need 15 total, so after burst (20), no wait needed
-        assert elapsed < 0.1  # Should be nearly instant with burst
+        # Make 15 requests - with burst capacity of 20, should all succeed immediately
+        with patch('time.sleep') as mock_sleep:
+            for i in range(15):
+                limiter.acquire("public", endpoint="/products", block=True)
+            
+            # With burst capacity of 20, first 15 should not require any sleep
+            assert not mock_sleep.called
     
     def test_bursty_load_then_idle(self):
         """Limiter handles burst then recovers during idle"""
@@ -307,8 +305,9 @@ class TestRateLimiterIntegration:
         for _ in range(20):
             limiter.acquire("public", endpoint="/products", block=False)
         
-        # Idle: wait for refill
-        time.sleep(1.0)  # 1 second = 10 tokens refilled
+        # Simulate 1 second passing (10 tokens refilled at 10/s rate)
+        limiter._public_bucket.last_update -= 1.0
+        limiter._public_bucket.refill()
         
         # Should have ~10 tokens available now
         for _ in range(10):
