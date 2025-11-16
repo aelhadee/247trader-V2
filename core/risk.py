@@ -1065,6 +1065,9 @@ class RiskEngine:
                 f"🚨 DAILY STOP LOSS HIT: {portfolio.daily_pnl_pct:.2f}% loss "
                 f"(limit: -{max_daily_loss_pct}%) - NO NEW TRADES"
             )
+            # Record circuit breaker trip
+            if self.prometheus_exporter:
+                self.prometheus_exporter.record_circuit_breaker("daily_stop_loss")
             # Alert on stop loss hit
             if self.alert_service:
                 from infra.alerting import AlertSeverity
