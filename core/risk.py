@@ -914,6 +914,50 @@ class RiskEngine:
                 proposal_rejections=proposal_rejections,
             )
         
+        # 4b-TradeLimits. Comprehensive trade timing checks (TradeLimits module)
+        # This integrates: global spacing, per-symbol spacing, frequency limits, loss cooldowns
+        timing_result = self.trade_limits.check_all(
+            proposals=proposals,
+            trades_today=portfolio.trades_today,
+            trades_this_hour=portfolio.trades_this_hour,
+            consecutive_losses=portfolio.consecutive_losses,
+            last_loss_time=portfolio.last_loss_time,
+            current_time=portfolio.current_time
+        )
+        
+        if not timing_result.approved:
+            # Timing check failed - block all trades
+            return RiskCheckResult(
+                approved=False,
+                reason=timing_result.reason,
+                violated_checks=timing_result.violated_checks,
+                proposal_rejections=proposal_rejections,
+            )
+        
+        # Filter proposals by per-symbol timing constraints
+        approved_timing, rejected_timing = self.trade_limits.filter_proposals_by_timing(proposals)
+        
+        if rejected_timing:
+            # Track which symbols were rejected by timing
+            for proposal in rejected_timing:
+                _merge_rejections({proposal.symbol: ["trade_limits_timing"]})
+            
+            logger.info(
+                f"TradeLimits filtered {len(rejected_timing)} proposals: "
+                f"{[p.symbol for p in rejected_timing]}"
+            )
+        
+        # Continue with timing-approved proposals
+        proposals = approved_timing
+        
+        if not proposals:
+            return RiskCheckResult(
+                approved=False,
+                reason="All proposals filtered by trade timing constraints",
+                violated_checks=["trade_limits_timing"],
+                proposal_rejections=proposal_rejections,
+            )
+        
         # 4c. Max open positions (spec requirement)
         result = self._check_max_open_positions(
             proposals,
