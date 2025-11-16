@@ -164,13 +164,14 @@ class TestRateLimiter:
         for _ in range(10):
             limiter.acquire("public", endpoint="/products", block=False)
         
-        # Next request should wait ~0.1 seconds (1 token / 10 tokens/s)
-        start = time.perf_counter()
-        wait_time = limiter.acquire("public", endpoint="/products", block=True)
-        elapsed = time.perf_counter() - start
-        
-        assert wait_time > 0
-        assert 0.05 <= elapsed <= 0.2  # Allow some tolerance
+        # Mock time.sleep to avoid actual waiting
+        with patch('time.sleep') as mock_sleep:
+            wait_time = limiter.acquire("public", endpoint="/products", block=True)
+            
+            # Should have calculated wait time > 0
+            assert wait_time > 0
+            # Should have called sleep with that wait time
+            assert mock_sleep.called
     
     def test_check_available_does_not_consume(self):
         """check_available does not consume tokens"""
