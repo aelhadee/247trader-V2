@@ -1566,6 +1566,63 @@ class CoinbaseExchange:
         return False
 
 
+def validate_credentials_available(require_credentials: bool = False) -> tuple[bool, str]:
+    """
+    Validate that Coinbase API credentials are available in environment.
+    
+    Args:
+        require_credentials: If True, raises ValueError if missing
+        
+    Returns:
+        (credentials_present, error_message)
+        
+    Raises:
+        ValueError: If require_credentials=True and credentials missing
+    """
+    api_key = os.getenv("CB_API_KEY") or os.getenv("COINBASE_API_KEY")
+    api_secret = os.getenv("CB_API_SECRET") or os.getenv("COINBASE_API_SECRET")
+    
+    if not api_key or not api_secret:
+        missing = []
+        if not api_key:
+            missing.append("CB_API_KEY or COINBASE_API_KEY")
+        if not api_secret:
+            missing.append("CB_API_SECRET or COINBASE_API_SECRET")
+        
+        error_msg = (
+            f"Coinbase credentials missing from environment: {', '.join(missing)}\n"
+            "\n"
+            "Set environment variables before starting:\n"
+            "  export CB_API_KEY='your-api-key'\n"
+            "  export CB_API_SECRET='your-api-secret'\n"
+            "\n"
+            "Or source the credentials helper:\n"
+            "  source scripts/load_credentials.sh\n"
+            "\n"
+            "For read-only operations, no credentials needed (exchange.read_only=True)."
+        )
+        
+        if require_credentials:
+            raise ValueError(error_msg)
+        
+        return False, error_msg
+    
+    # Basic format validation
+    if len(api_key) < 10:
+        error_msg = "CB_API_KEY appears invalid (too short)"
+        if require_credentials:
+            raise ValueError(error_msg)
+        return False, error_msg
+    
+    if len(api_secret) < 20:
+        error_msg = "CB_API_SECRET appears invalid (too short)"
+        if require_credentials:
+            raise ValueError(error_msg)
+        return False, error_msg
+    
+    return True, ""
+
+
 # Singleton instance
 _exchange = None
 
