@@ -181,6 +181,12 @@ class BacktestEngine:
         self.cost_model = get_cost_model()
         
         self.universe_mgr = UniverseManager(universe_config)
+        # OPTIMIZATION: Extend universe cache TTL for backtests
+        # In backtests, regime rarely changes and rebuild is expensive (10+ sec)
+        # Set cache to 24 hours so it persists across entire backtest
+        self.universe_mgr._cache_ttl = timedelta(hours=24)
+        logger.info("Universe cache TTL extended to 24h for backtest performance")
+        
         self.trigger_engine = TriggerEngine()
         self.regime_detector = RegimeDetector()
         self.rules_engine = RulesEngine(config={})
