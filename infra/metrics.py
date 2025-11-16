@@ -174,6 +174,26 @@ class MetricsRecorder:
         Reset singleton state for testing.
         WARNING: Only call from test fixtures/teardown.
         """
+        # Clear Prometheus collectors from global registry
+        if cls._instance is not None and cls._instance._prom_available:
+            try:
+                from prometheus_client import REGISTRY
+                # Unregister all our metrics
+                collectors_to_remove = []
+                for collector in list(REGISTRY._collector_to_names):
+                    # Check if it's one of our metrics
+                    names = REGISTRY._collector_to_names.get(collector, set())
+                    if any('trader_' in name or 'exchange_' in name for name in names):
+                        collectors_to_remove.append(collector)
+                
+                for collector in collectors_to_remove:
+                    try:
+                        REGISTRY.unregister(collector)
+                    except Exception:
+                        pass  # Already unregistered
+            except Exception:
+                pass  # Prometheus not available or registry issue
+        
         cls._instance = None
         cls._initialized = False
 
