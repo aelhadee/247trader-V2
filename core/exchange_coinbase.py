@@ -853,7 +853,7 @@ class CoinbaseExchange:
         Returns:
             List of product dicts with price, volume, status
         """
-        self._rate_limit("products_list")
+        self._rate_limit("list_products", is_private=False)
         
         url = "https://api.coinbase.com/api/v3/brokerage/market/products"
         try:
