@@ -1588,15 +1588,16 @@ class TradingLoop:
                 f"{len(universe.tier_3_assets)} event-driven)"
             )
             
-            # Step 2: Scan for triggers
-            logger.info("Step 2: Scanning for triggers...")
+            # Step 8: Scan for triggers
+            logger.info(f"🔎 Step 8: Scanning {universe.total_eligible} assets for triggers (regime={self.current_regime})...")
             with self._stage_timer("trigger_scan"):
                 all_assets = universe.get_all_eligible()
                 triggers = self.trigger_engine.scan(all_assets, regime=self.current_regime)
+                logger.info(f"✅ Trigger scan complete: {len(triggers) if triggers else 0} signals detected")
             
             if not triggers or len(triggers) == 0:
                 reason = "no_candidates_from_triggers"
-                logger.info(f"NO_TRADE: {reason} (0 triggers)")
+                logger.warning(f"⚠️  NO_TRADE: {reason} (0 triggers detected)")
                 
                 # Zero-trigger sentinel: Track consecutive cycles with 0 triggers
                 zero_trigger_count = self.state_store.get("zero_trigger_cycles", 0) + 1
