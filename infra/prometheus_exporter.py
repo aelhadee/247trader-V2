@@ -59,8 +59,11 @@ class PrometheusExporter:
         
     def start(self):
         """Start Prometheus HTTP server"""
+        if not self._metrics_initialized:
+            logger.debug("Skipping Prometheus HTTP server start (metrics not initialized)")
+            return
         try:
-            start_http_server(self.port)
+            start_http_server(self.port, registry=self.registry)
             logger.info(f"Prometheus exporter started on port {self.port}")
         except Exception as e:
             logger.error(f"Failed to start Prometheus exporter: {e}")
