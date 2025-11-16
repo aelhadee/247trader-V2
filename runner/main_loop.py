@@ -1901,11 +1901,13 @@ class TradingLoop:
                         logger.error(f"Failed to evaluate rebalancing need: {e}")
 
                 # Get available capital and adjust position sizes
+                logger.info(f"💵 Step 12b: Adjusting {len(approved_proposals)} proposals to available capital...")
                 try:
                     adjusted_proposals = self.executor.adjust_proposals_to_capital(
                         approved_proposals,
                         self.portfolio.account_value_usd,
                     )
+                    logger.info(f"✅ Capital adjustment complete: {len(adjusted_proposals)} trades fit within budget")
                 except CriticalDataUnavailable as data_exc:
                     self._abort_cycle_due_to_data(
                         cycle_started,
