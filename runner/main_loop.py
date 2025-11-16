@@ -3676,6 +3676,9 @@ class TradingLoop:
                 continue
             
             try:
+                # Extract exit reason from proposal metadata
+                exit_reason = proposal.notes.get('exit_reason', 'unknown') if hasattr(proposal, 'notes') else 'unknown'
+                
                 # Execute via ExecutionEngine
                 result = self.executor.execute(
                     symbol=proposal.symbol,
@@ -3683,6 +3686,7 @@ class TradingLoop:
                     size_usd=proposal.notional_usd,
                     tier=None,  # Exits don't need tier
                     confidence=proposal.confidence,
+                    exit_reason=exit_reason,
                 )
                 
                 if result.success:
