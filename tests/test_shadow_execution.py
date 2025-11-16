@@ -102,13 +102,15 @@ def test_shadow_logger_creation(shadow_log_file, shadow_logger):
 
 def test_shadow_order_logging(shadow_logger):
     """Test logging a shadow order"""
-    quote = Quote(
-        symbol="BTC-USD",
-        bid=50000.0,
-        ask=50050.0,
-        spread_bps=10.0,
-        timestamp=datetime.now(timezone.utc)
-    )
+    quote = Quote()
+    quote.symbol = "BTC-USD"
+    quote.bid = 50000.0
+    quote.ask = 50050.0
+    quote.mid = 50025.0
+    quote.spread_bps = 10.0
+    quote.last = 50025.0
+    quote.volume_24h = 1000000.0
+    quote.timestamp = datetime.now(timezone.utc)
     
     shadow_order = create_shadow_order(
         symbol="BTC-USD",
