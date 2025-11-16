@@ -272,10 +272,7 @@ class TradingLoop:
         
         # Initialize ReportGenerator for daily performance reports
         from analytics.performance_report import ReportGenerator
-        self.report_generator = ReportGenerator(
-            trade_log_dir="data/trades",
-            output_dir="reports",
-        )
+        self.report_generator = ReportGenerator(trade_log=self.executor.trade_log)
         self._last_report_date = None  # Track last report generation date
 
         latency_cfg = (self.monitoring_config or {}).get("latency", {}) or {}
