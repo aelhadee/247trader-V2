@@ -187,7 +187,7 @@ class TradingCyclePipeline:
             risk_result = self.risk_engine.check_all(base_proposals, portfolio, regime=regime)
             
             if not risk_result.approved:
-                logger.debug(f"Risk rejection: {risk_result.rejection_reason}")
+                logger.debug(f"Risk rejection: {risk_result.reason}")
                 return CycleResult(
                     success=False,
                     universe=universe,
@@ -195,7 +195,7 @@ class TradingCyclePipeline:
                     base_proposals=base_proposals,
                     risk_approved=[],
                     executed=[],
-                    no_trade_reason=f"risk_blocked_{risk_result.rejection_reason}"
+                    no_trade_reason=f"risk_blocked_{risk_result.reason or 'unknown'}"
                 )
             
             logger.debug(f"Risk approved: {len(base_proposals)} proposals passed")
