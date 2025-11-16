@@ -754,6 +754,90 @@ def validate_sanity_checks(config_dir: Path) -> List[str]:
                             f"Single trade size exceeds tier maximum."
                         )
         
+        # Check: Exit configuration completeness for active profile
+        if profiles and active_profile and active_profile in profiles:
+            profile_config = profiles[active_profile]
+            exits = profile_config.get("exits", {})
+            
+            # Validate stop_loss configuration
+            stop_loss_pct = exits.get("stop_loss_pct", 0)
+            if stop_loss_pct == 0:
+                errors.append(
+                    f"UNSAFE: Profile '{active_profile}' has no stop_loss_pct configured. "
+                    f"This exposes unlimited downside risk. Set exits.stop_loss_pct > 0."
+                )
+            elif stop_loss_pct >= 100:
+                errors.append(
+                    f"INVALID: Profile '{active_profile}' stop_loss_pct ({stop_loss_pct}) >= 100%. "
+                    f"Stop loss must be < 100% to protect capital."
+                )
+            
+            # Validate take_profit configuration
+            take_profit_pct = exits.get("take_profit_pct", 0)
+            if take_profit_pct == 0:
+                warnings.append(
+                    f"INFO: Profile '{active_profile}' has no take_profit_pct configured. "
+                    f"Trades will only exit on stop loss or manual intervention."
+                )
+            elif stop_loss_pct > 0 and take_profit_pct <= stop_loss_pct:
+                errors.append(
+                    f"UNSAFE: Profile '{active_profile}' take_profit_pct ({take_profit_pct}) <= "
+                    f"stop_loss_pct ({stop_loss_pct}). "
+                    f"Risk/reward ratio < 1:1 leads to expected loss over time."
+                )
+            
+            # Validate trailing_stop configuration
+            trailing_stop = exits.get("trailing_stop", {})
+            if trailing_stop.get("enabled", False):
+                activation_pct = trailing_stop.get("activation_pct", 0)
+                trail_pct = trailing_stop.get("trail_pct", 0)
+                
+                if activation_pct <= 0:
+                    errors.append(
+                        f"INVALID: Profile '{active_profile}' trailing_stop.enabled=true but "
+                        f"activation_pct={activation_pct}. Set activation_pct > 0."
+                    )
+                if trail_pct <= 0:
+                    errors.append(
+                        f"INVALID: Profile '{active_profile}' trailing_stop.enabled=true but "
+                        f"trail_pct={trail_pct}. Set trail_pct > 0."
+                    )
+                if activation_pct > 0 and trail_pct > activation_pct:
+                    errors.append(
+                        f"UNSAFE: Profile '{active_profile}' trail_pct ({trail_pct}) > "
+                        f"activation_pct ({activation_pct}). "
+                        f"Trailing stop will never trigger (trail distance > activation threshold)."
+                    )
+        
+        # Check: Max exposure coherence across hierarchies (asset <= theme)
+        if max_per_asset_pct and max_per_theme_pct:
+            try:
+                universe_path = config_dir / "universe.yaml"
+                universe = load_yaml_file(universe_path)
+                cluster_defs = universe.get("clusters", {}).get("definitions", {})
+                
+                # Build reverse mapping: asset -> theme(s)
+                asset_to_themes = {}
+                for theme, symbols in cluster_defs.items():
+                    for symbol in symbols:
+                        if symbol not in asset_to_themes:
+                            asset_to_themes[symbol] = []
+                        asset_to_themes[symbol].append(theme)
+                
+                # Validate per-asset caps don't exceed theme caps
+                for asset, asset_cap in max_per_asset_pct.items():
+                    themes = asset_to_themes.get(asset, [])
+                    for theme in themes:
+                        theme_cap = max_per_theme_pct.get(theme, 100)
+                        if asset_cap > theme_cap:
+                            errors.append(
+                                f"UNSAFE: max_per_asset_pct.{asset} ({asset_cap}%) > "
+                                f"max_per_theme_pct.{theme} ({theme_cap}%). "
+                                f"Single asset cap exceeds its theme cap."
+                            )
+            except Exception:
+                pass  # Universe validation handles missing files
+        
         # === DEPRECATED KEY CHECKS ===
         
         # Check: Old exposure parameter name
