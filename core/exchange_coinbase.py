@@ -583,7 +583,7 @@ class CoinbaseExchange:
         Returns:
             OrderbookSnapshot with depth metrics
         """
-        self._rate_limit("orderbook")
+        self._rate_limit("get_orderbook", is_private=False)
         logger.debug(f"Fetching orderbook for {symbol}")
 
         try:
