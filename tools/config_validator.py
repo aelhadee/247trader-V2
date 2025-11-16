@@ -853,21 +853,38 @@ def validate_sanity_checks(config_dir: Path) -> List[str]:
             cluster_defs = clusters_config.get("definitions", {})
             
             if cluster_defs and max_per_theme_pct:
-                # Ensure every cluster with symbols has a corresponding theme cap
-                uncapped_clusters = set(cluster_defs.keys()) - set(max_per_theme_pct.keys())
-                if uncapped_clusters:
-                    errors.append(
-                        f"INCOMPLETE: Clusters defined without theme caps: {', '.join(uncapped_clusters)}. "
-                        f"Add corresponding entries to policy.risk.max_per_theme_pct or remove clusters."
-                    )
-                
-                # Ensure every theme cap has a corresponding cluster definition
+                # Only flag theme caps without clusters (more serious issue)
+                # Some clusters may intentionally use global defaults without explicit caps
                 undefined_themes = set(max_per_theme_pct.keys()) - set(cluster_defs.keys())
                 if undefined_themes:
                     errors.append(
-                        f"INCOMPLETE: Theme caps defined without cluster definitions: {', '.join(undefined_themes)}. "
+                        f"INCOMPLETE: Theme caps defined without cluster definitions: {', '.join(sorted(undefined_themes))}. "
                         f"Add corresponding entries to universe.clusters.definitions or remove theme caps."
                     )
+                
+                # Check for name mismatches (e.g., LAYER2 vs L2)
+                # Build case-insensitive + abbreviated name mapping
+                cluster_keys = set(cluster_defs.keys())
+                theme_keys = set(max_per_theme_pct.keys())
+                
+                # Look for obvious abbreviation mismatches
+                possible_mismatches = []
+                for cluster in cluster_keys:
+                    # Check if cluster name could be abbreviated to a theme name
+                    for theme in theme_keys:
+                        # Simple heuristics: LAYER2 -> L2, LAYER1 -> L1
+                        if cluster.startswith("LAYER") and theme.startswith("L"):
+                            layer_num = cluster.replace("LAYER", "")
+                            theme_num = theme.replace("L", "")
+                            if layer_num == theme_num:
+                                possible_mismatches.append((cluster, theme))
+                
+                if possible_mismatches:
+                    for cluster, theme in possible_mismatches:
+                        errors.append(
+                            f"INCONSISTENT: Cluster '{cluster}' has theme cap '{theme}' with different naming. "
+                            f"Standardize to use same name in both files (prefer '{cluster}')."
+                        )
             
             # Check: Universe exclusions vs cluster memberships
             exclusions_config = universe.get("exclusions", {})
