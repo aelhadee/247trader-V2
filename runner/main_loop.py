@@ -2175,6 +2175,10 @@ class TradingLoop:
         if not status.startswith("executed"):
             metrics.record_no_trade_reason(status)
         self._log_cycle_latency_summary(status=status, total_duration=duration)
+        
+        # Update Prometheus metrics if enabled
+        if self.prometheus_exporter:
+            self.prometheus_exporter.update_from_cycle_stats(stats)
 
     @contextmanager
     def _stage_timer(self, stage: str):
