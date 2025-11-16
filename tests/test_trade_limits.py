@@ -318,7 +318,7 @@ def test_cooldown_blocks_proposal(trade_limits, mock_state_store):
         TradeProposal(
             symbol="BTC-USD",
             side="buy",
-            size_pct=0.02,0,
+            size_pct=0.02,
             confidence=0.7,
             reason="test",
             
@@ -348,7 +348,7 @@ def test_cooldown_expires(trade_limits, mock_state_store):
         TradeProposal(
             symbol="BTC-USD",
             side="buy",
-            size_pct=0.02,0,
+            size_pct=0.02,
             confidence=0.7,
             reason="test",
             
@@ -373,7 +373,7 @@ def test_symbol_spacing_first_trade(trade_limits, mock_state_store):
         TradeProposal(
             symbol="BTC-USD",
             side="buy",
-            size_pct=0.02,0,
+            size_pct=0.02,
             confidence=0.7,
             reason="test",
             
@@ -399,7 +399,7 @@ def test_symbol_spacing_blocked(trade_limits, mock_state_store):
         TradeProposal(
             symbol="BTC-USD",
             side="buy",
-            size_pct=0.02,0,
+            size_pct=0.02,
             confidence=0.7,
             reason="test",
             
@@ -427,7 +427,7 @@ def test_symbol_spacing_different_symbols(trade_limits, mock_state_store):
         TradeProposal(
             symbol="ETH-USD",
             side="buy",
-            size_pct=0.02,0,
+            size_pct=0.02,
             confidence=0.6,
             reason="test",
             

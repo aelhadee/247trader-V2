@@ -291,7 +291,11 @@ class RiskEngine:
         self._last_api_success = None
         self._last_rate_limit_time = None
         
-        logger.info("Initialized RiskEngine with policy constraints and circuit breakers")
+        # Initialize TradeLimits for trade pacing and cooldown management
+        from core.trade_limits import TradeLimits
+        self.trade_limits = TradeLimits(config=self.risk_config, state_store=state_store)
+        
+        logger.info("Initialized RiskEngine with policy constraints, circuit breakers, and trade limits")
 
     @staticmethod
     def _normalize_symbol(symbol: str) -> str:
