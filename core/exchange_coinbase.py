@@ -1404,7 +1404,7 @@ class CoinbaseExchange:
             logger.warning("Read-only mode - would request convert quote")
             return {"trade": {"id": "dry-run", "status": "PREVIEW"}}
         
-        self._rate_limit("convert_quote")
+        self._rate_limit("convert_quote", is_private=True)
         
         body = {
             "from_account": from_account,
