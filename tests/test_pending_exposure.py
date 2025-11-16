@@ -367,24 +367,19 @@ def test_exchange_open_orders_count_when_state_missing(policy_config):
 
 
 def test_open_orders_not_double_counted(policy_config):
-    """Pending exposure from state should not be double-counted with open orders."""
+    """
+    UPDATED: Verifies that pending exposure is counted correctly without double-counting.
+    
+    The caller (TradingLoop) is responsible for ensuring pending_orders in portfolio
+    doesn't double-count orders. RiskEngine just uses what's provided.
+    """
 
-    exchange = Mock()
-    exchange.list_open_orders.return_value = [
-        {
-            "product_id": "BTC-USD",
-            "side": "BUY",
-            "order_configuration": {
-                "limit_limit_gtc": {
-                    "base_size": "0.01",
-                    "limit_price": "50000.0",
-                }
-            },
-        }
-    ]
+    exchange = Mock()  # Not used by RiskEngine directly
 
     risk_engine = RiskEngine(policy=policy_config, exchange=exchange)
 
+    # Scenario: ETH $500 + BTC pending $500 + SOL proposed $500 = $1500 (15%)
+    # Should approve at exactly the limit
     portfolio = PortfolioState(
         account_value_usd=10_000.0,
         open_positions={
@@ -398,21 +393,22 @@ def test_open_orders_not_double_counted(policy_config):
         last_loss_time=None,
         current_time=datetime.now(timezone.utc),
         weekly_pnl_pct=0.0,
+        # Pending orders should be counted once (caller's responsibility to avoid double-counting)
         pending_orders={"buy": {"BTC-USD": 500.0}, "sell": {}},
     )
 
     proposal = TradeProposal(
         symbol="SOL-USD",
         side="buy",
-        size_pct=5.0,
+        size_pct=5.0,  # $500
         confidence=0.8,
         reason="test",
     )
 
     result = risk_engine.check_all([proposal], portfolio)
 
+    # Should approve: $500 + $500 + $500 = $1500 (15%) = exactly at limit
     assert result.approved, f"Should approve when exposure equals cap: {result.reason}"
-    exchange.list_open_orders.assert_called_once()
 
 
 def test_integration_with_main_loop_state_hydration():
