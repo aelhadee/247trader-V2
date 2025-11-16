@@ -1994,10 +1994,15 @@ class TradingLoop:
             
             # Update state after fills
             executed_count = len(final_orders)
+            logger.info(f"✅ Execution complete: {executed_count} order(s) submitted successfully")
 
             if final_orders:
+                logger.info("💾 Step 13: Updating state with execution results...")
                 with self._stage_timer("fills_reconcile"):
                     self.state_store.update_from_fills(final_orders, self.portfolio)
+                    logger.info(f"✅ State updated with {executed_count} fill(s)")
+            else:
+                logger.info("ℹ️  No fills to reconcile")
                     
                     # Record fill metrics
                     total_attempts = len(adjusted_proposals)
