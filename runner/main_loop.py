@@ -1852,12 +1852,13 @@ class TradingLoop:
             final_orders: List[ExecutionResult] = []
 
             with self._stage_timer("execution"):
-                # Step 5a: Check if we need to rebalance BEFORE attempting execution (LIVE/PAPER only)
+                # Step 12a: Check if we need to rebalance BEFORE attempting execution (LIVE/PAPER only)
+                logger.info("🔄 Step 12a: Checking if rebalance needed for buying power...")
                 if self.mode != "DRY_RUN" and approved_proposals:
                     try:
                         pm_cfg = self.policy_config.get("portfolio_management", {})
                         if not pm_cfg.get("auto_rebalance_worst_performer", True):
-                            pass
+                            logger.info("✅ Auto-rebalance disabled in config")
                         else:
                             # Compute available stable buying power (USD + USDC + USDT)
                             try:
