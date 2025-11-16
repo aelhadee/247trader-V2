@@ -298,10 +298,53 @@ class RateLimiter:
                     ]),
                 }
             else:
-                # Global stats
+                # Global stats - get both channel stats without recursive lock
+                public_stats = self._global_stats["public"]
+                private_stats = self._global_stats["private"]
+                
                 return {
-                    "public": self.get_stats("public"),
-                    "private": self.get_stats("private"),
+                    "public": {
+                        "channel": "public",
+                        "total_requests": public_stats.total_requests,
+                        "blocked_requests": public_stats.blocked_requests,
+                        "throttle_events": public_stats.throttle_events,
+                        "utilization_pct": public_stats.utilization_pct(),
+                        "total_wait_time_ms": public_stats.total_wait_time_ms,
+                        "max_wait_time_ms": public_stats.max_wait_time_ms,
+                        "avg_wait_time_ms": (
+                            public_stats.total_wait_time_ms / public_stats.blocked_requests
+                            if public_stats.blocked_requests > 0
+                            else 0.0
+                        ),
+                        "current_tokens": self._public_bucket.tokens,
+                        "capacity": self._public_bucket.capacity,
+                        "refill_rate": self._public_bucket.refill_rate,
+                        "recent_violations": len([
+                            v for v in self._recent_violations["public"]
+                            if (datetime.now(timezone.utc) - v["timestamp"]).total_seconds() < 60
+                        ]),
+                    },
+                    "private": {
+                        "channel": "private",
+                        "total_requests": private_stats.total_requests,
+                        "blocked_requests": private_stats.blocked_requests,
+                        "throttle_events": private_stats.throttle_events,
+                        "utilization_pct": private_stats.utilization_pct(),
+                        "total_wait_time_ms": private_stats.total_wait_time_ms,
+                        "max_wait_time_ms": private_stats.max_wait_time_ms,
+                        "avg_wait_time_ms": (
+                            private_stats.total_wait_time_ms / private_stats.blocked_requests
+                            if private_stats.blocked_requests > 0
+                            else 0.0
+                        ),
+                        "current_tokens": self._private_bucket.tokens,
+                        "capacity": self._private_bucket.capacity,
+                        "refill_rate": self._private_bucket.refill_rate,
+                        "recent_violations": len([
+                            v for v in self._recent_violations["private"]
+                            if (datetime.now(timezone.utc) - v["timestamp"]).total_seconds() < 60
+                        ]),
+                    },
                 }
     
     def reset_stats(self) -> None:
