@@ -35,7 +35,7 @@ class TestTokenBucket:
         bucket.consume(10.0)  # Empty bucket
         
         # Simulate 0.5 seconds passing
-        bucket.last_update -= 0.5
+        bucket.last_refill -= 0.5
         bucket.refill()
         
         # Should have ~5 tokens (10 tokens/s × 0.5s)
