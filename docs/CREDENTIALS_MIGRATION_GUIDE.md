@@ -1,8 +1,22 @@
 # Credentials Migration Guide
 
-**Date:** 2025-11-15  
-**Change:** Migrated from file-based to environment-based credentials  
-**Impact:** Launch scripts updated to support both methods  
+**Date:** 2025-11-15 (Updated: 2025-01-15)  
+**Change:** Enforced environment-only credentials (file-based loading removed from application code)  
+**Impact:** Application now requires credentials in environment variables  
+
+---
+
+## ⚠️ IMPORTANT: Environment-Only Enforcement (2025-01-15)
+
+**Application code NO LONGER loads credentials from files directly.**
+
+All credentials MUST be provided via environment variables:
+- `CB_API_KEY` or `COINBASE_API_KEY`
+- `CB_API_SECRET` or `COINBASE_API_SECRET`
+
+**Helper script available:** `scripts/load_credentials.sh` can load from JSON file into environment.
+
+**Why:** Security hardening - reduces risk of accidental credential exposure.
 
 ---
 
