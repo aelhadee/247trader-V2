@@ -46,18 +46,23 @@ class MockOrder:
     fee_usd: float = 0.0
     is_maker: bool = False
     
-    @property
-    def is_expired(self) -> bool:
-        """Check if order has exceeded TTL"""
+    def is_expired(self, current_time: datetime) -> bool:
+        """Check if order has exceeded TTL at given time"""
         if self.status != "open":
             return False
-        age = (datetime.now(timezone.utc) - self.created_at).total_seconds()
+        # Handle both timezone-aware and naive datetimes
+        if current_time.tzinfo is None:
+            current_time = current_time.replace(tzinfo=timezone.utc)
+        if self.created_at.tzinfo is None:
+            created_at = self.created_at.replace(tzinfo=timezone.utc)
+        else:
+            created_at = self.created_at
+        age = (current_time - created_at).total_seconds()
         return age >= self.ttl_seconds
     
-    @property
-    def is_active(self) -> bool:
-        """Check if order is still active"""
-        return self.status == "open" and not self.is_expired
+    def is_active(self, current_time: datetime) -> bool:
+        """Check if order is still active at given time"""
+        return self.status == "open" and not self.is_expired(current_time)
 
 
 class MockExchange:
