@@ -168,21 +168,51 @@ Pre-existing test failures should be addressed but **don't block deployment**:
 
 ## Running Tests
 
-```bash
-# All tests (with TMPDIR fix)
-./run_tests.sh
+### ⚡ Fast Test Runs (Recommended)
 
-# Specific test file
+```bash
+# Core safety tests (22s)
 ./run_tests.sh tests/test_core.py -v
 
-# Pattern matching
+# Config validation (0.5s)
+./run_tests.sh tests/test_config_validation.py -v
+
+# Specific test pattern
 ./run_tests.sh -k test_config
+
+# Multiple fast test files
+./run_tests.sh tests/test_core.py tests/test_config_validation.py tests/test_clock_sync.py
+```
+
+### 🐌 Slow Test Runs
+
+**Warning:** Full suite takes 15-30+ minutes due to:
+- Integration tests with real API calls (~5s each)
+- Rate limiting tests with `time.sleep()` (~3.5s)
+- Some tests may hang indefinitely
+
+```bash
+# Full suite (NOT RECOMMENDED - very slow)
+./run_tests.sh
 
 # Show slow tests
 ./run_tests.sh tests/ --durations=20
 
-# Just core safety tests
-./run_tests.sh tests/test_core.py -v
+# Run with timeout per test
+./run_tests.sh tests/ --timeout=30
+```
+
+### 🎯 Selective Test Categories
+
+```bash
+# Unit tests only (fast)
+./run_tests.sh tests/test_config_validation.py tests/test_client_order_ids.py
+
+# Core functionality
+./run_tests.sh tests/test_core.py tests/test_execution_*.py
+
+# Skip known slow/problematic tests
+./run_tests.sh tests/ --ignore=tests/test_rate_limiter.py --ignore=tests/test_live_smoke.py --ignore=tests/test_graceful_shutdown.py
 ```
 
 ---
