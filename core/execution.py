@@ -23,6 +23,7 @@ from core.exceptions import CriticalDataUnavailable
 from infra.state_store import StateStore
 from core.order_state import get_order_state_machine, OrderStatus, OrderState
 from analytics.trade_log import TradeRecord
+from core.shadow_execution import ShadowExecutionLogger, create_shadow_order
 
 logger = logging.getLogger(__name__)
 
