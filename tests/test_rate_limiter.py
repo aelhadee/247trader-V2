@@ -46,7 +46,7 @@ class TestTokenBucket:
         bucket = TokenBucket(capacity=10.0, refill_rate=10.0)
         
         # Simulate 2 seconds passing (much longer than needed)
-        bucket.last_update -= 2.0
+        bucket.last_refill -= 2.0
         bucket.refill()
         
         assert bucket.tokens == 10.0  # Capped at capacity
