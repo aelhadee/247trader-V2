@@ -1153,7 +1153,7 @@ class CoinbaseExchange:
             return []
         
         try:
-            self._rate_limit("fills")
+            self._rate_limit("list_fills", is_private=True)
 
             # Build query parameters
             query_params = {}
