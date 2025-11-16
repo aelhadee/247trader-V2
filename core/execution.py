@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional, Tuple, Set
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 import logging
+from unittest.mock import Mock
 
 from requests import exceptions as requests_exceptions
 
