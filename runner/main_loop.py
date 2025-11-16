@@ -172,6 +172,16 @@ class TradingLoop:
         self.metrics = MetricsRecorder(enabled=metrics_enabled, port=metrics_port)
         self.metrics.start()
         
+        # Initialize Prometheus exporter if enabled
+        self.prometheus_exporter = None
+        prometheus_enabled = monitoring_cfg.get("prometheus_enabled", False)
+        if prometheus_enabled:
+            from infra.prometheus_exporter import get_exporter
+            prometheus_port = int(monitoring_cfg.get("prometheus_port", 8000))
+            self.prometheus_exporter = get_exporter(port=prometheus_port)
+            self.prometheus_exporter.start()
+            logger.info(f"✅ Prometheus metrics exposed on port {prometheus_port}")
+        
         # Initialize latency tracker
         from infra.latency_tracker import LatencyTracker
         self.latency_tracker = LatencyTracker(retention_per_operation=1000)
