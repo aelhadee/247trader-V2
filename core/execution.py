@@ -1772,6 +1772,217 @@ class ExecutionEngine:
         
         raise ValueError(f"Invalid mode: {self.mode}")
     
+    def _execute_shadow(self, symbol: str, side: str, size_usd: float,
+                       client_order_id: Optional[str],
+                       tier: Optional[int] = None,
+                       confidence: Optional[float] = None,
+                       conviction: Optional[float] = None) -> ExecutionResult:
+        """
+        Shadow DRY_RUN mode - log comprehensive execution details without submitting.
+        
+        This provides production validation by logging:
+        - Live quotes (bid/ask/spread/age)
+        - Intended execution route and price
+        - Expected fees and slippage
+        - Liquidity checks (spread/depth)
+        - Risk context (tier/confidence/conviction)
+        
+        Use for:
+        - Validating rules engine before going LIVE
+        - Comparing shadow vs actual LIVE execution
+        - Debugging without risk
+        """
+        logger.info(f"SHADOW_DRY_RUN: Would execute {side} ${size_usd:.2f} of {symbol}")
+        
+        # Generate deterministic ID if not provided
+        if not client_order_id:
+            client_order_id = self.generate_client_order_id(symbol, side, size_usd)
+        
+        # Track order state for monitoring
+        self.order_state_machine.create_order(
+            client_order_id=client_order_id,
+            symbol=symbol,
+            side=side,
+            size_usd=size_usd,
+            route="shadow_dry_run"
+        )
+        
+        # Get config hash for audit trail
+        import hashlib
+        import json
+        config_str = json.dumps(self.policy, sort_keys=True)
+        config_hash = hashlib.sha256(config_str.encode()).hexdigest()[:8]
+        
+        would_place = True
+        rejection_reason = None
+        expected_slippage_bps = 0.0
+        expected_fees_usd = 0.0
+        intended_price = 0.0
+        intended_route = "unknown"
+        passed_spread_check = False
+        passed_depth_check = False
+        orderbook_depth_20bps_usd = None
+        size_units = 0.0
+        
+        try:
+            # Fetch live quote to show what price would be
+            quote = self.exchange.get_quote(symbol)
+            
+            # Check quote freshness
+            freshness_error = self._validate_quote_freshness(quote, symbol)
+            if freshness_error:
+                would_place = False
+                rejection_reason = freshness_error
+                logger.warning(f"Shadow: {freshness_error}")
+            else:
+                # Calculate expected execution parameters
+                if side.upper() == "BUY":
+                    intended_price = quote.ask
+                else:
+                    intended_price = quote.bid
+                
+                size_units = size_usd / intended_price
+                
+                # Estimate fees
+                is_maker = self.limit_post_only
+                expected_fees_usd = self.estimate_fee(size_usd, is_maker=is_maker)
+                
+                # Estimate slippage
+                expected_slippage_bps = quote.spread_bps / 2
+                
+                # Determine route
+                if self.limit_post_only:
+                    intended_route = "limit_post"
+                else:
+                    intended_route = "market_ioc"
+                
+                # Check spread
+                if quote.spread_bps > self.max_spread_bps:
+                    passed_spread_check = False
+                    if not would_place or not rejection_reason:
+                        would_place = False
+                        rejection_reason = f"Spread too wide: {quote.spread_bps:.1f}bps > {self.max_spread_bps}bps"
+                    logger.warning(f"Shadow: {rejection_reason}")
+                else:
+                    passed_spread_check = True
+                
+                # Check depth if available
+                try:
+                    product_id = symbol
+                    book = self.exchange.get_product_book(product_id, level=2)
+                    
+                    # Calculate depth within 20bps of mid
+                    mid = (quote.bid + quote.ask) / 2
+                    depth_range_pct = 0.002  # 20bps = 0.2%
+                    
+                    if side.upper() == "BUY":
+                        # Check ask side depth
+                        max_price = mid * (1 + depth_range_pct)
+                        depth_usd = sum(
+                            float(ask['price']) * float(ask['size'])
+                            for ask in book.get('asks', [])
+                            if float(ask['price']) <= max_price
+                        )
+                    else:
+                        # Check bid side depth
+                        min_price = mid * (1 - depth_range_pct)
+                        depth_usd = sum(
+                            float(bid['price']) * float(bid['size'])
+                            for bid in book.get('bids', [])
+                            if float(bid['price']) >= min_price
+                        )
+                    
+                    orderbook_depth_20bps_usd = depth_usd
+                    
+                    # Check if depth sufficient (want 2x order size)
+                    required_depth = size_usd * self.min_depth_multiplier
+                    if depth_usd < required_depth:
+                        passed_depth_check = False
+                        if not would_place or not rejection_reason:
+                            would_place = False
+                            rejection_reason = f"Insufficient depth: ${depth_usd:.2f} < ${required_depth:.2f}"
+                        logger.warning(f"Shadow: {rejection_reason}")
+                    else:
+                        passed_depth_check = True
+                        
+                except Exception as depth_e:
+                    logger.warning(f"Shadow: Could not check depth: {depth_e}")
+                    passed_depth_check = False  # Conservative: assume failed if can't check
+                    
+        except Exception as e:
+            would_place = False
+            rejection_reason = f"Failed to fetch quote: {str(e)}"
+            logger.error(f"Shadow execution error: {e}")
+            
+            # Use dummy quote for logging
+            from core.exchange_coinbase import Quote
+            quote = Quote(
+                symbol=symbol,
+                bid=0.0,
+                ask=0.0,
+                spread_bps=0.0,
+                timestamp=datetime.now(timezone.utc)
+            )
+        
+        # Log shadow order
+        try:
+            tier_str = f"T{tier}" if tier else "unknown"
+            shadow_order = create_shadow_order(
+                symbol=symbol,
+                side=side,
+                size_usd=size_usd,
+                size_units=size_units,
+                quote=quote,
+                intended_route=intended_route,
+                intended_price=intended_price,
+                expected_slippage_bps=expected_slippage_bps,
+                expected_fees_usd=expected_fees_usd,
+                tier=tier_str,
+                client_order_id=client_order_id,
+                passed_spread_check=passed_spread_check,
+                passed_depth_check=passed_depth_check,
+                would_place=would_place,
+                rejection_reason=rejection_reason,
+                config_hash=config_hash,
+                confidence=confidence,
+                conviction=conviction,
+                orderbook_depth_20bps_usd=orderbook_depth_20bps_usd
+            )
+            self.shadow_logger.log_order(shadow_order)
+            
+            # Also log rejection separately if applicable
+            if not would_place and rejection_reason:
+                self.shadow_logger.log_rejection(
+                    symbol=symbol,
+                    side=side,
+                    size_usd=size_usd,
+                    reason=rejection_reason,
+                    context={
+                        "tier": tier_str,
+                        "confidence": confidence,
+                        "quote_spread_bps": quote.spread_bps if quote else None,
+                        "passed_spread_check": passed_spread_check,
+                        "passed_depth_check": passed_depth_check
+                    }
+                )
+        except Exception as log_e:
+            logger.error(f"Failed to log shadow order: {log_e}")
+        
+        # Immediately transition to terminal state (not actually submitted)
+        self.order_state_machine.transition(client_order_id, OrderStatus.FILLED)
+        
+        return ExecutionResult(
+            success=True,
+            order_id=f"shadow_{client_order_id}",
+            symbol=symbol,
+            side=side,
+            filled_size=0.0,
+            filled_price=0.0,
+            fees=0.0,
+            slippage_bps=0.0,
+            route="shadow_dry_run"
+        )
+    
     def _execute_paper(self, symbol: str, side: str, size_usd: float,
                       client_order_id: Optional[str]) -> ExecutionResult:
         """
