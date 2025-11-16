@@ -757,53 +757,45 @@ def validate_sanity_checks(config_dir: Path) -> List[str]:
         # Check: Exit configuration completeness (top-level, not profile-specific)
         # Note: stop_loss_pct and take_profit_pct are in risk section, not exits
         if True:  # Always check exits
-            exits = policy.get("exits", {})
+            # Stop loss and take profit are in risk section
+            stop_loss_pct = risk.get("stop_loss_pct", 0)
+            take_profit_pct = risk.get("take_profit_pct", 0)
             
-            # Validate stop_loss configuration
-            stop_loss_pct = exits.get("stop_loss_pct", 0)
             if stop_loss_pct == 0:
                 errors.append(
-                    f"UNSAFE: Profile '{active_profile}' has no stop_loss_pct configured. "
-                    f"This exposes unlimited downside risk. Set exits.stop_loss_pct > 0."
+                    "UNSAFE: No stop_loss_pct configured in risk section. "
+                    "This exposes unlimited downside risk. Set risk.stop_loss_pct > 0."
                 )
             elif stop_loss_pct >= 100:
                 errors.append(
-                    f"INVALID: Profile '{active_profile}' stop_loss_pct ({stop_loss_pct}) >= 100%. "
-                    f"Stop loss must be < 100% to protect capital."
+                    f"INVALID: risk.stop_loss_pct ({stop_loss_pct}) >= 100%. "
+                    "Stop loss must be < 100% to protect capital."
                 )
             
-            # Validate take_profit configuration
-            take_profit_pct = exits.get("take_profit_pct", 0)
             # Note: take_profit_pct=0 is valid (exit only on stop or manual intervention)
             if stop_loss_pct > 0 and take_profit_pct > 0 and take_profit_pct <= stop_loss_pct:
                 errors.append(
-                    f"UNSAFE: Profile '{active_profile}' take_profit_pct ({take_profit_pct}) <= "
+                    f"UNSAFE: risk.take_profit_pct ({take_profit_pct}) <= "
                     f"stop_loss_pct ({stop_loss_pct}). "
-                    f"Risk/reward ratio < 1:1 leads to expected loss over time."
+                    "Risk/reward ratio < 1:1 leads to expected loss over time."
                 )
             
-            # Validate trailing_stop configuration
-            trailing_stop = exits.get("trailing_stop", {})
-            if trailing_stop.get("enabled", False):
-                activation_pct = trailing_stop.get("activation_pct", 0)
-                trail_pct = trailing_stop.get("trail_pct", 0)
-                
-                if activation_pct <= 0:
-                    errors.append(
-                        f"INVALID: Profile '{active_profile}' trailing_stop.enabled=true but "
-                        f"activation_pct={activation_pct}. Set activation_pct > 0."
-                    )
-                if trail_pct <= 0:
-                    errors.append(
-                        f"INVALID: Profile '{active_profile}' trailing_stop.enabled=true but "
-                        f"trail_pct={trail_pct}. Set trail_pct > 0."
-                    )
-                if activation_pct > 0 and trail_pct > activation_pct:
-                    errors.append(
-                        f"UNSAFE: Profile '{active_profile}' trail_pct ({trail_pct}) > "
-                        f"activation_pct ({activation_pct}). "
-                        f"Trailing stop will never trigger (trail distance > activation threshold)."
-                    )
+            # Validate trailing_stop configuration in exits section
+            exits = policy.get("exits", {})
+            use_trailing = exits.get("use_trailing_stop", False)
+            trailing_stop_pct = exits.get("trailing_stop_pct", 0)
+            
+            if use_trailing and trailing_stop_pct <= 0:
+                errors.append(
+                    "INVALID: exits.use_trailing_stop=true but trailing_stop_pct=0. "
+                    "Set exits.trailing_stop_pct > 0 or disable trailing stops."
+                )
+            if trailing_stop_pct > 0 and trailing_stop_pct > stop_loss_pct:
+                errors.append(
+                    f"UNSAFE: exits.trailing_stop_pct ({trailing_stop_pct}) > "
+                    f"risk.stop_loss_pct ({stop_loss_pct}). "
+                    "Trailing stop distance exceeds hard stop, making trailing ineffective."
+                )
         
         # Check: Max exposure coherence across hierarchies (asset <= theme)
         if max_per_asset_pct and max_per_theme_pct:
