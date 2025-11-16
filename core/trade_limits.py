@@ -69,6 +69,9 @@ class TradeLimits:
         self.config = config
         self.state_store = state_store
         
+        # Validate config before proceeding
+        self._validate_config(config)
+        
         # Global spacing
         self.min_global_spacing_sec = config.get("min_seconds_between_trades", 180)
         
