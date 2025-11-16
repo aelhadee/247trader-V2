@@ -185,7 +185,7 @@ Deployed to production on 2025-11-15 at 18:33 PST. All safety validations passed
 | ------ | ---- | ----- | ----- |
 | 🟢 Done | Persist durable state (positions, PnL, cooldowns, open orders) between runs. | N/A | `StateStore` JSON store handles persistence. |
 | 🟢 Done | Cold-start reconcile balances, positions, and open orders from Coinbase on boot. | N/A | `TradingLoop._reconcile_exchange_state` trusts exchange snapshot. |
-| 🔴 TODO | Add shadow DRY_RUN mode to diff intended vs actual fills during rollout. | TBD | Enables parallel validation before scaling capital. |
+| � Done | **Shadow DRY_RUN mode - comprehensive execution logging** | N/A | Enhanced _execute_shadow() logs quotes, fees, slippage, liquidity checks to logs/shadow_orders.jsonl. 13 tests passing in test_shadow_execution.py. See docs/TASK_4_SHADOW_DRY_RUN_COMPLETE.md. |
 
 ## Backtesting Parity
 
