@@ -55,9 +55,10 @@ risk:
   min_position_size_pct: 0.5
   max_open_positions: 5         # Was 12 - REDUCED to Freqtrade's 3-5 range for conservative operation
   max_per_theme_pct:
-    L2: 10.0
+    LAYER1: 15.0                # Layer 1 blockchains (BTC, ETH, SOL, etc.)
+    LAYER2: 10.0                # Layer 2 scaling solutions (OP, ARB, etc.) - was "L2"
     MEME: 5.0                   # Meme coins remain capped at 5% (high volatility)
-    DEFI: 10.0
+    DEFI: 10.0                  # DeFi protocols
   
   # Stop-loss aligned with Freqtrade's -10% default
   daily_stop_pnl_pct: -3.0
