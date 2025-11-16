@@ -493,7 +493,10 @@ class BacktestEngine:
         # Convert side to lowercase for slippage model
         side = "buy" if proposal.side == "BUY" else "sell"
         
-        # Calculate realistic fill price with slippage
+        # Calculate recent volatility for slippage adjustment
+        volatility_pct = self._calculate_volatility(proposal.symbol, current_time, lookback_hours=24)
+        
+        # Calculate realistic fill price with slippage (including volatility adjustment)
         # Conservative: assume taker orders (pay more fees but guaranteed execution)
         quantity = size_usd / mid_price  # Rough quantity estimate
         fill_price = self.slippage_model.calculate_fill_price(
@@ -501,7 +504,8 @@ class BacktestEngine:
             side=side,
             tier=tier,
             order_type="taker",
-            notional_usd=size_usd
+            notional_usd=size_usd,
+            volatility_pct=volatility_pct
         )
         
         # Calculate actual cost including fees
