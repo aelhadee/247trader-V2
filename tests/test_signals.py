@@ -49,7 +49,8 @@ def flat_candles() -> List[OHLCV]:
     
     for i in range(100):
         candles.append(OHLCV(
-            time=base_time + timedelta(minutes=15*i),
+            symbol="BTC-USD",
+            timestamp=base_time + timedelta(minutes=15*i),
             open=50000.0,
             high=50010.0,
             low=49990.0,
@@ -70,7 +71,8 @@ def uptrend_candles() -> List[OHLCV]:
         # Gradual increase from 50000 to 55000
         price = 50000.0 + (i * 50.0)
         candles.append(OHLCV(
-            time=base_time + timedelta(minutes=15*i),
+            symbol="BTC-USD",
+            timestamp=base_time + timedelta(minutes=15*i),
             open=price,
             high=price + 10,
             low=price - 10,
@@ -88,17 +90,18 @@ def spike_candles() -> List[OHLCV]:
     candles = []
     
     for i in range(100):
-        # Flat until last 4 candles
-        if i < 96:
+        # Flat until last 2 candles
+        if i < 98:
             price = 50000.0
             volume = 1000.0
         else:
-            # 3% spike in last hour
-            price = 50000.0 + (i - 95) * 375.0  # +1500 total = 3%
+            # Sharp 2.5% spike in last 15min (1 candle)
+            price = 51250.0  # 2.5% up from 50000
             volume = 3000.0  # 3x volume
         
         candles.append(OHLCV(
-            time=base_time + timedelta(minutes=15*i),
+            symbol="BTC-USD",
+            timestamp=base_time + timedelta(minutes=15*i),
             open=price,
             high=price + 10,
             low=price - 10,
@@ -130,7 +133,8 @@ def overextended_candles() -> List[OHLCV]:
         volume = 2000.0 if i < 94 else 1000.0
         
         candles.append(OHLCV(
-            time=base_time + timedelta(minutes=15*i),
+            symbol="BTC-USD",
+            timestamp=base_time + timedelta(minutes=15*i),
             open=price,
             high=price + 10,
             low=price - 10,
@@ -216,7 +220,8 @@ def test_momentum_signal_requires_volume(sample_asset, uptrend_candles):
     declining_vol = []
     for i, c in enumerate(uptrend_candles):
         new_c = OHLCV(
-            time=c.time,
+            symbol="BTC-USD",
+            timestamp=c.time,
             open=c.open,
             high=c.high,
             low=c.low,
