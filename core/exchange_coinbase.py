@@ -123,7 +123,11 @@ class CoinbaseExchange:
             self._mode = "pem"
             logger.info("Using Cloud API authentication (JWT/ES256) with PEM key")
         
-        # Rate limiting
+        # Per-endpoint rate limiting (NEW: replaces legacy channel-based tracking)
+        alert_threshold = 0.8  # Alert at 80% utilization
+        self.rate_limiter = RateLimiter(alert_threshold=alert_threshold)
+        
+        # Legacy tracking (kept for backward compatibility, deprecated)
         self._last_call = {}
         self._min_interval = 0.1  # 100ms between calls
         self._rate_limit_targets = {"public": None, "private": None}
@@ -139,8 +143,21 @@ class CoinbaseExchange:
         
         logger.info(f"Initialized CoinbaseExchange (read_only={read_only}, mode={self._mode})")
     
-    def _rate_limit(self, endpoint: str):
-        """Simple rate limiting"""
+    def _rate_limit(self, endpoint: str, is_private: bool = False):
+        """
+        Per-endpoint rate limiting with proactive throttling.
+        
+        Args:
+            endpoint: Endpoint name (e.g., 'list_products', 'place_order')
+            is_private: Whether endpoint requires authentication
+        
+        Uses token bucket algorithm to prevent quota exhaustion.
+        Will wait if necessary to stay within limits.
+        """
+        # Use new per-endpoint limiter (wait=True ensures compliance)
+        self.rate_limiter.acquire(endpoint, is_private=is_private, wait=True)
+        
+        # Legacy tracking (backward compatibility)
         last = self._last_call.get(endpoint, 0)
         elapsed = time.time() - last
         if elapsed < self._min_interval:
@@ -148,7 +165,32 @@ class CoinbaseExchange:
         self._last_call[endpoint] = time.time()
 
     def configure_rate_limits(self, rate_cfg: Optional[Dict[str, Any]]) -> None:
+        """
+        Configure rate limits from config.
+        
+        Args:
+            rate_cfg: Dict with keys:
+                - 'public': requests/sec for public endpoints (default: 10)
+                - 'private': requests/sec for private endpoints (default: 15)
+                - 'endpoints': per-endpoint overrides, e.g. {'get_quote': 20}
+        """
         cfg = rate_cfg or {}
+        
+        # Extract default quotas
+        default_public = cfg.get("public")
+        default_private = cfg.get("private")
+        
+        # Extract per-endpoint overrides
+        endpoint_quotas = cfg.get("endpoints", {})
+        
+        # Configure new rate limiter
+        self.rate_limiter.configure(
+            endpoint_quotas=endpoint_quotas,
+            default_public=default_public,
+            default_private=default_private
+        )
+        
+        # Legacy channel tracking (backward compatibility)
         for channel in ("public", "private"):
             limit = cfg.get(channel)
             if limit is None:
