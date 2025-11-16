@@ -1814,9 +1814,11 @@ class RiskEngine:
         ):
             violated.append(pyramid_block_reason or f"already_have_position ({proposal.symbol})")
 
-        if effective_pending_usd > 0 and side_upper == "BUY":
-            if not pyramid_allowed_for_symbol:
-                violated.append(f"pending_buy_exists ({proposal.symbol})")
+        # REMOVED: pending_buy_exists check
+        # Rationale: Redundant with position_size_with_pending check above.
+        # If pending + proposed exceeds cap, it's already rejected by position_size_with_pending.
+        # If pending + proposed is within cap, there's no safety reason to block.
+        # The position_size_with_pending check at line 1796-1799 already accounts for pending orders.
         
         if violated:
             return RiskCheckResult(
