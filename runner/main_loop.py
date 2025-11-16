@@ -269,6 +269,14 @@ class TradingLoop:
             policy=self.policy_config,
             state_store=self.state_store,
         )
+        
+        # Initialize ReportGenerator for daily performance reports
+        from analytics.report_generator import ReportGenerator
+        self.report_generator = ReportGenerator(
+            trade_log_dir="data/trades",
+            output_dir="reports",
+        )
+        self._last_report_date = None  # Track last report generation date
 
         latency_cfg = (self.monitoring_config or {}).get("latency", {}) or {}
         default_stage_budgets = {
