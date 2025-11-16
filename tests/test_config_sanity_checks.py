@@ -59,7 +59,7 @@ def test_trade_limits_daily_hourly_consistency():
                 "stop_loss_pct": 10.0,
                 "take_profit_pct": 15.0
             },
-            "exits": {"enabled": true},
+            "exits": {"enabled": True},
             "position_sizing": {"method": "risk_parity"},
             "liquidity": {}
         }
