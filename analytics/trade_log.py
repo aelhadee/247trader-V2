@@ -45,11 +45,18 @@ class TradeRecord:
     
     # Timing
     entry_time: datetime
-    exit_time: Optional[datetime] = None
-    hold_duration_minutes: Optional[float] = None
     
     # Sizing
     size_quote: float  # Quote currency amount (e.g., USD)
+    
+    # Pricing
+    entry_price: float
+    
+    # Optional timing
+    exit_time: Optional[datetime] = None
+    hold_duration_minutes: Optional[float] = None
+    
+    # Optional sizing
     size_base: Optional[float] = None  # Base currency amount (e.g., BTC)
     
     # Pricing
