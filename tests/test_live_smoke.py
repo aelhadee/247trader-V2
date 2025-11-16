@@ -25,16 +25,15 @@ from infra.state_store import StateStore
 
 # Check if credentials are available
 def has_credentials():
-    """Check if Coinbase credentials are available"""
-    secret_file = os.environ.get("CB_API_SECRET_FILE")
-    if secret_file and os.path.exists(secret_file):
-        return True
-    return bool(os.environ.get("COINBASE_API_KEY") and os.environ.get("COINBASE_API_SECRET"))
+    """Check if Coinbase credentials are available from environment"""
+    from core.exchange_coinbase import validate_credentials_available
+    credentials_ok, _ = validate_credentials_available(require_credentials=False)
+    return credentials_ok
 
 
 skip_without_creds = pytest.mark.skipif(
     not has_credentials(),
-    reason="Coinbase credentials not available (set CB_API_SECRET_FILE or COINBASE_API_KEY/SECRET)"
+    reason="Coinbase credentials not available. Set CB_API_KEY and CB_API_SECRET environment variables."
 )
 
 
