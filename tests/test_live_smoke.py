@@ -292,10 +292,6 @@ def test_circuit_breaker_data():
         print(f"✅ Quote fresh ({age_seconds:.1f}s) - circuit breaker OK")
 
 
-@pytest.mark.skipif(
-    not os.getenv("CB_API_SECRET_FILE"),
-    reason="Requires CB_API_SECRET_FILE environment variable"
-)
 @skip_without_creds
 def test_smoke_suite():
     """Run all smoke tests in sequence"""
