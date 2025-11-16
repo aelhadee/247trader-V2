@@ -46,6 +46,12 @@ Clean architecture trading bot for Coinbase Advanced Trade.
 - **Exchange Connector** (`core/exchange_coinbase.py`) - JWT + HMAC auth, all Coinbase endpoints
 - **Main Loop** (`runner/main_loop.py`) - Universe → Triggers → Rules → Risk → Execution
 
+**Monitoring Stack:**
+- **Prometheus** (`infra/prometheus_exporter.py`) - Metrics collection (trades, PnL, risk, system health)
+- **Grafana** (port 3000) - Real-time dashboards with 10 operational panels
+- **HealthCheck** (port 8080) - HTTP liveness endpoint for container orchestration
+- See `docs/MONITORING_SETUP.md` for full setup guide
+
 **Safety Features:**
 - ✅ Kill-switch (<3s detection, <10s cancel, <5s alert)
 - ✅ Circuit breakers (data staleness, exchange health, slippage violations)
