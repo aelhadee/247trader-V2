@@ -384,13 +384,17 @@ def test_shadow_execution_quote_failure(execution_engine, mock_exchange, shadow_
     
     assert result.success is True  # DRY_RUN always succeeds
     
-    # Check rejection logged
+    # Check rejection logged (logs both shadow order AND rejection entry)
     lines = shadow_log_file.read_text().strip().split('\n')
-    assert len(lines) == 1
+    assert len(lines) == 2  # Shadow order + rejection
     
     shadow_entry = json.loads(lines[0])
     assert shadow_entry['would_place'] is False
     assert "quote" in shadow_entry['rejection_reason'].lower()
+    
+    rejection_entry = json.loads(lines[1])
+    assert rejection_entry['type'] == "rejection"
+    assert "quote" in rejection_entry['reason'].lower()
 
 
 def test_shadow_execution_multiple_orders(execution_engine, shadow_log_file):
