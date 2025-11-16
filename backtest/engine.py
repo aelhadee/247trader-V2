@@ -270,6 +270,17 @@ class BacktestEngine:
         for trade in self.open_trades:
             self._close_trade(trade, current_time, "backtest_end", data_loader)
         
+        # Log MockExchange statistics
+        if self.mock_exchange:
+            fill_stats = self.mock_exchange.get_fill_stats()
+            balance_summary = self.mock_exchange.get_balances_summary()
+            logger.info(
+                f"MockExchange Stats: {fill_stats['filled_orders']}/{fill_stats['total_orders']} filled "
+                f"({fill_stats['fill_rate']:.0%}), maker ratio: {fill_stats['maker_ratio']:.0%}, "
+                f"rejections: {fill_stats['rejections']}"
+            )
+            logger.info(f"Final Balances: {balance_summary}")
+        
         logger.info(f"Backtest complete: {cycle_count} cycles")
         return self.metrics
     
