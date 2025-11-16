@@ -2455,27 +2455,54 @@ class ExecutionEngine:
                         fill_pct = (filled_size * filled_price) / size_usd if size_usd > 0 else 0.0
                         self.prometheus_exporter.record_order_filled(symbol, side.lower(), filled_size, fill_pct)
                     
-                    # Log trade entry for analytics
+                    # Log trade entry/exit for analytics
                     try:
-                        trade_record = TradeRecord(
-                            trade_id=attempt_client_order_id,
-                            symbol=symbol,
-                            side=side,
-                            entry_time=datetime.now(timezone.utc),
-                            entry_price=filled_price,
-                            entry_mid_price=quote.get("mid", filled_price) if isinstance(quote, dict) else filled_price,
-                            size_quote=filled_value,
-                            entry_fee=fees,
-                            entry_is_maker=use_maker,
-                            trigger_type=None,  # Will be set by caller if available
-                            confidence=confidence,
-                            volatility=None,  # Will be enriched from proposal if available
-                        )
-                        self.trade_log.log_entry(trade_record)
-                        self.open_trades[symbol] = trade_record
-                        logger.debug("Trade entry logged: %s %s @ %.6f", symbol, side, filled_price)
+                        if side.lower() == "buy":
+                            # Log new trade entry
+                            trade_record = TradeRecord(
+                                trade_id=attempt_client_order_id,
+                                symbol=symbol,
+                                side=side,
+                                entry_time=datetime.now(timezone.utc),
+                                entry_price=filled_price,
+                                entry_mid_price=quote.get("mid", filled_price) if isinstance(quote, dict) else filled_price,
+                                size_quote=filled_value,
+                                entry_fee=fees,
+                                entry_is_maker=use_maker,
+                                trigger_type=None,  # Will be set by caller if available
+                                confidence=confidence,
+                                volatility=None,  # Will be enriched from proposal if available
+                            )
+                            self.trade_log.log_entry(trade_record)
+                            self.open_trades[symbol] = trade_record
+                            logger.debug("Trade entry logged: %s BUY @ %.6f", symbol, filled_price)
+                        elif side.lower() == "sell" and symbol in self.open_trades:
+                            # Log trade exit - update existing trade record
+                            trade_record = self.open_trades.pop(symbol)
+                            trade_record.exit_time = datetime.now(timezone.utc)
+                            trade_record.exit_price = filled_price
+                            trade_record.exit_mid_price = quote.get("mid", filled_price) if isinstance(quote, dict) else filled_price
+                            trade_record.exit_fee = fees
+                            trade_record.exit_is_maker = use_maker
+                            trade_record.exit_reason = "manual"  # Will be enriched from proposal metadata if available
+                            
+                            # Calculate PnL and attribution
+                            trade_record.calculate_pnl()
+                            trade_record.calculate_attribution()
+                            
+                            # Log the completed trade
+                            self.trade_log.log_exit(trade_record)
+                            logger.debug(
+                                "Trade exit logged: %s SELL @ %.6f (PnL: %.2f%%, net: $%.2f)",
+                                symbol,
+                                filled_price,
+                                trade_record.pnl_pct or 0.0,
+                                trade_record.pnl_net or 0.0,
+                            )
+                        elif side.lower() == "sell":
+                            logger.debug("SELL order for %s but no open trade found (may be direct liquidation)", symbol)
                     except Exception as log_exc:
-                        logger.warning("Failed to log trade entry for %s: %s", symbol, log_exc)
+                        logger.warning("Failed to log trade for %s: %s", symbol, log_exc)
 
                 actual_slippage = est_slippage_bps
 
