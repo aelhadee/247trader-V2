@@ -185,7 +185,8 @@ def main():
         start_date=args.start,
         end_date=args.end,
         initial_capital=args.capital,
-        interval_minutes=args.interval
+        interval_minutes=args.interval,
+        seed=args.seed
     )
 
 
