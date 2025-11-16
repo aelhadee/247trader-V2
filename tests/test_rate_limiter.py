@@ -5,6 +5,7 @@ Validates token bucket algorithm, pre-emptive throttling, and statistics trackin
 """
 import pytest
 import time
+from unittest.mock import patch, MagicMock
 from infra.rate_limiter import RateLimiter, TokenBucket, RateLimitStats
 
 

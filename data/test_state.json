@@ -57,10 +57,10 @@
       "symbol": "BTC-USD",
       "side": "SELL",
       "size_usd": 100.0,
-      "timestamp": "2025-11-16T01:08:39.176191+00:00",
+      "timestamp": "2025-11-16T01:27:14.719331+00:00",
       "status": "open",
-      "first_seen": "2025-11-16T01:08:39.176564+00:00",
-      "updated_at": "2025-11-16T01:08:39.176564+00:00"
+      "first_seen": "2025-11-16T01:27:14.719741+00:00",
+      "updated_at": "2025-11-16T01:27:14.719741+00:00"
     },
     "coid_47db88a9cc9b172c": {
       "order_id": "real-order-123",
@@ -569,25 +569,15 @@
   },
   "recent_orders": [],
   "pending_markers": {
-    "BTC-USD:SELL:247trader_coid_2f3cebbb8c10760b": {
+    "BTC-USD:SELL:247trader_coid_5380b7bd1d2c8678": {
       "product_id": "BTC-USD",
       "base": "BTC",
       "side": "SELL",
-      "client_order_id": "247trader_coid_2f3cebbb8c10760b",
+      "client_order_id": "247trader_coid_5380b7bd1d2c8678",
       "order_id": "real-order-123",
       "notional_usd": 100.61,
-      "since": "2025-11-16T01:07:51.589521+00:00",
-      "expires_at": "2025-11-16T01:10:51.589521+00:00"
-    },
-    "BTC-USD:SELL:247trader_coid_4e44a93c81c2264b": {
-      "product_id": "BTC-USD",
-      "base": "BTC",
-      "side": "SELL",
-      "client_order_id": "247trader_coid_4e44a93c81c2264b",
-      "order_id": "real-order-123",
-      "notional_usd": 100.61,
-      "since": "2025-11-16T01:08:39.169891+00:00",
-      "expires_at": "2025-11-16T01:11:39.169891+00:00"
+      "since": "2025-11-16T01:27:14.713601+00:00",
+      "expires_at": "2025-11-16T01:30:14.713601+00:00"
     }
   },
   "last_fill_times": {},
@@ -1294,6 +1284,30 @@
     },
     {
       "at": "2025-11-16T01:08:39.176564+00:00",
+      "event": "order_opened",
+      "order_key": "test_duplicate_123",
+      "product_id": null,
+      "side": "SELL",
+      "quote_size_usd": null
+    },
+    {
+      "at": "2025-11-16T01:23:46.123452+00:00",
+      "event": "order_opened",
+      "order_key": "test_duplicate_123",
+      "product_id": null,
+      "side": "SELL",
+      "quote_size_usd": null
+    },
+    {
+      "at": "2025-11-16T01:24:01.157321+00:00",
+      "event": "order_opened",
+      "order_key": "test_duplicate_123",
+      "product_id": null,
+      "side": "SELL",
+      "quote_size_usd": null
+    },
+    {
+      "at": "2025-11-16T01:27:14.719741+00:00",
       "event": "order_opened",
       "order_key": "test_duplicate_123",
       "product_id": null,
