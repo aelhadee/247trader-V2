@@ -2026,12 +2026,11 @@ class TradingLoop:
                             )
                 
                 self._post_trade_refresh(final_orders)
+                self._apply_cooldowns_after_trades(final_orders, approved_proposals)
+                logger.info(f"✅ Executed {len(final_orders)} order(s) successfully")
             else:
                 logger.info("ℹ️  No fills to reconcile")
-                    self._apply_cooldowns_after_trades(final_orders, approved_proposals)
-                logger.info(f"Executed {len(final_orders)} order(s)")
-            else:
-                logger.info("NO_TRADE: execution layer filtered all proposals (liquidity/slippage/notional/etc)")
+                logger.info("⚠️  NO_TRADE: execution layer filtered all proposals (liquidity/slippage/notional/etc)")
             
             # Audit cycle
             self._audit_cycle(
