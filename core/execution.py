@@ -99,6 +99,13 @@ class ExecutionEngine:
         self.alert_service = alert_service
         self.order_state_machine = get_order_state_machine()
         
+        # Import Prometheus exporter (will be None if not initialized)
+        try:
+            from infra.prometheus_exporter import get_exporter
+            self.prometheus_exporter = get_exporter() if get_exporter() else None
+        except (ImportError, RuntimeError):
+            self.prometheus_exporter = None
+        
         # Order rejection tracking for burst detection
         self._rejection_history = []  # List of (timestamp, symbol, reason) tuples
         self._rejection_window_seconds = 600  # 10 minutes
