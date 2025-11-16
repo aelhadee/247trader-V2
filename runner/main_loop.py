@@ -2001,33 +2001,33 @@ class TradingLoop:
                 with self._stage_timer("fills_reconcile"):
                     self.state_store.update_from_fills(final_orders, self.portfolio)
                     logger.info(f"✅ State updated with {executed_count} fill(s)")
+                
+                # Record fill metrics
+                total_attempts = len(adjusted_proposals)
+                fill_count = len(final_orders)
+                if total_attempts > 0:
+                    self.metrics.record_fill_ratio(fill_count, total_attempts)
+                
+                # Record each fill by side and update managed positions
+                for order, (proposal, _) in zip(final_orders, adjusted_proposals):
+                    if order.success:
+                        # Record fill metric
+                        side = proposal.side.lower() if hasattr(proposal, 'side') else "buy"
+                        self.metrics.record_fill(side)
+                        
+                        # Update managed position targets (for BUY orders only)
+                        if proposal.side.upper() == "BUY":
+                            symbol = proposal.symbol.replace("-USD", "")
+                            self.state_store.update_managed_position_targets(
+                                symbol=symbol,
+                                stop_loss_pct=proposal.stop_loss_pct,
+                                take_profit_pct=proposal.take_profit_pct,
+                                max_hold_hours=proposal.max_hold_hours,
+                            )
+                
+                self._post_trade_refresh(final_orders)
             else:
                 logger.info("ℹ️  No fills to reconcile")
-                    
-                    # Record fill metrics
-                    total_attempts = len(adjusted_proposals)
-                    fill_count = len(final_orders)
-                    if total_attempts > 0:
-                        self.metrics.record_fill_ratio(fill_count, total_attempts)
-                    
-                    # Record each fill by side and update managed positions
-                    for order, (proposal, _) in zip(final_orders, adjusted_proposals):
-                        if order.success:
-                            # Record fill metric
-                            side = proposal.side.lower() if hasattr(proposal, 'side') else "buy"
-                            self.metrics.record_fill(side)
-                            
-                            # Update managed position targets (for BUY orders only)
-                            if proposal.side.upper() == "BUY":
-                                symbol = proposal.symbol.replace("-USD", "")
-                                self.state_store.update_managed_position_targets(
-                                    symbol=symbol,
-                                    stop_loss_pct=proposal.stop_loss_pct,
-                                    take_profit_pct=proposal.take_profit_pct,
-                                    max_hold_hours=proposal.max_hold_hours,
-                                )
-                    
-                    self._post_trade_refresh(final_orders)
                     self._apply_cooldowns_after_trades(final_orders, approved_proposals)
                 logger.info(f"Executed {len(final_orders)} order(s)")
             else:
