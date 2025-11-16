@@ -29,15 +29,16 @@ from core.universe import UniverseAsset
 @pytest.fixture
 def sample_asset():
     """Sample T1 asset"""
-    return UniverseAsset(
-        symbol="BTC-USD",
-        tier="T1",
-        themes=["CRYPTO"],
-        volume_24h_usd=1_000_000_000,
-        spread_bps=10,
-        depth_20bps_usd=500_000,
-        precision=2
-    )
+    asset = UniverseAsset()
+    asset.symbol = "BTC-USD"
+    asset.tier = 1
+    asset.allocation_min_pct = 0.01
+    asset.allocation_max_pct = 0.05
+    asset.volume_24h = 1_000_000_000
+    asset.spread_bps = 10
+    asset.depth_usd = 500_000
+    asset.eligible = True
+    return asset
 
 
 @pytest.fixture
