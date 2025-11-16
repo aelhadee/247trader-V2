@@ -318,6 +318,60 @@ echo ""
 - [ ] Kill switch absent
 - [ ] Config validated
 
+**Analytics Pre-Flight:**
+
+```bash
+# Validate analytics system initialization
+python -c "
+import sys
+from core.trade_limits import TradeLimits
+from core.trade_log import TradeLog
+from core.performance_report import PerformanceReport
+from infra.state_store import StateStore
+import yaml
+
+try:
+    # Load config
+    with open('config/policy.yaml') as f:
+        policy = yaml.safe_load(f)
+    
+    # Initialize components
+    state_store = StateStore('data/state.json')
+    
+    # TradeLimits
+    trade_limits = TradeLimits(config=policy['risk'], state_store=state_store)
+    print('✅ TradeLimits initialized')
+    
+    # TradeLog
+    import os
+    os.makedirs('data/trades', exist_ok=True)
+    trade_log = TradeLog(csv_dir='data/trades', use_sqlite=True)
+    print('✅ TradeLog initialized')
+    
+    # ReportGenerator
+    os.makedirs('reports', exist_ok=True)
+    report_gen = PerformanceReport(trade_log=trade_log, output_dir='reports')
+    print('✅ ReportGenerator initialized')
+    
+    print('')
+    print('Analytics system ready for LIVE deployment')
+    sys.exit(0)
+    
+except Exception as e:
+    print(f'❌ Analytics initialization failed: {e}')
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
+"
+```
+
+**Analytics Checklist:**
+- [ ] TradeLimits initialized successfully
+- [ ] TradeLog directory exists (`data/trades/`)
+- [ ] SQLite database will be created on first trade
+- [ ] ReportGenerator directory exists (`reports/`)
+- [ ] All config validation passes
+
 ### 5.2 Start Bot in LIVE Mode
 
 ```bash
