@@ -1629,7 +1629,8 @@ class ExecutionEngine:
                 tier: Optional[int] = None,
                 bypass_slippage_budget: bool = False,
                 bypass_failed_order_cooldown: bool = False,
-                confidence: Optional[float] = None) -> ExecutionResult:
+                confidence: Optional[float] = None,
+                exit_reason: Optional[str] = None) -> ExecutionResult:
         """
         Execute a trade.
         
