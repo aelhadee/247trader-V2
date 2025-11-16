@@ -354,23 +354,54 @@ if __name__ == "__main__":
     
     model = SlippageModel()
     
-    # Example 1: Buy 1 BTC (tier1)
-    print("\n=== Example 1: Buy 1 BTC at $50,000 ===")
+    # Example 1: Buy 1 BTC (tier1, normal volatility)
+    print("\n=== Example 1: Buy 1 BTC at $50,000 (Normal Vol) ===")
     fill = model.simulate_fill(
         mid_price=50000.0,
         side="buy",
         quantity=1.0,
         tier="tier1",
-        order_type="taker"
+        order_type="taker",
+        volatility_pct=2.0  # 2% recent volatility
     )
     print(f"Mid: ${fill['mid_price']:,.2f}")
     print(f"Fill: ${fill['fill_price']:,.2f}")
     print(f"Slippage: {fill['slippage_bps']:.1f} bps")
     print(f"Fee: ${fill['fee_usd']:,.2f} ({fill['fee_bps']:.0f} bps)")
     print(f"Total cost: ${fill['total_cost']:,.2f}")
+    print(f"Filled: {fill['fill_pct']:.1f}% ({'PARTIAL' if fill['is_partial_fill'] else 'FULL'})")
     
-    # Example 2: Calculate round-trip PnL
-    print("\n=== Example 2: Round-trip PnL (buy $50k, sell $52k) ===")
+    # Example 2: Same trade in high volatility
+    print("\n=== Example 2: Buy 1 BTC at $50,000 (High Vol) ===")
+    fill_hv = model.simulate_fill(
+        mid_price=50000.0,
+        side="buy",
+        quantity=1.0,
+        tier="tier1",
+        order_type="taker",
+        volatility_pct=8.0  # 8% recent volatility (high)
+    )
+    print(f"Fill: ${fill_hv['fill_price']:,.2f}")
+    print(f"Slippage: {fill_hv['slippage_bps']:.1f} bps (vs {fill['slippage_bps']:.1f} bps normal)")
+    print(f"Extra cost from volatility: ${fill_hv['fill_price'] - fill['fill_price']:,.2f}")
+    
+    # Example 3: Tier3 maker order (partial fill likely)
+    print("\n=== Example 3: Buy Tier3 Altcoin (Maker Order) ===")
+    fill_t3 = model.simulate_fill(
+        mid_price=1.50,
+        side="buy",
+        quantity=10000.0,
+        tier="tier3",
+        order_type="maker",
+        volatility_pct=6.0
+    )
+    print(f"Requested: {fill_t3['requested_quantity']:,.0f} units")
+    print(f"Filled: {fill_t3['quantity']:,.0f} units ({fill_t3['fill_pct']:.1f}%)")
+    print(f"Status: {'PARTIAL FILL' if fill_t3['is_partial_fill'] else 'FULL FILL'}")
+    print(f"Slippage: {fill_t3['slippage_bps']:.1f} bps")
+    
+    # Example 4: Calculate round-trip PnL
+    print("\n=== Example 4: Round-trip PnL (buy $50k, sell $52k) ===")
     pnl_usd, pnl_pct, fees = model.calculate_pnl(
         entry_price=50000.0,
         exit_price=52000.0,
