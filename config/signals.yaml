@@ -1,3 +1,44 @@
+# Signal Configuration for 247trader-v2
+# Defines modular signals and their parameters
+
+# Signal registry: which signals are enabled
+enabled_signals:
+  - price_move      # Volume spike + price move (primary signal)
+  - momentum        # Trend continuation (bull/bear regimes)
+  - mean_reversion  # Fade extremes (chop regime only)
+
+# Per-signal configuration
+signals:
+  price_move:
+    enabled: true
+    regime_thresholds:
+      chop:
+        pct_change_15m: 2.0
+        pct_change_60m: 4.0
+        volume_ratio_1h: 1.9
+      bull:
+        pct_change_15m: 3.5
+        pct_change_60m: 7.0
+        volume_ratio_1h: 2.0
+      bear:
+        pct_change_15m: 3.0
+        pct_change_60m: 7.0
+        volume_ratio_1h: 2.0
+  
+  momentum:
+    enabled: true
+    trend_threshold_pct: 5.0  # 5% move over 12h
+    volume_increasing_required: true
+    min_consistency_pct: 0.7  # 70% of intermediate points confirm trend
+  
+  mean_reversion:
+    enabled: true
+    deviation_threshold_pct: 3.0  # 3% from 24h average
+    exhaustion_required: true      # Volume/move must be declining
+    allowed_regimes:
+      - chop  # Only fire in chop
+
+# Legacy triggers config (kept for backward compatibility with TriggerEngine)
 triggers:
   only_upside: false
   max_triggers_per_cycle: 5
