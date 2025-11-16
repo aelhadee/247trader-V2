@@ -1,18 +1,30 @@
 """
-Tests for Backtest Regression System (REQ-BT1-3)
+247trader-v2 Tests: Backtest Regression Suite (Enhanced)
 
-Tests:
+Prevents backtest engine degradation by enforcing fixed baseline performance on historical data.
+
+Combined Tests:
 - REQ-BT1: Deterministic backtests with fixed seed
-- REQ-BT2: Machine-readable JSON report export
+- REQ-BT2: Machine-readable JSON report export  
 - REQ-BT3: CI regression gate with ±2% tolerance
+- Performance regression: Trade count, PnL, win rate, maker ratio
+- Policy compliance: Exposure, cooldowns, frequency limits
+- Execution quality: Slippage, fees, fill rates
+- Signal health: Distribution stability, no dropout
+- Regime handling: Smooth transitions, no errors
+
+Fixed Period: 2024 Q4 (Oct 1 - Dec 31)
+Baseline: baseline/2024_q4_baseline.json
+Update: pytest tests/test_backtest_regression.py --update-baseline
 """
 
 import pytest
 import json
 import tempfile
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, patch
+from typing import Dict, List
 
 from backtest.engine import BacktestEngine, BacktestMetrics, Trade
 from backtest.compare_baseline import (
