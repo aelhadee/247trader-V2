@@ -299,7 +299,8 @@ class CoinbaseExchange:
             raise
         finally:
             duration = time.perf_counter() - start
-            self._record_rate_usage("public")
+            endpoint_name = label.replace("/", "_").replace("-", "_")
+            self._record_rate_usage("public", endpoint=endpoint_name, violated=False)
             self._record_api_metrics(label, "public", duration, status_label)
     
     def _build_jwt(self, method: str, path: str) -> str:
