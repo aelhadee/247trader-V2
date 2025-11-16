@@ -1920,11 +1920,13 @@ class TradingLoop:
                     logger.warning(f"Capital constraints: executing {len(adjusted_proposals)}/{len(approved_proposals)} trades")
 
                 if self.mode == "DRY_RUN":
-                    logger.info("DRY_RUN mode - no actual execution")
+                    logger.info("✅ DRY_RUN mode - simulating execution (no real orders)")
                 else:
                     # Check governance flag (dead man's switch for LIVE trading)
+                    logger.info("🔒 Step 12c: Checking governance flags...")
                     governance_config = self.policy_config.get("governance", {})
                     live_trading_enabled = governance_config.get("live_trading_enabled", True)
+                    logger.info(f"✅ Governance check: live_trading_enabled={live_trading_enabled}")
 
                     if self.mode == "LIVE" and not live_trading_enabled:
                         logger.error(
