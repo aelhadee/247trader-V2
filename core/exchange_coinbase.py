@@ -1197,7 +1197,7 @@ class CoinbaseExchange:
                         retry_params["limit"] = min(max(1, limit), 1000)
                     if start_time:
                         retry_params["start_sequence_timestamp"] = start_time.isoformat()
-                    self._rate_limit("fills")
+                    self._rate_limit("list_fills", is_private=True)
                     resp = self._req("GET", "/orders/historical/fills", query=retry_params, authenticated=True)
                     fills = resp.get("fills", [])
                     logger.debug(
