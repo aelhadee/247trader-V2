@@ -696,6 +696,64 @@ def validate_sanity_checks(config_dir: Path) -> List[str]:
                 f"Dust threshold should be ≤ minimum trade size."
             )
         
+        # Check: TradeLimits daily/hourly consistency (NEW - from analytics integration)
+        # Daily limit must be >= hourly limit × 24 (validated in TradeLimits but catch early)
+        if max_trades_per_hour > 0 and max_trades_per_day > 0:
+            min_daily_required = max_trades_per_hour * 24
+            if max_trades_per_day < min_daily_required:
+                errors.append(
+                    f"UNSAFE: max_trades_per_day ({max_trades_per_day}) < "
+                    f"max_trades_per_hour ({max_trades_per_hour}) × 24 = {min_daily_required}. "
+                    f"Daily limit must accommodate full day at hourly rate."
+                )
+        
+        # Check: Cooldown configurations completeness
+        # If per-symbol cooldowns enabled, ensure all outcome cooldowns are set
+        if risk.get("per_symbol_cooldown_enabled", False):
+            required_cooldowns = {
+                "per_symbol_cooldown_win_minutes": "win",
+                "per_symbol_cooldown_loss_minutes": "loss",
+                "per_symbol_cooldown_after_stop": "stop_loss"
+            }
+            missing_cooldowns = []
+            for key, outcome in required_cooldowns.items():
+                if key not in risk or risk.get(key, 0) == 0:
+                    missing_cooldowns.append(outcome)
+            
+            if missing_cooldowns:
+                errors.append(
+                    f"INCOMPLETE: per_symbol_cooldown_enabled=true but missing outcome cooldowns: "
+                    f"{', '.join(missing_cooldowns)}. Set per_symbol_cooldown_win_minutes, "
+                    f"per_symbol_cooldown_loss_minutes, and per_symbol_cooldown_after_stop."
+                )
+        
+        # Check: Profile-specific consistency
+        # If profiles defined, ensure active profile is valid
+        profiles = policy.get("profiles", {})
+        active_profile = policy.get("profile", None)
+        if profiles and active_profile:
+            if active_profile not in profiles:
+                errors.append(
+                    f"INVALID: Active profile '{active_profile}' not found in profiles section. "
+                    f"Available profiles: {', '.join(profiles.keys())}"
+                )
+            else:
+                # Validate active profile's tier sizing consistency
+                profile_config = profiles[active_profile]
+                tier_sizing = profile_config.get("tier_sizing", {})
+                max_position_pct = profile_config.get("max_position_pct", {})
+                
+                # Each tier's max should be >= sizing to allow pyramiding
+                for tier in tier_sizing.keys():
+                    tier_size = tier_sizing.get(tier, 0)
+                    tier_max = max_position_pct.get(tier, 0)
+                    if tier_max > 0 and tier_size > tier_max:
+                        errors.append(
+                            f"UNSAFE: Profile '{active_profile}' tier_sizing.{tier} ({tier_size}) > "
+                            f"max_position_pct.{tier} ({tier_max}). "
+                            f"Single trade size exceeds tier maximum."
+                        )
+        
         # === DEPRECATED KEY CHECKS ===
         
         # Check: Old exposure parameter name
