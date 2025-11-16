@@ -210,7 +210,7 @@ class BacktestEngine:
     def run(self, 
             start_date: datetime,
             end_date: datetime,
-            data_loader,  # Function that returns OHLCV data
+            data_loader: Optional[DataLoader] = None,  # DataLoader instance
             interval_minutes: int = 15) -> BacktestMetrics:
         """
         Run backtest over date range.
@@ -218,13 +218,29 @@ class BacktestEngine:
         Args:
             start_date: Start datetime
             end_date: End datetime
-            data_loader: Function(symbols, start, end) -> dict of OHLCV data
+            data_loader: DataLoader instance (or use one passed to __init__)
             interval_minutes: Minutes between cycles
             
         Returns:
             BacktestMetrics
         """
+        # Use provided data_loader or fall back to one from __init__
+        if data_loader is not None:
+            self.data_loader = data_loader
+        
+        if self.data_loader is None:
+            raise ValueError("data_loader must be provided either to __init__ or run()")
+        
+        # Initialize MockExchange with data_loader
+        self.mock_exchange = MockExchange(
+            data_loader=self.data_loader,
+            initial_balances={"USD": self.initial_capital},
+            cost_model=self.cost_model,
+            read_only=False
+        )
+        
         logger.info(f"Starting backtest: {start_date} to {end_date}")
+        logger.info(f"MockExchange initialized with ${self.initial_capital:,.0f} USD")
         
         current_time = start_date
         cycle_count = 0
