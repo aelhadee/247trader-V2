@@ -482,6 +482,16 @@ except Exception as e:
 - [ ] **Alert delivery:** All configured alerts received
 - [ ] **No unexpected blocks:** Risk engine doesn't over-block
 
+**Analytics System Validation:**
+
+- [ ] **Trade logging works:** All trades appear in CSV/SQLite within 1 minute of fill
+- [ ] **Entry/exit matching:** Each BUY has corresponding SELL with PnL calculated
+- [ ] **Cooldowns enforced:** No trades violate win/loss/stop-loss cooldown periods
+- [ ] **Spacing enforced:** No trades violate global or per-symbol spacing rules
+- [ ] **Daily report generated:** First daily report appears 23:50-23:59 UTC on Day 1
+- [ ] **Report accuracy:** Metrics match manual calculation (trade count, win rate, PnL)
+- [ ] **State persistence:** state.json correctly tracks counters/cooldowns across restarts
+
 ### 6.3 Issue Response Procedures
 
 **If exception occurs:**
