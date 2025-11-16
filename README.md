@@ -95,16 +95,29 @@ pip install -r requirements.txt
 
 Key dependencies: `pyyaml`, `requests`, `PyJWT`, `cryptography`
 
-### 2. Configure Coinbase Cloud API
+### 2. Configure Coinbase API Credentials
 
-Create a `.env` file:
+**IMPORTANT:** Credentials MUST be loaded from environment variables only (not files).
+
+#### Option A: Manual Environment Setup
 
 ```bash
-# Coinbase Cloud API (recommended - supports JWT authentication)
-CB_API_SECRET_FILE=/path/to/your/coinbase_cloud_api_secret.json
+# Coinbase Cloud API (recommended - supports JWT/ES256 authentication)
+export CB_API_KEY="organizations/{org_id}/apiKeys/{key_id}"
+export CB_API_SECRET="-----BEGIN EC PRIVATE KEY-----
+...your PEM key here...
+-----END EC PRIVATE KEY-----"
+
+# OR use legacy HMAC authentication
+export CB_API_KEY="your-legacy-key"
+export CB_API_SECRET="your-legacy-secret"
 ```
 
-The JSON file should contain your Coinbase Cloud API credentials:
+**Note**: For PEM keys with newlines, use actual newlines or `\n` - the system will normalize them.
+
+#### Option B: Load from JSON File (Recommended)
+
+Create a credentials JSON file (e.g., `~/cb_api.json`):
 ```json
 {
   "name": "organizations/{org_id}/apiKeys/{key_id}",
@@ -112,13 +125,15 @@ The JSON file should contain your Coinbase Cloud API credentials:
 }
 ```
 
-**OR** use legacy HMAC authentication:
+**Then source the helper script** to load into environment:
 ```bash
-export COINBASE_API_KEY="your_legacy_key"
-export COINBASE_API_SECRET="your_legacy_secret"
+# Edit path in scripts/load_credentials.sh first
+source scripts/load_credentials.sh
 ```
 
-**Note**: System auto-detects authentication method. Cloud API (JWT) is recommended for new projects.
+This loads credentials from the JSON file into `CB_API_KEY` and `CB_API_SECRET` environment variables.
+
+**Security:** Never commit credentials to git. Add `cb_api.json` to `.gitignore`.
 
 ### 3. Validate Configuration
 
