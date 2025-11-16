@@ -1532,17 +1532,22 @@ class TradingLoop:
                 )
                 return
 
-            # Step 1: Build universe
-            logger.info("Step 1: Building universe...")
+            # Step 6: Build universe
+            logger.info("🌍 Step 6: Building trading universe...")
             with self._stage_timer("universe_build"):
                 universe = self.universe_mgr.get_universe(regime=self.current_regime)
+                logger.info(f"✅ Universe built: {universe.total_eligible} eligible assets")
 
             # Optional purge: liquidate excluded/ineligible holdings proactively
+            logger.info("🧹 Step 7: Checking for ineligible holdings to purge...")
             try:
                 pm_cfg = self.policy_config.get("portfolio_management", {})
                 if self.mode != "DRY_RUN" and pm_cfg.get("auto_liquidate_ineligible", False):
                     with self._stage_timer("purge_ineligible"):
-                        self._purge_ineligible_holdings(universe)
+                        purge_result = self._purge_ineligible_holdings(universe)
+                        logger.info(f"✅ Purge check complete (auto_liquidate_ineligible=True)")
+                else:
+                    logger.info(f"✅ Purge skipped (mode={self.mode}, auto_liquidate_ineligible={pm_cfg.get('auto_liquidate_ineligible', False)})")
             except CriticalDataUnavailable as data_exc:
                 self._abort_cycle_due_to_data(
                     cycle_started,
