@@ -943,7 +943,7 @@ class CoinbaseExchange:
             logger.info(f"READ_ONLY mode: Would preview {side} {quote_size_usd} USD of {product_id}")
             return {"success": False, "read_only": True}
         
-        self._rate_limit("preview_order")
+        self._rate_limit("preview_order", is_private=True)
         
         side_up = side.upper()
 
