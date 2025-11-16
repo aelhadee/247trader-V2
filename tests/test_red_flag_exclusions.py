@@ -206,7 +206,7 @@ class TestUniverseRedFlagIntegration:
         state_store.flag_asset_red_flag("SCAM-USD", "team_rug", ban_hours=168)
         
         # Build universe
-        mgr = UniverseManager(config_path=str(universe_config))
+        mgr = UniverseManager.from_config_path(str(universe_config))
         
         # NOTE: This would require mocking exchange.get_quote() and exchange.get_orderbook()
         # Skipping actual universe building in this test

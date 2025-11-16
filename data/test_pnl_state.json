@@ -18,15 +18,15 @@
       "usd_value": 1040.0,
       "usd": 1040.0,
       "fees_paid": 20.0,
-      "entry_time": "2025-11-16T02:18:38.446223+00:00",
-      "last_updated": "2025-11-16T02:28:38.446731+00:00",
+      "entry_time": "2025-11-16T02:22:17.051085+00:00",
+      "last_updated": "2025-11-16T02:32:17.051731+00:00",
       "last_fill_price": 52000.0
     }
   },
   "managed_positions": {
     "BTC-USD": {
       "entry_price": 50000.0,
-      "entry_time": "2025-11-16T02:18:38.446223+00:00",
+      "entry_time": "2025-11-16T02:22:17.051085+00:00",
       "stop_loss_pct": null,
       "take_profit_pct": null,
       "max_hold_hours": null
@@ -37,12 +37,12 @@
   "recent_orders": [],
   "pending_markers": {},
   "last_fill_times": {
-    "BTC-USD:BUY": "2025-11-16T02:28:38.446731+00:00"
+    "BTC-USD:BUY": "2025-11-16T02:32:17.051731+00:00"
   },
   "fill_history": {
     "BTC-USD:BUY": [
-      "2025-11-16T02:18:38.446223+00:00",
-      "2025-11-16T02:28:38.446731+00:00"
+      "2025-11-16T02:22:17.051085+00:00",
+      "2025-11-16T02:32:17.051731+00:00"
     ]
   },
   "last_reconcile_at": null,
@@ -50,7 +50,7 @@
   "last_reset_hour": 2,
   "events": [
     {
-      "at": "2025-11-16T02:18:38.446223+00:00",
+      "at": "2025-11-16T02:22:17.051085+00:00",
       "event": "fill",
       "symbol": "BTC-USD",
       "side": "BUY",
@@ -62,7 +62,7 @@
       "mark_price": 50000.0
     },
     {
-      "at": "2025-11-16T02:28:38.446731+00:00",
+      "at": "2025-11-16T02:32:17.051731+00:00",
       "event": "fill",
       "symbol": "BTC-USD",
       "side": "BUY",
