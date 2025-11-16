@@ -41,8 +41,9 @@ def minimal_config():
 @pytest.fixture
 def mock_state_store(tmp_path):
     """Mock state store for testing"""
+    from pathlib import Path
     state_file = tmp_path / "test_trade_limits_state.json"
-    backend = JsonFileBackend(path=str(state_file))
+    backend = JsonFileBackend(path=Path(state_file))
     return StateStore(backend=backend)
 
 
