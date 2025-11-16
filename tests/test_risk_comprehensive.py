@@ -77,7 +77,9 @@ def minimal_policy():
 def mock_state_store(tmp_path):
     """Mock state store for testing"""
     state_file = tmp_path / "test_state.json"
-    store = StateStore(backend="json", json_path=str(state_file))
+    from infra.state_store import JsonFileBackend
+    backend = JsonFileBackend(state_file)
+    store = StateStore(backend=backend)
     return store
 
 
