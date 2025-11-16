@@ -316,9 +316,12 @@ def test_smoke_suite():
 
 if __name__ == "__main__":
     # Run smoke suite directly
-    if not os.getenv("CB_API_SECRET_FILE"):
-        print("ERROR: CB_API_SECRET_FILE environment variable required")
-        print("Usage: CB_API_SECRET_FILE=<path> python tests/test_live_smoke.py")
+    from core.exchange_coinbase import validate_credentials_available
+    
+    try:
+        validate_credentials_available(require_credentials=True)
+    except ValueError as e:
+        print(f"ERROR: {e}")
         exit(1)
     
     test_smoke_suite()
