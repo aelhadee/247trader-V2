@@ -228,7 +228,7 @@ class TestUniverseRedFlagIntegration:
     
     def test_never_trade_vs_red_flag(self, state_store, universe_config):
         """never_trade is permanent, red_flag is temporary"""
-        mgr = UniverseManager(config_path=str(universe_config))
+        mgr = UniverseManager.from_config_path(str(universe_config))
         exclusions = mgr.config.get("exclusions", {})
         
         never_trade = set(exclusions.get("never_trade", []))
