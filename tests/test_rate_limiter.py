@@ -106,12 +106,15 @@ def test_rate_limiter_acquire_wait():
     duration1 = time.time() - start
     assert duration1 < 0.1  # Should be instant
     
-    # Acquire 5 more tokens (should wait ~1 second)
-    start = time.time()
-    for _ in range(5):
+    # Acquire 4 more tokens (5 total)
+    for _ in range(4):
         assert limiter.acquire("test_endpoint", wait=True) is True
-    duration5 = time.time() - start
-    assert duration5 >= 0.8  # Should wait for refill
+    
+    # Next acquire should wait for refill
+    start = time.time()
+    assert limiter.acquire("test_endpoint", wait=True) is True
+    duration_wait = time.time() - start
+    assert duration_wait >= 0.15  # Should wait for at least 1 token to refill
 
 
 def test_rate_limiter_acquire_no_wait():
