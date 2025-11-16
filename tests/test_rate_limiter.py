@@ -1,12 +1,12 @@
 """
-Tests for Rate Limiter
+Tests for Per-Endpoint Rate Limiter
 
-Validates token bucket algorithm, pre-emptive throttling, and statistics tracking.
+Validates token bucket algorithm, per-endpoint tracking, and alerting.
 """
 import pytest
 import time
 from unittest.mock import patch, MagicMock
-from infra.rate_limiter import RateLimiter, TokenBucket, RateLimitStats
+from core.rate_limiter import RateLimiter, EndpointQuota, RateLimitStats
 
 
 class TestTokenBucket:
