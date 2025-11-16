@@ -311,8 +311,13 @@ class BacktestEngine:
         # 2. Detect market regime from BTC
         regime = self._detect_regime(current_time, data_loader)
         
-        # 3. Build universe
-        universe = self.universe_mgr.get_universe(regime=regime)
+        # 3. Build universe (with caching for performance)
+        # OPTIMIZATION: Only rebuild universe if regime changes
+        # Cache is valid across entire backtest unless regime shifts
+        current_cached_regime = self.universe_mgr._cache.regime if self.universe_mgr._cache else None
+        force_refresh = (current_cached_regime != regime)
+        
+        universe = self.universe_mgr.get_universe(regime=regime, force_refresh=force_refresh)
         
         # 4. Scan for triggers
         # For backtest, we simulate triggers using historical data
