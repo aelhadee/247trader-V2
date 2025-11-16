@@ -63,13 +63,20 @@ def flat_candles() -> List[OHLCV]:
 
 @pytest.fixture
 def uptrend_candles() -> List[OHLCV]:
-    """100 candles with steady uptrend (+10% over 12h)"""
+    """100 candles with steady uptrend (>10% over 12h for momentum signal)"""
     base_time = datetime(2024, 1, 1, 0, 0, tzinfo=timezone.utc)
     candles = []
     
     for i in range(100):
-        # Gradual increase from 50000 to 55000
-        price = 50000.0 + (i * 50.0)
+        # Gradual increase: need >5% over last 48 candles (12h)
+        # From 50000 to 53000+ over 12h = 6%
+        # Make it steeper for last 48 candles
+        if i < 52:
+            price = 50000.0
+        else:
+            # +6% over 48 candles
+            price = 50000.0 + ((i - 52) / 48.0) * 3000.0
+        
         candles.append(OHLCV(
             symbol="BTC-USD",
             timestamp=base_time + timedelta(minutes=15*i),
