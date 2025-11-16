@@ -276,6 +276,18 @@ class BacktestEngine:
     def _run_cycle(self, current_time: datetime, data_loader):
         """Run one backtest cycle"""
         
+        # 0. Advance MockExchange time and process pending orders
+        if self.mock_exchange:
+            self.mock_exchange.advance_time(current_time)
+            
+            # Process any pending limit orders for all active symbols
+            universe = self.universe_mgr.get_universe()
+            for asset in universe:
+                try:
+                    self.mock_exchange.process_pending_fills(asset.symbol)
+                except Exception as e:
+                    logger.debug(f"Error processing pending fills for {asset.symbol}: {e}")
+        
         # 1. Update open positions (check stops, max hold)
         self._update_open_positions(current_time, data_loader)
         
@@ -305,9 +317,9 @@ class BacktestEngine:
         if not risk_result.approved:
             return
         
-        # 8. Execute approved trades
+        # 8. Execute approved trades via MockExchange
         for proposal in proposals:
-            self._execute_proposal(proposal, current_time, data_loader)
+            self._execute_proposal_via_mock(proposal, current_time)
     
     def _detect_regime(self, current_time: datetime, data_loader) -> str:
         """Detect market regime from BTC"""
