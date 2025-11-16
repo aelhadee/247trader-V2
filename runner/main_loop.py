@@ -2034,6 +2034,26 @@ class TradingLoop:
             cycle_duration = (cycle_end - cycle_started).total_seconds()
             logger.info(f"CYCLE COMPLETE: {cycle_duration:.2f}s")
             
+            # Generate daily performance report (23:50-23:59 UTC)
+            try:
+                current_date = cycle_end.date()
+                current_hour = cycle_end.hour
+                current_minute = cycle_end.minute
+                
+                # Check if we're in the daily report window (23:50-23:59 UTC)
+                if current_hour == 23 and current_minute >= 50:
+                    if self._last_report_date != current_date:
+                        logger.info("📊 Generating daily performance report...")
+                        report = self.report_generator.generate_daily_report()
+                        self._last_report_date = current_date
+                        logger.info(
+                            f"✅ Daily report complete: {report.total_trades} trades, "
+                            f"PnL: ${report.pnl_total:.2f} ({report.return_pct_total:.2f}%), "
+                            f"Win rate: {report.win_rate_pct:.1f}%"
+                        )
+            except Exception as report_exc:
+                logger.warning(f"Daily report generation failed: {report_exc}", exc_info=True)
+            
             # Update latency stats in state store and check thresholds
             self._update_and_check_latency_thresholds()
             
