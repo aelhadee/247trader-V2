@@ -74,6 +74,7 @@ def test_account_access():
         print(f"   {curr}: {bal:.6f}")
 
 
+@skip_without_creds
 def test_quote_freshness():
     """Test quote data quality and freshness"""
     exchange = CoinbaseExchange(read_only=True)
