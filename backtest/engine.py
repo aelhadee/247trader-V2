@@ -352,7 +352,11 @@ class BacktestEngine:
         return self.metrics
     
     def _run_cycle(self, current_time: datetime, data_loader):
-        """Run one backtest cycle"""
+        """
+        Run one backtest cycle using shared trading pipeline.
+        
+        This now uses the same code path as live trading (TradingCyclePipeline).
+        """
         
         # 0. Advance MockExchange time and process pending orders
         if self.mock_exchange:
@@ -372,36 +376,26 @@ class BacktestEngine:
         # 2. Detect market regime from BTC
         regime = self._detect_regime(current_time, data_loader)
         
-        # 3. Build universe (with caching for performance)
-        # OPTIMIZATION: Only rebuild universe if regime changes
-        # Cache is valid across entire backtest unless regime shifts
-        current_cached_regime = self.universe_mgr._cache.regime if self.universe_mgr._cache else None
-        force_refresh = (current_cached_regime != regime)
-        
-        universe = self.universe_mgr.get_universe(regime=regime, force_refresh=force_refresh)
-        
-        # 4. Scan for triggers
-        # For backtest, we simulate triggers using historical data
-        triggers = self._simulate_triggers(universe, current_time, data_loader, regime)
-        
-        # 5. Generate proposals
-        proposals = self.rules_engine.propose_trades(
-            universe=universe,
-            triggers=triggers,
-            regime=regime
-        )
-        
-        # 6. Build portfolio state
+        # 3. Build portfolio state
         portfolio = self._build_portfolio_state(current_time)
         
-        # 7. Risk checks
-        risk_result = self.risk_engine.check_all(proposals, portfolio, regime=regime)
+        # 4. Execute trading cycle using shared pipeline (same as live)
+        cycle_number = len(self.closed_trades) + len(self.open_trades) + 1
+        cycle_result = self.trading_pipeline.execute_cycle(
+            current_time=current_time,
+            portfolio=portfolio,
+            regime=regime,
+            cycle_number=cycle_number,
+            state=None  # Backtest doesn't need state dict
+        )
         
-        if not risk_result.approved:
+        # Handle no-trade scenarios
+        if not cycle_result.success:
+            logger.debug(f"No trade: {cycle_result.no_trade_reason}")
             return
         
-        # 8. Execute approved trades via MockExchange
-        for proposal in proposals:
+        # 5. Execute approved trades via MockExchange
+        for proposal in cycle_result.risk_approved:
             self._execute_proposal_via_mock(proposal, current_time)
     
     def _detect_regime(self, current_time: datetime, data_loader) -> str:
