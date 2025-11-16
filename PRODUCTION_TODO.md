@@ -213,14 +213,14 @@ Deployed to production on 2025-11-15 at 18:33 PST. All safety validations passed
 | � Done | **Machine-readable JSON reports (REQ-BT2)** | N/A | export_json() creates 4-section report (metadata, summary, trades, regression_keys); 6 tests in test_backtest_regression.py. CLI: --output argument. |
 | 🟢 Done | **CI regression gate with ±2% tolerance (REQ-BT3)** | N/A | compare_baseline.py compares 5 key metrics (total_trades, win_rate, total_pnl_pct, max_drawdown_pct, profit_factor); 8 tests in test_backtest_regression.py. Exit 0=PASS, 1=FAIL, 2=ERROR. See docs/BACKTEST_REGRESSION_SYSTEM.md. |
 | 🔴 TODO | Ensure backtest engine reuses live universe → triggers → risk → execution pipeline. | TBD | Current backtest module diverges from live loop. |
-| 🔴 TODO | Implement slippage/fee model (mid ± bps + Coinbase fees) in simulations. | TBD | Needed for realistic equity curves. |
+| 🟢 Done | **Enhanced slippage model with volatility adjustments** | N/A | Volatility-based slippage (1.0-1.5x multiplier), partial fill simulation for maker orders, ATR-based volatility calculation (24h lookback); 9 tests in test_slippage_enhanced.py. See docs/BACKTEST_SLIPPAGE_ENHANCEMENTS.md. |
 
 ## Rate Limits & Retries
 
 | Status | Task | Owner | Notes |
 | ------ | ---- | ----- | ----- |
 | 🟢 Done | Apply exponential backoff with jitter for 429/5xx and network faults. | N/A | `CoinbaseExchange._req` retries with capped backoff. |
-| 🔴 TODO | Track per-endpoint rate budgets (public vs private) and pause before exhaustion. | TBD | Prevents API bans during spikes. |
+| 🟢 Done | **Per-endpoint rate limit tracking with token bucket algorithm** | N/A | RateLimiter with per-endpoint quotas (15 endpoints tracked), proactive throttling at 80%/90% thresholds, 12 tests in test_rate_limiter.py. See docs/RATE_LIMIT_TRACKING.md. |
 | 🟢 Done | Guard against partial snapshots by skipping decisioning when data missing. | N/A | Shared with fail-closed gating above. |
 
 ## Observability & Alerts
@@ -236,9 +236,9 @@ Deployed to production on 2025-11-15 at 18:33 PST. All safety validations passed
 | Status | Task | Owner | Notes |
 | ------ | ---- | ----- | ----- |
 | 🟢 Done | Validate YAML configs against schemas (Pydantic/JSON Schema) on startup. | N/A | Implemented config_validator with Pydantic schemas for policy.yaml, universe.yaml, signals.yaml. Validates on TradingLoop init. Fails fast on misconfiguration. 12 comprehensive tests added (test_config_validation.py). All 132 tests passing. See tools/config_validator.py. |
-| 🔴 TODO | Enforce secrets via environment/secret store only (no file fallbacks in repo). | TBD | Lock down credential handling. |
+| 🟢 Done | **Enforce secrets via environment only (no file-based loading)** | N/A | Application code only loads from CB_API_KEY/CB_API_SECRET environment variables. Enhanced validation with clear error messages. Helper function for startup checks. 13 tests in test_credentials_enforcement.py. See docs/TASK_7_COMPLETION_SUMMARY.md. |
 | � Done | Stamp config version/hash into each audit log entry. | N/A | ✅ DUPLICATE: Already marked complete at line 31. SHA256 hash (16 chars) in every audit log entry for drift detection. See core/audit_log.py lines 61, 84. |
-| 🔴 TODO | Add config sanity checks (theme vs asset caps, totals coherence). | TBD | Prevents contradictory limits. |
+| 🟢 Done | **Add config sanity checks (theme vs asset caps, totals coherence)** | N/A | Config validator checks 8 validation rules with clear error messages. 9 tests in test_config_sanity.py. See docs/CONFIG_SANITY_CHECKS_ENHANCED.md. |
 | 🟢 Done | **[BLOCKER #4]** Enforce staging vs production runtime gates. | N/A | Multi-layer mode/read_only validation with early fail-fast; ExecutionEngine.execute() raises ValueError if LIVE + read_only=true; TradingLoop enforces read_only=true for non-LIVE modes; defaults to DRY_RUN + read_only=true; 12 tests in test_environment_gates.py. See docs/ENVIRONMENT_RUNTIME_GATES.md. |
 
 ---
