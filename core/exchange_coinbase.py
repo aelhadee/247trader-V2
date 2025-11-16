@@ -1036,7 +1036,7 @@ class CoinbaseExchange:
             logger.info(f"READ_ONLY: would cancel order {order_id}")
             return {"success": False, "read_only": True}
         try:
-            self._rate_limit("cancel_order")
+            self._rate_limit("cancel_order", is_private=True)
             # Coinbase API uses batch_cancel endpoint for single orders too
             body = {"order_ids": [order_id]}
             resp = self._req("POST", "/orders/batch_cancel", body, authenticated=True)
