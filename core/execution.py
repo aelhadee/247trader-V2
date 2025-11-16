@@ -2454,6 +2454,28 @@ class ExecutionEngine:
                     if self.prometheus_exporter:
                         fill_pct = (filled_size * filled_price) / size_usd if size_usd > 0 else 0.0
                         self.prometheus_exporter.record_order_filled(symbol, side.lower(), filled_size, fill_pct)
+                    
+                    # Log trade entry for analytics
+                    try:
+                        trade_record = TradeRecord(
+                            trade_id=attempt_client_order_id,
+                            symbol=symbol,
+                            side=side,
+                            entry_time=datetime.now(timezone.utc),
+                            entry_price=filled_price,
+                            entry_mid_price=quote.get("mid", filled_price) if isinstance(quote, dict) else filled_price,
+                            size_quote=filled_value,
+                            entry_fee=fees,
+                            entry_is_maker=use_maker,
+                            trigger_type=None,  # Will be set by caller if available
+                            confidence=confidence,
+                            volatility=None,  # Will be enriched from proposal if available
+                        )
+                        self.trade_log.log_entry(trade_record)
+                        self.open_trades[symbol] = trade_record
+                        logger.debug("Trade entry logged: %s %s @ %.6f", symbol, side, filled_price)
+                    except Exception as log_exc:
+                        logger.warning("Failed to log trade entry for %s: %s", symbol, log_exc)
 
                 actual_slippage = est_slippage_bps
 
