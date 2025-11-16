@@ -472,7 +472,9 @@ class CoinbaseExchange:
                 raise
             finally:
                 duration = time.perf_counter() - start_time
-                self._record_rate_usage(channel, rate_limited)
+                # Extract endpoint name from call_label for per-endpoint tracking
+                endpoint_name = call_label.replace("/", "_").replace("-", "_")
+                self._record_rate_usage(channel, endpoint=endpoint_name, violated=rate_limited)
                 self._record_api_metrics(call_label, channel, duration, status_label)
 
             if succeeded:
