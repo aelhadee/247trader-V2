@@ -6,7 +6,9 @@
   "consecutive_losses": 0,
   "last_loss_time": null,
   "last_win_time": null,
-  "cooldowns": {},
+  "cooldowns": {
+    "BTC-USD": "2025-11-16T21:16:43.395956+00:00"
+  },
   "positions": {},
   "managed_positions": {},
   "cash_balances": {},
