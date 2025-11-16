@@ -86,6 +86,7 @@ class SlippageModel:
         tier: Literal["tier1", "tier2", "tier3"] = "tier2",
         order_type: Optional[Literal["maker", "taker"]] = None,
         notional_usd: Optional[float] = None,
+        volatility_pct: Optional[float] = None,
     ) -> float:
         """
         Calculate realistic fill price with slippage and spread.
@@ -96,6 +97,7 @@ class SlippageModel:
             tier: Asset tier (affects base slippage)
             order_type: "maker" or "taker" (uses default if None)
             notional_usd: Order size in USD (affects market impact)
+            volatility_pct: Recent volatility (e.g., 1h ATR as % of price)
         
         Returns:
             Fill price (worse than mid for realistic simulation)
@@ -121,8 +123,15 @@ class SlippageModel:
             impact_multiplier = 1.0 + (size_factor * 0.2)
             impact_multiplier = min(impact_multiplier, self.config.market_impact_multiplier)
         
-        # Apply slippage
-        total_slippage_bps = base_slippage_bps * impact_multiplier
+        # Calculate volatility multiplier
+        vol_multiplier = 1.0
+        if volatility_pct is not None and volatility_pct > self.config.high_volatility_threshold_pct:
+            # Scale slippage with volatility: 5% vol = 1.0x, 10% vol = 1.5x
+            vol_factor = min(volatility_pct / self.config.high_volatility_threshold_pct, self.config.volatility_multiplier)
+            vol_multiplier = vol_factor
+        
+        # Apply combined slippage
+        total_slippage_bps = base_slippage_bps * impact_multiplier * vol_multiplier
         slippage_fraction = total_slippage_bps / 10000.0
         
         # Buy = pay more, Sell = receive less
