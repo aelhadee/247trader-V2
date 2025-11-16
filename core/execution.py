@@ -82,7 +82,7 @@ class ExecutionEngine:
     
     def __init__(self, mode: str = "DRY_RUN", exchange: Optional[CoinbaseExchange] = None,
                  policy: Optional[Dict] = None, state_store: Optional[StateStore] = None,
-                 alert_service=None):
+                 alert_service=None, risk_engine=None):
         """
         Initialize execution engine.
         
@@ -92,12 +92,14 @@ class ExecutionEngine:
             exchange: Coinbase exchange instance
             policy: Policy configuration dict (optional, for reading limits)
             alert_service: AlertService for operational notifications
+            risk_engine: RiskEngine instance (for cooldowns/spacing via TradeLimits)
         """
         self.mode = mode.upper()
         self.exchange = exchange or get_exchange()
         self.policy = policy or {}
         self.state_store = state_store
         self.alert_service = alert_service
+        self.risk_engine = risk_engine
         self.order_state_machine = get_order_state_machine()
         
         # Import Prometheus exporter (will be None if not initialized)
