@@ -22,6 +22,7 @@ from core.exchange_coinbase import CoinbaseExchange, get_exchange
 from core.exceptions import CriticalDataUnavailable
 from infra.state_store import StateStore
 from core.order_state import get_order_state_machine, OrderStatus, OrderState
+from analytics.trade_log import TradeRecord
 
 logger = logging.getLogger(__name__)
 
