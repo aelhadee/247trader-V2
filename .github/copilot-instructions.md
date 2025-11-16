@@ -103,7 +103,8 @@ DO NOT ASK THE USER TO RUN COMMANDS, RUN TESTS OR MAKE CHANGES. DO EVERYTHING YO
 - Before merge: run tests/linters and verify `logs/` + `data/.state.json` updates.
 
 ## Security
-- Keys via `CB_API_SECRET_FILE` (preferred) or `COINBASE_API_KEY/SECRET`.
+- Keys via environment variables ONLY: `CB_API_KEY`/`CB_API_SECRET` or `COINBASE_API_KEY`/`COINBASE_API_SECRET`.
+- No file-based credential loading in application code (use `scripts/load_credentials.sh` to populate environment).
 - Tolerate missing keys (read_only safe). **Never log secrets.**
 
 ## Glossary
