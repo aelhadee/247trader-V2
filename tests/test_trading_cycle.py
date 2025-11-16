@@ -90,7 +90,7 @@ def mock_risk_engine():
     result = RiskCheckResult(
         approved=True,
         filtered_proposals=[],
-        rejection_reason=None
+        reason=None
     )
     engine.check_all = Mock(return_value=result)
     return engine
