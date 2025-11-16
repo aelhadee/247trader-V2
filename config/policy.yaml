@@ -51,14 +51,14 @@ risk:
   managed_position_tag: 247trader
   external_exposure_buffer_pct: 5.0
   max_position_size_pct: 3.0   # Was 7% - REDUCED to Freqtrade's ~3% per trade (1/3 of NAV÷10)
-  max_per_asset_pct: 5.0        # Was 7% - REDUCED to cap pyramiding at 2-3 adds
+  max_per_asset_pct: 4.0        # Was 5% - REDUCED to fit within theme caps (must be <= smallest theme cap)
   min_position_size_pct: 0.5
   max_open_positions: 5         # Was 12 - REDUCED to Freqtrade's 3-5 range for conservative operation
   max_per_theme_pct:
-    LAYER1: 12.0                # Layer 1 blockchains (BTC, ETH, SOL, etc.) - reduced to fit 25% total
-    LAYER2: 7.0                 # Layer 2 scaling solutions (OP, ARB, etc.) - was "L2"
-    MEME: 3.0                   # Meme coins remain capped low (high volatility)
-    DEFI: 7.0                   # DeFi protocols - total: 29% but themes don't overlap
+    LAYER1: 10.0                # Layer 1 blockchains (BTC, ETH, SOL, etc.)
+    LAYER2: 6.0                 # Layer 2 scaling solutions (OP, ARB, etc.)
+    MEME: 4.0                   # Meme coins (high volatility) - must be >= max_per_asset_pct
+    DEFI: 5.0                   # DeFi protocols - total: 25% (fits max_total_at_risk_pct)
   
   # Stop-loss aligned with Freqtrade's -10% default
   daily_stop_pnl_pct: -3.0
