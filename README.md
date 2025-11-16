@@ -338,13 +338,16 @@ result = risk_engine.check_all(proposals, portfolio, regime)
 Real-time visibility into trading operations via Prometheus + Grafana:
 
 ```bash
-# Start monitoring stack (Prometheus + Grafana)
+# Start/restart monitoring stack (stops existing, then starts fresh)
 ./scripts/start_monitoring.sh
+
+# Works with either Docker or Homebrew installations
+# Automatically detects and uses what you have installed
 
 # Access dashboards
 # Grafana: http://localhost:3000 (admin/admin)
-# Prometheus: http://localhost:9090
-# Bot Metrics: http://localhost:8000/metrics
+# Prometheus: http://localhost:9091 (Homebrew) or :9090 (Docker)
+# Bot Metrics: http://localhost:9090/metrics (Homebrew) or :8000 (Docker)
 ```
 
 **Dashboard Panels:**
