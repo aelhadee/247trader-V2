@@ -1387,11 +1387,12 @@ class TradingLoop:
         Any exception -> NO_TRADE, audit, continue
         """
         cycle_started = datetime.now(timezone.utc)
+        self.cycle_count += 1  # Increment cycle counter
         proposals_count = 0
         approved_count = 0
         executed_count = 0
         logger.info("=" * 80)
-        logger.info(f"CYCLE START: {cycle_started.isoformat()}")
+        logger.info(f"CYCLE START: {cycle_started.isoformat()} (Cycle #{self.cycle_count})")
         logger.info("=" * 80)
         self._stage_timings = {}
         
