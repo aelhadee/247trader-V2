@@ -2485,7 +2485,7 @@ class ExecutionEngine:
                             trade_record.exit_mid_price = quote.get("mid", filled_price) if isinstance(quote, dict) else filled_price
                             trade_record.exit_fee = fees
                             trade_record.exit_is_maker = use_maker
-                            trade_record.exit_reason = "manual"  # Will be enriched from proposal metadata if available
+                            trade_record.exit_reason = exit_reason or "manual"
                             
                             # Calculate PnL and attribution
                             trade_record.calculate_pnl()
