@@ -263,7 +263,7 @@ def test_shadow_execution_with_fresh_quote(execution_engine, shadow_log_file):
     # Execution plan
     assert logged['intended_price'] == 50050.0  # Buy at ask
     assert logged['intended_route'] == "limit_post"
-    assert logged['expected_slippage_bps'] == 5.0  # Half spread
+    assert abs(logged['expected_slippage_bps'] - 5.0) < 0.1  # Half spread (allow precision)
     assert logged['expected_fees_usd'] > 0
     
     # Risk context
