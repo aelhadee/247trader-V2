@@ -2441,6 +2441,11 @@ class ExecutionEngine:
                         route,
                         ttl_canceled,
                     )
+                    
+                    # Record order filled metric
+                    if self.prometheus_exporter:
+                        fill_pct = (filled_size * filled_price) / size_usd if size_usd > 0 else 0.0
+                        self.prometheus_exporter.record_order_filled(symbol, side.lower(), filled_size, fill_pct)
 
                 actual_slippage = est_slippage_bps
 
