@@ -103,7 +103,7 @@ class TradeRecord:
     nav_drawdown_pct: Optional[float] = None  # Max drawdown during trade
     
     # Metadata
-    tags: List[str] = None
+    tags: Optional[List[str]] = None
     notes: Optional[str] = None
     
     def __post_init__(self):
