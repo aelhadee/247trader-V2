@@ -817,7 +817,7 @@ class CoinbaseExchange:
         Returns:
             List of accounts with balances for all currencies
         """
-        self._rate_limit("accounts")
+        self._rate_limit("get_accounts", is_private=True)
         logger.debug("Fetching account balances")
         response = self._req("GET", "/accounts", authenticated=True)
         return response.get("accounts", [])
