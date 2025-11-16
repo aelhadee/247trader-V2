@@ -195,7 +195,7 @@ Deployed to production on 2025-11-15 at 18:33 PST. All safety validations passed
 | 🟢 Done | **Machine-readable JSON reports (REQ-BT2)** | N/A | export_json() creates 4-section report (metadata, summary, trades, regression_keys); 6 tests in test_backtest_regression.py. CLI: --output argument. |
 | 🟢 Done | **CI regression gate with ±2% tolerance (REQ-BT3)** | N/A | compare_baseline.py compares 5 key metrics (total_trades, win_rate, total_pnl_pct, max_drawdown_pct, profit_factor); 8 tests in test_backtest_regression.py. Exit 0=PASS, 1=FAIL, 2=ERROR. See docs/BACKTEST_REGRESSION_SYSTEM.md. |
 | 🟢 Done | **Enhanced slippage model with volatility adjustments** | N/A | Volatility-based slippage (1.0-1.5x multiplier), partial fill simulation for maker orders, ATR-based volatility calculation (24h lookback); 9 tests in test_slippage_enhanced.py. See docs/BACKTEST_SLIPPAGE_ENHANCEMENTS.md. |
-| 🔴 TODO | Ensure backtest engine reuses live universe → triggers → risk → execution pipeline. | TBD | Current backtest module diverges from live loop. |
+| � Done | **Backtest pipeline alignment (Task 11)** | N/A | Created TradingCyclePipeline shared module (200 lines) with trigger_provider callback pattern; backtest engine now uses same universe → triggers → risk → execution pipeline as live; 9/9 unit tests + 17/17 regression tests passing. See docs/TASK_11_BACKTEST_PIPELINE_ALIGNMENT.md. |
 
 ## Rate Limits & Retries
 
