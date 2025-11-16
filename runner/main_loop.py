@@ -1420,17 +1420,21 @@ class TradingLoop:
 
             # Reconcile exchange state and purge expired pending markers BEFORE building portfolio
             # This ensures pending_markers are cleared before being read into PortfolioState
+            logger.info("📊 Step 2: Reconciling open orders...")
             try:
                 with self._stage_timer("order_reconcile"):
-                    self.executor.reconcile_open_orders()
+                    reconcile_result = self.executor.reconcile_open_orders()
                     self.state_store.purge_expired_pending()
+                    logger.info(f"✅ Order reconciliation complete (open orders synced)")
             except Exception as exc:
                 logger.debug("Cycle reconciliation skipped: %s", exc)
 
             # Refresh portfolio snapshot now that state store has authoritative data
+            logger.info("💼 Step 3: Building portfolio snapshot...")
             try:
                 with self._stage_timer("portfolio_snapshot"):
                     self.portfolio = self._init_portfolio_state()
+                    logger.info(f"✅ Portfolio: ${self.portfolio.account_value_usd:.2f} value, {len(self.portfolio.open_positions)} positions, {self.portfolio.trades_today} trades today")
             except CriticalDataUnavailable as data_exc:
                 self._abort_cycle_due_to_data(
                     cycle_started,
