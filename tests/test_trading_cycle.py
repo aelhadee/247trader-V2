@@ -210,7 +210,7 @@ def test_risk_rejection(trading_pipeline, portfolio_state, mock_risk_engine):
     rejection_result = RiskCheckResult(
         approved=False,
         filtered_proposals=[],
-        rejection_reason="test_rejection"
+        reason="test_rejection"
     )
     mock_risk_engine.check_all.return_value = rejection_result
     
