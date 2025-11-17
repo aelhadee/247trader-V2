@@ -201,7 +201,7 @@ ai:
 ai:
   enabled: true
   provider: "anthropic"
-  model: "claude-3-5-sonnet-20241022"
+  model: "claude-sonnet-4-5-20250929"
   api_key: "${ANTHROPIC_API_KEY}"
   timeout_s: 1.0
   max_scale_up: 1.0
