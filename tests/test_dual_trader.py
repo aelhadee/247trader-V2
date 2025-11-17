@@ -510,22 +510,8 @@ class TestIntegration:
         
         # Setup local proposals
         local_proposals = [
-            TradeProposal(
-                symbol="BTC-USD",
-                side="buy",
-                target_weight_pct=3.0,
-                conviction=0.6,
-                source="local",
-                notes="Local BTC",
-            ),
-            TradeProposal(
-                symbol="MATIC-USD",
-                side="buy",
-                target_weight_pct=1.5,
-                conviction=0.55,
-                source="local",
-                notes="Local MATIC",
-            ),
+            make_proposal("BTC-USD", "buy", 3.0, 0.6, "local"),
+            make_proposal("MATIC-USD", "buy", 1.5, 0.55, "local"),
         ]
         
         # Arbitrate
