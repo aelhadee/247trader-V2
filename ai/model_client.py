@@ -98,7 +98,7 @@ class OpenAIClient(ModelClient):
     
     def _build_system_prompt(self) -> str:
         """Build system prompt with AI advisor role and constraints."""
-        return """You are a  crypto trade reviewer for a Halal-compliant trading bot.
+        return """You are a crypto trade reviewer for a Halal-compliant trading bot.
 
 Your role:
 - Review trade proposals and market context
