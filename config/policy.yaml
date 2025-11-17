@@ -38,9 +38,9 @@ profiles:
       T3: 0.007
     max_position_pct:
       T1: 0.07
-      T2: 0.045
+      T2: 0.06   # Increased from 0.045 (4.5%) to 0.06 (6%) for small accounts
       T3: 0.025
-    min_trade_notional: 15.0
+    min_trade_notional: 5.0  # Reduced from 15.0 to 5.0 for ~$250 accounts
 risk:
   # CONSERVATIVE DEFAULTS (aligned with Freqtrade/Jesse/Hummingbot)
   # Freqtrade: 3 concurrent trades, -10% stop, 0.05 BTC stake (~$2.5k @ $50k BTC)
