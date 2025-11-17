@@ -92,13 +92,13 @@ class TestCredentialLoading:
         with pytest.raises(ValueError, match="LIVE mode requires credentials"):
             CoinbaseExchange(read_only=False)
     
-    @patch.dict(os.environ, {"CB_API_KEY": "valid_key", "CB_API_SECRET": "valid_secret"})
+    @patch.dict(os.environ, {"CB_API_KEY": "valid_api_key_min_10chars", "CB_API_SECRET": "valid_secret_min_20_characters"})
     def test_valid_credentials_in_live_mode(self):
         """Valid credentials allow LIVE mode initialization"""
         exchange = CoinbaseExchange(read_only=False)
         
-        assert exchange.api_key == "valid_key"
-        assert exchange.api_secret == "valid_secret"
+        assert exchange.api_key == "valid_api_key_min_10chars"
+        assert exchange.api_secret == "valid_secret_min_20_characters"
         assert exchange.read_only is False
 
 
