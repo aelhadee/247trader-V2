@@ -161,7 +161,8 @@ class RulesEngine(BaseStrategy):
         return self.propose_trades(
             universe=context.universe,
             triggers=context.triggers,
-            regime=context.regime
+            regime=context.regime,
+            nav=getattr(context, 'nav', 0.0)
         )
     
     def _min_conviction_threshold(self, regime: str) -> float:
