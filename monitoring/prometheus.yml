@@ -1,0 +1,92 @@
+# Prometheus configuration for 247trader-v2
+# Save as: monitoring/prometheus.yml
+# Start with: prometheus --config.file=monitoring/prometheus.yml
+
+global:
+  scrape_interval: 10s      # Scrape targets every 10 seconds
+  evaluation_interval: 10s  # Evaluate rules every 10 seconds
+  
+  # Attach these labels to any time series or alerts when communicating with
+  # external systems (federation, remote storage, Alertmanager).
+  external_labels:
+    monitor: '247trader-v2'
+    environment: 'production'
+
+# Alertmanager configuration (optional - configure if you want notifications)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093  # Uncomment if using Alertmanager
+
+# Load rules once and periodically evaluate them according to the global 'evaluation_interval'.
+rule_files:
+  - "prometheus_alerts.yml"  # Alert rules (create this file for alerts)
+  # - "recording_rules.yml"  # Recording rules for query optimization
+
+# Scrape configurations
+scrape_configs:
+  # 247trader-v2 bot metrics
+  - job_name: '247trader-v2'
+    
+    # Scrape interval for this job (overrides global)
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    
+    # Metrics path (default is /metrics)
+    metrics_path: /metrics
+    
+    # Scheme (http or https)
+    scheme: http
+    
+    # Static targets
+    static_configs:
+      - targets: 
+          - 'localhost:8000'  # Bot Prometheus exporter
+        labels:
+          instance: 'live-bot'
+          mode: 'LIVE'
+          region: 'us-east-1'  # Customize as needed
+    
+    # Relabeling (optional - useful for multi-instance setups)
+    # relabel_configs:
+    #   - source_labels: [__address__]
+    #     target_label: __param_target
+    #   - source_labels: [__param_target]
+    #     target_label: instance
+    #   - target_label: __address__
+    #     replacement: localhost:8000
+
+  # Optional: Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          instance: 'prometheus-server'
+
+  # Optional: Node exporter (system metrics - install separately)
+  # - job_name: 'node'
+  #   static_configs:
+  #     - targets: ['localhost:9100']
+  #       labels:
+  #         instance: 'trading-server'
+
+# Storage configuration
+storage:
+  tsdb:
+    path: /tmp/prometheus/data  # Change to persistent path in production
+    retention:
+      time: 15d  # Keep data for 15 days (adjust as needed)
+      size: 10GB # Max storage size
+
+# Remote write (optional - for long-term storage)
+# remote_write:
+#   - url: "https://prometheus-remote-write-endpoint/api/v1/write"
+#     basic_auth:
+#       username: YOUR_USERNAME
+#       password: YOUR_PASSWORD
+
+# Remote read (optional - for querying long-term storage)
+# remote_read:
+#   - url: "https://prometheus-remote-read-endpoint/api/v1/read"
+#     read_recent: true
