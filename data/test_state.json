@@ -57,10 +57,10 @@
       "symbol": "BTC-USD",
       "side": "SELL",
       "size_usd": 100.0,
-      "timestamp": "2025-11-17T11:41:43.094380+00:00",
+      "timestamp": "2025-11-17T11:43:08.202989+00:00",
       "status": "open",
-      "first_seen": "2025-11-17T11:41:43.094949+00:00",
-      "updated_at": "2025-11-17T11:41:43.094949+00:00"
+      "first_seen": "2025-11-17T11:43:08.203450+00:00",
+      "updated_at": "2025-11-17T11:43:08.203450+00:00"
     },
     "coid_47db88a9cc9b172c": {
       "order_id": "real-order-123",
@@ -578,6 +578,16 @@
       "notional_usd": 100.61,
       "since": "2025-11-17T11:41:43.086384+00:00",
       "expires_at": "2025-11-17T11:44:43.086384+00:00"
+    },
+    "BTC-USD:SELL:247trader_coid_b515a6709ccb8660": {
+      "product_id": "BTC-USD",
+      "base": "BTC",
+      "side": "SELL",
+      "client_order_id": "247trader_coid_b515a6709ccb8660",
+      "order_id": "real-order-123",
+      "notional_usd": 100.61,
+      "since": "2025-11-17T11:43:08.195191+00:00",
+      "expires_at": "2025-11-17T11:46:08.195191+00:00"
     }
   },
   "last_fill_times": {},
@@ -586,12 +596,6 @@
   "last_reset_date": "2025-11-17",
   "last_reset_hour": 11,
   "events": [
-    {
-      "at": "2025-11-11T02:14:34.449262+00:00",
-      "event": "trade",
-      "asset": "BTC-USD",
-      "pnl_delta": 100.5
-    },
     {
       "at": "2025-11-11T02:14:34.450392+00:00",
       "event": "loss",
@@ -1372,6 +1376,14 @@
     },
     {
       "at": "2025-11-17T11:41:43.094949+00:00",
+      "event": "order_opened",
+      "order_key": "test_duplicate_123",
+      "product_id": null,
+      "side": "SELL",
+      "quote_size_usd": null
+    },
+    {
+      "at": "2025-11-17T11:43:08.203450+00:00",
       "event": "order_opened",
       "order_key": "test_duplicate_123",
       "product_id": null,
