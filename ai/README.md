@@ -200,9 +200,9 @@ ai:
 ```yaml
 ai:
   enabled: true
-  provider: "openai"
-  model: "gpt-4-turbo-preview"
-  api_key: "${OPENAI_API_KEY}"
+  provider: "anthropic"
+  model: "claude-3-5-sonnet-20241022"
+  api_key: "${ANTHROPIC_API_KEY}"
   timeout_s: 1.0
   max_scale_up: 1.0
   fallback_on_error: true
