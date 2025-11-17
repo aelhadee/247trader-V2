@@ -13,6 +13,7 @@ import pytest
 from datetime import datetime, timezone
 from typing import Dict, Any
 from unittest.mock import Mock, patch
+from dataclasses import dataclass
 
 from ai.llm_client import AiTradeDecision, AiTraderClient, MockAiTraderClient
 from ai.arbiter_client import ArbiterInput, ArbiterOutput, MockAiArbiterClient
@@ -21,6 +22,33 @@ from strategy.meta_arb import MetaArbitrator, ArbitrationDecision
 from strategy.rules_engine import TradeProposal
 from strategy.base_strategy import StrategyContext
 from core.universe import UniverseSnapshot, UniverseAsset
+
+
+# ─── Test Helpers ──────────────────────────────────────────────────────────
+
+def make_asset(symbol: str, tier: int = 1) -> UniverseAsset:
+    """Helper to create UniverseAsset with defaults."""
+    return UniverseAsset(
+        symbol=symbol,
+        tier=tier,
+        allocation_min_pct=5.0,
+        allocation_max_pct=40.0,
+        volume_24h=1000000.0,
+        spread_bps=15.0,
+        depth_usd=100000.0,
+        eligible=True,
+    )
+
+
+def make_proposal(symbol: str, side: str, size_pct: float, conviction: float, source: str = "local") -> TradeProposal:
+    """Helper to create TradeProposal."""
+    return TradeProposal(
+        symbol=symbol,
+        side=side,
+        size_pct=size_pct,
+        reason=f"{source} decision",
+        confidence=conviction,
+    )
 
 
 # ─── Test AI Trader Client ────────────────────────────────────────────────
