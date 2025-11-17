@@ -21,6 +21,17 @@ from infra.state_store import StateStore, JsonFileBackend
 
 # Fixtures
 
+@pytest.fixture(autouse=True)
+def reset_metrics():
+    """Reset Prometheus metrics between tests to avoid registry conflicts"""
+    from infra.metrics import MetricsRecorder
+    # Clean up BEFORE test (in case previous test didn't have fixture)
+    MetricsRecorder._reset_for_testing()
+    yield
+    # Clean up AFTER test
+    MetricsRecorder._reset_for_testing()
+
+
 @pytest.fixture
 def minimal_config():
     """Minimal trade limits configuration"""
