@@ -198,8 +198,8 @@ def test_dry_run_mode_no_real_orders(execution_engine, mock_exchange):
     result = execution_engine.execute("BTC-USD", "BUY", 1000.0)
     
     assert result.success is True
-    assert result.route == "dry_run"
-    assert "dry_run_" in result.order_id
+    assert result.route == "shadow_dry_run"  # DRY_RUN now uses shadow execution
+    assert "shadow_" in result.order_id
     mock_exchange.place_limit_order.assert_not_called()
     mock_exchange.place_market_order.assert_not_called()
 
