@@ -789,6 +789,34 @@ class UniverseManager:
         age = datetime.now(timezone.utc) - cache_time
         return age < self._cache_ttl
     
+    def _get_cached_products(self) -> Optional[List[str]]:
+        """
+        Get cached product list if valid, else None.
+        
+        OPTIMIZATION: Avoid redundant list_products() calls (80-100% rate limit warnings).
+        Products rarely change intraday, safe to cache for 5+ minutes.
+        """
+        if self._products_cache is None or self._products_cache_time is None:
+            return None
+        
+        cache_time = self._products_cache_time
+        if cache_time.tzinfo is None:
+            cache_time = cache_time.replace(tzinfo=timezone.utc)
+        
+        age = datetime.now(timezone.utc) - cache_time
+        if age < self._products_cache_ttl:
+            logger.debug(f"Products cache HIT (age: {age.total_seconds():.1f}s / {self._products_cache_ttl.total_seconds()}s)")
+            return self._products_cache
+        else:
+            logger.debug(f"Products cache MISS (stale: {age.total_seconds():.1f}s > {self._products_cache_ttl.total_seconds()}s)")
+            return None
+    
+    def _update_products_cache(self, symbols: List[str]) -> None:
+        """Update products cache with fresh data"""
+        self._products_cache = symbols
+        self._products_cache_time = datetime.now(timezone.utc)
+        logger.debug(f"Products cache updated: {len(symbols)} symbols, expires in {self._products_cache_ttl.total_seconds()}s")
+    
     def get_cluster_limits(self) -> Dict[str, float]:
         """Get cluster exposure limits"""
         return self.config.get("clusters", {}).get("limits", {})
