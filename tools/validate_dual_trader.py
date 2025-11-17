@@ -82,6 +82,13 @@ def check_imports() -> bool:
     ]
     
     all_ok = True
+    
+    # Add project root to path for imports
+    import os
+    project_root = Path(__file__).parent.parent
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+    
     for module in modules:
         try:
             __import__(module)
