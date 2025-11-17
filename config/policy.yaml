@@ -1,4 +1,4 @@
-profile: conservative  # Aligned with Freqtrade/Jesse defaults for safer production operation
+profile: day_trader  # Active profile for ~$250 account with 2.0% T2 sizing
 profiles:
   # CONSERVATIVE: Mirrors Freqtrade (3 concurrent, -10% stop) and Jesse (1x leverage, $10k balance)
   # Recommended for: Initial deployment, limited capital (<$5k), low-risk tolerance
