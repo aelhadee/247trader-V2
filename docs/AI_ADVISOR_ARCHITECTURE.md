@@ -252,15 +252,13 @@ export OPENAI_API_KEY="sk-..."  # Already in .env
    ```yaml
    ai:
      enabled: true
-     provider: "openai"
-     model: "gpt-4-turbo-preview"
+     provider: "anthropic"
+     model: "claude-3-5-sonnet-20241022"
      allow_risk_mode_override: false  # AI only filters proposals
    ```
 
-2. **Set API key:**
-   ```bash
-   export OPENAI_API_KEY="sk-..."
-   ```
+2. **API keys already configured:**
+   Keys are already in `.env` file - no additional setup needed.
 
 3. **Monitor metrics:**
    - AI call latency (should be <500ms)
