@@ -1976,14 +1976,14 @@ class ExecutionEngine:
         
         return ExecutionResult(
             success=True,
-            order_id=client_order_id,  # Use deterministic client_order_id (dry_run_247trader_coid_*)
+            order_id=f"shadow_{client_order_id}",  # Shadow prefix distinguishes from real orders
             symbol=symbol,
             side=side,
             filled_size=0.0,
             filled_price=0.0,
             fees=0.0,
             slippage_bps=0.0,
-            route="dry_run"  # Consistent route name for DRY_RUN mode
+            route="shadow_dry_run"  # DRY_RUN uses shadow execution path
         )
     
     def _execute_paper(self, symbol: str, side: str, size_usd: float,
