@@ -157,11 +157,11 @@ class TestAiTraderStrategy:
         proposals = strategy.generate_proposals(context)
         
         assert len(proposals) == 1
-        assert proposals[0].product_id == "BTC-USD"
+        assert proposals[0].symbol == "BTC-USD"
         assert proposals[0].side == "buy"
         assert proposals[0].size_pct == 5.0
         assert proposals[0].confidence == 0.8
-        assert proposals[0].source == "ai_trader"
+        assert "AI decision" in proposals[0].reason
     
     def test_strategy_filters_low_confidence(self):
         """Strategy filters decisions below min_confidence."""
