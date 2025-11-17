@@ -223,17 +223,20 @@ class RulesEngine(BaseStrategy):
                 logger.warning(f"Trigger for {trigger.symbol} but asset not in universe")
                 continue
             
+            # Get NAV from context (0.0 if not available for backward compatibility)
+            nav = getattr(universe, 'nav', 0.0)
+            
             # Apply rules based on trigger type
             if trigger.trigger_type == "price_move":
-                proposal = self._rule_price_move(trigger, asset, regime)
+                proposal = self._rule_price_move(trigger, asset, regime, nav)
             elif trigger.trigger_type == "volume_spike":
-                proposal = self._rule_volume_spike(trigger, asset, regime)
+                proposal = self._rule_volume_spike(trigger, asset, regime, nav)
             elif trigger.trigger_type == "breakout":
-                proposal = self._rule_breakout(trigger, asset, regime)
+                proposal = self._rule_breakout(trigger, asset, regime, nav)
             elif trigger.trigger_type == "reversal":
-                proposal = self._rule_reversal(trigger, asset, regime)
+                proposal = self._rule_reversal(trigger, asset, regime, nav)
             elif trigger.trigger_type == "momentum":
-                proposal = self._rule_momentum(trigger, asset, regime)
+                proposal = self._rule_momentum(trigger, asset, regime, nav)
             else:
                 logger.warning(f"Unknown trigger type: {trigger.trigger_type}")
                 continue
