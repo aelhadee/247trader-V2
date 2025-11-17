@@ -307,12 +307,12 @@ def create_model_client(
     if provider == "openai":
         if not api_key:
             raise ValueError("OpenAI requires api_key")
-        return OpenAIClient(api_key=api_key, model=model or "gpt-4o", **kwargs)
+        return OpenAIClient(api_key=api_key, model=model or "gpt-5-mini-2025-08-07", **kwargs)
     
     elif provider == "anthropic":
         if not api_key:
             raise ValueError("Anthropic requires api_key")
-        return AnthropicClient(api_key=api_key, model=model or "claude-3-5-sonnet-20241022")
+        return AnthropicClient(api_key=api_key, model=model or "claude-sonnet-4-5-20250929")
     
     elif provider == "mock":
         return MockClient(fixed_response=kwargs.get("fixed_response"))
