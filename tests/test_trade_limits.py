@@ -311,7 +311,7 @@ def test_apply_stop_loss_cooldown(trade_limits, mock_state_store):
 
 def test_cooldown_blocks_proposal(trade_limits, mock_state_store):
     """Proposal blocked by symbol cooldown"""
-    now = datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
     
     # Apply cooldown to BTC-USD
     trade_limits.apply_cooldown("BTC-USD", outcome="loss", current_time=now)
