@@ -184,11 +184,14 @@ class TestAiTraderStrategy:
         }
         strategy = AiTraderStrategy(name="ai_trader", config=config, ai_client=client)
         
+        btc_asset = make_asset("BTC-USD")
         universe = UniverseSnapshot(
-            assets=[UniverseAsset(symbol="BTC-USD", tier="tier_1", price=50000.0, volume_24h=1000000.0)],
-            tier_1_assets=["BTC-USD"],
+            timestamp=datetime.now(timezone.utc),
+            regime="chop",
+            tier_1_assets=[btc_asset],
             tier_2_assets=[],
             tier_3_assets=[],
+            excluded_assets=[],
             total_eligible=1,
         )
         
