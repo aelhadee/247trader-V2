@@ -213,12 +213,11 @@ class MetaArbitrator:
             symbol=local.symbol,
             side=local.side,
             size_pct=blended_weight,
-            confidence=(local.confidence + ai.confidence) / 2,  # average conviction
-            source="meta_arb",
+            confidence=(local.confidence + ai.confidence) / 2,  # average confidence
             reason=(
-                f"Blend: local={local.size_pct:.2f}% (conv={local.confidence:.2f}) + "
+                f"[META_ARB_BLEND] local={local.size_pct:.2f}% (conf={local.confidence:.2f}) + "
                 f"AI={ai.size_pct:.2f}% (conf={ai.confidence:.2f}) "
-                f"→ {blended_weight:.2f}% | {local.notes[:100]}"
+                f"→ {blended_weight:.2f}% | {local.reason[:100]}"
             ),
             stop_loss_pct=local.stop_loss_pct,  # preserve local risk controls
             take_profit_pct=local.take_profit_pct,
@@ -252,7 +251,7 @@ class MetaArbitrator:
         """
         # Rule 1: Low AI confidence → trust local
         if ai.confidence < self.ai_override_threshold:
-            local.notes += f" | AI disagreed ({ai.side}) but conf={ai.confidence:.2f} < {self.ai_override_threshold}"
+            local.reason += f" | AI disagreed ({ai.side}) but conf={ai.confidence:.2f} < {self.ai_override_threshold}"
             return ArbitrationDecision(
                 symbol=symbol,
                 resolution="LOCAL",
@@ -265,7 +264,7 @@ class MetaArbitrator:
         # Rule 2: Low local conviction + high AI confidence advantage → trust AI
         confidence_gap = ai.confidence - local.confidence
         if local.confidence < self.local_weak_conviction and confidence_gap > self.ai_confidence_advantage:
-            ai.notes += f" | Overriding local {local.side} (conv={local.confidence:.2f}, gap={confidence_gap:.2f})"
+            ai.reason += f" | Overriding local {local.side} (conv={local.confidence:.2f}, gap={confidence_gap:.2f})"
             return ArbitrationDecision(
                 symbol=symbol,
                 resolution="AI",
