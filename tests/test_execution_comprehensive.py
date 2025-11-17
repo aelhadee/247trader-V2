@@ -94,6 +94,14 @@ def mock_exchange():
         {"id": "ETH-USD", "base_currency": "ETH", "quote_currency": "USD"}
     ]
     
+    # Product metadata for pair discovery
+    exchange.get_product_metadata.return_value = {
+        "BTC-USDC": {"base_increment": "0.00000001", "quote_increment": "0.01", "base_min_size": "0.0001"},
+        "BTC-USD": {"base_increment": "0.00000001", "quote_increment": "0.01", "base_min_size": "0.0001"},
+        "ETH-USDC": {"base_increment": "0.00000001", "quote_increment": "0.01", "base_min_size": "0.001"},
+        "ETH-USD": {"base_increment": "0.00000001", "quote_increment": "0.01", "base_min_size": "0.001"}
+    }
+    
     # Default order placement
     exchange.place_limit_order.return_value = {
         "order_id": "test_order_123",
