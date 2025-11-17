@@ -1682,8 +1682,9 @@ class ExecutionEngine:
                     error=f"Cooldown active for {symbol}"
                 )
 
-        # For BUY orders, find best trading pair based on available balance
-        if side.upper() == "BUY" and self.mode in ("LIVE", "PAPER"):
+        # For BUY orders, find best trading pair based on available balance (LIVE mode only)
+        # PAPER mode doesn't need balance checks - it uses simulated execution
+        if side.upper() == "BUY" and self.mode == "LIVE":
             pair_info = self._find_best_trading_pair(base_symbol, size_usd)
             if pair_info:
                 symbol = pair_info[0]  # Use the found trading pair
