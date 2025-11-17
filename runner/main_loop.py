@@ -3845,6 +3845,125 @@ class TradingLoop:
         
         logger.info("Trading loop stopped cleanly.")
     
+    def _apply_ai_decisions(
+        self,
+        proposals: List[TradeProposal],
+        ai_output,
+    ) -> List[TradeProposal]:
+        """
+        Apply AI advisor decisions to proposals.
+        
+        Args:
+            proposals: Original proposals from rules_engine
+            ai_output: AIAdvisorOutput with decisions
+            
+        Returns:
+            Filtered/adjusted proposals
+        """
+        from ai.schemas import AIAdvisorOutput
+        
+        if not isinstance(ai_output, AIAdvisorOutput):
+            return proposals
+        
+        if not ai_output.proposal_decisions:
+            logger.debug("AI advisor returned no decisions, keeping all proposals")
+            return proposals
+        
+        # Build decision lookup
+        decision_map = {
+            (d.symbol, d.side): d 
+            for d in ai_output.proposal_decisions
+        }
+        
+        adjusted = []
+        skipped_by_ai = 0
+        reduced_by_ai = 0
+        
+        for p in proposals:
+            d = decision_map.get((p.symbol, p.side))
+            
+            if not d:
+                # No specific guidance → default accept
+                adjusted.append(p)
+                continue
+            
+            if d.decision == "skip" or d.size_factor <= 0.0:
+                # AI skipped this proposal
+                skipped_by_ai += 1
+                if self.ai_log_decisions:
+                    logger.info(
+                        f"AI SKIP: {p.symbol} {p.side} - {d.comment}"
+                    )
+                continue
+            
+            # Reduce size (cannot increase because size_factor≤1)
+            if d.size_factor < 1.0:
+                reduced_by_ai += 1
+                original_size = p.size_pct
+                p.size_pct = p.size_pct * d.size_factor
+                
+                if self.ai_log_decisions:
+                    logger.info(
+                        f"AI REDUCE: {p.symbol} {p.side} - "
+                        f"{original_size:.2f}% → {p.size_pct:.2f}% "
+                        f"({d.size_factor:.2f}x) - {d.comment}"
+                    )
+            
+            # Add AI metadata to proposal for audit
+            if not hasattr(p, 'notes'):
+                p.notes = {}
+            p.notes['ai_decision'] = d.decision
+            p.notes['ai_size_factor'] = d.size_factor
+            p.notes['ai_comment'] = d.comment
+            
+            adjusted.append(p)
+        
+        logger.info(
+            f"AI advisor filtered: {len(adjusted)}/{len(proposals)} kept "
+            f"(skipped: {skipped_by_ai}, reduced: {reduced_by_ai})"
+        )
+        
+        return adjusted
+    
+    def _apply_risk_mode(self, risk_mode: Optional[str]) -> None:
+        """
+        Apply AI-suggested risk mode to runtime parameters.
+        
+        Args:
+            risk_mode: AI-suggested risk mode (OFF, DEFENSIVE, NORMAL, AGGRESSIVE)
+        """
+        if not self.ai_allow_risk_mode_override or not risk_mode:
+            return
+        
+        try:
+            from ai.risk_profile import apply_risk_profile_to_caps
+            
+            # Get policy caps (these are ceilings)
+            policy_max_at_risk_pct = self.policy_config.get("max_at_risk_pct", 15.0)
+            policy_max_positions = self.policy_config.get("max_positions", 5)
+            
+            # Apply risk profile (clamped to policy)
+            runtime_caps = apply_risk_profile_to_caps(
+                mode=risk_mode,
+                policy_max_at_risk_pct=policy_max_at_risk_pct,
+                policy_max_positions=policy_max_positions,
+            )
+            
+            # Update runtime multipliers
+            old_multiplier = self.runtime_trade_size_multiplier
+            self.runtime_trade_size_multiplier = runtime_caps["trade_size_multiplier"]
+            self.runtime_max_at_risk_pct = runtime_caps["max_at_risk_pct"]
+            
+            if old_multiplier != self.runtime_trade_size_multiplier:
+                logger.info(
+                    f"AI risk mode: {risk_mode} → "
+                    f"size_multiplier={self.runtime_trade_size_multiplier:.2f}, "
+                    f"max_at_risk={self.runtime_max_at_risk_pct:.1f}%"
+                )
+                
+        except Exception as e:
+            logger.error(f"Failed to apply risk mode: {e}", exc_info=True)
+    
     def _check_position_exits(self) -> List[TradeProposal]:
         """
         Check all open positions for exit conditions (stop-loss, take-profit, max hold).
