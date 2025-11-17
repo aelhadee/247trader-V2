@@ -72,7 +72,7 @@ def test_kill_switch_blocks_proposals_immediately(mock_lock, kill_switch_file, m
     REQ-K1.1: Stop generating new proposals immediately (same cycle).
     """
     # Setup: Create loop with test kill switch path
-    loop = TradingLoop(config_dir="config")
+    loop = TradingLoop(config_dir="config", mode_override="DRY_RUN")
     loop.exchange = mock_exchange
     loop.risk_engine.alert_service = mock_alert_service
     
