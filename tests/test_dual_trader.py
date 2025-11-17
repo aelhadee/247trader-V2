@@ -219,21 +219,12 @@ class TestMetaArbitration:
         config = {}
         arb = MetaArbitrator(config)
         
-        local = [
-            TradeProposal(
-                product_id="BTC-USD",
-                side="buy",
-                target_weight_pct=3.0,
-                conviction=0.6,
-                source="local",
-                notes="Local decision",
-            )
-        ]
+        local = [make_proposal("BTC-USD", "buy", 3.0, 0.6, "local")]
         
         final, log = arb.aggregate_proposals(local_proposals=local, ai_proposals=[])
         
         assert len(final) == 1
-        assert final[0].product_id == "BTC-USD"
+        assert final[0].symbol == "BTC-USD"
         assert log[0].resolution == "SINGLE"
     
     def test_single_ai_proposal_above_threshold(self):
