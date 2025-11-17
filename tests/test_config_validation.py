@@ -806,9 +806,14 @@ class TestSanityChecks:
         
         with tempfile.TemporaryDirectory() as tmpdir:
             policy = self._create_minimal_valid_policy()
+            universe = {
+                "tier_1_core": ["BTC", "ETH"],
+                "tier_2_rotational": ["SOL"],
+                "tier_3_event_driven": []
+            }
             
             (Path(tmpdir) / "policy.yaml").write_text(yaml.dump(policy))
-            (Path(tmpdir) / "universe.yaml").write_text("dummy: value")
+            (Path(tmpdir) / "universe.yaml").write_text(yaml.dump(universe))
             
             errors = validate_sanity_checks(Path(tmpdir))
             
