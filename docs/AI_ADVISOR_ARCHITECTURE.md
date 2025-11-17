@@ -253,7 +253,7 @@ export OPENAI_API_KEY="sk-..."  # Already in .env
    ai:
      enabled: true
      provider: "anthropic"
-     model: "claude-3-5-sonnet-20241022"
+     model: "claude-sonnet-4-5-20250929"
      allow_risk_mode_override: false  # AI only filters proposals
    ```
 
