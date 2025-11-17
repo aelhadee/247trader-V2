@@ -429,6 +429,13 @@ class MetricsRecorder:
         
         if liquidated_usd > 0:
             self._trim_liquidated_usd_counter.inc(liquidated_usd)
+    
+    def record_ai_latency(self, latency_ms: float) -> None:
+        """Record AI advisor call latency"""
+        if not self._enabled:
+            return
+        # Use existing stage duration for now
+        self.record_stage_duration("ai_advisor", latency_ms / 1000.0)
 
 
 __all__ = ["MetricsRecorder", "CycleStats"]
