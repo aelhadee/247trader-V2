@@ -271,7 +271,7 @@ def test_loss_cooldown_expired(trade_limits, sample_proposals):
 
 def test_apply_win_cooldown(trade_limits, mock_state_store):
     """Apply win cooldown (10min)"""
-    now = datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
     
     trade_limits.apply_cooldown("BTC-USD", outcome="win", current_time=now)
     
