@@ -501,6 +501,8 @@ class TestSanityChecks:
                 "per_symbol_cooldown_enabled": True,
                 "per_symbol_cooldown_minutes": 30,
                 "per_symbol_cooldown_after_stop": 120,
+                "per_symbol_cooldown_win_minutes": 10,
+                "per_symbol_cooldown_loss_minutes": 60,
                 "min_trade_notional_usd": 10.0,
                 "dust_threshold_usd": 10.0,
                 "allow_adds_when_over_cap": False,
