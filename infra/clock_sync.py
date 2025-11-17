@@ -260,11 +260,20 @@ class ClockSyncValidator:
             logger.critical(error_msg)
             raise RuntimeError(error_msg)
         
-        logger.info(
-            f"✅ Clock sync validated (LIVE mode): "
-            f"drift={status['drift_ms']:.1f}ms < {self.max_drift_ms}ms, "
-            f"server={status['server']}"
-        )
+        # Check if drift is in warning range (150-250ms)
+        drift_ms = status['drift_ms']
+        if drift_ms > self.WARNING_DRIFT_MS:
+            logger.warning(
+                f"Clock drift high but within max tolerance: {drift_ms:.1f}ms "
+                f"(warn>{self.WARNING_DRIFT_MS:.1f}ms, max={self.max_drift_ms:.1f}ms). "
+                f"Consider checking NTP sync. Server: {status['server']}"
+            )
+        else:
+            logger.info(
+                f"✅ Clock sync validated (LIVE mode): "
+                f"drift={drift_ms:.1f}ms < {self.WARNING_DRIFT_MS:.1f}ms, "
+                f"server={status['server']}"
+            )
         
         return status
     
