@@ -180,6 +180,54 @@ class PrometheusExporter:
             self.data_staleness.labels(data_type=data_type).set(age_seconds)
         except Exception as e:
             logger.debug(f"Error setting data staleness: {e}")
+    
+    def update_trades_per_hour(self, count: int):
+        """Update rolling trades per hour count"""
+        if not self._metrics_initialized:
+            return
+        try:
+            self.trades_per_hour.set(count)
+        except Exception as e:
+            logger.debug(f"Error updating trades_per_hour: {e}")
+    
+    def update_trigger_stats(self, triggers_count: int, proposals_count: int):
+        """
+        Update trigger and proposal stats for strategy selectivity monitoring.
+        
+        Args:
+            triggers_count: Number of triggers detected in cycle
+            proposals_count: Number of proposals generated from triggers
+        """
+        if not self._metrics_initialized:
+            return
+        try:
+            self.triggers_detected.set(triggers_count)
+            self.proposals_generated.set(proposals_count)
+            
+            # Calculate selectivity ratio (how many triggers convert to proposals)
+            if triggers_count > 0:
+                ratio = proposals_count / triggers_count
+                self.triggers_to_proposals_ratio.set(ratio)
+            else:
+                # No triggers = no ratio (set to 0 for visualization)
+                self.triggers_to_proposals_ratio.set(0.0)
+        except Exception as e:
+            logger.debug(f"Error updating trigger stats: {e}")
+    
+    def update_rate_limiter_utilization(self, endpoint: str, utilization_pct: float):
+        """
+        Update rate limiter utilization percentage for monitoring.
+        
+        Args:
+            endpoint: API endpoint name
+            utilization_pct: Utilization percentage (0.0-100.0)
+        """
+        if not self._metrics_initialized:
+            return
+        try:
+            self.rate_limiter_utilization_pct.labels(endpoint=endpoint).set(utilization_pct)
+        except Exception as e:
+            logger.debug(f"Error updating rate limiter utilization: {e}")
 
 
 # Singleton instance
