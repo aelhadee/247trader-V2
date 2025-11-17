@@ -182,14 +182,14 @@ class TestReadOnlyMode:
         assert exchange.api_key == ""
         assert exchange.api_secret == ""
     
-    @patch.dict(os.environ, {"CB_API_KEY": "key", "CB_API_SECRET": "secret"})
+    @patch.dict(os.environ, {"CB_API_KEY": "test_api_key_10chars", "CB_API_SECRET": "test_secret_20_chars_min"})
     def test_read_only_false_requires_valid_creds(self):
         """read_only=False requires valid credentials"""
         exchange = CoinbaseExchange(read_only=False)
         
         assert exchange.read_only is False
-        assert exchange.api_key == "key"
-        assert exchange.api_secret == "secret"
+        assert exchange.api_key == "test_api_key_10chars"
+        assert exchange.api_secret == "test_secret_20_chars_min"
 
 
 class TestErrorMessages:
