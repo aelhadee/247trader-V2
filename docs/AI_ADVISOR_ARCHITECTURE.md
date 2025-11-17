@@ -60,8 +60,8 @@ Universe → Triggers → Rules Engine → [AI Advisor] → Risk Engine → Exec
 **Purpose:** Abstraction for AI providers (OpenAI, Anthropic, mock)
 
 **Supported Providers:**
-- **Anthropic:** Claude 3.5 Sonnet (Oct 2024) - **RECOMMENDED** (requires `ANTHROPIC_API_KEY`)
-- **OpenAI:** GPT-4o, GPT-4 Turbo, o1-preview (requires `OPENAI_API_KEY`)
+- **Anthropic:** Claude Sonnet 4.5 (Sep 2025) - **RECOMMENDED** (requires `ANTHROPIC_API_KEY`)
+- **OpenAI:** GPT-5 Mini (Aug 2025), GPT-4o (requires `OPENAI_API_KEY`)
 - **Mock:** Testing/dry-run mode (no API calls)
 
 **Features:**
