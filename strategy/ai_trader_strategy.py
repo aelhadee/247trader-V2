@@ -215,16 +215,15 @@ class AiTraderStrategy(BaseStrategy):
             
             # Create proposal
             proposal = TradeProposal(
-                product_id=decision.symbol,
+                symbol=decision.symbol,
                 side=side,
-                target_weight_pct=decision.target_weight_pct,
-                conviction=decision.confidence,
-                source="ai_trader",
-                notes=(
+                size_pct=decision.target_weight_pct,
+                reason=(
                     f"AI decision (conf={decision.confidence:.2f}, "
                     f"horizon={decision.time_horizon_minutes}m): "
                     f"{decision.rationale[:200]}"
                 ),
+                confidence=decision.confidence,
                 stop_loss_pct=None,  # AI doesn't set stops directly
                 take_profit_pct=None,
             )
