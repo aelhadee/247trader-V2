@@ -115,7 +115,7 @@ position_sizing:
   method: risk_parity
   risk_per_trade_pct: 1.0
   fixed_size_usd: 100.0
-  min_order_usd: 10.0
+  min_order_usd: 5.0             # Reduced from 10.0 to 5.0 for small accounts
   max_order_usd: 10000.0
   allow_pyramiding: false  # Aligned with risk.allow_pyramiding=false (conservative profile)
   max_pyramid_positions: 0  # Pyramiding disabled
