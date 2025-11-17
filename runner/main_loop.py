@@ -340,6 +340,97 @@ class TradingLoop:
                 self.ai_enabled = False
                 self.ai_advisor = None
         
+        # Initialize dual-trader components (if enabled)
+        if self.dual_trader_enabled:
+            try:
+                from ai.llm_client import create_ai_trader_client
+                from strategy.ai_trader_strategy import AiTraderStrategy
+                from strategy.meta_arb import MetaArbitrator
+                import os
+                
+                logger.info("Initializing dual-trader system...")
+                
+                # Create AI trader client
+                ai_trader_provider = ai_trader_cfg.get("provider", "mock")
+                ai_trader_api_key = None
+                
+                if ai_trader_provider != "mock":
+                    api_key_env = ai_trader_cfg.get("api_key", "")
+                    if api_key_env.startswith("${") and api_key_env.endswith("}"):
+                        env_var = api_key_env[2:-1]
+                        ai_trader_api_key = os.environ.get(env_var)
+                        if not ai_trader_api_key:
+                            logger.warning(f"AI trader API key {env_var} not set, falling back to mock")
+                            ai_trader_provider = "mock"
+                    else:
+                        ai_trader_api_key = api_key_env
+                
+                self.ai_trader_client = create_ai_trader_client(
+                    provider=ai_trader_provider,
+                    model=ai_trader_cfg.get("model", "gpt-5-mini-2025-08-07"),
+                    api_key=ai_trader_api_key or "",
+                    timeout_s=ai_trader_cfg.get("timeout_s", 2.0),
+                )
+                
+                # Create AI trader strategy
+                ai_trader_strategy_config = {
+                    "enabled": True,
+                    "max_decisions": ai_trader_cfg.get("max_decisions", 5),
+                    "min_confidence": ai_trader_cfg.get("min_confidence", 0.0),
+                    "enable_hold_signals": ai_trader_cfg.get("enable_hold_signals", False),
+                }
+                
+                self.ai_trader_strategy = AiTraderStrategy(
+                    name="ai_trader",
+                    config=ai_trader_strategy_config,
+                    ai_client=self.ai_trader_client,
+                )
+                
+                # Create meta-arbitrator
+                arb_cfg = ai_trader_cfg.get("arbitration", {}) or {}
+                self.meta_arbitrator = MetaArbitrator(config=arb_cfg)
+                
+                # Optionally create AI arbiter (Model #2)
+                arbiter_cfg = ai_trader_cfg.get("arbiter", {}) or {}
+                if arbiter_cfg.get("enabled", False):
+                    from ai.arbiter_client import create_ai_arbiter_client
+                    
+                    arbiter_provider = arbiter_cfg.get("provider", "mock")
+                    arbiter_api_key = None
+                    
+                    if arbiter_provider != "mock":
+                        api_key_env = arbiter_cfg.get("api_key", "")
+                        if api_key_env.startswith("${") and api_key_env.endswith("}"):
+                            env_var = api_key_env[2:-1]
+                            arbiter_api_key = os.environ.get(env_var)
+                            if not arbiter_api_key:
+                                logger.warning(f"Arbiter API key {env_var} not set, disabling arbiter")
+                        else:
+                            arbiter_api_key = api_key_env
+                    
+                    if arbiter_provider != "mock" and arbiter_api_key:
+                        self.ai_arbiter_client = create_ai_arbiter_client(
+                            provider=arbiter_provider,
+                            model=arbiter_cfg.get("model", "claude-sonnet-4-5-20250929"),
+                            api_key=arbiter_api_key,
+                            timeout_s=arbiter_cfg.get("timeout_s", 1.5),
+                        )
+                        logger.info(f"AI arbiter enabled: provider={arbiter_provider}")
+                
+                logger.info(
+                    f"Dual-trader system initialized: "
+                    f"ai_trader_provider={ai_trader_provider}, "
+                    f"arbiter={'enabled' if self.ai_arbiter_client else 'disabled'}"
+                )
+                
+            except Exception as e:
+                logger.error(f"Failed to initialize dual-trader system: {e}", exc_info=True)
+                self.dual_trader_enabled = False
+                self.ai_trader_client = None
+                self.ai_trader_strategy = None
+                self.meta_arbitrator = None
+                self.ai_arbiter_client = None
+        
         # Initialize ReportGenerator for daily performance reports
         from analytics.performance_report import ReportGenerator
         self.report_generator = ReportGenerator(trade_log=self.executor.trade_log)
