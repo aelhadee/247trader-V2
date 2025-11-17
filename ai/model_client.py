@@ -102,7 +102,6 @@ class OpenAIClient(ModelClient):
 
 Your role:
 - Review trade proposals and market context
-- You can ONLY shrink or skip trades - NEVER increase size
 - Suggest risk modes: OFF, DEFENSIVE, NORMAL, AGGRESSIVE
 - Favor capital preservation in uncertain/choppy regimes
 - Respect all policy caps (you cannot override them)
