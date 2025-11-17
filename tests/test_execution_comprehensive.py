@@ -28,6 +28,17 @@ from core.order_state import OrderStatus
 from core.exceptions import CriticalDataUnavailable
 
 
+@pytest.fixture(autouse=True)
+def reset_metrics():
+    """Reset Prometheus metrics between tests to avoid registry conflicts"""
+    from infra.metrics import MetricsRecorder
+    # Clean up BEFORE test (in case previous test didn't have fixture)
+    MetricsRecorder._reset_for_testing()
+    yield
+    # Clean up AFTER test
+    MetricsRecorder._reset_for_testing()
+
+
 # ============================================================================
 # Fixtures
 # ============================================================================
