@@ -162,7 +162,7 @@ triggers:
 strategy:
   base_position_pct:
     tier1: 0.03
-    tier2: 0.018
+    tier2: 0.020   # Increased from 0.018 (1.8%) to 0.020 (2.0%) for $250 accounts → $5.14 orders
     tier3: 0.007
   momentum_downside_reversal_pct: 3.0
   max_open_positions: 12
