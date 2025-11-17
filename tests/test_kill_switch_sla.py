@@ -36,7 +36,7 @@ from infra.alerting import AlertSeverity
 @pytest.fixture(autouse=True)
 def reset_metrics():
     """Reset Prometheus metrics between tests to avoid registry conflicts"""
-    # Reset the real MetricsRecorder if it exists
+    # Reset the real MetricsRecorder if it exists (BEFORE test)
     try:
         from infra import metrics as real_metrics
         if hasattr(real_metrics, 'MetricsRecorder'):
@@ -44,6 +44,13 @@ def reset_metrics():
     except (ImportError, AttributeError):
         pass
     yield
+    # Reset AFTER test as well
+    try:
+        from infra import metrics as real_metrics
+        if hasattr(real_metrics, 'MetricsRecorder'):
+            real_metrics.MetricsRecorder._reset_for_testing()
+    except (ImportError, AttributeError):
+        pass
 
 
 @pytest.fixture
