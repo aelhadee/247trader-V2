@@ -88,7 +88,7 @@ class TestAiTraderClient:
             rationale="x" * 1000,  # Too long
         )
         
-        assert decision.size_pct == 100.0
+        assert decision.target_weight_pct == 100.0
         assert decision.confidence == 1.0
         assert decision.time_horizon_minutes == 1440
         assert len(decision.rationale) == 500
