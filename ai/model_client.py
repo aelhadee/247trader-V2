@@ -179,13 +179,13 @@ Rules:
 class AnthropicClient(ModelClient):
     """Anthropic Claude client implementation."""
     
-    def __init__(self, api_key: str, model: str = "claude-3-5-sonnet-20241022"):
+    def __init__(self, api_key: str, model: str = "claude-sonnet-4-5-20250929"):
         """
         Initialize Anthropic client.
         
         Args:
             api_key: Anthropic API key
-            model: Model name (claude-3-opus, claude-3-sonnet, etc.)
+            model: Model name (claude-sonnet-4-5-20250929, claude-3-5-sonnet-20241022, etc.)
         """
         self.api_key = api_key
         self.model = model
