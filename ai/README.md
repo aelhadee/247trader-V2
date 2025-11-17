@@ -97,18 +97,18 @@ output = advisor.advise(input_data, client)
 ```python
 from ai.model_client import create_model_client
 
+# Anthropic (Recommended)
+client = create_model_client(
+    provider="anthropic",
+    api_key="sk-ant-...",
+    model="claude-sonnet-4-5-20250929",
+)
+
 # OpenAI
 client = create_model_client(
     provider="openai",
     api_key="sk-...",
-    model="gpt-4o",
-)
-
-# Anthropic
-client = create_model_client(
-    provider="anthropic",
-    api_key="sk-ant-...",
-    model="claude-3-5-sonnet-20241022",
+    model="gpt-5-mini-2025-08-07",
 )
 
 # Mock (testing)
