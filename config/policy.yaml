@@ -254,7 +254,7 @@ execution:
   maker_fee_bps: 40
   taker_fee_bps: 60
   default_order_type: limit_post_only
-  min_notional_usd: 10.0        # Was 15 - REDUCED to match conservative profile
+  min_notional_usd: 5.0         # Reduced from 10.0 to 5.0 for small accounts (~$250)
   maker_first: true
   maker_max_reprices: 1
   maker_max_ttl_sec: 30         # Was 15s - INCREASED to 30s (less aggressive canceling)
