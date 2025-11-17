@@ -106,3 +106,26 @@ monitoring:
     escalation_seconds: 120.0
     escalation_webhook_url: "${ESCALATION_WEBHOOK_URL}"  # Optional separate webhook
     escalation_severity_boost: 1  # INFO→WARNING, WARNING→CRITICAL
+
+ai:
+  # AI Advisor: filters/resizes proposals between rules_engine and risk_engine
+  # Core principle: AI can only SHRINK, SKIP, or TAG - never increase size
+  enabled: false  # Start disabled - enable after testing
+  
+  # Model provider and configuration
+  provider: "openai"  # openai | anthropic | mock
+  model: "gpt-4-turbo-preview"  # Model name (provider-specific)
+  api_key: "${OPENAI_API_KEY}"  # or ${ANTHROPIC_API_KEY}
+  
+  # Safety constraints
+  timeout_s: 1.0              # Hard timeout for model calls (fail-closed)
+  max_scale_up: 1.0           # NEVER >1.0 in v1 (AI cannot increase sizes)
+  fallback_on_error: true     # On error → bypass AI (safe default)
+  
+  # Risk mode influence
+  default_risk_mode: "NORMAL"           # OFF | DEFENSIVE | NORMAL | AGGRESSIVE
+  allow_risk_mode_override: false       # Let AI suggest risk mode (disable initially)
+  
+  # Observability
+  log_decisions: true         # Log all AI decisions for audit
+  metrics_enabled: true       # Export AI metrics (latency, decision rates)
