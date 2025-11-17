@@ -1,7 +1,7 @@
 {
-	"ulid": "01KA7W2RPDC0CB2T5J7H1V49YM",
-	"minTime": 1763337606853,
-	"maxTime": 1763344800000,
+	"ulid": "01KA8GNYQ89PY83M1HNM2F8QH5",
+	"minTime": 1763359207143,
+	"maxTime": 1763366400000,
 	"stats": {
 		"numSamples": 2400,
 		"numFloatSamples": 2400,
@@ -11,7 +11,7 @@
 	"compaction": {
 		"level": 1,
 		"sources": [
-			"01KA7W2RPDC0CB2T5J7H1V49YM"
+			"01KA8GNYQ89PY83M1HNM2F8QH5"
 		]
 	},
 	"version": 1
