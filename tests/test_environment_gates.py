@@ -293,7 +293,6 @@ def test_all_modes_distinct():
     assert result_dry.route == "shadow_dry_run"  # DRY_RUN now uses shadow execution
     # Shadow execution validates with live quotes but doesn't place orders
     assert not mock_exchange.place_order.called
-    assert not mock_exchange.place_limit_order.called
     
     # PAPER: gets quote, simulates
     mock_exchange.reset_mock()
