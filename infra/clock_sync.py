@@ -62,8 +62,9 @@ class ClockSyncValidator:
         "time.cloudflare.com",
     ]
     
-    def __init__(self, max_drift_ms: float = MAX_DRIFT_MS, timeout: float = TIMEOUT_SECONDS):
+    def __init__(self, max_drift_ms: float = MAX_DRIFT_MS, warning_drift_ms: float = WARNING_DRIFT_MS, timeout: float = TIMEOUT_SECONDS):
         self.max_drift_ms = max_drift_ms
+        self.WARNING_DRIFT_MS = warning_drift_ms
         self.timeout = timeout
     
     def _query_ntp(self, server: str) -> Tuple[float, float]:
