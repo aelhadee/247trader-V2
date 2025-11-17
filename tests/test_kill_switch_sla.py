@@ -33,6 +33,19 @@ from core.order_state import OrderStatus
 from infra.alerting import AlertSeverity
 
 
+@pytest.fixture(autouse=True)
+def reset_metrics():
+    """Reset Prometheus metrics between tests to avoid registry conflicts"""
+    # Reset the real MetricsRecorder if it exists
+    try:
+        from infra import metrics as real_metrics
+        if hasattr(real_metrics, 'MetricsRecorder'):
+            real_metrics.MetricsRecorder._reset_for_testing()
+    except (ImportError, AttributeError):
+        pass
+    yield
+
+
 @pytest.fixture
 def kill_switch_file(tmp_path):
     """Create temporary kill switch file path."""
