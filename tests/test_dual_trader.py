@@ -318,7 +318,7 @@ class TestMetaArbitration:
         assert log[0].resolution == "AI"
     
     def test_conflict_unresolved(self):
-        """Unresolved conflict → stand down."""
+        """Unresolved conflict → trust local when AI conf < override threshold."""
         config = {
             "ai_override_threshold": 0.7,
             "local_weak_conviction": 0.35,
@@ -331,13 +331,15 @@ class TestMetaArbitration:
         ]
         
         ai = [
-            make_proposal("BTC-USD", "sell", 2.0, 0.65)
+            make_proposal("BTC-USD", "sell", 2.0, 0.65)  # Below override threshold
         ]
         
         final, log = arb.aggregate_proposals(local_proposals=local, ai_proposals=ai)
         
-        assert len(final) == 0  # Stand down
-        assert log[0].resolution == "NONE"
+        # AI conf (0.65) < override threshold (0.7) → trust local
+        assert len(final) == 1
+        assert final[0].side == "buy"  # Local wins
+        assert log[0].resolution == "LOCAL"
 
 
 # ─── Test AI Arbiter ───────────────────────────────────────────────────────
