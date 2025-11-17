@@ -1880,7 +1880,7 @@
       "orders_seen": []
     }
   ],
-  "high_water_mark": 538.2423030124753,
+  "high_water_mark": 256.64,
   "zero_trigger_cycles": 0,
   "auto_tune_applied": false,
   "zero_proposal_cycles": 0,

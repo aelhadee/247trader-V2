@@ -82,6 +82,15 @@ class UniverseManager:
         # Initialize near-threshold configuration
         self._near_threshold_cfg = config.get('universe', {}).get('near_threshold_override', {})
         self._near_threshold_usage: dict[str, int] = {}
+        
+        # OPTIMIZATION: Product list caching to reduce rate limit warnings
+        # Cache list_products() calls across cycles/steps (expensive API call)
+        self._products_cache: Optional[List[str]] = None
+        self._products_cache_time: Optional[datetime] = None
+        # Cache TTL: 5 minutes (products rarely change intraday)
+        products_cache_minutes = config.get('universe', {}).get('products_cache_minutes', 5)
+        self._products_cache_ttl = timedelta(minutes=products_cache_minutes)
+        logger.info(f"Product list cache enabled: TTL={products_cache_minutes}min")
     
     @classmethod
     def from_config_path(cls, config_path: str, exchange=None, state_store=None, alert_service=None):

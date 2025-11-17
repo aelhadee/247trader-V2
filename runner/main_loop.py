@@ -82,6 +82,8 @@ class TradingLoop:
         # Load configs
         self.app_config = self._load_yaml("app.yaml")
         self.policy_config = self._load_yaml("policy.yaml")
+        # Backwards compatibility: legacy code still expects self.policy
+        self.policy = self.policy_config
         self.signals_config = self._load_yaml("signals.yaml")
         self.universe_config = self._load_yaml("universe.yaml")
         

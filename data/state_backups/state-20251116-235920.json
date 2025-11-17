@@ -12,91 +12,91 @@
       "available": 36.4,
       "hold": 0.0,
       "total": 36.4,
-      "usd_value": 5.978518
+      "usd_value": 5.649461999999999
     },
     "POPCAT": {
       "available": 0.18,
       "hold": 0.0,
       "total": 0.18,
-      "usd_value": 0.01998
+      "usd_value": 0.019368
     },
     "XLM": {
       "available": 36.09192349,
       "hold": 0.0,
       "total": 36.09192349,
-      "usd_value": 9.406024456499368
+      "usd_value": 9.163757420072743
     },
     "ADA": {
       "available": 0.00808093,
       "hold": 0.0,
       "total": 0.00808093,
-      "usd_value": 0.0040659199295
+      "usd_value": 0.0039131903525
     },
     "BONK": {
       "available": 889587.0,
       "hold": 0.0,
       "total": 889587.0,
-      "usd_value": 9.896655375
+      "usd_value": 9.416278395
     },
     "PENGU": {
       "available": 371.0,
       "hold": 0.0,
       "total": 371.0,
-      "usd_value": 4.875496500000001
+      "usd_value": 4.6250715
     },
     "UNI": {
       "available": 1.093593,
       "hold": 0.0,
       "total": 1.093593,
-      "usd_value": 8.051031666
+      "usd_value": 7.842155403
     },
     "AERO": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.08838200000000002
+      "usd_value": 0.08163700000000002
     },
     "FET": {
       "available": 0.1,
       "hold": 0.0,
       "total": 0.1,
-      "usd_value": 0.028795
+      "usd_value": 0.027334999999999998
     },
     "WLFI": {
       "available": 57.5,
       "hold": 0.0,
       "total": 57.5,
-      "usd_value": 8.363087499999999
+      "usd_value": 8.131362500000002
     },
     "HBAR": {
       "available": 42.8,
       "hold": 0.0,
       "total": 42.8,
-      "usd_value": 6.624369999999999
+      "usd_value": 6.276406
     },
     "ZK": {
       "available": 0.21905562,
       "hold": 0.0,
       "total": 0.21905562,
-      "usd_value": 0.0112364580279
+      "usd_value": 0.0113744630685
     },
     "DOGE": {
       "available": 52.7,
       "hold": 0.0,
       "total": 52.7,
-      "usd_value": 8.599322500000001
+      "usd_value": 8.350051500000001
     },
     "XRP": {
       "available": 0.001546,
       "hold": 0.0,
       "total": 0.001546,
-      "usd_value": 0.0034567787
+      "usd_value": 0.0034247765
     },
     "BTC": {
       "available": 4e-08,
       "hold": 0.0,
       "total": 4e-08,
-      "usd_value": 0.0038268054000000005
+      "usd_value": 0.0037665298
     }
   },
   "managed_positions": {},
@@ -235,367 +235,10 @@
   "pending_markers": {},
   "last_fill_times": {},
   "fill_history": {},
-  "last_reconcile_at": "2025-11-16T02:44:56.021571+00:00",
+  "last_reconcile_at": "2025-11-16T23:59:02.998404+00:00",
   "last_reset_date": "2025-11-16",
-  "last_reset_hour": 2,
+  "last_reset_hour": 23,
   "events": [
-    {
-      "at": "2025-11-16T01:14:46.084315+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:15:46.870309+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:15:47.020495+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:16:46.991038+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:16:47.135766+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:17:50.690213+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:17:50.839248+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:18:50.985776+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:18:51.147249+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:19:51.162995+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:19:51.371962+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:20:54.850734+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:20:55.011847+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:21:59.504887+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:21:59.651417+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:23:03.049568+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:23:03.196355+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:24:21.520567+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:24:21.529807+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:24:21.534149+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:27:18.117820+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:27:34.267858+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:27:34.275396+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:27:34.280196+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:28:12.756360+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:28:13.539728+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:28:14.296495+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:28:14.824102+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T01:28:18.797527+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T02:17:27.798707+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T02:17:45.537657+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T02:17:45.543831+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T02:17:45.547718+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T02:18:30.433753+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T02:18:31.253206+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T02:18:32.093345+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T02:18:32.629922+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T02:18:36.376791+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T02:23:34.871627+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T02:23:52.209577+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T02:23:52.216291+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T02:23:52.222941+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T02:25:57.873411+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T02:26:14.754432+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T02:26:14.759809+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T02:26:14.763416+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T02:26:50.430563+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T02:26:50.598286+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T02:26:51.362689+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T02:26:51.546797+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
-    {
-      "at": "2025-11-16T02:26:53.831380+00:00",
-      "event": "open_orders_sync",
-      "open_orders": 0,
-      "closed": [],
-      "created": []
-    },
     {
       "at": "2025-11-16T02:35:23.077783+00:00",
       "event": "open_orders_sync",
@@ -939,18 +582,388 @@
       "open_orders": 0,
       "closed": [],
       "created": []
+    },
+    {
+      "at": "2025-11-16T02:54:11.667900+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T02:54:28.878281+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T02:54:28.883267+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T02:54:28.886841+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T03:12:12.747357+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T03:12:16.357990+00:00",
+      "event": "reconcile",
+      "positions": 15,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-16T03:12:20.225290+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T03:12:23.795663+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T03:16:15.435093+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T03:16:18.977200+00:00",
+      "event": "reconcile",
+      "positions": 15,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-16T03:16:22.736428+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T03:16:26.836383+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T03:17:22.835160+00:00",
+      "event": "reconcile",
+      "positions": 15,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-16T03:17:26.743309+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T03:17:30.324039+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T03:18:27.266063+00:00",
+      "event": "reconcile",
+      "positions": 15,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-16T03:18:31.139091+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T03:18:34.764008+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T04:14:04.008922+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T23:45:22.999529+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T23:45:26.935243+00:00",
+      "event": "reconcile",
+      "positions": 15,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-16T23:45:31.056443+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T23:45:34.981435+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T23:47:21.976116+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T23:47:25.725674+00:00",
+      "event": "reconcile",
+      "positions": 15,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-16T23:47:29.575552+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T23:47:33.291574+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T23:53:12.805406+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T23:53:16.911914+00:00",
+      "event": "reconcile",
+      "positions": 15,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-16T23:53:20.931584+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T23:53:24.874209+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T23:54:08.662602+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T23:54:12.782021+00:00",
+      "event": "reconcile",
+      "positions": 15,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-16T23:54:17.132589+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T23:54:21.088422+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T23:55:16.229120+00:00",
+      "event": "reconcile",
+      "positions": 15,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-16T23:55:20.413618+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T23:55:24.364974+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T23:56:21.056771+00:00",
+      "event": "reconcile",
+      "positions": 15,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-16T23:56:25.275301+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T23:56:29.418785+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T23:57:24.374690+00:00",
+      "event": "reconcile",
+      "positions": 15,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-16T23:57:28.508390+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T23:57:32.479597+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T23:58:24.451341+00:00",
+      "event": "reconcile",
+      "positions": 15,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-16T23:58:28.622758+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T23:58:32.599650+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T23:58:58.956707+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T23:59:02.998404+00:00",
+      "event": "reconcile",
+      "positions": 15,
+      "open_orders": 0,
+      "orders_closed": [],
+      "orders_seen": []
+    },
+    {
+      "at": "2025-11-16T23:59:07.186151+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
+    },
+    {
+      "at": "2025-11-16T23:59:11.215926+00:00",
+      "event": "open_orders_sync",
+      "open_orders": 0,
+      "closed": [],
+      "created": []
     }
   ],
   "high_water_mark": 10000.0,
-  "zero_trigger_cycles": 307,
-  "auto_tune_applied": true,
+  "zero_trigger_cycles": 0,
+  "auto_tune_applied": false,
   "latency_stats": {},
   "red_flag_bans": {},
-  "last_open_orders_sync": "2025-11-16T02:54:00.759478+00:00",
+  "last_open_orders_sync": "2025-11-16T23:59:11.215926+00:00",
   "jitter_stats": {
-    "last_jitter_pct": 9.585006114925452,
-    "last_sleep_seconds": 48.899049008955224,
-    "last_cycle_seconds": 16.851954660000047,
-    "last_total_interval": 65.75100366895526
+    "last_jitter_pct": 4.8154324983483265,
+    "last_sleep_seconds": 50.31635028598853,
+    "last_cycle_seconds": 12.572909213020466,
+    "last_total_interval": 62.88925949900899
   }
 }
