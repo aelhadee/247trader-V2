@@ -176,7 +176,8 @@ class RulesEngine(BaseStrategy):
     def propose_trades(self, 
                       universe: UniverseSnapshot,
                       triggers: List[TriggerSignal],
-                      regime: str = "chop") -> List[TradeProposal]:
+                      regime: str = "chop",
+                      nav: float = 0.0) -> List[TradeProposal]:
         """
         Generate trade proposals based on rules.
         
@@ -184,6 +185,7 @@ class RulesEngine(BaseStrategy):
             universe: Current universe snapshot
             triggers: Detected trigger signals
             regime: Market regime
+            nav: Net asset value in USD for sizing calculations
             
         Returns:
             List of trade proposals
