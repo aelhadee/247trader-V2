@@ -326,7 +326,7 @@ portfolio_management:
   trim_slippage_buffer_pct: 5.0
   auto_rebalance_worst_performer: true
   purge_execution:
-    slice_usd: 10.0              # Reduced from 15.0 to 10.0 for small accounts
+    slice_usd: 5.0               # Reduced from 10.0 to 5.0 to match min_notional (small accounts + T3 assets)
     maker_ttl_sec: 25
     maker_first_ttl_sec: 25
     maker_retry_ttl_sec: 20
