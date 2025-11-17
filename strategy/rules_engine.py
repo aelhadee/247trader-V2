@@ -432,6 +432,8 @@ class RulesEngine(BaseStrategy):
         )
         # Scale by confidence
         size_pct *= trigger.confidence
+        # Enforce minimum notional for small accounts
+        size_pct = self._enforce_min_notional(size_pct, context.nav)
         
         return TradeProposal(
             symbol=trigger.symbol,
