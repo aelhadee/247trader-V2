@@ -168,7 +168,7 @@ strategy:
   max_open_positions: 12
   max_new_positions_per_cycle: 1
   prefer_add_to_existing: true
-  min_conviction_to_propose: 0.3
+  min_conviction_to_propose: 0.28  # Lowered from 0.30 (7% reduction) to capture more trades without going full degen
   conviction_weights:
     base: 0.0
     trigger_strength: 0.5
