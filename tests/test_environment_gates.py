@@ -290,7 +290,7 @@ def test_all_modes_distinct():
     # DRY_RUN: no exchange interaction
     engine_dry = ExecutionEngine(mode="DRY_RUN", exchange=mock_exchange)
     result_dry = engine_dry.execute("BTC-USD", "SELL", 100.0)  # SELL avoids trading pair lookup
-    assert result_dry.route == "dry_run"
+    assert result_dry.route == "shadow_dry_run"  # DRY_RUN now uses shadow execution
     assert not mock_exchange.get_quote.called
     
     # PAPER: gets quote, simulates
