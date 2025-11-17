@@ -161,7 +161,16 @@ class UniverseManager:
                 
                 # Cache successful fetch
                 self._update_products_cache(symbols)
-            
+            except Exception as e:
+                logger.error(f"Failed to fetch symbols from Coinbase: {e}")
+                # Will trigger fallback below if symbols is empty
+                symbols = []
+        
+        # Skip further processing if we have no symbols (will trigger fallback)
+        if not symbols:
+            raise RuntimeError("No symbols available – triggering fallback")
+        
+        try:
             # Filter to USD pairs only
             usd_pairs = [s for s in symbols if s.endswith('-USD')]
             logger.info(f"Found {len(usd_pairs)} USD trading pairs")
