@@ -825,6 +825,34 @@ class RulesEngine(BaseStrategy):
         depth_ok = asset.depth_usd >= min_depth if min_depth is not None else True
         return spread_ok and depth_ok
 
+    def _enforce_min_notional(self, size_pct: float, nav: float) -> float:
+        """
+        Ensure position size meets minimum notional requirement.
+        
+        For small accounts (~$250), confidence-scaled sizes may fall below
+        exchange minimums. This bumps size to meet min_notional while
+        respecting tier caps.
+        
+        Args:
+            size_pct: Proposed size in % of NAV
+            nav: Current NAV in USD
+            
+        Returns:
+            Adjusted size_pct that meets min_notional
+        """
+        if nav <= 0:
+            return size_pct
+            
+        # Calculate minimum % needed to meet min_notional
+        min_pct_for_notional = (self.min_notional_usd / nav) * 100
+        
+        # If current size already meets it, no change
+        if size_pct >= min_pct_for_notional:
+            return size_pct
+        
+        # Otherwise, bump to minimum (will be capped by tier limits later)
+        return min_pct_for_notional
+    
     def calculate_volatility_adjusted_size(self, trigger: TriggerSignal, base_size_pct: float,
                                           stop_loss_pct: float, target_risk_pct: float = 1.0) -> float:
         """
