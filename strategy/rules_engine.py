@@ -226,8 +226,7 @@ class RulesEngine(BaseStrategy):
                 logger.warning(f"Trigger for {trigger.symbol} but asset not in universe")
                 continue
             
-            # Get NAV from context (0.0 if not available for backward compatibility)
-            nav = getattr(universe, 'nav', 0.0)
+            # NAV available as parameter (passed from context)
             
             # Apply rules based on trigger type
             if trigger.trigger_type == "price_move":
