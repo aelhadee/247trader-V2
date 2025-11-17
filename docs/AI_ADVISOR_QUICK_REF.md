@@ -147,14 +147,15 @@ ai:
 ```
 ✅ Validates integration without API calls
 
-### Phase 2: Live API, Read-Only (2 days)
+**Phase 2: Live API** (2-3 days)
 ```yaml
 ai:
   enabled: true
-  provider: "openai"
-  allow_risk_mode_override: false
+  provider: "anthropic"
+  model: "claude-3-5-sonnet-20241022"
+  api_key: "${ANTHROPIC_API_KEY}"
+  allow_risk_mode_override: false  # AI only filters
 ```
-✅ AI filters proposals, no risk mode changes
 
 ### Phase 3: Risk Mode Influence (ongoing)
 ```yaml
