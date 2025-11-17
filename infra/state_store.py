@@ -55,6 +55,7 @@ DEFAULT_STATE = {
     "auto_tune_applied": False,  # Flag to prevent repeated auto-tune adjustments
     "latency_stats": {},  # Latency statistics by operation
     "red_flag_bans": {},  # symbol -> {reason, banned_at_iso, expires_at_iso} for flagged/scam assets
+    "purge_failures": {},  # symbol -> {failure_count, last_failed_at_iso, last_error} for failed purge attempts
 }
 
 
