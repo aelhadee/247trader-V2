@@ -316,15 +316,15 @@ class RulesEngine(BaseStrategy):
                 )
         
         # Summary of trigger outcomes
-        if triggers:
-            passed_rule_logic = sum(1 for p in proposals if p)
-            rejected_conviction = skipped + canary_count
-            rejected_rule_logic = len(triggers) - passed_rule_logic - rejected_conviction
+        if qualified_triggers:
+            # Count how many qualified triggers made it through
+            # Note: proposals list contains final accepted proposals
+            # qualified_triggers contains all triggers that met min_trigger_score
+            failed_rule_logic = len(qualified_triggers) - len(proposals)
             
             logger.info(
-                f"📊 Trigger summary: {len(triggers)} total → "
-                f"{rejected_rule_logic} failed rule logic, "
-                f"{rejected_conviction} failed min_conviction, "
+                f"📊 Trigger summary: {len(qualified_triggers)} qualified triggers → "
+                f"{failed_rule_logic} failed rule/conviction filters, "
                 f"{len(proposals)} final proposals"
             )
         
