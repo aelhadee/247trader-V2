@@ -129,3 +129,33 @@ ai:
   # Observability
   log_decisions: true         # Log all AI decisions for audit
   metrics_enabled: true       # Export AI metrics (latency, decision rates)
+  
+  # Dual-Trader Mode: Run AI trader in parallel with local rules, then arbitrate
+  # Architecture: Local trader vs AI trader → Meta-arbitrator → RiskEngine → ExecutionEngine
+  dual_trader:
+    enabled: false  # Start disabled - requires careful testing
+    
+    # AI Trader (Model #1): Generates independent trade proposals
+    provider: "openai"  # openai | anthropic | mock
+    model: "gpt-5-mini-2025-08-07"
+    api_key: "${OPENAI_API_KEY}"
+    timeout_s: 2.0
+    max_decisions: 5  # Max proposals per cycle
+    min_confidence: 0.0  # Filter out low-confidence decisions
+    enable_hold_signals: false  # Whether to log HOLD signals
+    
+    # Meta-Arbitration: Deterministic rules for merging local + AI proposals
+    arbitration:
+      min_ai_confidence: 0.6  # Minimum AI confidence to use single AI proposal
+      ai_override_threshold: 0.7  # AI confidence needed to override local in conflicts
+      local_weak_conviction: 0.35  # Local conviction considered "weak"
+      ai_confidence_advantage: 0.25  # Gap needed for AI to override weak local
+      blend_mode: "conservative"  # conservative (min) | average
+    
+    # AI Arbiter (Model #2): Optional tie-breaker for unresolved conflicts
+    arbiter:
+      enabled: false  # Start with deterministic arbitration only
+      provider: "anthropic"
+      model: "claude-sonnet-4-5-20250929"
+      api_key: "${ANTHROPIC_API_KEY}"
+      timeout_s: 1.5
