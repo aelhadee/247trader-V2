@@ -458,7 +458,7 @@ class TestIntegration:
         assert len(final_proposals) == 3  # BTC (blended), ETH (AI only), MATIC (local only)
         
         # Find BTC proposal (should be blended)
-        btc_proposal = [p for p in final_proposals if p.product_id == "BTC-USD"][0]
+        btc_proposal = [p for p in final_proposals if p.symbol == "BTC-USD"][0]
         assert btc_proposal.size_pct == 3.0  # min(3.0, 5.0)
         
         # Find arbitration log entries
