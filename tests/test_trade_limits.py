@@ -287,7 +287,7 @@ def test_apply_win_cooldown(trade_limits, mock_state_store):
 
 def test_apply_loss_cooldown(trade_limits, mock_state_store):
     """Apply loss cooldown (60min)"""
-    now = datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
     
     trade_limits.apply_cooldown("ETH-USD", outcome="loss", current_time=now)
     
