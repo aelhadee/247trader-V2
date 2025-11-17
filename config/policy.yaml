@@ -310,7 +310,7 @@ execution:
     size_reduction_factor: 0.5
 portfolio_management:
   auto_liquidate_ineligible: true
-  min_liquidation_value_usd: 10
+  min_liquidation_value_usd: 5   # Reduced from 10 to 5 for small accounts
   max_liquidations_per_cycle: 2
   auto_trim_to_risk_cap: true
   trim_target_buffer_pct: 10.0
