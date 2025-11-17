@@ -12,7 +12,7 @@ from runner.main_loop import TradingLoop
 @patch('infra.instance_lock.check_single_instance', return_value=True)
 def test_jitter_config_loaded(mock_lock):
     """Test jitter configuration loads from policy.yaml (default 10%)."""
-    loop = TradingLoop(config_dir="config")
+    loop = TradingLoop(config_dir="config", mode_override="DRY_RUN")
     assert hasattr(loop, 'loop_jitter_pct')
     assert isinstance(loop.loop_jitter_pct, float)
     assert loop.loop_jitter_pct == 10.0

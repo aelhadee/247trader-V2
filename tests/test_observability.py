@@ -20,7 +20,7 @@ def test_health_status_snapshot(monkeypatch):
 
     monkeypatch.setattr(instance_lock, "check_single_instance", lambda *args, **kwargs: DummyLock())
 
-    loop = TradingLoop(config_dir="config")
+    loop = TradingLoop(config_dir="config", mode_override="DRY_RUN")
     snapshot = loop._health_status_snapshot()
 
     assert snapshot["mode"] == loop.mode

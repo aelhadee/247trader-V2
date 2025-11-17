@@ -110,7 +110,7 @@ class TestGracefulShutdown:
                 "monitoring": {},
             }
             
-            loop = TradingLoop()
+            loop = TradingLoop(mode_override="DRY_RUN")
             
             # Trigger shutdown
             loop._handle_stop()
@@ -132,7 +132,7 @@ class TestGracefulShutdown:
                 "monitoring": {},
             }
             
-            loop = TradingLoop()
+            loop = TradingLoop(mode_override="DRY_RUN")
             
             # No active orders
             mock_components["executor"].order_state_machine.get_active_orders.return_value = []
@@ -160,7 +160,7 @@ class TestGracefulShutdown:
                 "monitoring": {},
             }
             
-            loop = TradingLoop()
+            loop = TradingLoop(mode_override="DRY_RUN")
             
             # One active order
             active_order = OrderState(
@@ -205,7 +205,7 @@ class TestGracefulShutdown:
                 "monitoring": {},
             }
             
-            loop = TradingLoop()
+            loop = TradingLoop(mode_override="DRY_RUN")
             
             # Three active orders
             active_orders = [
@@ -270,7 +270,7 @@ class TestGracefulShutdown:
                 "monitoring": {},
             }
             
-            loop = TradingLoop()
+            loop = TradingLoop(mode_override="DRY_RUN")
             
             # Two orders: one with order_id, one without
             active_orders = [
@@ -313,7 +313,7 @@ class TestGracefulShutdown:
                 "monitoring": {},
             }
             
-            loop = TradingLoop()
+            loop = TradingLoop(mode_override="DRY_RUN")
             
             # One active order
             active_order = OrderState(
@@ -351,7 +351,7 @@ class TestGracefulShutdown:
                 "monitoring": {},
             }
             
-            loop = TradingLoop()
+            loop = TradingLoop(mode_override="DRY_RUN")
             
             # One active order
             active_order = OrderState(
@@ -383,7 +383,7 @@ class TestGracefulShutdown:
                 "monitoring": {},
             }
             
-            loop = TradingLoop()
+            loop = TradingLoop(mode_override="DRY_RUN")
             
             # No active orders
             mock_components["executor"].order_state_machine.get_active_orders.return_value = []
@@ -407,7 +407,7 @@ class TestGracefulShutdown:
                 "monitoring": {},
             }
             
-            loop = TradingLoop()
+            loop = TradingLoop(mode_override="DRY_RUN")
             
             # One active order
             active_order = OrderState(
@@ -440,7 +440,7 @@ class TestGracefulShutdown:
                 "monitoring": {},
             }
             
-            loop = TradingLoop()
+            loop = TradingLoop(mode_override="DRY_RUN")
             
             # Two active orders
             active_orders = [
@@ -488,7 +488,7 @@ class TestGracefulShutdown:
                 "monitoring": {},
             }
             
-            loop = TradingLoop()
+            loop = TradingLoop(mode_override="DRY_RUN")
             
             # Two active orders
             active_orders = [

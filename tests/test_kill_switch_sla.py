@@ -130,7 +130,7 @@ def test_kill_switch_alert_sla_under_5s(mock_lock, kill_switch_file, mock_exchan
     REQ-K1.3: Emit a CRITICAL alert within ≤5s.
     """
     # Setup
-    loop = TradingLoop(config_dir="config")
+    loop = TradingLoop(config_dir="config", mode_override="DRY_RUN")
     loop.exchange = mock_exchange
     loop.risk_engine.alert_service = mock_alert_service
     loop.risk_engine.governance_config["kill_switch_file"] = str(kill_switch_file)
@@ -188,7 +188,7 @@ def test_kill_switch_cancel_timing_sla(mock_lock, kill_switch_file, mock_exchang
     triggered by kill-switch detection in the main loop.
     """
     # Setup: Create loop with mock orders
-    loop = TradingLoop(config_dir="config")
+    loop = TradingLoop(config_dir="config", mode_override="DRY_RUN")
     loop.exchange = mock_exchange
     loop.mode = "PAPER"  # Not DRY_RUN so cancellation happens
     loop._running = True
@@ -262,7 +262,7 @@ def test_kill_switch_state_persistence(mock_lock, kill_switch_file, mock_exchang
     REQ-K1.4: Persist halt_reason and timestamp.
     """
     # Setup
-    loop = TradingLoop(config_dir="config")
+    loop = TradingLoop(config_dir="config", mode_override="DRY_RUN")
     loop.exchange = mock_exchange
     loop.risk_engine.alert_service = mock_alert_service
     loop.risk_engine.governance_config["kill_switch_file"] = str(kill_switch_file)
@@ -351,7 +351,7 @@ def test_kill_switch_no_new_orders_after_activation(mock_lock, kill_switch_file,
     Validates that execution engine respects risk gate blocks.
     """
     # Setup
-    loop = TradingLoop(config_dir="config")
+    loop = TradingLoop(config_dir="config", mode_override="DRY_RUN")
     loop.exchange = mock_exchange
     loop.risk_engine.alert_service = mock_alert_service
     loop.risk_engine.governance_config["kill_switch_file"] = str(kill_switch_file)

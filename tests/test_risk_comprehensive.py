@@ -143,7 +143,9 @@ def test_min_notional_rejects_small_trade(risk_engine, base_portfolio):
     result = risk_engine.check_all([small_proposal], base_portfolio)
     
     assert not result.approved
-    assert "min_notional" in result.reason.lower() or "minimum" in result.reason.lower()
+    # Check violated_checks for position_size_too_small instead of reason text
+    assert any("position_size_too_small" in check or "minimum" in check.lower() 
+               for check in result.violated_checks)
 
 
 def test_min_notional_approves_sufficient_trade(risk_engine, base_portfolio, sample_proposal):
