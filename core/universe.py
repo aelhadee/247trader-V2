@@ -143,15 +143,24 @@ class UniverseManager:
         - Liquidity metrics
         - Exchange support
         """
-        logger.info("Fetching all tradable pairs from Coinbase...")
+        # OPTIMIZATION: Check products cache first to avoid redundant API calls
+        symbols = self._get_cached_products()
         
-        try:
-            exchange = get_exchange()
-            symbols = exchange.get_symbols()
+        if symbols:
+            logger.info(f"Using cached product list ({len(symbols)} symbols)")
+        else:
+            logger.info("Fetching all tradable pairs from Coinbase...")
             
-            # CRITICAL: Treat empty symbols as failure
-            if not symbols:
-                raise RuntimeError("No symbols returned from Coinbase – triggering fallback")
+            try:
+                exchange = get_exchange()
+                symbols = exchange.get_symbols()
+                
+                # CRITICAL: Treat empty symbols as failure
+                if not symbols:
+                    raise RuntimeError("No symbols returned from Coinbase – triggering fallback")
+                
+                # Cache successful fetch
+                self._update_products_cache(symbols)
             
             # Filter to USD pairs only
             usd_pairs = [s for s in symbols if s.endswith('-USD')]
