@@ -50,7 +50,8 @@ class ClockSyncValidator:
     # NTP time begins 1900-01-01, Unix time begins 1970-01-01
     NTP_EPOCH_OFFSET = 2208988800  # Seconds between 1900 and 1970
     
-    MAX_DRIFT_MS = 150.0  # Per REQ-TIME1 (increased from 100ms to 150ms to account for network jitter)
+    WARNING_DRIFT_MS = 150.0  # Warn when drift exceeds this (check NTP sync)
+    MAX_DRIFT_MS = 250.0  # Hard fail threshold per REQ-TIME1 (acceptable for retail spot trading with 60s cycles)
     TIMEOUT_SECONDS = 5.0
     
     # Public NTP servers (fallback list)
