@@ -1757,6 +1757,106 @@ class TradingLoop:
                 )
                 return
             
+            # Step 9.5: AI Advisor (filter/resize proposals)
+            if self.ai_enabled and self.ai_advisor and self.ai_model_client:
+                logger.info(f"🤖 Step 9.5: AI advisor reviewing {len(proposals)} proposal(s)...")
+                try:
+                    from ai.schemas import (
+                        AIAdvisorInput,
+                        AIMarketSnapshot,
+                        AIPortfolioSnapshot,
+                        AIProposalIn,
+                    )
+                    
+                    # Build AI input context
+                    nav = float(self.portfolio.account_value_usd or 0.0)
+                    exposure_pct = (self.portfolio.total_exposure_usd / nav * 100.0) if nav > 0 else 0.0
+                    
+                    # Get 24h metrics if available
+                    state = self.state_store.load()
+                    drawdown_24h = state.get("drawdown_24h_pct")
+                    realized_vol_24h = state.get("realized_vol_24h")
+                    realized_pnl_24h = state.get("realized_pnl_24h", 0.0)
+                    
+                    # Build position snapshot
+                    positions_usd = {}
+                    for symbol, pos_data in (state.get("positions", {}) or {}).items():
+                        if isinstance(pos_data, dict):
+                            positions_usd[symbol] = pos_data.get("market_value_usd", 0.0)
+                    
+                    ai_input = AIAdvisorInput(
+                        run_id=self.run_id,
+                        timestamp_iso=cycle_started.isoformat(),
+                        market=AIMarketSnapshot(
+                            regime=self.current_regime or "unknown",
+                            nav=nav,
+                            exposure_pct=exposure_pct,
+                            drawdown_24h_pct=drawdown_24h,
+                            realized_vol_24h=realized_vol_24h,
+                        ),
+                        portfolio=AIPortfolioSnapshot(
+                            positions=positions_usd,
+                            realized_pnl_24h=realized_pnl_24h,
+                            num_positions=len(positions_usd),
+                        ),
+                        proposals=[
+                            AIProposalIn(
+                                symbol=p.symbol,
+                                side=p.side,
+                                tier=getattr(p, 'tier', 'unknown'),
+                                conviction=getattr(p, 'conviction', 0.5),
+                                notional=p.size_pct / 100.0 * nav if hasattr(p, 'size_pct') else 0.0,
+                                reason=getattr(p, 'trigger_name', 'unknown'),
+                            )
+                            for p in proposals
+                        ],
+                    )
+                    
+                    # Call AI advisor
+                    with self._stage_timer("ai_advisor"):
+                        ai_output = self.ai_advisor.advise(ai_input, self.ai_model_client)
+                    
+                    # Record metrics
+                    if ai_output.latency_ms:
+                        self.metrics.record_ai_latency(ai_output.latency_ms)
+                    
+                    # Apply risk mode if enabled
+                    if ai_output.risk_mode:
+                        self._apply_risk_mode(ai_output.risk_mode)
+                    
+                    # Apply decisions to proposals
+                    proposals = self._apply_ai_decisions(proposals, ai_output)
+                    
+                    # Update proposals count after AI filtering
+                    proposals_count = len(proposals)
+                    
+                    if not proposals:
+                        reason = "ai_skipped_all_proposals"
+                        logger.warning(f"⚠️  NO_TRADE: {reason} (AI advisor skipped all proposals)")
+                        self._audit_cycle(
+                            ts=cycle_started,
+                            mode=self.mode,
+                            universe=universe,
+                            triggers=triggers,
+                            base_proposals=[],
+                            risk_approved=[],
+                            final_orders=[],
+                            no_trade_reason=reason,
+                            state_store=self.state_store,
+                        )
+                        self._record_cycle_metrics(
+                            status=reason,
+                            proposals=0,
+                            approved=0,
+                            executed=0,
+                            started_at=cycle_started,
+                        )
+                        return
+                    
+                except Exception as e:
+                    logger.error(f"AI advisor error (continuing with original proposals): {e}", exc_info=True)
+                    # Continue with original proposals on error (safe fallback)
+            
             # Avoid stacking buys while there are outstanding orders for the same base asset
             # Use pending_buy_notional from portfolio snapshot (aggregated from open_orders)
             logger.info(f"🔍 Step 10: Filtering proposals for pending orders and capacity...")
