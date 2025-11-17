@@ -101,7 +101,7 @@ from ai.model_client import create_model_client
 client = create_model_client(
     provider="openai",
     api_key="sk-...",
-    model="gpt-4-turbo-preview",
+    model="gpt-4o",
 )
 
 # Anthropic
