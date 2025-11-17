@@ -86,8 +86,8 @@ risk:
   # Note: stop_loss uses per_symbol_cooldown_after_stop (120min)
   
   # Sizing minimums
-  min_trade_notional_usd: 10    # Was 15 - REDUCED to $10 (matches dust threshold)
-  dust_threshold_usd: 10.0
+  min_trade_notional_usd: 5     # Reduced from 10 to 5 for small accounts (~$250)
+  dust_threshold_usd: 5.0        # Lowered to match min_trade_notional
   
   # Pyramiding: DISABLED by default (Freqtrade/Hummingbot don't pyramid)
   # Advanced users can enable via day_trader profile
