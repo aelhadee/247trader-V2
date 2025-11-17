@@ -179,7 +179,7 @@ class AiTraderStrategy(BaseStrategy):
         proposals = []
         
         # Build symbol set for validation
-        valid_symbols = {asset.symbol for asset in context.universe.assets}
+        valid_symbols = {asset.symbol for asset in context.universe.get_all_eligible()}
         
         for decision in ai_decisions:
             # Filter by action

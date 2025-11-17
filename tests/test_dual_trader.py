@@ -233,14 +233,7 @@ class TestMetaArbitration:
         arb = MetaArbitrator(config)
         
         ai = [
-            TradeProposal(
-                symbol="BTC-USD",
-                side="buy",
-                target_weight_pct=4.0,
-                conviction=0.75,
-                source="ai",
-                notes="AI decision",
-            )
+            make_proposal("BTC-USD", "buy", 4.0, 0.75, "ai")
         ]
         
         final, log = arb.aggregate_proposals(local_proposals=[], ai_proposals=ai)
@@ -255,14 +248,7 @@ class TestMetaArbitration:
         arb = MetaArbitrator(config)
         
         ai = [
-            TradeProposal(
-                symbol="BTC-USD",
-                side="buy",
-                target_weight_pct=4.0,
-                conviction=0.5,  # Below threshold
-                source="ai",
-                notes="AI decision",
-            )
+            make_proposal("BTC-USD", "buy", 4.0, 0.5, "ai")
         ]
         
         final, log = arb.aggregate_proposals(local_proposals=[], ai_proposals=ai)
@@ -276,25 +262,11 @@ class TestMetaArbitration:
         arb = MetaArbitrator(config)
         
         local = [
-            TradeProposal(
-                symbol="BTC-USD",
-                side="buy",
-                target_weight_pct=3.0,
-                conviction=0.6,
-                source="local",
-                notes="Local",
-            )
+            make_proposal("BTC-USD", "buy", 3.0, 0.6, "local")
         ]
         
         ai = [
-            TradeProposal(
-                symbol="BTC-USD",
-                side="buy",
-                target_weight_pct=5.0,
-                conviction=0.8,
-                source="ai",
-                notes="AI",
-            )
+            make_proposal("BTC-USD", "buy", 5.0, 0.8)
         ]
         
         final, log = arb.aggregate_proposals(local_proposals=local, ai_proposals=ai)
@@ -309,25 +281,11 @@ class TestMetaArbitration:
         arb = MetaArbitrator(config)
         
         local = [
-            TradeProposal(
-                symbol="BTC-USD",
-                side="buy",
-                target_weight_pct=3.0,
-                conviction=0.6,
-                source="local",
-                notes="Local",
-            )
+            make_proposal("BTC-USD", "buy", 3.0, 0.6, "local")
         ]
         
         ai = [
-            TradeProposal(
-                symbol="BTC-USD",
-                side="sell",
-                target_weight_pct=2.0,
-                conviction=0.5,  # Below override threshold
-                source="ai",
-                notes="AI",
-            )
+            make_proposal("BTC-USD", "sell", 2.0, 0.5)
         ]
         
         final, log = arb.aggregate_proposals(local_proposals=local, ai_proposals=ai)
@@ -346,25 +304,11 @@ class TestMetaArbitration:
         arb = MetaArbitrator(config)
         
         local = [
-            TradeProposal(
-                symbol="BTC-USD",
-                side="buy",
-                target_weight_pct=3.0,
-                conviction=0.30,  # Weak
-                source="local",
-                notes="Local",
-            )
+            make_proposal("BTC-USD", "buy", 3.0, 0.30)
         ]
         
         ai = [
-            TradeProposal(
-                symbol="BTC-USD",
-                side="sell",
-                target_weight_pct=2.0,
-                conviction=0.80,  # Strong + gap > 0.25
-                source="ai",
-                notes="AI",
-            )
+            make_proposal("BTC-USD", "sell", 2.0, 0.80)
         ]
         
         final, log = arb.aggregate_proposals(local_proposals=local, ai_proposals=ai)
@@ -383,25 +327,11 @@ class TestMetaArbitration:
         arb = MetaArbitrator(config)
         
         local = [
-            TradeProposal(
-                symbol="BTC-USD",
-                side="buy",
-                target_weight_pct=3.0,
-                conviction=0.60,  # Not weak
-                source="local",
-                notes="Local",
-            )
+            make_proposal("BTC-USD", "buy", 3.0, 0.60)
         ]
         
         ai = [
-            TradeProposal(
-                symbol="BTC-USD",
-                side="sell",
-                target_weight_pct=2.0,
-                conviction=0.65,  # Not strong enough advantage
-                source="ai",
-                notes="AI",
-            )
+            make_proposal("BTC-USD", "sell", 2.0, 0.65)
         ]
         
         final, log = arb.aggregate_proposals(local_proposals=local, ai_proposals=ai)
