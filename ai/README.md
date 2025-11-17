@@ -87,11 +87,11 @@ output = advisor.advise(input_data, client)
 
 **Supported Providers:**
 
-| Provider   | Model                   | API Key Required       |
-|------------|-------------------------|------------------------|
-| OpenAI     | GPT-4 Turbo, GPT-4o     | `OPENAI_API_KEY`       |
-| Anthropic  | Claude 3.5 Sonnet/Opus  | `ANTHROPIC_API_KEY`    |
-| Mock       | Testing/dry-run         | None                   |
+| Provider   | Model                          | API Key Required       |
+|------------|--------------------------------|------------------------|
+| OpenAI     | GPT-4o, GPT-4 Turbo, o1        | `OPENAI_API_KEY`       |
+| Anthropic  | Claude 3.5 Sonnet (Oct 2024)   | `ANTHROPIC_API_KEY`    |
+| Mock       | Testing/dry-run                | None                   |
 
 **Usage:**
 ```python
