@@ -107,6 +107,10 @@ class RulesEngine(BaseStrategy):
         self.tier2_base_size = base_position_pct.get("tier2", 0.01) * 100
         self.tier3_base_size = base_position_pct.get("tier3", 0.005) * 100
         
+        # Minimum notional enforcement (for small accounts)
+        execution_cfg = self.policy.get("execution", {})
+        self.min_notional_usd = execution_cfg.get("min_notional_usd", 5.0)
+        
         # Minimum conviction threshold (spec requirement)
         self.min_conviction_default = strategy_cfg.get("min_conviction_to_propose", 0.5)
         self.min_conviction_by_regime = strategy_cfg.get("min_conviction_by_regime", {})
