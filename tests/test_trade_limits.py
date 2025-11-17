@@ -299,7 +299,7 @@ def test_apply_loss_cooldown(trade_limits, mock_state_store):
 
 def test_apply_stop_loss_cooldown(trade_limits, mock_state_store):
     """Apply stop-loss cooldown (120min)"""
-    now = datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
     
     trade_limits.apply_cooldown("SOL-USD", outcome="stop_loss", current_time=now)
     
