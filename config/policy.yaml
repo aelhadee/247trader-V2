@@ -326,7 +326,7 @@ portfolio_management:
   trim_slippage_buffer_pct: 5.0
   auto_rebalance_worst_performer: true
   purge_execution:
-    slice_usd: 15.0
+    slice_usd: 10.0              # Reduced from 15.0 to 10.0 for small accounts
     maker_ttl_sec: 25
     maker_first_ttl_sec: 25
     maker_retry_ttl_sec: 20
@@ -334,7 +334,7 @@ portfolio_management:
     max_duration_seconds: 240
     poll_interval_seconds: 2.0
     max_slices: 24
-    max_residual_usd: 12.0  # Increased from 5.0 to reduce thrashing on small positions
+    max_residual_usd: 8.0        # Reduced from 12.0 to 8.0 for small accounts
     max_consecutive_no_fill: 2
     allow_taker_fallback: true
     taker_fallback_threshold_usd: 25.0  # Lowered from 50.0 to use taker sooner
