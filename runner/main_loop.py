@@ -283,6 +283,14 @@ class TradingLoop:
         self.runtime_trade_size_multiplier = 1.0  # Runtime multiplier from AI risk mode
         self.runtime_max_at_risk_pct = self.policy_config.get("max_at_risk_pct", 15.0)
         
+        # Dual-trader mode configuration
+        ai_trader_cfg = ai_cfg.get("dual_trader", {}) or {}
+        self.dual_trader_enabled = ai_trader_cfg.get("enabled", False)
+        self.ai_trader_client = None
+        self.ai_trader_strategy = None
+        self.meta_arbitrator = None
+        self.ai_arbiter_client = None
+        
         if self.ai_enabled:
             try:
                 from ai.advisor import AIAdvisorService
