@@ -34,7 +34,7 @@ profiles:
     min_conviction: 0.3
     tier_sizing:
       T1: 0.03
-      T2: 0.018
+      T2: 0.020   # Increased from 0.018 (1.8%) to 0.020 (2.0%) for $250 accounts → $5.14 orders
       T3: 0.007
     max_position_pct:
       T1: 0.07
