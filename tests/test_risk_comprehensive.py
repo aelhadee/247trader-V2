@@ -222,7 +222,8 @@ def test_total_exposure_cap_enforced(risk_engine, base_portfolio):
     
     # Should be rejected for exceeding total at-risk cap
     assert not result.approved
-    assert "at.risk" in result.reason.lower() or "exposure" in result.reason.lower()
+    # Reason contains "at-risk" (with hyphen, not period)
+    assert "at-risk" in result.reason.lower() or "exposure" in result.reason.lower()
 
 
 # Test: Trade Frequency Limits
