@@ -2489,8 +2489,40 @@ class TradingLoop:
                 preferred_pair=symbol,
             ):
                 liquidations += 1
+                # Clear any previous purge failure tracking on success
+                state = self.state_store.load()
+                purge_failures = state.get("purge_failures", {})
+                if symbol in purge_failures:
+                    del purge_failures[symbol]
+                    state["purge_failures"] = purge_failures
+                    self.state_store.save(state)
+                    logger.info(f"✅ Purge success for {symbol}, cleared failure tracking")
             else:
-                logger.warning(f"Purge sell failed for {symbol}")
+                logger.warning(f"⚠️ Purge sell failed for {symbol}")
+                
+                # Track purge failure in state (backoff for future cycles)
+                state = self.state_store.load()
+                purge_failures = state.get("purge_failures", {})
+                
+                failure_entry = purge_failures.get(symbol, {})
+                failure_count = failure_entry.get("failure_count", 0) + 1
+                now_iso = datetime.now(timezone.utc).isoformat()
+                
+                purge_failures[symbol] = {
+                    "failure_count": failure_count,
+                    "last_failed_at_iso": now_iso,
+                    "last_error": f"Purge failed after {liquidations} other liquidations",
+                    "balance": balance,
+                    "value_usd": value_usd,
+                }
+                
+                state["purge_failures"] = purge_failures
+                self.state_store.save(state)
+                
+                logger.info(
+                    f"📝 Tracked purge failure for {symbol}: "
+                    f"count={failure_count}, balance={balance:.6f}, value=${value_usd:.2f}"
+                )
     
     def _reconcile_exchange_state(self) -> None:
         """Refresh the persistent state store with the latest exchange snapshot."""
