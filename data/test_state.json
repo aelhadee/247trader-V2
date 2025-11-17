@@ -57,10 +57,10 @@
       "symbol": "BTC-USD",
       "side": "SELL",
       "size_usd": 100.0,
-      "timestamp": "2025-11-17T12:49:14.342965+00:00",
+      "timestamp": "2025-11-17T12:55:48.307166+00:00",
       "status": "open",
-      "first_seen": "2025-11-17T12:49:14.343444+00:00",
-      "updated_at": "2025-11-17T12:49:14.343444+00:00"
+      "first_seen": "2025-11-17T12:55:48.307536+00:00",
+      "updated_at": "2025-11-17T12:55:48.307536+00:00"
     },
     "coid_47db88a9cc9b172c": {
       "order_id": "real-order-123",
@@ -569,15 +569,15 @@
   },
   "recent_orders": [],
   "pending_markers": {
-    "BTC-USD:SELL:247trader_coid_53238c4f9a32e6ae": {
+    "BTC-USD:SELL:247trader_coid_b1f09e942153c2a0": {
       "product_id": "BTC-USD",
       "base": "BTC",
       "side": "SELL",
-      "client_order_id": "247trader_coid_53238c4f9a32e6ae",
+      "client_order_id": "247trader_coid_b1f09e942153c2a0",
       "order_id": "real-order-123",
       "notional_usd": 100.61,
-      "since": "2025-11-17T12:49:14.334464+00:00",
-      "expires_at": "2025-11-17T12:52:14.334464+00:00"
+      "since": "2025-11-17T12:55:48.297807+00:00",
+      "expires_at": "2025-11-17T12:58:48.297807+00:00"
     }
   },
   "last_fill_times": {},
@@ -586,14 +586,6 @@
   "last_reset_date": "2025-11-17",
   "last_reset_hour": 12,
   "events": [
-    {
-      "at": "2025-11-11T20:41:07.227233+00:00",
-      "event": "order_opened",
-      "order_key": "coid_a3d61db9800cf467",
-      "product_id": "BTC-USD",
-      "side": "sell",
-      "quote_size_usd": 100.0
-    },
     {
       "at": "2025-11-11T20:42:00.479492+00:00",
       "event": "order_opened",
@@ -1380,6 +1372,14 @@
     },
     {
       "at": "2025-11-17T12:49:14.343444+00:00",
+      "event": "order_opened",
+      "order_key": "test_duplicate_123",
+      "product_id": null,
+      "side": "SELL",
+      "quote_size_usd": null
+    },
+    {
+      "at": "2025-11-17T12:55:48.307536+00:00",
       "event": "order_opened",
       "order_key": "test_duplicate_123",
       "product_id": null,

@@ -64,15 +64,33 @@ class MetricsRecorder:
             )
 
         if not self._enabled:
+            # Core cycle metrics
             self._cycle_summary = None
             self._cycle_counter = None
             self._cycle_gauge = None
             self._stage_summary = None
+            # Rate limiting metrics
             self._rate_limit_gauge = None
             self._rate_limit_counter = None
             self._api_latency_summary = None
+            # Trading metrics
             self._no_trade_counter = None
             self._exposure_gauge = None
+            self._positions_gauge = None
+            self._pending_orders_gauge = None
+            # Execution quality metrics
+            self._fill_ratio_gauge = None
+            self._fills_counter = None
+            self._order_rejections_counter = None
+            # Circuit breaker metrics
+            self._circuit_breaker_gauge = None
+            self._circuit_breaker_trips_counter = None
+            # API error tracking
+            self._api_errors_counter = None
+            self._api_consecutive_errors_gauge = None
+            # Trim tracking
+            self._trim_attempts_counter = None
+            self._trim_consecutive_failures_gauge = None
             return
 
         self._cycle_summary = Summary(  # type: ignore[assignment]
