@@ -32,6 +32,13 @@ class PrometheusExporter:
             self.position_value = Gauge('trader_position_value_usd', 'Position value in USD', ['symbol'], registry=self.registry)
             self.exposure_pct = Gauge('trader_exposure_pct', 'Total exposure as % of account', registry=self.registry)
             
+            # NEW: Enhanced operational metrics for Grafana dashboards
+            self.trades_per_hour = Gauge('trader_trades_per_hour', 'Rolling trades per hour count', registry=self.registry)
+            self.triggers_detected = Gauge('trader_triggers_detected', 'Triggers detected in last cycle', registry=self.registry)
+            self.proposals_generated = Gauge('trader_proposals_generated', 'Proposals generated in last cycle', registry=self.registry)
+            self.triggers_to_proposals_ratio = Gauge('trader_triggers_to_proposals_ratio', 'Ratio of proposals to triggers (strategy selectivity)', registry=self.registry)
+            self.rate_limiter_utilization_pct = Gauge('trader_rate_limiter_utilization_pct', 'Rate limiter utilization percentage', ['endpoint'], registry=self.registry)
+            
             # Risk metrics
             self.max_drawdown = Gauge('trader_max_drawdown_pct', 'Maximum drawdown percentage', registry=self.registry)
             self.risk_rejections = Counter('trader_risk_rejections_total', 'Risk check rejections', ['reason'], registry=self.registry)
