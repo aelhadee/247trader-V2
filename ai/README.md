@@ -89,8 +89,8 @@ output = advisor.advise(input_data, client)
 
 | Provider   | Model                          | API Key Required       |
 |------------|--------------------------------|------------------------|
-| OpenAI     | GPT-4o, GPT-4 Turbo, o1        | `OPENAI_API_KEY`       |
-| Anthropic  | Claude 3.5 Sonnet (Oct 2024)   | `ANTHROPIC_API_KEY`    |
+| Anthropic  | Claude Sonnet 4.5 (Sep 2025)   | `ANTHROPIC_API_KEY`    |
+| OpenAI     | GPT-5 Mini (Aug 2025)          | `OPENAI_API_KEY`       |
 | Mock       | Testing/dry-run                | None                   |
 
 **Usage:**
