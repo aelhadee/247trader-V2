@@ -1868,9 +1868,8 @@ class TradingLoop:
                             f"  ⚖️  {decision.symbol}: {decision.resolution} - {decision.reason}"
                         )
                     
-                    # Store arbitration log for audit
-                    if hasattr(self, '_current_arbitration_log'):
-                        self._current_arbitration_log = arbitration_log
+                    # Store arbitration log for audit trail
+                    self._current_arbitration_log = arbitration_log
                     
                 else:
                     # Standard mode: use local proposals only
