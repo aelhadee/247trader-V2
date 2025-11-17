@@ -2504,7 +2504,33 @@ class ExecutionEngine:
                 )
 
                 if not order_id and not result.get("success"):
-                    error_msg = f"Order placement failed: {result.get('error', 'Unknown error')}"
+                    # Extract detailed error info from Coinbase response
+                    error_basic = result.get('error', 'Unknown error')
+                    error_response = result.get('error_response', {})
+                    error_detail = error_response.get('error', '')
+                    error_message = error_response.get('message', '')
+                    preview_failure_reason = error_response.get('preview_failure_reason', '')
+                    
+                    # Build comprehensive error message
+                    error_parts = [f"Order placement failed: {error_basic}"]
+                    if error_detail:
+                        error_parts.append(f"error={error_detail}")
+                    if error_message:
+                        error_parts.append(f"message={error_message}")
+                    if preview_failure_reason:
+                        error_parts.append(f"preview_failure={preview_failure_reason}")
+                    
+                    error_msg = " | ".join(error_parts)
+                    
+                    logger.error(
+                        "ORDER_REJECT %s %s client_id=%s | %s | raw_response=%s",
+                        symbol,
+                        side.upper(),
+                        attempt_client_order_id,
+                        error_msg,
+                        result  # Log full response for debugging
+                    )
+                    
                     self.order_state_machine.transition(
                         attempt_client_order_id,
                         OrderStatus.REJECTED,
