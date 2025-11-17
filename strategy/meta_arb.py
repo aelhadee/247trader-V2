@@ -86,10 +86,10 @@ class MetaArbitrator:
         by_symbol: Dict[str, Dict[str, TradeProposal]] = defaultdict(dict)
         
         for p in local_proposals:
-            by_symbol[p.product_id]["local"] = p
+            by_symbol[p.symbol]["local"] = p
         
         for p in ai_proposals:
-            by_symbol[p.product_id]["ai"] = p
+            by_symbol[p.symbol]["ai"] = p
         
         final_proposals = []
         arbitration_log = []
@@ -150,20 +150,20 @@ class MetaArbitrator:
                 final_proposal=local,
                 local_proposal=local,
                 ai_proposal=None,
-                reason=f"Local only: {local.side} {local.target_weight_pct:.2f}% (conv={local.conviction:.2f})",
+                reason=f"Local only: {local.side} {local.size_pct:.2f}% (conv={local.confidence:.2f})",
             )
         
         # Case 3: Only AI present
         if ai and not local:
             # Apply confidence filter
-            if ai.conviction < self.min_ai_confidence:
+            if ai.confidence < self.min_ai_confidence:
                 return ArbitrationDecision(
                     symbol=symbol,
                     resolution="NONE",
                     final_proposal=None,
                     local_proposal=None,
                     ai_proposal=ai,
-                    reason=f"AI confidence {ai.conviction:.2f} < min {self.min_ai_confidence}",
+                    reason=f"AI confidence {ai.confidence:.2f} < min {self.min_ai_confidence}",
                 )
             
             return ArbitrationDecision(
@@ -172,7 +172,7 @@ class MetaArbitrator:
                 final_proposal=ai,
                 local_proposal=None,
                 ai_proposal=ai,
-                reason=f"AI only: {ai.side} {ai.target_weight_pct:.2f}% (conf={ai.conviction:.2f})",
+                reason=f"AI only: {ai.side} {ai.size_pct:.2f}% (conf={ai.confidence:.2f})",
             )
         
         # Case 4: Both present - apply arbitration logic
@@ -204,20 +204,20 @@ class MetaArbitrator:
         """
         if self.blend_mode == "conservative":
             # Take minimum of the two sizes
-            blended_weight = min(local.target_weight_pct, ai.target_weight_pct)
+            blended_weight = min(local.size_pct, ai.size_pct)
         else:  # average
-            blended_weight = (local.target_weight_pct + ai.target_weight_pct) / 2
+            blended_weight = (local.size_pct + ai.size_pct) / 2
         
         # Create blended proposal (use local as base)
         blended = TradeProposal(
-            product_id=local.product_id,
+            symbol=local.symbol,
             side=local.side,
-            target_weight_pct=blended_weight,
-            conviction=(local.conviction + ai.conviction) / 2,  # average conviction
+            size_pct=blended_weight,
+            confidence=(local.confidence + ai.confidence) / 2,  # average conviction
             source="meta_arb",
-            notes=(
-                f"Blend: local={local.target_weight_pct:.2f}% (conv={local.conviction:.2f}) + "
-                f"AI={ai.target_weight_pct:.2f}% (conf={ai.conviction:.2f}) "
+            reason=(
+                f"Blend: local={local.size_pct:.2f}% (conv={local.confidence:.2f}) + "
+                f"AI={ai.size_pct:.2f}% (conf={ai.confidence:.2f}) "
                 f"→ {blended_weight:.2f}% | {local.notes[:100]}"
             ),
             stop_loss_pct=local.stop_loss_pct,  # preserve local risk controls
@@ -251,21 +251,21 @@ class MetaArbitrator:
             ArbitrationDecision with chosen proposal or NONE
         """
         # Rule 1: Low AI confidence → trust local
-        if ai.conviction < self.ai_override_threshold:
-            local.notes += f" | AI disagreed ({ai.side}) but conf={ai.conviction:.2f} < {self.ai_override_threshold}"
+        if ai.confidence < self.ai_override_threshold:
+            local.notes += f" | AI disagreed ({ai.side}) but conf={ai.confidence:.2f} < {self.ai_override_threshold}"
             return ArbitrationDecision(
                 symbol=symbol,
                 resolution="LOCAL",
                 final_proposal=local,
                 local_proposal=local,
                 ai_proposal=ai,
-                reason=f"Conflict: AI conf {ai.conviction:.2f} < override threshold",
+                reason=f"Conflict: AI conf {ai.confidence:.2f} < override threshold",
             )
         
         # Rule 2: Low local conviction + high AI confidence advantage → trust AI
-        confidence_gap = ai.conviction - local.conviction
-        if local.conviction < self.local_weak_conviction and confidence_gap > self.ai_confidence_advantage:
-            ai.notes += f" | Overriding local {local.side} (conv={local.conviction:.2f}, gap={confidence_gap:.2f})"
+        confidence_gap = ai.confidence - local.confidence
+        if local.confidence < self.local_weak_conviction and confidence_gap > self.ai_confidence_advantage:
+            ai.notes += f" | Overriding local {local.side} (conv={local.confidence:.2f}, gap={confidence_gap:.2f})"
             return ArbitrationDecision(
                 symbol=symbol,
                 resolution="AI",
@@ -273,8 +273,8 @@ class MetaArbitrator:
                 local_proposal=local,
                 ai_proposal=ai,
                 reason=(
-                    f"Conflict: local weak (conv={local.conviction:.2f}), "
-                    f"AI strong (conf={ai.conviction:.2f}, gap={confidence_gap:.2f})"
+                    f"Conflict: local weak (conv={local.confidence:.2f}), "
+                    f"AI strong (conf={ai.confidence:.2f}, gap={confidence_gap:.2f})"
                 ),
             )
         
@@ -286,8 +286,8 @@ class MetaArbitrator:
             local_proposal=local,
             ai_proposal=ai,
             reason=(
-                f"Conflict unresolved: local {local.side} (conv={local.conviction:.2f}) vs "
-                f"AI {ai.side} (conf={ai.conviction:.2f}) - standing down"
+                f"Conflict unresolved: local {local.side} (conv={local.confidence:.2f}) vs "
+                f"AI {ai.side} (conf={ai.confidence:.2f}) - standing down"
             ),
         )
 

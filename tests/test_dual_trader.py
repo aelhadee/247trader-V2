@@ -88,7 +88,7 @@ class TestAiTraderClient:
             rationale="x" * 1000,  # Too long
         )
         
-        assert decision.target_weight_pct == 100.0
+        assert decision.size_pct == 100.0
         assert decision.confidence == 1.0
         assert decision.time_horizon_minutes == 1440
         assert len(decision.rationale) == 500
@@ -159,8 +159,8 @@ class TestAiTraderStrategy:
         assert len(proposals) == 1
         assert proposals[0].product_id == "BTC-USD"
         assert proposals[0].side == "buy"
-        assert proposals[0].target_weight_pct == 5.0
-        assert proposals[0].conviction == 0.8
+        assert proposals[0].size_pct == 5.0
+        assert proposals[0].confidence == 0.8
         assert proposals[0].source == "ai_trader"
     
     def test_strategy_filters_low_confidence(self):
@@ -300,7 +300,7 @@ class TestMetaArbitration:
         final, log = arb.aggregate_proposals(local_proposals=local, ai_proposals=ai)
         
         assert len(final) == 1
-        assert final[0].target_weight_pct == 3.0  # min(3.0, 5.0)
+        assert final[0].size_pct == 3.0  # min(3.0, 5.0)
         assert log[0].resolution == "BLEND"
     
     def test_conflict_low_ai_confidence(self):
@@ -527,7 +527,7 @@ class TestIntegration:
         
         # Find BTC proposal (should be blended)
         btc_proposal = [p for p in final_proposals if p.product_id == "BTC-USD"][0]
-        assert btc_proposal.target_weight_pct == 3.0  # min(3.0, 5.0)
+        assert btc_proposal.size_pct == 3.0  # min(3.0, 5.0)
         
         # Find arbitration log entries
         btc_arb = [d for d in arb_log if d.symbol == "BTC-USD"][0]

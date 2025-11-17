@@ -110,10 +110,9 @@ class AiTraderStrategy(BaseStrategy):
         """
         # Extract universe data
         universe_data = []
-        for asset in context.universe.assets:
+        for asset in context.universe.get_all_eligible():
             universe_data.append({
                 "symbol": asset.symbol,
-                "price": asset.price,
                 "volume_24h": asset.volume_24h,
                 "spread_pct": getattr(asset, "spread_pct", 0.0),
                 "change_1h_pct": getattr(asset, "change_1h_pct", 0.0),
