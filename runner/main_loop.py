@@ -275,6 +275,63 @@ class TradingLoop:
             state_store=self.state_store,
         )
         
+        # Initialize AI Advisor (Phase 1: proposal filtering)
+        ai_cfg = self.app_config.get("ai", {}) or {}
+        self.ai_enabled = ai_cfg.get("enabled", False)
+        self.ai_advisor = None
+        self.ai_model_client = None
+        self.runtime_trade_size_multiplier = 1.0  # Runtime multiplier from AI risk mode
+        self.runtime_max_at_risk_pct = self.policy_config.get("max_at_risk_pct", 15.0)
+        
+        if self.ai_enabled:
+            try:
+                from ai.advisor import AIAdvisorService
+                from ai.model_client import create_model_client
+                import os
+                
+                # Create model client
+                provider = ai_cfg.get("provider", "mock")
+                api_key = None
+                
+                if provider != "mock":
+                    api_key_env = ai_cfg.get("api_key", "")
+                    if api_key_env.startswith("${") and api_key_env.endswith("}"):
+                        env_var = api_key_env[2:-1]
+                        api_key = os.environ.get(env_var)
+                        if not api_key:
+                            logger.warning(f"AI API key {env_var} not set, falling back to mock mode")
+                            provider = "mock"
+                    else:
+                        api_key = api_key_env
+                
+                self.ai_model_client = create_model_client(
+                    provider=provider,
+                    api_key=api_key,
+                    model=ai_cfg.get("model"),
+                )
+                
+                # Create advisor service
+                self.ai_advisor = AIAdvisorService(
+                    enabled=True,
+                    timeout_s=ai_cfg.get("timeout_s", 1.0),
+                    max_scale_up=ai_cfg.get("max_scale_up", 1.0),
+                    fallback_on_error=ai_cfg.get("fallback_on_error", True),
+                )
+                
+                self.ai_allow_risk_mode_override = ai_cfg.get("allow_risk_mode_override", False)
+                self.ai_log_decisions = ai_cfg.get("log_decisions", True)
+                
+                logger.info(
+                    f"AI Advisor initialized: provider={provider}, "
+                    f"timeout={ai_cfg.get('timeout_s', 1.0)}s, "
+                    f"risk_mode_override={self.ai_allow_risk_mode_override}"
+                )
+                
+            except Exception as e:
+                logger.error(f"Failed to initialize AI advisor: {e}", exc_info=True)
+                self.ai_enabled = False
+                self.ai_advisor = None
+        
         # Initialize ReportGenerator for daily performance reports
         from analytics.performance_report import ReportGenerator
         self.report_generator = ReportGenerator(trade_log=self.executor.trade_log)
