@@ -46,7 +46,7 @@ def make_proposal(symbol: str, side: str, size_pct: float, conviction: float, so
         symbol=symbol,
         side=side,
         size_pct=size_pct,
-        reason=f"{source} decision",
+        reason=f"[{source.upper()}] decision",
         confidence=conviction,
     )
 
