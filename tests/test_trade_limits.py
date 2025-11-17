@@ -40,13 +40,23 @@ def minimal_config():
 
 @pytest.fixture
 def mock_state_store(tmp_path, request):
-    """Mock state store for testing with unique file per test"""
+    """Mock state store for testing with unique file per test and explicit cleanup"""
     from pathlib import Path
     # Use test name to ensure unique state file per test
     test_name = request.node.name
     state_file = tmp_path / f"test_trade_limits_{test_name}.json"
     backend = JsonFileBackend(path=Path(state_file))
-    return StateStore(backend=backend)
+    store = StateStore(backend=backend)
+    
+    # Explicit cleanup before test runs
+    if state_file.exists():
+        state_file.unlink()
+    
+    yield store
+    
+    # Cleanup after test
+    if state_file.exists():
+        state_file.unlink()
 
 
 @pytest.fixture
