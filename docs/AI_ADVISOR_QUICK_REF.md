@@ -152,7 +152,7 @@ ai:
 ai:
   enabled: true
   provider: "anthropic"
-  model: "claude-3-5-sonnet-20241022"
+  model: "claude-sonnet-4-5-20250929"
   api_key: "${ANTHROPIC_API_KEY}"
   allow_risk_mode_override: false  # AI only filters
 ```
