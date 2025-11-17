@@ -521,11 +521,11 @@ class TradeLimits:
             elif trades_per_day > 1000:
                 errors.append("max_trades_per_day should be <= 1000")
             
-            # Ensure daily limit >= hourly limit * 24
-            if trades_per_hour is not None and trades_per_day < (trades_per_hour * 24):
+            # Sanity check: daily should be >= hourly (not * 24, to allow conservative daily caps)
+            if trades_per_hour is not None and trades_per_day < trades_per_hour:
                 errors.append(
                     f"max_trades_per_day ({trades_per_day}) must be >= "
-                    f"max_trades_per_hour ({trades_per_hour}) * 24 = {trades_per_hour * 24}"
+                    f"max_trades_per_hour ({trades_per_hour})"
                 )
         
         # Cooldown validation
