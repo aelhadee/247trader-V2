@@ -798,22 +798,24 @@ class CoinbaseExchange:
         Returns:
             List of symbol strings (e.g. ["BTC-USD", "ETH-USD", ...])
         """
-        self._rate_limit("list_symbols", is_private=False)
+        logger.debug("Fetching available symbols from cache")
         
-        logger.debug("Fetching available symbols")
-        
-        products = self.list_public_products(limit=250)
+        # Use cached products list (refreshed every 5 min)
+        if not self._products_cache or not self._products_cache_time or (time.time() - self._products_cache_time) > 300:
+            self._rate_limit("list_symbols", is_private=False)
+            self._products_cache = self.list_public_products(limit=250)
+            self._products_cache_time = time.time()
         
         # Filter for USD pairs that are tradeable
         usd_symbols = []
-        for p in products:
+        for p in self._products_cache:
             product_id = p.get("product_id", "")
             status = p.get("status", "")
             
             if product_id.endswith("-USD") and status != "offline":
                 usd_symbols.append(product_id)
         
-        logger.debug(f"Found {len(usd_symbols)} USD trading pairs")
+        logger.debug(f"Found {len(usd_symbols)} USD trading pairs (cached)")
         return usd_symbols
     
     def check_connectivity(self) -> bool:
