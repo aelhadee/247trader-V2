@@ -6,11 +6,19 @@ Test that Phase 1 core skeleton works end-to-end.
 
 import sys
 from pathlib import Path
+import pytest
 
 # Ensure project root is importable when running via pytest
 ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
+
+@pytest.fixture(autouse=True)
+def reset_metrics():
+    """Reset Prometheus metrics between tests to avoid registry conflicts"""
+    from infra.metrics import MetricsRecorder
+    yield
+    MetricsRecorder._reset_for_testing()
 
 def test_config_loading():
     """Test that configs load"""
