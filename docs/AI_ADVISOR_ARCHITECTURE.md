@@ -197,17 +197,19 @@ ai:
 
 ### Environment Variables
 
-**OpenAI:**
+**Note:** API keys are already configured in `.env` file:
+
+**Anthropic (Recommended):**
 ```bash
-export OPENAI_API_KEY="sk-..."
+export ANTHROPIC_API_KEY="sk-ant-..."  # Already in .env
 ```
 
-**Anthropic:**
+**OpenAI (Alternative):**
 ```bash
-export ANTHROPIC_API_KEY="sk-ant-..."
+export OPENAI_API_KEY="sk-..."  # Already in .env
 ```
 
-**Note:** Keys are **never** logged or persisted in state.
+**Security:** Keys are **never** logged or persisted in state. They are loaded from `.env` at runtime.
 
 ---
 
