@@ -287,11 +287,13 @@ def test_all_modes_distinct():
     """DRY_RUN, PAPER, and LIVE should follow completely different code paths."""
     mock_exchange = MagicMock(spec=CoinbaseExchange)
     
-    # DRY_RUN: no exchange interaction
+    # DRY_RUN: uses shadow execution (gets quote for validation but doesn't place order)
     engine_dry = ExecutionEngine(mode="DRY_RUN", exchange=mock_exchange)
     result_dry = engine_dry.execute("BTC-USD", "SELL", 100.0)  # SELL avoids trading pair lookup
     assert result_dry.route == "shadow_dry_run"  # DRY_RUN now uses shadow execution
-    assert not mock_exchange.get_quote.called
+    # Shadow execution validates with live quotes but doesn't place orders
+    assert not mock_exchange.place_order.called
+    assert not mock_exchange.place_limit_order.called
     
     # PAPER: gets quote, simulates
     mock_exchange.reset_mock()
