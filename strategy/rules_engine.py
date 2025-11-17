@@ -438,7 +438,7 @@ class RulesEngine(BaseStrategy):
         # Scale by confidence
         size_pct *= trigger.confidence
         # Enforce minimum notional for small accounts
-        size_pct = self._enforce_min_notional(size_pct, context.nav)
+        size_pct = self._enforce_min_notional(size_pct, nav)
         
         return TradeProposal(
             symbol=trigger.symbol,
@@ -454,7 +454,7 @@ class RulesEngine(BaseStrategy):
         )
     
     def _rule_breakout(self, trigger: TriggerSignal, asset: UniverseAsset,
-                      regime: str) -> Optional[TradeProposal]:
+                      regime: str, nav: float = 0.0) -> Optional[TradeProposal]:
         """
         Rule: Breakout → Momentum trade
         
