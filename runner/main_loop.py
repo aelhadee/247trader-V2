@@ -1817,17 +1817,67 @@ class TradingLoop:
                     state=self.state_store.load(),
                 )
                 
-                # Generate proposals from all enabled strategies (REQ-STR1-2)
-                proposals = self.strategy_registry.aggregate_proposals(
+                # Generate proposals from local rules engine
+                local_proposals = self.strategy_registry.aggregate_proposals(
                     context=strategy_context,
                     dedupe_by_symbol=True  # Keep highest confidence per symbol
                 )
                 
                 # Log per-strategy breakdown
                 enabled_strategies = self.strategy_registry.get_enabled_strategies()
-                logger.info(f"✅ Strategy execution complete: {[s.name for s in enabled_strategies]}")
+                logger.info(f"✅ Local strategy execution complete: {[s.name for s in enabled_strategies]} → {len(local_proposals)} proposals")
+                
+                # If dual-trader mode enabled, generate AI trader proposals and arbitrate
+                if self.dual_trader_enabled and self.ai_trader_strategy and self.meta_arbitrator:
+                    logger.info(f"🤖 Dual-trader mode: generating AI trader proposals...")
+                    
+                    # Enrich context for AI trader
+                    ai_context = StrategyContext(
+                        universe=strategy_context.universe,
+                        triggers=strategy_context.triggers,
+                        regime=strategy_context.regime,
+                        timestamp=strategy_context.timestamp,
+                        cycle_number=strategy_context.cycle_number,
+                        nav=strategy_context.nav,
+                        state={
+                            **(strategy_context.state or {}),
+                            "positions": self.state_store.load().get("positions", {}),
+                            "available_capital": self.portfolio.available_capital_usd or 0.0,
+                        },
+                        risk_constraints={
+                            "max_total_at_risk_pct": self.runtime_max_at_risk_pct,
+                            "max_position_size_pct": self.policy_config.get("max_position_size_pct", 7.0),
+                            "min_trade_notional_usd": self.policy_config.get("min_trade_notional_usd", 5.0),
+                            "max_trades_per_cycle": self.policy_config.get("max_trades_per_cycle", 3),
+                            "max_trades_per_day": self.policy_config.get("max_trades_per_day", 10),
+                        },
+                    )
+                    
+                    ai_proposals = self.ai_trader_strategy.generate_proposals(ai_context)
+                    logger.info(f"✅ AI trader generated {len(ai_proposals)} proposals")
+                    
+                    # Arbitrate between local and AI proposals
+                    proposals, arbitration_log = self.meta_arbitrator.aggregate_proposals(
+                        local_proposals=local_proposals,
+                        ai_proposals=ai_proposals,
+                    )
+                    
+                    # Log arbitration decisions
+                    for decision in arbitration_log:
+                        logger.info(
+                            f"  ⚖️  {decision.symbol}: {decision.resolution} - {decision.reason}"
+                        )
+                    
+                    # Store arbitration log for audit
+                    if hasattr(self, '_current_arbitration_log'):
+                        self._current_arbitration_log = arbitration_log
+                    
+                else:
+                    # Standard mode: use local proposals only
+                    proposals = local_proposals
+            
             proposals_count = len(proposals or [])
-            logger.info(f"✅ Generated {proposals_count} trade proposal(s)")
+            logger.info(f"✅ Generated {proposals_count} final trade proposal(s)")
             
             if not proposals:
                 reason = "rules_engine_no_proposals"
