@@ -307,7 +307,7 @@ def create_model_client(
     if provider == "openai":
         if not api_key:
             raise ValueError("OpenAI requires api_key")
-        return OpenAIClient(api_key=api_key, model=model or "gpt-4-turbo-preview", **kwargs)
+        return OpenAIClient(api_key=api_key, model=model or "gpt-4o", **kwargs)
     
     elif provider == "anthropic":
         if not api_key:
