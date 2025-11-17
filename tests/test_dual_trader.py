@@ -234,7 +234,7 @@ class TestMetaArbitration:
         
         ai = [
             TradeProposal(
-                product_id="BTC-USD",
+                symbol="BTC-USD",
                 side="buy",
                 target_weight_pct=4.0,
                 conviction=0.75,
@@ -246,7 +246,7 @@ class TestMetaArbitration:
         final, log = arb.aggregate_proposals(local_proposals=[], ai_proposals=ai)
         
         assert len(final) == 1
-        assert final[0].product_id == "BTC-USD"
+        assert final[0].symbol == "BTC-USD"
         assert log[0].resolution == "SINGLE"
     
     def test_single_ai_proposal_below_threshold(self):
@@ -256,7 +256,7 @@ class TestMetaArbitration:
         
         ai = [
             TradeProposal(
-                product_id="BTC-USD",
+                symbol="BTC-USD",
                 side="buy",
                 target_weight_pct=4.0,
                 conviction=0.5,  # Below threshold
@@ -277,7 +277,7 @@ class TestMetaArbitration:
         
         local = [
             TradeProposal(
-                product_id="BTC-USD",
+                symbol="BTC-USD",
                 side="buy",
                 target_weight_pct=3.0,
                 conviction=0.6,
@@ -288,7 +288,7 @@ class TestMetaArbitration:
         
         ai = [
             TradeProposal(
-                product_id="BTC-USD",
+                symbol="BTC-USD",
                 side="buy",
                 target_weight_pct=5.0,
                 conviction=0.8,
@@ -310,7 +310,7 @@ class TestMetaArbitration:
         
         local = [
             TradeProposal(
-                product_id="BTC-USD",
+                symbol="BTC-USD",
                 side="buy",
                 target_weight_pct=3.0,
                 conviction=0.6,
@@ -321,7 +321,7 @@ class TestMetaArbitration:
         
         ai = [
             TradeProposal(
-                product_id="BTC-USD",
+                symbol="BTC-USD",
                 side="sell",
                 target_weight_pct=2.0,
                 conviction=0.5,  # Below override threshold
@@ -347,7 +347,7 @@ class TestMetaArbitration:
         
         local = [
             TradeProposal(
-                product_id="BTC-USD",
+                symbol="BTC-USD",
                 side="buy",
                 target_weight_pct=3.0,
                 conviction=0.30,  # Weak
@@ -358,7 +358,7 @@ class TestMetaArbitration:
         
         ai = [
             TradeProposal(
-                product_id="BTC-USD",
+                symbol="BTC-USD",
                 side="sell",
                 target_weight_pct=2.0,
                 conviction=0.80,  # Strong + gap > 0.25
@@ -384,7 +384,7 @@ class TestMetaArbitration:
         
         local = [
             TradeProposal(
-                product_id="BTC-USD",
+                symbol="BTC-USD",
                 side="buy",
                 target_weight_pct=3.0,
                 conviction=0.60,  # Not weak
@@ -395,7 +395,7 @@ class TestMetaArbitration:
         
         ai = [
             TradeProposal(
-                product_id="BTC-USD",
+                symbol="BTC-USD",
                 side="sell",
                 target_weight_pct=2.0,
                 conviction=0.65,  # Not strong enough advantage
@@ -484,14 +484,15 @@ class TestIntegration:
         )
         
         # Setup context
+        btc_asset = make_asset("BTC-USD")
+        eth_asset = make_asset("ETH-USD")
         universe = UniverseSnapshot(
-            assets=[
-                UniverseAsset(symbol="BTC-USD", tier="tier_1", price=50000.0, volume_24h=1000000.0),
-                UniverseAsset(symbol="ETH-USD", tier="tier_1", price=3000.0, volume_24h=500000.0),
-            ],
-            tier_1_assets=["BTC-USD", "ETH-USD"],
+            timestamp=datetime.now(timezone.utc),
+            regime="chop",
+            tier_1_assets=[btc_asset, eth_asset],
             tier_2_assets=[],
             tier_3_assets=[],
+            excluded_assets=[],
             total_eligible=2,
         )
         
@@ -510,7 +511,7 @@ class TestIntegration:
         # Setup local proposals
         local_proposals = [
             TradeProposal(
-                product_id="BTC-USD",
+                symbol="BTC-USD",
                 side="buy",
                 target_weight_pct=3.0,
                 conviction=0.6,
@@ -518,7 +519,7 @@ class TestIntegration:
                 notes="Local BTC",
             ),
             TradeProposal(
-                product_id="MATIC-USD",
+                symbol="MATIC-USD",
                 side="buy",
                 target_weight_pct=1.5,
                 conviction=0.55,
