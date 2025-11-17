@@ -234,6 +234,16 @@ class RulesEngine(BaseStrategy):
                 logger.warning(f"Unknown trigger type: {trigger.trigger_type}")
                 continue
             
+            if not proposal:
+                # Log why rule logic rejected this trigger (before conviction calculation)
+                logger.info(
+                    f"✗ Rule filter: {trigger.symbol} {trigger.trigger_type} "
+                    f"str={trigger.strength:.2f} conf={trigger.confidence:.2f} "
+                    f"pct_chg={getattr(trigger, 'price_change_pct', 'n/a')} "
+                    f"regime={regime} (failed rule logic checks)"
+                )
+                continue
+            
             if proposal:
                 conviction, breakdown = self._calculate_conviction(trigger, asset, proposal)
                 proposal.confidence = conviction
