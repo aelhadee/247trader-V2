@@ -2385,6 +2385,7 @@ class TradingLoop:
                 final_orders=final_orders,
                 no_trade_reason=None if final_orders else "no_orders_after_execution_filter",
                 state_store=self.state_store,
+                arbitration_log=getattr(self, '_current_arbitration_log', None),
             )
             logger.info("✅ Audit log written")
             
