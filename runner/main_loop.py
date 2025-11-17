@@ -1701,11 +1701,22 @@ class TradingLoop:
             
             # Avoid stacking buys while there are outstanding orders for the same base asset
             # Use pending_buy_notional from portfolio snapshot (aggregated from open_orders)
-            logger.info(f"🔍 Step 10: Filtering proposals for pending orders...")
+            logger.info(f"🔍 Step 10: Filtering proposals for pending orders and capacity...")
             pending_buy_notional = (pending_orders or {}).get("buy", {})
+            
+            # Build lightweight cap snapshot for NAV-aware filtering (avoid pointless proposals)
+            # This prevents generating proposals that risk engine will always block with below_min_after_caps
+            nav = self.portfolio.account_value_usd
+            min_notional = self.executor.min_notional_usd
+            
             filtered = []
+            skipped_pending = 0
+            skipped_capacity = 0
+            
             for proposal in proposals:
                 base = proposal.symbol.split('-')[0]
+                
+                # Filter 1: Skip if pending orders already exist
                 if (
                     proposal.side.upper() == "BUY"
                     and pending_buy_notional.get(base, 0.0) >= self.executor.min_notional_usd
@@ -1713,12 +1724,34 @@ class TradingLoop:
                     logger.info(
                         f"Skipping proposal for {proposal.symbol}: ${pending_buy_notional.get(base, 0.0):.2f} already pending"
                     )
+                    skipped_pending += 1
                     continue
+                
+                # Filter 2: NAV-aware capacity check for BUY orders
+                # If size_pct * NAV < min_notional, this proposal will always be blocked by risk engine
+                # Skip it early to avoid pointless processing
+                if proposal.side.upper() == "BUY":
+                    proposal_notional = (proposal.size_pct / 100.0) * nav if proposal.size_pct else 0
+                    
+                    # If proposal is already below min_notional, it's DOA
+                    # This catches the HBAR-like case where 0.8% * $256 = $2.06 < $5 min
+                    if proposal_notional > 0 and proposal_notional < min_notional:
+                        logger.info(
+                            f"Skipping proposal for {proposal.symbol}: size=${proposal_notional:.2f} "
+                            f"< min_notional=${min_notional:.2f} (${proposal.size_pct:.1f}% of ${nav:.2f} NAV). "
+                            f"Increase position size or NAV to meet minimum."
+                        )
+                        skipped_capacity += 1
+                        continue
+                
                 # Note: removed "fast guard" short-circuit - let RiskEngine see true state
                 # and make the decision based on actual live orders after reconciliation
                 filtered.append(proposal)
             
-            logger.info(f"✅ Filtered {len(filtered)}/{proposals_count} proposals (removed {proposals_count - len(filtered)} with pending orders)")
+            logger.info(
+                f"✅ Filtered {len(filtered)}/{proposals_count} proposals "
+                f"(removed {skipped_pending} with pending orders, {skipped_capacity} below min_notional)"
+            )
 
             if not filtered:
                 reason = "open_orders_pending"
