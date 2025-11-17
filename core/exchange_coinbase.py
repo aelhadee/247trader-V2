@@ -115,7 +115,7 @@ class CoinbaseExchange:
                     missing.append("CB_API_SECRET or COINBASE_API_SECRET")
                 
                 raise ValueError(
-                    f"LIVE/PAPER mode requires credentials. Missing: {', '.join(missing)}\n"
+                    f"LIVE mode requires credentials. Missing: {', '.join(missing)}\n"
                     "\n"
                     "Set environment variables before starting:\n"
                     "  export CB_API_KEY='your-api-key'\n"
