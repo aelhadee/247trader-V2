@@ -177,9 +177,9 @@ ai:
   enabled: false  # Start disabled, enable after testing
   
   # Model provider and configuration
-  provider: "openai"  # openai | anthropic | mock
-  model: "gpt-4-turbo-preview"
-  api_key: "${OPENAI_API_KEY}"  # Environment variable
+  provider: "anthropic"  # anthropic | openai | mock
+  model: "claude-3-5-sonnet-20241022"
+  api_key: "${ANTHROPIC_API_KEY}"  # Environment variable
   
   # Safety constraints
   timeout_s: 1.0              # Hard timeout (fail-closed)
