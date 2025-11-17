@@ -178,7 +178,7 @@ ai:
   
   # Model provider and configuration
   provider: "anthropic"  # anthropic | openai | mock
-  model: "claude-3-5-sonnet-20241022"
+  model: "claude-sonnet-4-5-20250929"
   api_key: "${ANTHROPIC_API_KEY}"  # Environment variable
   
   # Safety constraints
