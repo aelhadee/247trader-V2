@@ -35,8 +35,8 @@ def test_dry_run_never_executes():
     
     # Should succeed but never call exchange
     assert result.success
-    assert result.route == "dry_run"
-    assert "dry_run_" in result.order_id
+    assert result.route == "shadow_dry_run"  # DRY_RUN now uses shadow execution
+    assert "shadow_" in result.order_id
     
     # Verify no exchange calls
     mock_exchange.preview_order.assert_not_called()
