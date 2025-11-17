@@ -150,6 +150,25 @@ class AuditLogger:
                 "final_executed_count": len(final_orders),
             }
             
+            # Dual-trader arbitration log
+            if arbitration_log:
+                entry["arbitration"] = [
+                    {
+                        "symbol": decision.symbol,
+                        "resolution": decision.resolution,
+                        "reason": decision.reason,
+                        "local_side": decision.local_proposal.side if decision.local_proposal else None,
+                        "local_size_pct": decision.local_proposal.target_weight_pct if decision.local_proposal else None,
+                        "local_conviction": decision.local_proposal.conviction if decision.local_proposal else None,
+                        "ai_side": decision.ai_proposal.side if decision.ai_proposal else None,
+                        "ai_size_pct": decision.ai_proposal.target_weight_pct if decision.ai_proposal else None,
+                        "ai_confidence": decision.ai_proposal.conviction if decision.ai_proposal else None,
+                        "final_side": decision.final_proposal.side if decision.final_proposal else None,
+                        "final_size_pct": decision.final_proposal.target_weight_pct if decision.final_proposal else None,
+                    }
+                    for decision in arbitration_log
+                ]
+            
             # Risk violations
             if risk_violations:
                 entry["risk_violations"] = risk_violations
