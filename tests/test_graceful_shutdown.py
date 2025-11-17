@@ -20,6 +20,13 @@ class TestGracefulShutdown:
     """Test graceful shutdown handler"""
     
     @pytest.fixture(autouse=True)
+    def reset_metrics(self):
+        """Reset Prometheus metrics between tests to avoid registry conflicts"""
+        from infra.metrics import MetricsRecorder
+        yield
+        MetricsRecorder._reset_for_testing()
+    
+    @pytest.fixture(autouse=True)
     def cleanup_lock(self):
         """Clean up instance lock before and after each test"""
         import os

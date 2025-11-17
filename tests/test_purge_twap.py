@@ -39,6 +39,7 @@ def test_purge_liquidation_uses_maker_limit_orders():
         }
     }
     loop.state_store = MagicMock()
+    loop.state_store.load.return_value = {"purge_failures": {}}
     loop._init_portfolio_state = MagicMock(return_value={})
     loop.portfolio = {}
 
@@ -140,6 +141,7 @@ def test_purge_retries_after_cancelled_slice():
         }
     }
     loop.state_store = MagicMock()
+    loop.state_store.load.return_value = {"purge_failures": {}}
     loop._init_portfolio_state = MagicMock(return_value={})
     loop.portfolio = {}
 
