@@ -95,18 +95,24 @@ class TestAiTraderStrategy:
         strategy = AiTraderStrategy(name="ai_trader", config=config, ai_client=client)
         
         # Build context
+        btc_asset = UniverseAsset(
+            symbol="BTC-USD",
+            tier=1,
+            allocation_min_pct=5.0,
+            allocation_max_pct=40.0,
+            volume_24h=1000000.0,
+            spread_bps=15.0,
+            depth_usd=100000.0,
+            eligible=True,
+        )
+        
         universe = UniverseSnapshot(
-            assets=[
-                UniverseAsset(
-                    symbol="BTC-USD",
-                    tier="tier_1",
-                    price=50000.0,
-                    volume_24h=1000000.0,
-                )
-            ],
-            tier_1_assets=["BTC-USD"],
+            timestamp=datetime.now(timezone.utc),
+            regime="chop",
+            tier_1_assets=[btc_asset],
             tier_2_assets=[],
             tier_3_assets=[],
+            excluded_assets=[],
             total_eligible=1,
         )
         
