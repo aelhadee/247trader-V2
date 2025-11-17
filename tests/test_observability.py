@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+import pytest
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
@@ -8,6 +9,14 @@ if str(ROOT_DIR) not in sys.path:
 
 import infra.instance_lock as instance_lock  # noqa: E402
 from runner.main_loop import TradingLoop  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def reset_metrics():
+    """Reset Prometheus metrics between tests to avoid registry conflicts"""
+    from infra.metrics import MetricsRecorder
+    yield
+    MetricsRecorder._reset_for_testing()
 
 
 def test_health_status_snapshot(monkeypatch):
