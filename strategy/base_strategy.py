@@ -43,6 +43,7 @@ class StrategyContext:
         regime: Market regime (bull/chop/bear/crash)
         timestamp: Current cycle timestamp
         cycle_number: Sequential cycle counter
+        nav: Net asset value (NAV) in USD for sizing calculations
         state: Strategy-specific state from previous cycle (optional)
         risk_constraints: Current risk limits (optional)
     """
@@ -51,6 +52,7 @@ class StrategyContext:
     regime: str = "chop"
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     cycle_number: int = 0
+    nav: float = 0.0
     state: Optional[Dict[str, Any]] = None
     risk_constraints: Optional[Dict[str, Any]] = None
     
