@@ -855,15 +855,15 @@ class CoinbaseExchange:
         Returns:
             List of product details
         """
-        self._rate_limit("get_products", is_private=False)
+        # Use cached metadata instead of calling API
+        logger.debug(f"Fetching products from cache: {product_ids}")
         
-        logger.debug(f"Fetching products: {product_ids}")
+        filtered = []
+        for pid in product_ids:
+            metadata = self.get_product_metadata(pid)  # Uses 5-min cache
+            if metadata:
+                filtered.append(metadata)
         
-        # Use public products endpoint and filter
-        all_products = self.list_public_products(limit=250)
-        
-        # Filter to requested products
-        filtered = [p for p in all_products if p.get("product_id") in product_ids]
         return filtered
     
     def list_public_products(self, limit: int = 250) -> List[dict]:
