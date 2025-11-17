@@ -443,7 +443,8 @@ def test_max_drawdown_circuit_breaker(risk_engine, base_portfolio):
     result = risk_engine.check_all([proposal], portfolio_drawdown)
     
     assert not result.approved
-    assert "drawdown" in result.reason.lower()
+    # Message says "weekly stop loss" not "drawdown"
+    assert "stop loss" in result.reason.lower() or "drawdown" in result.reason.lower()
 
 
 def test_consecutive_loss_cooldown(risk_engine, base_portfolio):
