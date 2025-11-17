@@ -1657,6 +1657,7 @@ class TradingLoop:
                     regime=self.current_regime,
                     timestamp=cycle_started.replace(tzinfo=timezone.utc) if cycle_started.tzinfo is None else cycle_started,
                     cycle_number=self.cycle_count + 1,
+                    nav=float(self.portfolio.account_value_usd or 0.0),
                     state=self.state_store.load(),
                 )
                 
