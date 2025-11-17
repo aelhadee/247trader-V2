@@ -490,7 +490,7 @@ class RulesEngine(BaseStrategy):
         )
     
     def _rule_reversal(self, trigger: TriggerSignal, asset: UniverseAsset,
-                      regime: str) -> Optional[TradeProposal]:
+                      regime: str, nav: float = 0.0) -> Optional[TradeProposal]:
         """
         Rule: Reversal → Mean reversion trade
         
@@ -525,6 +525,8 @@ class RulesEngine(BaseStrategy):
         )
         # Scale by reduced confidence (reversals are risky)
         size_pct *= (trigger.confidence * 0.8)
+        # Enforce minimum notional for small accounts
+        size_pct = self._enforce_min_notional(size_pct, nav)
         
         proposal = TradeProposal(
             symbol=trigger.symbol,
