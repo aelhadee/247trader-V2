@@ -21,6 +21,9 @@ from typing import Any, Dict, List
 from unittest.mock import Mock, MagicMock, patch
 import pytest
 
+# Save original metrics module state for cleanup
+_original_metrics_module = sys.modules.get('infra.metrics')
+
 # Mock metrics module before importing main_loop to avoid Prometheus registry conflicts
 if 'infra.metrics' not in sys.modules:
     mock_metrics = MagicMock()
@@ -34,8 +37,8 @@ from infra.alerting import AlertSeverity
 
 
 @pytest.fixture(autouse=True)
-def reset_metrics():
-    """Reset Prometheus metrics between tests to avoid registry conflicts"""
+def reset_metrics_and_cleanup():
+    """Reset Prometheus metrics and clean up sys.modules mocking"""
     # Reset the real MetricsRecorder if it exists (BEFORE test)
     try:
         from infra import metrics as real_metrics
@@ -44,13 +47,19 @@ def reset_metrics():
     except (ImportError, AttributeError):
         pass
     yield
-    # Reset AFTER test as well
+    # Reset AFTER test
     try:
         from infra import metrics as real_metrics
         if hasattr(real_metrics, 'MetricsRecorder'):
             real_metrics.MetricsRecorder._reset_for_testing()
     except (ImportError, AttributeError):
         pass
+    
+    # Restore original metrics module to prevent polluting other tests
+    if 'infra.metrics' in sys.modules and isinstance(sys.modules['infra.metrics'], MagicMock):
+        if _original_metrics_module:
+            sys.modules['infra.metrics'] = _original_metrics_module
+        # Don't delete if we added the mock - other imports may depend on it
 
 
 @pytest.fixture
