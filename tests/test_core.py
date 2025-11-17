@@ -17,7 +17,10 @@ if str(ROOT_DIR) not in sys.path:
 def reset_metrics():
     """Reset Prometheus metrics between tests to avoid registry conflicts"""
     from infra.metrics import MetricsRecorder
+    # Clean up BEFORE test (in case previous test didn't have fixture)
+    MetricsRecorder._reset_for_testing()
     yield
+    # Clean up AFTER test
     MetricsRecorder._reset_for_testing()
 
 def test_config_loading():
