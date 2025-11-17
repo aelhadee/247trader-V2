@@ -551,7 +551,7 @@ class RulesEngine(BaseStrategy):
         return proposal
     
     def _rule_momentum(self, trigger: TriggerSignal, asset: UniverseAsset,
-                      regime: str) -> Optional[TradeProposal]:
+                      regime: str, nav: float = 0.0) -> Optional[TradeProposal]:
         """
         Rule: Sustained momentum → Trend following
         
@@ -569,6 +569,8 @@ class RulesEngine(BaseStrategy):
                 trigger, base_size, stop_loss, target_risk_pct=1.0
             )
             size_pct *= trigger.confidence
+            # Enforce minimum notional for small accounts
+            size_pct = self._enforce_min_notional(size_pct, nav)
             side = "BUY"
             tags = []
         elif price_change <= -self.downside_momentum_min_pct:
@@ -582,6 +584,8 @@ class RulesEngine(BaseStrategy):
                 trigger, base_size * 0.85, stop_loss, target_risk_pct=1.0
             )
             size_pct *= trigger.confidence * 0.9
+            # Enforce minimum notional for small accounts
+            size_pct = self._enforce_min_notional(size_pct, nav)
             side = "BUY"
             tags = ["momentum_dip"]
         else:
