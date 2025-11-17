@@ -103,7 +103,7 @@ class OpenAIClient(ModelClient):
 Your role:
 - Review trade proposals and market context
 - Suggest risk modes: OFF, DEFENSIVE, NORMAL, AGGRESSIVE
-- Favor capital preservation in uncertain/choppy regimes
+- Favor capital preservation in choppy regimes
 - Respect all policy caps (you cannot override them)
 
 Response format (valid JSON):
