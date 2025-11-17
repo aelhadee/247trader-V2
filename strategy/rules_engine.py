@@ -315,6 +315,19 @@ class RulesEngine(BaseStrategy):
                     f"(failed rule logic checks)"
                 )
         
+        # Summary of trigger outcomes
+        if triggers:
+            passed_rule_logic = sum(1 for p in proposals if p)
+            rejected_conviction = skipped + canary_count
+            rejected_rule_logic = len(triggers) - passed_rule_logic - rejected_conviction
+            
+            logger.info(
+                f"📊 Trigger summary: {len(triggers)} total → "
+                f"{rejected_rule_logic} failed rule logic, "
+                f"{rejected_conviction} failed min_conviction, "
+                f"{len(proposals)} final proposals"
+            )
+        
         logger.info(
             f"Generated {len(proposals)} trade proposals "
             f"(filtered by min_conviction={min_conviction:.2f})"
