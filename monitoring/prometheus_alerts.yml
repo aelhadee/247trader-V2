@@ -1,0 +1,237 @@
+# Prometheus alert rules for 247trader-v2
+# Save as: monitoring/prometheus_alerts.yml
+# Reference from prometheus.yml: rule_files: ["prometheus_alerts.yml"]
+
+groups:
+  # Portfolio & Risk Alerts
+  - name: portfolio_alerts
+    interval: 30s
+    rules:
+      - alert: HighExposure
+        expr: trader_exposure_pct > 25
+        for: 2m
+        labels:
+          severity: warning
+          category: risk
+        annotations:
+          summary: "Portfolio exposure exceeds limit"
+          description: "Exposure at {{ $value | humanize }}% (limit: 25%). System may start rejecting new trades."
+      
+      - alert: CriticalDrawdown
+        expr: trader_max_drawdown_pct > 8
+        for: 1m
+        labels:
+          severity: critical
+          category: risk
+        annotations:
+          summary: "Max drawdown approaching limit"
+          description: "Drawdown at {{ $value | humanize }}% (limit: 10%). Risk of circuit breaker activation."
+      
+      - alert: NegativeDailyPnL
+        expr: trader_daily_pnl_pct < -3
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "Negative daily PnL"
+          description: "Daily PnL at {{ $value | humanize }}% (threshold: -3%). Monitor for stop-loss trigger."
+      
+      - alert: AccountValueDrop
+        expr: rate(trader_account_value_usd[5m]) < -100
+        for: 2m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "Rapid account value decline"
+          description: "Account losing ${{ $value | humanize }}/min. Check for large losses."
+
+  # Strategy & Signal Alerts
+  - name: strategy_alerts
+    interval: 30s
+    rules:
+      - alert: SignalDrought
+        expr: trader_triggers_detected == 0
+        for: 30m
+        labels:
+          severity: warning
+          category: strategy
+        annotations:
+          summary: "No triggers detected for 30+ minutes"
+          description: "Zero signals for extended period. Check trigger thresholds or market conditions."
+      
+      - alert: LowStrategySelectivity
+        expr: trader_triggers_to_proposals_ratio < 0.1 AND trader_triggers_detected > 5
+        for: 5m
+        labels:
+          severity: info
+          category: strategy
+        annotations:
+          summary: "Strategy too conservative"
+          description: "Selectivity ratio {{ $value | humanize }} < 0.1 with {{ $labels.triggers }} triggers. Missing opportunities."
+      
+      - alert: HighStrategySelectivity
+        expr: trader_triggers_to_proposals_ratio > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          category: strategy
+        annotations:
+          summary: "Strategy too aggressive"
+          description: "Selectivity ratio {{ $value | humanize }} > 0.8. Low signal quality, high proposal rate."
+      
+      - alert: ExcessiveTrading
+        expr: trader_trades_per_hour > 10
+        for: 10m
+        labels:
+          severity: warning
+          category: operations
+        annotations:
+          summary: "Excessive trading frequency"
+          description: "{{ $value | humanize }} trades/hour (limit: 10). Risk exhausting daily/hourly limits."
+
+  # Operational Alerts
+  - name: operational_alerts
+    interval: 30s
+    rules:
+      - alert: RateLimitCritical
+        expr: max(trader_rate_limiter_utilization_pct) > 90
+        for: 1m
+        labels:
+          severity: critical
+          category: operations
+        annotations:
+          summary: "API rate limit critical"
+          description: "Rate limit at {{ $value | humanize }}% for endpoint {{ $labels.endpoint }}. Throttling imminent."
+      
+      - alert: RateLimitWarning
+        expr: max(trader_rate_limiter_utilization_pct) > 80
+        for: 2m
+        labels:
+          severity: warning
+          category: operations
+        annotations:
+          summary: "API rate limit high"
+          description: "Rate limit at {{ $value | humanize }}% for endpoint {{ $labels.endpoint }}. Consider reducing request frequency."
+      
+      - alert: HighAPILatency
+        expr: histogram_quantile(0.95, rate(trader_api_latency_seconds_bucket[5m])) > 2
+        for: 3m
+        labels:
+          severity: warning
+          category: operations
+        annotations:
+          summary: "High API latency"
+          description: "API latency p95 {{ $value | humanize }}s for {{ $labels.endpoint }} (threshold: 2s). Exchange may be slow."
+      
+      - alert: CycleTimeout
+        expr: trader_cycle_duration_seconds > 45
+        for: 2m
+        labels:
+          severity: warning
+          category: operations
+        annotations:
+          summary: "Trading cycle exceeding time budget"
+          description: "Cycle taking {{ $value | humanize }}s (limit: 45s). May skip intervals or cause delays."
+      
+      - alert: HighRiskRejections
+        expr: rate(trader_risk_rejections_total[5m]) > 5
+        for: 3m
+        labels:
+          severity: info
+          category: risk
+        annotations:
+          summary: "High risk rejection rate"
+          description: "{{ $value | humanize }} rejections/5min. Check constraints: {{ $labels.reason }}"
+
+  # System Health Alerts
+  - name: system_alerts
+    interval: 30s
+    rules:
+      - alert: BotDown
+        expr: up{job="247trader-v2"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: system
+        annotations:
+          summary: "Trading bot is down"
+          description: "Bot instance {{ $labels.instance }} unreachable. Check process status."
+      
+      - alert: MetricsStale
+        expr: time() - trader_account_value_usd > 120
+        for: 2m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "Metrics data is stale"
+          description: "No metric updates for {{ $value | humanize }}s. Bot may be stuck or crashed."
+      
+      - alert: CircuitBreakerTripped
+        expr: increase(trader_circuit_breaker_trips[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+          category: risk
+        annotations:
+          summary: "Circuit breaker activated"
+          description: "Circuit breaker {{ $labels.type }} tripped. Trading paused for safety."
+      
+      - alert: HighAPIErrors
+        expr: rate(trader_api_errors_total[5m]) > 1
+        for: 2m
+        labels:
+          severity: warning
+          category: operations
+        annotations:
+          summary: "High API error rate"
+          description: "{{ $value | humanize }} API errors/min for {{ $labels.endpoint }}. Check exchange status."
+
+  # Performance Alerts
+  - name: performance_alerts
+    interval: 1m
+    rules:
+      - alert: LowFillRate
+        expr: rate(trader_orders_filled_total[10m]) / rate(trader_orders_placed_total[10m]) < 0.5
+        for: 15m
+        labels:
+          severity: info
+          category: performance
+        annotations:
+          summary: "Low order fill rate"
+          description: "Fill rate {{ $value | humanize }} < 50%. Orders not executing efficiently."
+      
+      - alert: NoTradesRecently
+        expr: increase(trader_trades_total[1h]) == 0 AND trader_triggers_detected > 0
+        for: 2h
+        labels:
+          severity: info
+          category: strategy
+        annotations:
+          summary: "No trades executed despite signals"
+          description: "Detected {{ $labels.triggers }} triggers but 0 trades in 2h. Check conviction threshold or risk limits."
+      
+      - alert: PositionCountHigh
+        expr: trader_open_positions >= 8
+        for: 5m
+        labels:
+          severity: info
+          category: risk
+        annotations:
+          summary: "Position count at maximum"
+          description: "{{ $value }} positions (max: 8). No capacity for new trades."
+
+# Recording rules for query optimization (optional)
+# - name: recording_rules
+#   interval: 30s
+#   rules:
+#     - record: trader:trade_rate_5m
+#       expr: rate(trader_trades_total[5m])
+#     
+#     - record: trader:win_rate_24h
+#       expr: |
+#         sum(increase(trader_trades_total{side="SELL"}[24h])) 
+#         / 
+#         sum(increase(trader_trades_total[24h]))
