@@ -261,7 +261,7 @@ def test_exchange_respects_read_only():
         CoinbaseExchange(read_only=False)
     
     # With credentials, read_only=False should work
-    exchange_rw = CoinbaseExchange(read_only=False, api_key="test_key", api_secret="test_secret")
+    exchange_rw = CoinbaseExchange(read_only=False, api_key="test_api_key_10", api_secret="test_secret_20_chars_long")
     assert exchange_rw.read_only == False
     # (Would allow place_order with valid API keys)
 
