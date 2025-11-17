@@ -149,7 +149,8 @@ Validates integration without external dependencies.
 ```yaml
 ai:
   enabled: true
-  provider: "openai"
+  provider: "anthropic"
+  model: "claude-3-5-sonnet-20241022"
   allow_risk_mode_override: false
 ```
 AI filters proposals, no risk mode changes.
