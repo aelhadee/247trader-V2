@@ -344,7 +344,7 @@ class RulesEngine(BaseStrategy):
         return proposals
     
     def _rule_price_move(self, trigger: TriggerSignal, asset: UniverseAsset,
-                        regime: str) -> Optional[TradeProposal]:
+                        regime: str, nav: float = 0.0) -> Optional[TradeProposal]:
         """
         Rule: Sharp price move → Momentum/reversal trade
         
