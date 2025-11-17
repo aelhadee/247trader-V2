@@ -72,6 +72,7 @@ class MetricsRecorder:
             self._rate_limit_counter = None
             self._api_latency_summary = None
             self._no_trade_counter = None
+            self._exposure_gauge = None
             return
 
         self._cycle_summary = Summary(  # type: ignore[assignment]
