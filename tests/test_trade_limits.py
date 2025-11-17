@@ -461,7 +461,7 @@ def test_record_trade_updates_state(trade_limits, mock_state_store):
 
 def test_multiple_proposals_mixed_outcomes(trade_limits, mock_state_store):
     """Filter multiple proposals with different timing states"""
-    now = datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
     
     # BTC: on cooldown (loss)
     trade_limits.apply_cooldown("BTC-USD", outcome="loss", current_time=now)
