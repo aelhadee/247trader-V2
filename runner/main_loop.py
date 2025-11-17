@@ -2467,6 +2467,42 @@ class TradingLoop:
 
             if value_usd < min_value:
                 continue
+            
+            # Check purge failure backoff (skip if recently failed multiple times)
+            state = self.state_store.load()
+            purge_failures = state.get("purge_failures", {})
+            failure_entry = purge_failures.get(symbol)
+            
+            if failure_entry:
+                failure_count = failure_entry.get("failure_count", 0)
+                last_failed_iso = failure_entry.get("last_failed_at_iso")
+                
+                if last_failed_iso and failure_count >= 3:
+                    # Apply exponential backoff: 3 failures = skip for 1 hour, 4 = 2 hours, 5+ = 4 hours
+                    from datetime import timedelta
+                    backoff_hours = min(2 ** (failure_count - 2), 4)  # 1, 2, 4 hours max
+                    last_failed = datetime.fromisoformat(last_failed_iso)
+                    now_utc = datetime.now(timezone.utc)
+                    
+                    # Handle timezone-naive datetime from old state
+                    if last_failed.tzinfo is None:
+                        last_failed = last_failed.replace(tzinfo=timezone.utc)
+                    
+                    elapsed = now_utc - last_failed
+                    backoff_duration = timedelta(hours=backoff_hours)
+                    
+                    if elapsed < backoff_duration:
+                        remaining = backoff_duration - elapsed
+                        logger.info(
+                            f"⏸️  Skipping purge for {symbol}: {failure_count} recent failures, "
+                            f"backoff {backoff_hours}h, {remaining.seconds // 60}min remaining"
+                        )
+                        continue
+                    else:
+                        logger.info(
+                            f"🔄 Retrying purge for {symbol}: backoff expired ({failure_count} failures, "
+                            f"last {elapsed.seconds // 3600}h ago)"
+                        )
 
             asset = None
             if hasattr(universe, "get_asset"):
