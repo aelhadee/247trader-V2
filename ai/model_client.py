@@ -55,11 +55,12 @@ class OpenAIClient(ModelClient):
         try:
             from openai import OpenAI
             self.client = OpenAI(api_key=api_key, base_url=self.base_url, timeout=5.0)
-        except ImportError:
-            log.warning("openai package not installed - OpenAIClient will fail at runtime")
+            log.info(f"✅ OpenAI client initialized successfully (model={model})")
+        except ImportError as e:
+            log.warning(f"openai package not installed - OpenAIClient will fail at runtime: {e}")
             self.client = None
         except Exception as e:
-            log.warning(f"Failed to initialize OpenAI client: {e}")
+            log.error(f"Failed to initialize OpenAI client: {type(e).__name__}: {e}", exc_info=True)
             self.client = None
     
     def call(self, request: Dict[str, Any], timeout: float) -> Dict[str, Any]:
