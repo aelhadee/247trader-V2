@@ -20,6 +20,15 @@ from core.execution import ExecutionEngine
 from core.exchange_coinbase import CoinbaseExchange
 
 
+@pytest.fixture(autouse=True)
+def reset_metrics():
+    """Reset Prometheus metrics between tests to avoid registry conflicts"""
+    from infra.metrics import MetricsRecorder
+    MetricsRecorder._reset_for_testing()
+    yield
+    MetricsRecorder._reset_for_testing()
+
+
 # ============================================================================
 # Test 1: DRY_RUN mode never touches exchange (even if read_only=false)
 # ============================================================================

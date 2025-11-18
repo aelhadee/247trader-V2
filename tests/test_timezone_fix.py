@@ -10,6 +10,15 @@ import pytest
 from datetime import datetime, timezone
 
 
+@pytest.fixture(autouse=True)
+def reset_metrics():
+    """Reset Prometheus metrics between tests to avoid registry conflicts"""
+    from infra.metrics import MetricsRecorder
+    MetricsRecorder._reset_for_testing()
+    yield
+    MetricsRecorder._reset_for_testing()
+
+
 def test_timezone_import_accessible():
     """Verify timezone is accessible from datetime module."""
     # This should work without error

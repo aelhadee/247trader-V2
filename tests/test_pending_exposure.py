@@ -9,6 +9,15 @@ import pytest
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
+
+@pytest.fixture(autouse=True)
+def reset_metrics():
+    """Reset Prometheus metrics between tests to avoid registry conflicts"""
+    from infra.metrics import MetricsRecorder
+    MetricsRecorder._reset_for_testing()
+    yield
+    MetricsRecorder._reset_for_testing()
+
 from core.risk import RiskEngine, PortfolioState
 from strategy.rules_engine import TradeProposal
 

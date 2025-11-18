@@ -1,5 +1,15 @@
 from types import SimpleNamespace
+import pytest
 from unittest.mock import MagicMock
+
+
+@pytest.fixture(autouse=True)
+def reset_metrics():
+    """Reset Prometheus metrics between tests to avoid registry conflicts"""
+    from infra.metrics import MetricsRecorder
+    MetricsRecorder._reset_for_testing()
+    yield
+    MetricsRecorder._reset_for_testing()
 
 from core.risk import PortfolioState
 from runner.main_loop import TradingLoop
