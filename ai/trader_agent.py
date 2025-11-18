@@ -109,6 +109,7 @@ class AiTraderAgent:
         guardrails: Dict[str, Any],
         metadata: Optional[Dict[str, Any]],
     ) -> Dict[str, Any]:
+        guardrails = guardrails or {}
         available_capital = max(
             0.0,
             float(portfolio.account_value_usd or 0.0) - float(portfolio.get_total_exposure_usd()),
