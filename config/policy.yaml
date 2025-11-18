@@ -320,9 +320,9 @@ loop:
   jitter_pct: 10.0
 ai:
   enabled: false
-  m1_model: gpt-4o-mini
-  m2_model: gpt-4o-mini
-  m3_model: gpt-4o-mini
+  m1_model: gpt-5-mini-2025-08-07
+  m2_model: gpt-5-mini-2025-08-07
+  m3_model: gpt-5-mini-2025-08-07
   openai_api_key: ${OPENAI_API_KEY}
   ai_can_create_symbols: false
   ai_can_override_risk: false
