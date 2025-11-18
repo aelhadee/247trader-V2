@@ -2702,8 +2702,7 @@ class ExecutionEngine:
                                 entry_fee=fees,
                                 entry_is_maker=use_maker,
                                 trigger_type=None,  # Will be set by caller if available
-                                confidence=confidence,
-                                volatility=None,  # Will be enriched from proposal if available
+                                conviction=confidence,  # Map confidence param to conviction field
                             )
                             self.trade_log.log_entry(trade_record)
                             self.open_trades[symbol] = trade_record
