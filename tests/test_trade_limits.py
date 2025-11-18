@@ -488,6 +488,13 @@ def test_symbol_spacing_different_symbols(trade_limits, mock_state_store):
     
     approved, rejections = trade_limits.filter_proposals_by_timing(proposals, current_time=now)
     
+    # Debug
+    if len(approved) != 1:
+        print(f"\nDEBUG: Expected 1 approval for SOL-USD, got {len(approved)}")
+        print(f"Rejections: {rejections}")
+        status = trade_limits.get_cooldown_status("SOL-USD", current_time=now)
+        print(f"SOL-USD cooldown status: {status}")
+    
     assert len(approved) == 1
     assert len(rejections) == 0
 # Test: Record Trade
