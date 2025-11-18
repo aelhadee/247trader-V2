@@ -4185,6 +4185,21 @@ class TradingLoop:
                         f"({d.size_factor:.2f}x) - {d.comment}"
                     )
 
+            # CRITICAL: AI sizing floor to prevent invalid micro-trades
+            # If AI reduction creates a trade below min_position_size_pct, skip it entirely
+            # This prevents "position_size_too_small" risk rejections after AI adjustment
+            min_position_pct = self.risk_config.get("min_position_size_pct", 0.25)
+            
+            if p.size_pct < min_position_pct:
+                skipped_by_ai += 1
+                if self.ai_log_decisions:
+                    logger.info(
+                        f"AI SKIP (below floor): {p.symbol} {p.side} - "
+                        f"Adjusted size {p.size_pct:.2f}% < {min_position_pct:.2f}% minimum. "
+                        f"Original: {original_size:.2f}% × {d.size_factor:.2f}x = {p.size_pct:.2f}%"
+                    )
+                continue  # Skip this proposal
+
             # Add AI metadata to proposal for audit
             if not hasattr(p, 'notes'):
                 p.notes = {}
