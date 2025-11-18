@@ -1817,8 +1817,9 @@ class TradingLoop:
                             proposals = ai_agent_proposals
                             proposals_count = len(proposals)
                             
-                            # Continue to Step 10 (risk check) and Step 11 (execution)
-                            # Don't return early - let AI proposals flow through
+                            # SKIP Step 9 (rules engine - no triggers to process)
+                            # Jump directly to Step 9.5 (AI advisor) and then Step 10+ (risk/execution)
+                            # We do this by bypassing the trigger-dependent section below
                         else:
                             logger.info("🤖 AI trader evaluated portfolio but produced no actionable proposals this cycle")
                             reason = "ai_trader_no_proposals"
