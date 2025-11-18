@@ -2768,7 +2768,8 @@ class ExecutionEngine:
 
                 actual_slippage = est_slippage_bps
 
-                self._update_state_store_after_execution(
+                # Update state store and check for fatal errors (e.g., fill notional mismatch)
+                state_update_ok = self._update_state_store_after_execution(
                     symbol=symbol,
                     side=side,
                     size_usd=size_usd,
@@ -2786,7 +2787,12 @@ class ExecutionEngine:
 
                 success_flag = True
                 error_message = None
-                if use_maker and ttl_canceled and filled_size == 0.0:
+                
+                if not state_update_ok:
+                    # Fatal error in state update (e.g., fill notional mismatch)
+                    success_flag = False
+                    error_message = "fill_notional_mismatch"
+                elif use_maker and ttl_canceled and filled_size == 0.0:
                     success_flag = False
                     error_message = ttl_error or f"Post-only order canceled after {ttl_seconds}s TTL without fill"
 
