@@ -1545,6 +1545,7 @@ class TradingLoop:
         """
         cycle_started = datetime.now(timezone.utc)
         self.cycle_count += 1  # Increment cycle counter
+        self.run_id = f"{cycle_started.strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}"  # Unique cycle identifier for audit trail
         proposals_count = 0
         approved_count = 0
         executed_count = 0
