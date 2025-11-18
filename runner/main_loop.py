@@ -4327,7 +4327,7 @@ class TradingLoop:
             logger.warning(f"Failed to remove managed position {symbol}: {e}")
 
 
-def main():
+def main() -> None:
     """Entry point"""
     import argparse
 
