@@ -37,7 +37,7 @@ import yaml
 
 def get_current_account_value(exchange: CoinbaseExchange) -> float:
     """Get current account value in USD."""
-    accounts = exchange.list_accounts()
+    accounts = exchange.get_accounts()
     total_usd = 0.0
     
     cash_equivalents = {"USD", "USDC", "USDT"}
