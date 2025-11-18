@@ -58,6 +58,9 @@ class OpenAIClient(ModelClient):
         except ImportError:
             log.warning("openai package not installed - OpenAIClient will fail at runtime")
             self.client = None
+        except Exception as e:
+            log.warning(f"Failed to initialize OpenAI client: {e}")
+            self.client = None
     
     def call(self, request: Dict[str, Any], timeout: float) -> Dict[str, Any]:
         """Call OpenAI API with structured JSON response."""
