@@ -1917,7 +1917,7 @@ class TradingLoop:
 
                     # Build AI input context
                     nav = float(self.portfolio.account_value_usd or 0.0)
-                    exposure_pct = (self.portfolio.total_exposure_usd / nav * 100.0) if nav > 0 else 0.0
+                    exposure_pct = (self.portfolio.get_total_exposure_usd() / nav * 100.0) if nav > 0 else 0.0
 
                     # Get 24h metrics if available
                     state = self.state_store.load()
