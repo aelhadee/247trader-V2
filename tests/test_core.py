@@ -105,8 +105,6 @@ def test_rules_engine():
     if proposals:
         top = proposals[0]
         print(f"   Top: {top.side} {top.symbol} size={top.size_pct:.1f}% conf={top.confidence:.2f}")
-    
-    return True
 
 
 def test_risk_checks():
