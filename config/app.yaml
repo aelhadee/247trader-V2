@@ -118,7 +118,7 @@ ai:
   api_key: "${OPENAI_API_KEY}"  # or ${OPENAI_API_KEY}
   
   # Safety constraints
-  timeout_s: 1.0              # Hard timeout for model calls (fail-closed)
+  timeout_s: 10.0             # Hard timeout for model calls (fail-closed) - increased for GPT-4o-mini cold starts
   max_scale_up: 1.0           # NEVER >1.0 in v1 (AI cannot increase sizes)
   fallback_on_error: true     # On error → bypass AI (safe default)
   
