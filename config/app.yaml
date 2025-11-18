@@ -173,15 +173,17 @@ ai:
       timeout_s: 1.5
 
   # AI trader agent: portfolio allocator that can originate trades
+  # NOTE: Top-level ai_trader section (lines 53-63) provides user-facing knobs
+  # This section provides the implementation details for the agent
   trader_agent:
-    enabled: false
-    provider: "mock"          # mock | openai | anthropic
-    model: "gpt-4o-mini"      # Only used when provider!=mock
+    enabled: true              # ✅ ENABLE AI TRADER (was false)
+    provider: "openai"         # Use OpenAI (was mock)
+    model: "gpt-4o-mini"       # Fast, cost-effective model
     api_key: "${OPENAI_API_KEY}"
-    timeout_s: 2.5
-    max_decisions: 4
-    min_confidence: 0.55
-    min_rebalance_delta_pct: 0.35
-    max_position_pct: 3.0      # Clamp AI targets per symbol (pct of NAV)
-    max_single_trade_pct: 2.0  # Max % NAV per trade when moving toward target
+    timeout_s: 10.0            # Match AI advisor timeout for cold starts
+    max_decisions: 5           # Up to 5 positions (from top-level ai_trader)
+    min_confidence: 0.55       # Filter low-confidence signals
+    min_rebalance_delta_pct: 0.35  # Only trade if rebalance >0.35% of NAV
+    max_position_pct: 7.0      # Single position cap (aligned with policy risk caps)
+    max_single_trade_pct: 4.0  # Max trade size per execution
     tag: "ai_trader_agent"
