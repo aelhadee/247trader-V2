@@ -18,6 +18,7 @@ This module implements Phase 1: Core skeleton (no AI, DRY_RUN only)
 import time
 import signal
 import yaml
+import os
 from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
