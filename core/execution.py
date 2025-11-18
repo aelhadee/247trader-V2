@@ -4055,17 +4055,37 @@ class ExecutionEngine:
                 "result_snapshot": result_payload,
             }
 
+            # CRITICAL: Validate filled notional matches requested within tolerance
+            # After fixing size_in_quote parsing, this should rarely trigger
+            # If it does, something is seriously wrong with fill parsing
             if filled_value and size_usd:
                 mismatch = abs(filled_value - size_usd)
-                tolerance = max(0.20, size_usd * 0.02)  # Increased from 0.005 (0.5%) to 0.02 (2%) to handle base-unit fills
+                rel_diff = mismatch / size_usd if size_usd > 0 else 0.0
+                tolerance = max(0.20, size_usd * 0.05)  # 5% relative or $0.20 absolute
+                
                 if mismatch > tolerance:
-                    logger.warning(  # Downgraded from error to warning
-                        "FILL_NOTIONAL_MISMATCH product=%s requested=%.6f filled=%.6f tolerance=%.4f payload=%s",
+                    logger.error(
+                        "FATAL FILL_NOTIONAL_MISMATCH product=%s requested=%.6f filled=%.6f "
+                        "mismatch=%.6f (%.1f%%) tolerance=%.4f - POSSIBLE ACCOUNTING BUG. "
+                        "State NOT updated. Review fill parsing logic. payload=%s",
                         symbol,
                         size_usd,
                         filled_value,
+                        mismatch,
+                        rel_diff * 100,
                         tolerance,
                         fills,
+                    )
+                    # DO NOT update state store when mismatch detected
+                    return  # Exit without updating state
+                elif mismatch > 0.01:  # Info log for small but non-zero mismatches
+                    logger.info(
+                        "Fill notional variance: %s requested=%.6f filled=%.6f diff=%.6f (%.1f%%) - within tolerance",
+                        symbol,
+                        size_usd,
+                        filled_value,
+                        mismatch,
+                        rel_diff * 100,
                     )
 
             if result_payload and result_payload.get("ttl_cancelled"):
