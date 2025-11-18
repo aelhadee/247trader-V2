@@ -159,3 +159,17 @@ ai:
       model: "claude-sonnet-4-5-20250929"
       api_key: "${ANTHROPIC_API_KEY}"
       timeout_s: 1.5
+
+  # AI trader agent: portfolio allocator that can originate trades
+  trader_agent:
+    enabled: false
+    provider: "mock"          # mock | openai | anthropic
+    model: "gpt-4o-mini"      # Only used when provider!=mock
+    api_key: "${OPENAI_API_KEY}"
+    timeout_s: 2.5
+    max_decisions: 4
+    min_confidence: 0.55
+    min_rebalance_delta_pct: 0.35
+    max_position_pct: 3.0      # Clamp AI targets per symbol (pct of NAV)
+    max_single_trade_pct: 2.0  # Max % NAV per trade when moving toward target
+    tag: "ai_trader_agent"
