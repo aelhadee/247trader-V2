@@ -54,8 +54,8 @@ def get_current_account_value(exchange: CoinbaseExchange) -> float:
         else:
             # Get current price
             quote = exchange.get_quote(f"{currency}-USD")
-            if quote and quote.price:
-                total_usd += balance * quote.price
+            if quote and quote.mid:
+                total_usd += balance * quote.mid
     
     return total_usd
 
