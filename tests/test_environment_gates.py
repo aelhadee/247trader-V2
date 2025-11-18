@@ -264,9 +264,26 @@ def test_exchange_respects_read_only():
         exchange_ro.place_order("BTC-USD", "BUY", "0.001", order_type="market")
     
     # read_only=false requires credentials
-    # Test that it requires credentials when read_only=False
-    with pytest.raises(ValueError, match="LIVE mode requires credentials"):
-        CoinbaseExchange(read_only=False)
+    # Test that it requires credentials when read_only=False and no env vars/params
+    import os
+    # Temporarily clear any existing env vars for this test
+    old_key = os.environ.pop("CB_API_KEY", None)
+    old_secret = os.environ.pop("CB_API_SECRET", None)
+    old_key2 = os.environ.pop("COINBASE_API_KEY", None)
+    old_secret2 = os.environ.pop("COINBASE_API_SECRET", None)
+    try:
+        with pytest.raises(ValueError, match="LIVE mode requires credentials"):
+            CoinbaseExchange(read_only=False)
+    finally:
+        # Restore env vars if they existed
+        if old_key:
+            os.environ["CB_API_KEY"] = old_key
+        if old_secret:
+            os.environ["CB_API_SECRET"] = old_secret
+        if old_key2:
+            os.environ["COINBASE_API_KEY"] = old_key2
+        if old_secret2:
+            os.environ["COINBASE_API_SECRET"] = old_secret2
     
     # With credentials, read_only=False should work
     exchange_rw = CoinbaseExchange(read_only=False, api_key="test_api_key_10", api_secret="test_secret_20_chars_long")
