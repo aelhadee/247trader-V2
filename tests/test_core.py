@@ -148,8 +148,6 @@ def test_risk_checks():
         assert len(result.approved_proposals) > 0, "Approved but no proposals in list"
     else:
         print(f"✅ Risk checks: PASS - Proposal rejected: {result.reason}")
-    
-    return True
 
 
 def test_full_cycle():
