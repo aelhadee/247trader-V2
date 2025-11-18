@@ -621,11 +621,15 @@ def test_find_best_trading_pair_prefers_usdc(execution_engine, mock_exchange):
 
 def test_insufficient_balance_reduces_trade_size(execution_engine, mock_exchange):
     """If balance < size_usd, should adjust trade size down"""
-    # Mock low balance
+    # Mock low balance (update both get_balances and get_accounts)
     mock_exchange.get_balances.return_value = {
         "USDC": 500.0,  # Only $500 available
         "USD": 0.0
     }
+    mock_exchange.get_accounts.return_value = [
+        {"currency": "USDC", "available_balance": {"value": "500.0"}},
+        {"currency": "USD", "available_balance": {"value": "0.0"}}
+    ]
     
     # Request $1000 trade
     with patch.object(execution_engine, '_execute_live') as mock_live:
