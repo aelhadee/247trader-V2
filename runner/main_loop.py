@@ -1889,19 +1889,21 @@ class TradingLoop:
                         started_at=cycle_started,
                     )
                     return
+            else:
+                # Triggers detected - reset zero-trigger counter
+                state = self.state_store.load()
+                if state.get("zero_trigger_cycles", 0) > 0:
+                    state["zero_trigger_cycles"] = 0
+                    state["auto_tune_applied"] = False  # Reset flag when triggers resume
+                    self.state_store.save(state)
 
-            # Triggers detected - reset zero-trigger counter
-            state = self.state_store.load()
-            if state.get("zero_trigger_cycles", 0) > 0:
-                state["zero_trigger_cycles"] = 0
-                state["auto_tune_applied"] = False  # Reset flag when triggers resume
-                self.state_store.save(state)
-
-            logger.info(f"Triggers: {len(triggers)} detected")
+                logger.info(f"Triggers: {len(triggers)} detected")
 
             # Step 9: Generate trade proposals (multi-strategy framework)
-            logger.info(f"💡 Step 9: Generating trade proposals from {len(self.strategy_registry.get_enabled_strategies())} enabled strategies...")
-            with self._stage_timer("rules_engine"):
+            # Skip this if AI trader already generated proposals (proposals variable already set)
+            if 'proposals' not in locals() or proposals is None:
+                logger.info(f"💡 Step 9: Generating trade proposals from {len(self.strategy_registry.get_enabled_strategies())} enabled strategies...")
+                with self._stage_timer("rules_engine"):
                 # Build StrategyContext for all strategies
                 from strategy.base_strategy import StrategyContext
                 strategy_context = StrategyContext(
