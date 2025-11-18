@@ -219,8 +219,8 @@ def test_universe_building():
     
     manager = UniverseManager(exchange=exchange, config=universe_config)
     
-    # Build universe
-    snapshot = manager.build_universe()
+    # Build universe (method renamed to get_universe)
+    snapshot = manager.get_universe()
     
     assert snapshot is not None, "Universe build failed"
     assert len(snapshot.tier1) > 0, "No tier1 assets found"
