@@ -1999,6 +1999,7 @@ class TradingLoop:
                                 rescued = original_proposals_sorted[0]
                                 rescued.size_pct = rescued.size_pct * 0.5  # Conservative 50% cut
                                 proposals = [rescued]
+                                proposals_count = len(proposals)  # Update count after rescue
                                 logger.warning(
                                     f"⚠️  AI SAFEGUARD: Rescued {rescued.symbol} at 50% size "
                                     f"(AI vetoed all {original_proposal_count} proposals in {market_regime} regime, "

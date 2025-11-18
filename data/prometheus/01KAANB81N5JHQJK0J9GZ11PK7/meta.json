@@ -1,0 +1,18 @@
+{
+	"ulid": "01KAANB81N5JHQJK0J9GZ11PK7",
+	"minTime": 1763431208038,
+	"maxTime": 1763438400000,
+	"stats": {
+		"numSamples": 3060,
+		"numFloatSamples": 3060,
+		"numSeries": 51,
+		"numChunks": 67
+	},
+	"compaction": {
+		"level": 1,
+		"sources": [
+			"01KAANB81N5JHQJK0J9GZ11PK7"
+		]
+	},
+	"version": 1
+}
