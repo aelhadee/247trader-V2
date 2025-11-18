@@ -33,7 +33,6 @@ def test_config_loading():
     assert loop.policy_config is not None, "Policy config not loaded"
     assert loop.universe_config is not None, "Universe config not loaded"
     print("✅ Config loading: PASS")
-    return True
 
 
 def test_universe_building():
