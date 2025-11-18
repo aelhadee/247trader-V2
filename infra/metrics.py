@@ -91,6 +91,7 @@ class MetricsRecorder:
             # Trim tracking
             self._trim_attempts_counter = None
             self._trim_consecutive_failures_gauge = None
+            self._trim_liquidated_usd_counter = None
             return
 
         self._cycle_summary = Summary(  # type: ignore[assignment]
