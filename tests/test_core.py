@@ -74,8 +74,6 @@ def test_trigger_scanning():
     if triggers:
         top = triggers[0]
         print(f"   Top: {top.symbol} ({top.trigger_type}) strength={top.strength:.2f} conf={top.confidence:.2f}")
-    
-    return True
 
 
 def test_rules_engine():
