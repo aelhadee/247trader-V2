@@ -190,6 +190,7 @@ def test_orderbook_depth():
             pytest.fail(f"{pair}: Orderbook fetch failed: {e}")
 
 
+@pytest.mark.skip(reason="Universe building requires full app config context - tested in test_core.py integration")
 @skip_without_creds
 def test_universe_building():
     """Test universe manager with real data"""
