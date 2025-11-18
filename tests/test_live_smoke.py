@@ -178,8 +178,8 @@ def test_orderbook_depth():
             orderbook = exchange.get_orderbook(pair)
             
             assert orderbook is not None, f"{pair}: No orderbook data"
-            assert 'bids' in orderbook, f"{pair}: No bids"
-            assert 'asks' in orderbook, f"{pair}: No asks"
+            assert hasattr(orderbook, 'bids') and orderbook.bids, f"{pair}: No bids"
+            assert hasattr(orderbook, 'asks') and orderbook.asks, f"{pair}: No asks"
             
             bids = orderbook['bids']
             asks = orderbook['asks']
