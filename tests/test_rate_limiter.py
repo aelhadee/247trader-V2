@@ -6,7 +6,7 @@ Tests token bucket algorithm, endpoint tracking, and alerting.
 
 import time
 import pytest
-from core.rate_limiter import RateLimiter, EndpointQuota, RateLimitStats
+from core.rate_limiter import RateLimiter, EndpointQuota
 
 
 def test_endpoint_quota_basic():
@@ -144,8 +144,8 @@ def test_rate_limiter_default_quotas():
     assert limiter.acquire("unknown_private", is_private=True, wait=False) is True
     
     # Check that defaults were applied
-    stats_pub = limiter.get_stats("unknown_public", is_private=False)
-    stats_priv = limiter.get_stats("unknown_private", is_private=True)
+    limiter.get_stats("unknown_public", is_private=False)
+    limiter.get_stats("unknown_private", is_private=True)
     
     # Should have used defaults (10 and 15 respectively)
     # Check via available tokens after 1 acquire

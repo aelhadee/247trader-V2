@@ -1,7 +1,6 @@
 """
 Test fee-aware sizing in ExecutionEngine.
 """
-import pytest
 from core.execution import ExecutionEngine
 
 

@@ -7,11 +7,10 @@ before trading decisions to prevent execution on outdated market data.
 
 import pytest
 from datetime import datetime, timezone, timedelta
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 from dataclasses import dataclass
 
-from core.execution import ExecutionEngine, ExecutionResult
-from core.exchange_coinbase import Quote
+from core.execution import ExecutionEngine
 
 
 @dataclass

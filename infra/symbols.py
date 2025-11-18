@@ -8,7 +8,7 @@ state reconciliations.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Mapping, Optional, Sequence, Tuple
+from typing import Any, Dict, Mapping, Optional, Tuple
 
 DEFAULT_QUOTE = "USD"
 

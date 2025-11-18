@@ -9,7 +9,6 @@ Run before each deployment phase.
 import sys
 from pathlib import Path
 import subprocess
-import json
 
 
 def check_file_exists(path: str, description: str) -> bool:
@@ -84,7 +83,6 @@ def check_imports() -> bool:
     all_ok = True
     
     # Add project root to path for imports
-    import os
     project_root = Path(__file__).parent.parent
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))

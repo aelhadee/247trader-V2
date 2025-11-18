@@ -5,10 +5,10 @@ Verifies stale order cancellation, state transitions, and error handling.
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock
 from datetime import datetime, timezone, timedelta
 from core.execution import ExecutionEngine
-from core.order_state import OrderStateMachine, OrderStatus
+from core.order_state import OrderStatus
 from infra.state_store import StateStore
 
 

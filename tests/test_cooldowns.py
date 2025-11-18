@@ -1,11 +1,9 @@
 """
 Test per-symbol cooldown enforcement.
 """
-import pytest
 from datetime import datetime, timedelta, timezone
 from core.risk import RiskEngine
-from strategy.rules_engine import TradeProposal, TriggerSignal
-from core.universe import UniverseAsset
+from strategy.rules_engine import TradeProposal
 from infra.state_store import StateStore
 import tempfile
 import os

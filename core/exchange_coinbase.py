@@ -15,7 +15,7 @@ import secrets
 from collections import deque
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 import logging
 import requests
 from requests import exceptions as requests_exceptions
@@ -50,7 +50,7 @@ class Quote:
     last: float
     volume_24h: float
     timestamp: datetime
-    
+
     @property
     def spread_pct(self) -> float:
         return self.spread_bps / 10000.0
@@ -83,20 +83,20 @@ class OHLCV:
 class CoinbaseExchange:
     """
     Coinbase Advanced Trade API connector with HMAC authentication.
-    
+
     Supports:
     - Market data (products, quotes, orderbooks, candles)
     - Account data (balances, positions)
     - Order execution (preview, place, cancel)
     """
-    
+
     def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None,
                  read_only: bool = True, metrics: Optional["MetricsRecorder"] = None,
                  latency_tracker: Optional["LatencyTracker"] = None):
         # SECURITY: Credentials MUST come from environment variables or parameters only.
         # File-based credential loading removed for security hardening.
         # Set CB_API_KEY and CB_API_SECRET environment variables before starting.
-        
+
         # Load from parameters first, then environment variables
         self.api_key = api_key or os.getenv("CB_API_KEY") or os.getenv("COINBASE_API_KEY", "")
         secret_raw = (api_secret or os.getenv("CB_API_SECRET") or os.getenv("COINBASE_API_SECRET", "")).replace("\\n", "\n").strip()
@@ -104,7 +104,7 @@ class CoinbaseExchange:
         self.read_only = read_only
         self.metrics = metrics
         self.latency_tracker = latency_tracker
-        
+
         # Validate credentials for non-read-only modes
         if not read_only:
             if not self.api_key or not self.api_secret:
@@ -113,7 +113,7 @@ class CoinbaseExchange:
                     missing.append("CB_API_KEY or COINBASE_API_KEY")
                 if not self.api_secret:
                     missing.append("CB_API_SECRET or COINBASE_API_SECRET")
-                
+
                 raise ValueError(
                     f"LIVE mode requires credentials. Missing: {', '.join(missing)}\n"
                     "\n"
@@ -126,57 +126,57 @@ class CoinbaseExchange:
                     "\n"
                     "For read-only mode (no trading), pass read_only=True to bypass this check."
                 )
-            
+
             # Validate format (basic checks)
             if len(self.api_key) < 10:
                 raise ValueError("CB_API_KEY appears invalid (too short). Check your credentials.")
             if len(self.api_secret) < 20:
                 raise ValueError("CB_API_SECRET appears invalid (too short). Check your credentials.")
-        
+
         # Authentication mode
         self._mode = "hmac"
         self._pem = None
-        
+
         # Detect PEM key (for org/cloud keys using JWT/ES256 authentication)
         if secret_raw.startswith("-----BEGIN"):
             self._pem = secret_raw
             self._mode = "pem"
             logger.info("Using Cloud API authentication (JWT/ES256) with PEM key")
-        
+
         # Per-endpoint rate limiting (NEW: replaces legacy channel-based tracking)
         alert_threshold = 0.8  # Alert at 80% utilization
         self.rate_limiter = RateLimiter(alert_threshold=alert_threshold)
-        
+
         # Legacy tracking (kept for backward compatibility, deprecated)
         self._last_call = {}
         self._min_interval = 0.1  # 100ms between calls
         self._rate_limit_targets = {"public": None, "private": None}
         self._rate_usage = {"public": deque(), "private": deque()}
         self._rate_utilization = {"public": 0.0, "private": 0.0}
-        
+
         # Cache for products
         self._products_cache = None
         self._products_cache_time = None
 
         # Track convert compatibility per currency pair to avoid repeated failures
         self._convert_support_cache: Dict[Tuple[str, str], bool] = {}
-        
+
         logger.info(f"Initialized CoinbaseExchange (read_only={read_only}, mode={self._mode})")
-    
+
     def _rate_limit(self, endpoint: str, is_private: bool = False):
         """
         Per-endpoint rate limiting with proactive throttling.
-        
+
         Args:
             endpoint: Endpoint name (e.g., 'list_products', 'place_order')
             is_private: Whether endpoint requires authentication
-        
+
         Uses token bucket algorithm to prevent quota exhaustion.
         Will wait if necessary to stay within limits.
         """
         # Use new per-endpoint limiter (wait=True ensures compliance)
         self.rate_limiter.acquire(endpoint, is_private=is_private, wait=True)
-        
+
         # Legacy tracking (backward compatibility)
         last = self._last_call.get(endpoint, 0)
         elapsed = time.time() - last
@@ -187,7 +187,7 @@ class CoinbaseExchange:
     def configure_rate_limits(self, rate_cfg: Optional[Dict[str, Any]]) -> None:
         """
         Configure rate limits from config.
-        
+
         Args:
             rate_cfg: Dict with keys:
                 - 'public': requests/sec for public endpoints (default: 10)
@@ -195,21 +195,21 @@ class CoinbaseExchange:
                 - 'endpoints': per-endpoint overrides, e.g. {'get_quote': 20}
         """
         cfg = rate_cfg or {}
-        
+
         # Extract default quotas
         default_public = cfg.get("public")
         default_private = cfg.get("private")
-        
+
         # Extract per-endpoint overrides
         endpoint_quotas = cfg.get("endpoints", {})
-        
+
         # Configure new rate limiter
         self.rate_limiter.configure(
             endpoint_quotas=endpoint_quotas,
             default_public=default_public,
             default_private=default_private
         )
-        
+
         # Legacy channel tracking (backward compatibility)
         for channel in ("public", "private"):
             limit = cfg.get(channel)
@@ -227,7 +227,7 @@ class CoinbaseExchange:
     def rate_limit_snapshot(self) -> Dict[str, Any]:
         """
         Get comprehensive rate limit snapshot.
-        
+
         Returns:
             Dict with:
                 - 'legacy_channels': legacy channel utilization (public/private)
@@ -236,7 +236,7 @@ class CoinbaseExchange:
         """
         # Legacy channel utilization
         legacy = dict(self._rate_utilization)
-        
+
         # Per-endpoint statistics
         endpoint_stats = self.rate_limiter.get_all_stats()
         endpoints_dict = {
@@ -249,12 +249,12 @@ class CoinbaseExchange:
             }
             for name, stats in endpoint_stats.items()
         }
-        
+
         # Summary statistics
         max_util = max((s.utilization for s in endpoint_stats.values()), default=0.0)
         total_violations = sum(s.violations for s in endpoint_stats.values())
         high_util_count = sum(1 for s in endpoint_stats.values() if s.utilization >= 0.8)
-        
+
         return {
             "legacy_channels": legacy,
             "endpoints": endpoints_dict,
@@ -269,7 +269,7 @@ class CoinbaseExchange:
     def _record_rate_usage(self, channel: str, endpoint: Optional[str] = None, violated: bool = False) -> None:
         """
         Record rate usage for both legacy channel tracking and new per-endpoint tracking.
-        
+
         Args:
             channel: Channel name ('public' or 'private')
             endpoint: Endpoint name (e.g., 'list_products', 'place_order')
@@ -289,7 +289,7 @@ class CoinbaseExchange:
         violation = violated or (limit is not None and usage >= 1.0)
         if self.metrics:
             self.metrics.record_rate_limit_usage(channel, usage, violated=violation)
-        
+
         # New per-endpoint tracking
         if endpoint:
             is_private = (channel == "private")
@@ -322,24 +322,24 @@ class CoinbaseExchange:
             endpoint_name = label.replace("/", "_").replace("-", "_")
             self._record_rate_usage("public", endpoint=endpoint_name, violated=False)
             self._record_api_metrics(label, "public", duration, status_label)
-    
+
     def _build_jwt(self, method: str, path: str) -> str:
         """Build JWT token for Cloud API authentication (ES256)"""
         if not JWT_AVAILABLE:
             raise ImportError("PyJWT and cryptography required for Cloud API. Run: pip install PyJWT cryptography")
-        
+
         if not self.api_key or not self._pem:
             raise ValueError("API key and private key required for JWT authentication")
-        
+
         try:
             private_key_bytes = self._pem.encode("utf-8")
             private_key = serialization.load_pem_private_key(private_key_bytes, password=None)
         except Exception as e:
             raise ValueError(f"Failed to load private key: {e}")
-        
+
         # Format URI for JWT: "METHOD api.coinbase.com/api/v3/brokerage/endpoint"
         uri = f"{method.upper()} api.coinbase.com{path}"
-        
+
         jwt_data = {
             "sub": self.api_key,
             "iss": "cdp",  # Coinbase Developer Platform
@@ -347,42 +347,42 @@ class CoinbaseExchange:
             "exp": int(time.time()) + 120,  # 2 minute expiry
             "uri": uri,
         }
-        
+
         jwt_token = jwt.encode(
             jwt_data,
             private_key,
             algorithm="ES256",
             headers={"kid": self.api_key, "nonce": secrets.token_hex()},
         )
-        
+
         return jwt_token
-    
+
     def _headers(self, method: str, path: str, body: Optional[dict] = None) -> dict:
         """Generate signed headers for authenticated requests"""
         headers = {"Content-Type": "application/json"}
-        
+
         if self._mode == "hmac":
             # Legacy HMAC authentication (retail keys)
             if not self.api_key or not self.api_secret:
                 raise ValueError("COINBASE_API_KEY and COINBASE_API_SECRET required for authenticated requests")
-            
+
             ts = str(int(time.time()))
             body_str = json.dumps(body) if body else ""
             prehash = ts + method.upper() + path + body_str
-            
+
             sig = hmac.new(
                 self.api_secret.encode(),
                 prehash.encode(),
                 hashlib.sha256
             ).hexdigest()
-            
+
             headers.update({
                 "CB-ACCESS-KEY": self.api_key,
                 "CB-ACCESS-SIGN": sig,
                 "CB-ACCESS-TIMESTAMP": ts,
             })
             return headers
-        
+
         elif self._mode == "pem":
             # Cloud API JWT authentication (organization keys)
             jwt_token = self._build_jwt(method, path)
@@ -390,21 +390,21 @@ class CoinbaseExchange:
                 "Authorization": f"Bearer {jwt_token}",
             })
             return headers
-        
+
         else:
             raise NotImplementedError(f"Unknown authentication mode: {self._mode}")
-    
+
     def _req(self, method: str, endpoint: str, body: Optional[dict] = None,
              authenticated: bool = True, max_retries: int = 3,
              query: Optional[Dict[str, object]] = None) -> dict:
         """
         Make HTTP request to Coinbase API with exponential backoff.
-        
+
         Retries on:
         - 429 (rate limit)
         - 5xx (server errors)
         - Network errors (timeout, connection)
-        
+
         Does NOT retry on:
         - 4xx (except 429) - client errors like 400, 401, 403
         """
@@ -430,7 +430,7 @@ class CoinbaseExchange:
         else:
             # HMAC: sign with full query string
             path_for_auth = f"/api/v3/brokerage{endpoint_with_query}"
-        
+
         url = CB_BASE + endpoint_with_query
 
         last_exception = None
@@ -448,7 +448,7 @@ class CoinbaseExchange:
                     headers = self._headers(method, path_for_auth, body)
                 else:
                     headers = {"Content-Type": "application/json"}
-                
+
                 response = requests.request(
                     method,
                     url,
@@ -459,12 +459,12 @@ class CoinbaseExchange:
                 response.raise_for_status()
                 payload = response.json()
                 succeeded = True
-                
+
             except requests.exceptions.HTTPError as e:
                 status_code = e.response.status_code
                 status_label = f"http_{status_code}"
                 rate_limited = status_code == 429
-                
+
                 # Don't retry on client errors (except 429)
                 if 400 <= status_code < 500 and status_code != 429:
                     # 404 is often expected (empty orders, missing data) - log as debug
@@ -473,20 +473,20 @@ class CoinbaseExchange:
                     else:
                         logger.error(f"Coinbase API client error: {status_code} - {e.response.text}")
                     raise
-                
+
                 # Retry on 429 (rate limit) or 5xx (server errors)
                 if status_code == 429:
                     logger.warning(f"Rate limited (429) on {endpoint}, attempt {attempt + 1}/{max_retries}")
                 elif status_code >= 500:
                     logger.warning(f"Server error ({status_code}) on {endpoint}, attempt {attempt + 1}/{max_retries}")
-                
+
                 last_exception = e
-                
+
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
                 logger.warning(f"Network error on {endpoint}: {e}, attempt {attempt + 1}/{max_retries}")
                 last_exception = e
                 status_label = "network_error"
-                
+
             except Exception as e:
                 logger.error(f"Request failed: {e}")
                 status_label = type(e).__name__
@@ -512,14 +512,14 @@ class CoinbaseExchange:
                 backoff = random.uniform(0, exp_backoff)  # Full jitter: 0 to exp_backoff
                 logger.info(f"Retrying in {backoff:.1f}s (full jitter, attempt {attempt + 1}/{max_retries})...")
                 time.sleep(backoff)
-        
+
         # All retries exhausted
         logger.error(f"All {max_retries} retries exhausted for {endpoint}")
         if last_exception:
             raise last_exception
         else:
             raise Exception(f"Request to {endpoint} failed after {max_retries} attempts")
-    
+
     def get_quote(self, symbol: str) -> Quote:
         """
         Get real-time quote for symbol using Coinbase public ticker endpoint.
@@ -591,18 +591,18 @@ class CoinbaseExchange:
             volume_24h=volume_24h,
             timestamp=datetime.now(timezone.utc)
         )
-    
+
     def get_orderbook(self, symbol: str, depth_levels: int = 50) -> OrderbookSnapshot:
         """
         Get orderbook depth snapshot using Coinbase market book if available.
         Falls back to heuristic based on 24h volume when book is unavailable.
-        
+
         Depth is computed within ±20bps of mid to match policy "min_depth_20bps_usd".
-        
+
         Args:
             symbol: e.g. "BTC-USD"
             depth_levels: Number of levels to fetch (best-effort; 50-100 typical)
-            
+
         Returns:
             OrderbookSnapshot with depth metrics
         """
@@ -688,24 +688,24 @@ class CoinbaseExchange:
                 ask_levels=0,
                 timestamp=datetime.now(timezone.utc)
             )
-    
+
     def get_ohlcv(self, symbol: str, interval: str = "1h", 
                    limit: int = 100) -> List[OHLCV]:
         """
         Get historical OHLCV candlesticks from Coinbase.
-        
+
         Args:
             symbol: e.g. "BTC-USD"
             interval: Granularity - "ONE_MINUTE", "FIVE_MINUTE", "FIFTEEN_MINUTE", 
                      "THIRTY_MINUTE", "ONE_HOUR", "TWO_HOUR", "SIX_HOUR", "ONE_DAY"
                      Or shortcuts: "1m", "5m", "15m", "1h", "1d"
             limit: Number of candles (max 300)
-            
+
         Returns:
             List of OHLCV candles (oldest to newest)
         """
         self._rate_limit("get_ohlcv", is_private=False)
-        
+
         # Map shorthand intervals to Coinbase granularity
         interval_map = {
             "1m": "ONE_MINUTE",
@@ -718,10 +718,10 @@ class CoinbaseExchange:
             "1d": "ONE_DAY"
         }
         granularity = interval_map.get(interval, interval)
-        
+
         # Calculate time range (Coinbase requires start/end)
         end = int(time.time())
-        
+
         # Duration in seconds per candle
         duration_map = {
             "ONE_MINUTE": 60,
@@ -735,16 +735,16 @@ class CoinbaseExchange:
         }
         duration = duration_map.get(granularity, 3600)
         start = end - (duration * min(limit, 300))  # Coinbase max is 300
-        
+
         logger.debug(f"Fetching OHLCV for {symbol} ({granularity}, limit={limit})")
-        
+
         try:
             result = self._req(
                 "GET",
                 f"/products/{symbol}/candles?start={start}&end={end}&granularity={granularity}",
                 authenticated=True  # Requires authentication
             )
-            
+
             candles = []
             for candle in result.get("candles", []):
                 # Coinbase returns: [timestamp, low, high, open, close, volume]
@@ -757,71 +757,71 @@ class CoinbaseExchange:
                     close=float(candle["close"]),
                     volume=float(candle["volume"])
                 ))
-            
+
             # Sort oldest to newest
             candles.sort(key=lambda c: c.timestamp)
             return candles
-            
+
         except Exception as e:
             logger.error(f"Failed to fetch OHLCV for {symbol}: {e}")
             return []
-    
+
     def get_tickers(self, symbols: Optional[List[str]] = None) -> Dict[str, Quote]:
         """
         Get quotes for multiple symbols.
-        
+
         Args:
             symbols: List of symbols (or None for all)
-            
+
         Returns:
             Dict mapping symbol -> Quote
         """
         if symbols is None:
             # Get all tradeable symbols
             symbols = self.get_symbols()
-        
+
         logger.debug(f"Fetching tickers for {len(symbols)} symbols")
-        
+
         tickers = {}
         for symbol in symbols:
             try:
                 tickers[symbol] = self.get_quote(symbol)
             except Exception as e:
                 logger.warning(f"Failed to fetch ticker for {symbol}: {e}")
-        
+
         return tickers
-    
+
     def get_symbols(self) -> List[str]:
         """
         Get all tradeable USD symbols on exchange.
-        
+
         Returns:
             List of symbol strings (e.g. ["BTC-USD", "ETH-USD", ...])
         """
         logger.debug("Fetching available symbols from cache")
-        
+
         # Use cached products list (refreshed every 5 min)
         if not self._products_cache or not self._products_cache_time or (time.time() - self._products_cache_time) > 300:
             self._rate_limit("list_symbols", is_private=False)
             self._products_cache = self.list_public_products(limit=250)
             self._products_cache_time = time.time()
-        
+
         # Filter for USD pairs that are tradeable
         usd_symbols = []
         for p in self._products_cache:
             product_id = p.get("product_id", "")
             status = p.get("status", "")
-            
+
             if product_id.endswith("-USD") and status != "offline":
                 usd_symbols.append(product_id)
-        
+
         logger.debug(f"Found {len(usd_symbols)} USD trading pairs (cached)")
         return usd_symbols
-    
+
     def check_connectivity(self) -> bool:
         """
         Test exchange connectivity.
-        
+
         Returns:
             True if connected and healthy
         """
@@ -832,13 +832,13 @@ class CoinbaseExchange:
         except Exception as e:
             logger.error(f"Exchange connectivity failed: {e}")
             return False
-    
+
     # ========== V1 Methods (Authenticated) ==========
-    
+
     def get_accounts(self) -> List[dict]:
         """
         Get account balances.
-        
+
         Returns:
             List of accounts with balances for all currencies
         """
@@ -846,47 +846,47 @@ class CoinbaseExchange:
         logger.debug("Fetching account balances")
         response = self._req("GET", "/accounts", authenticated=True)
         return response.get("accounts", [])
-    
+
     def get_products(self, product_ids: List[str]) -> List[dict]:
         """
         Get product details for specific products from public list.
-        
+
         Args:
             product_ids: List of product IDs (e.g. ["BTC-USD", "ETH-USD"])
-            
+
         Returns:
             List of product details
         """
         # Use cached metadata instead of calling API
         logger.debug(f"Fetching products from cache: {product_ids}")
-        
+
         filtered = []
         for pid in product_ids:
             metadata = self.get_product_metadata(pid)  # Uses 5-min cache
             if metadata:
                 filtered.append(metadata)
-        
+
         return filtered
-    
+
     def list_public_products(self, limit: int = 250) -> List[dict]:
         """
         List all public products (market data).
-        
+
         Args:
             limit: Max products to return (1-250)
-            
+
         Returns:
             List of product dicts with price, volume, status
         """
         self._rate_limit("list_products", is_private=False)
-        
+
         url = "https://api.coinbase.com/api/v3/brokerage/market/products"
         try:
             r = requests.get(url, params={"limit": max(1, min(limit, 250))}, timeout=20)
             r.raise_for_status()
             data = r.json() or {}
             items = data.get("products", [])
-            
+
             # Normalize format
             out = []
             for it in items:
@@ -907,7 +907,7 @@ class CoinbaseExchange:
                     "price_increment": it.get("price_increment"),
                     "min_market_funds": it.get("min_market_funds") or it.get("min_market_funds"),
                 })
-            
+
             return out
         except Exception as e:
             logger.warning(f"list_public_products failed: {e}")
@@ -928,48 +928,48 @@ class CoinbaseExchange:
         """Return True if the given product_id is currently tradeable."""
         metadata = self.get_product_metadata(product_id)
         return bool(metadata and metadata.get("status", "").lower() != "offline")
-    
+
     def get_product_spec(self, product_id: str) -> dict:
         """
         Get product specification (increments, lot sizes, min notionals).
-        
+
         Returns dict with:
             - quote_increment: minimum price tick (e.g. "0.01")
             - base_increment: minimum size tick (e.g. "0.00000001")
             - min_market_funds: minimum order notional (e.g. "5")
             - status: product status ("online", "offline")
-        
+
         Returns empty dict if product not found.
         """
         metadata = self.get_product_metadata(product_id)
         if not metadata:
             return {}
-        
+
         return {
             "quote_increment": metadata.get("quote_increment") or metadata.get("price_increment") or "0.01",
             "base_increment": metadata.get("base_increment") or "0.00000001",
             "min_market_funds": metadata.get("min_market_funds") or "5",
             "status": metadata.get("status", ""),
         }
-    
+
     def preview_order(self, product_id: str, side: str, quote_size_usd: float) -> dict:
         """
         Preview an order without placing it (dry-run).
-        
+
         Args:
             product_id: e.g. "BTC-USD"
             side: "buy" or "sell"
             quote_size_usd: USD amount to trade
-            
+
         Returns:
             Order preview with estimated fills, fees, slippage
         """
         if self.read_only:
             logger.info(f"READ_ONLY mode: Would preview {side} {quote_size_usd} USD of {product_id}")
             return {"success": False, "read_only": True}
-        
+
         self._rate_limit("preview_order", is_private=True)
-        
+
         side_up = side.upper()
 
         # Per Coinbase, market SELLs must be parameterized with base_size
@@ -1008,7 +1008,7 @@ class CoinbaseExchange:
                 "product_id": product_id,
                 "side": side_up
             }
-        
+
         logger.info(f"Previewing {side} {quote_size_usd} USD of {product_id}")
         return self._req("POST", "/orders/preview", body, authenticated=True)
 
@@ -1031,7 +1031,7 @@ class CoinbaseExchange:
             }
             if product_id:
                 query_params["product_id"] = product_id
-            
+
             resp = self._req("GET", "/orders/historical/batch", query=query_params, authenticated=True)
             orders = resp.get("orders", [])
             open_orders = [o for o in orders if o.get("status") in ("OPEN", "PENDING", "ACTIVE")]
@@ -1039,7 +1039,7 @@ class CoinbaseExchange:
         except Exception as e:
             # 404 might mean endpoint changed - try fallback
             if "404" in str(e):
-                logger.debug(f"list_open_orders: primary endpoint 404, trying fallback...")
+                logger.debug("list_open_orders: primary endpoint 404, trying fallback...")
                 try:
                     # Fallback: list all recent orders and filter client-side
                     resp = self._req("GET", "/orders/historical/batch", query={"limit": limit}, authenticated=True)
@@ -1065,7 +1065,7 @@ class CoinbaseExchange:
             # Coinbase API uses batch_cancel endpoint for single orders too
             body = {"order_ids": [order_id]}
             resp = self._req("POST", "/orders/batch_cancel", body, authenticated=True)
-            
+
             # Parse batch response - returns {"results": [{"success": bool, "order_id": str, ...}]}
             # NOTE: Coinbase API returns success=true even with failure_reason="UNKNOWN_CANCEL_FAILURE_REASON"
             # This is expected behavior for orders that are already canceled/filled
@@ -1100,12 +1100,12 @@ class CoinbaseExchange:
             self._rate_limit("cancel_orders", is_private=True)
             body = {"order_ids": order_ids}
             resp = self._req("POST", "/orders/batch_cancel", body, authenticated=True)
-            
+
             # Parse results
             results = resp.get("results", [])
             success_count = sum(1 for r in results if r.get("success"))
             failure_count = len(results) - success_count
-            
+
             logger.info(f"Batch cancel: {success_count} succeeded, {failure_count} failed out of {len(order_ids)} requested")
             return resp
         except Exception as e:
@@ -1115,23 +1115,23 @@ class CoinbaseExchange:
     def get_order_status(self, order_id: str) -> Optional[dict]:
         """
         Get historical order status by ID.
-        
+
         Uses /orders/historical/{order_id} endpoint to check order state.
-        
+
         Args:
             order_id: Order UUID
-            
+
         Returns:
             Order dict with status, fills, etc. or None if not found
         """
         if self.read_only and not self.api_key:
             logger.info(f"READ_ONLY: would get order status for {order_id}")
             return None
-        
+
         try:
             self._rate_limit("get_order", is_private=True)
             resp = self._req("GET", f"/orders/historical/{order_id}", authenticated=True)
-            
+
             # Response has { "order": {...} } wrapper
             order = resp.get("order", {})
             if order:
@@ -1140,7 +1140,7 @@ class CoinbaseExchange:
                     f"filled_size={order.get('filled_size', 0)}"
                 )
             return order
-            
+
         except Exception as e:
             logger.warning(f"get_order_status failed for {order_id}: {e}")
             return None
@@ -1149,13 +1149,13 @@ class CoinbaseExchange:
                   limit: int = 100, start_time: Optional[datetime] = None) -> List[dict]:
         """
         List order fills (completed trades).
-        
+
         Args:
             order_id: Filter by specific order ID
             product_id: Filter by trading pair (e.g., "BTC-USD")
             limit: Max fills to return (1-1000, default 100)
             start_time: Only return fills after this time
-            
+
         Returns:
             List of fill dicts with:
                 - entry_id: Fill ID
@@ -1176,7 +1176,7 @@ class CoinbaseExchange:
         if self.read_only and not self.api_key:
             logger.info("READ_ONLY: would list fills")
             return []
-        
+
         try:
             self._rate_limit("list_fills", is_private=True)
 
@@ -1240,7 +1240,7 @@ class CoinbaseExchange:
         except Exception as e:
             logger.warning(f"list_fills failed: {e}")
             return []
-    
+
     def _round_to_increment(self, qty: float, increment: Optional[str], product_id: str) -> str:
         """Round quantity down to exchange-defined base increment."""
         try:
@@ -1281,14 +1281,14 @@ class CoinbaseExchange:
             return f"{price:.5f}"
         else:
             return f"{price:.8f}"
-    
+
     def place_order(self, product_id: str, side: str, quote_size_usd: float, 
                    client_order_id: Optional[str] = None, 
                    order_type: str = "market",
                    maker_cushion_ticks: int = 1) -> dict:
         """
         Place an order (market or limit).
-        
+
         Args:
             product_id: e.g. "BTC-USD"
             side: "buy" or "sell"
@@ -1296,15 +1296,15 @@ class CoinbaseExchange:
             client_order_id: Optional idempotency key
             order_type: "market" or "limit_post_only"
             maker_cushion_ticks: Number of ticks inside bid/ask for maker orders (default 1)
-            
+
         Returns:
             Order result with fill details
         """
         if self.read_only:
             raise ValueError("Cannot place orders in READ_ONLY mode")
-        
+
         self._rate_limit("place_order", is_private=True)
-        
+
         if order_type == "limit_post_only":
             quote = self.get_quote(product_id)
             if quote.bid <= 0 or quote.ask <= 0:
@@ -1402,11 +1402,11 @@ class CoinbaseExchange:
                     "client_order_id": client_order_id or str(uuid.uuid4()),
                 }
                 logger.warning(f"PLACING MARKET ORDER: {side} {quote_size_usd} USD of {product_id}")
-        
+
         return self._req("POST", "/orders", body, authenticated=True)
-    
+
     # ========== Convert API (Crypto-to-Crypto) ==========
-    
+
     def _find_account(self, accounts: List[dict], currency: str) -> Optional[dict]:
         for account in accounts:
             if account.get("currency") == currency:
@@ -1416,74 +1416,74 @@ class CoinbaseExchange:
     def create_convert_quote(self, from_account: str, to_account: str, amount: str) -> dict:
         """
         Create a convert quote for crypto-to-crypto conversion.
-        
+
         Args:
             from_account: Source account UUID
             to_account: Target account UUID
             amount: Amount in source currency
-            
+
         Returns:
             Quote response with trade_id, exchange_rate, fees
         """
         if self.read_only:
             logger.warning("Read-only mode - would request convert quote")
             return {"trade": {"id": "dry-run", "status": "PREVIEW"}}
-        
+
         self._rate_limit("convert_quote", is_private=True)
-        
+
         body = {
             "from_account": from_account,
             "to_account": to_account,
             "amount": amount
         }
-        
+
         logger.info(f"Creating convert quote: {amount} from {from_account[:8]}... to {to_account[:8]}...")
         return self._req("POST", "/convert/quote", body, authenticated=True)
-    
+
     def get_convert_trade(self, trade_id: str, from_account: str, to_account: str) -> dict:
         """
         Get status of a convert trade.
-        
+
         Args:
             trade_id: Trade ID from quote
             from_account: Source account UUID
             to_account: Target account UUID
-            
+
         Returns:
             Trade status response
         """
         self._rate_limit("convert_status", is_private=True)
-        
+
         params = {
             "from_account": from_account,
             "to_account": to_account
         }
 
         return self._req("GET", f"/convert/trade/{trade_id}", query=params, authenticated=True)
-    
+
     def commit_convert_trade(self, trade_id: str, from_account: str, to_account: str) -> dict:
         """
         Execute a convert trade.
-        
+
         Args:
             trade_id: Trade ID from quote
             from_account: Source account UUID
             to_account: Target account UUID
-            
+
         Returns:
             Execution result
         """
         if self.read_only:
             logger.warning("Read-only mode - would commit convert trade")
             return {"trade": {"id": trade_id, "status": "DRY_RUN"}}
-        
+
         self._rate_limit("convert_commit", is_private=True)
-        
+
         body = {
             "from_account": from_account,
             "to_account": to_account
         }
-        
+
         logger.warning(f"COMMITTING CONVERT TRADE: {trade_id}")
         return self._req("POST", f"/convert/trade/{trade_id}", body, authenticated=True)
 
@@ -1571,26 +1571,26 @@ class CoinbaseExchange:
 def validate_credentials_available(require_credentials: bool = False) -> tuple[bool, str]:
     """
     Validate that Coinbase API credentials are available in environment.
-    
+
     Args:
         require_credentials: If True, raises ValueError if missing
-        
+
     Returns:
         (credentials_present, error_message)
-        
+
     Raises:
         ValueError: If require_credentials=True and credentials missing
     """
     api_key = os.getenv("CB_API_KEY") or os.getenv("COINBASE_API_KEY")
     api_secret = os.getenv("CB_API_SECRET") or os.getenv("COINBASE_API_SECRET")
-    
+
     if not api_key or not api_secret:
         missing = []
         if not api_key:
             missing.append("CB_API_KEY or COINBASE_API_KEY")
         if not api_secret:
             missing.append("CB_API_SECRET or COINBASE_API_SECRET")
-        
+
         error_msg = (
             f"Coinbase credentials missing from environment: {', '.join(missing)}\n"
             "\n"
@@ -1603,25 +1603,25 @@ def validate_credentials_available(require_credentials: bool = False) -> tuple[b
             "\n"
             "For read-only operations, no credentials needed (exchange.read_only=True)."
         )
-        
+
         if require_credentials:
             raise ValueError(error_msg)
-        
+
         return False, error_msg
-    
+
     # Basic format validation
     if len(api_key) < 10:
         error_msg = "CB_API_KEY appears invalid (too short)"
         if require_credentials:
             raise ValueError(error_msg)
         return False, error_msg
-    
+
     if len(api_secret) < 20:
         error_msg = "CB_API_SECRET appears invalid (too short)"
         if require_credentials:
             raise ValueError(error_msg)
         return False, error_msg
-    
+
     return True, ""
 
 
@@ -1632,7 +1632,7 @@ _exchange = None
 def get_exchange(read_only: bool = True) -> CoinbaseExchange:
     """
     Get singleton exchange instance.
-    
+
     Args:
         read_only: If True, prevents order placement (safe default)
     """

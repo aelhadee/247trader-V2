@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class AuditLogger:
     """
     Structured audit trail logger.
-    
+
     Logs every cycle decision including:
     - Universe composition
     - Trigger signals
@@ -24,14 +24,14 @@ class AuditLogger:
     - Risk check results
     - Execution outcomes
     - NO_TRADE reasons
-    
+
     Output format: JSONL (one JSON object per line)
     """
-    
+
     def __init__(self, audit_file: Optional[str] = None):
         """
         Initialize audit logger.
-        
+
         Args:
             audit_file: Path to audit log file (default: logs/audit.jsonl)
         """
@@ -39,12 +39,12 @@ class AuditLogger:
             self.audit_file = Path(audit_file)
         else:
             self.audit_file = Path("logs/audit.jsonl")
-        
+
         # Ensure directory exists
         self.audit_file.parent.mkdir(parents=True, exist_ok=True)
-        
+
         logger.info(f"Initialized AuditLogger at {self.audit_file}")
-    
+
     def log_cycle(self,
                   ts: datetime,
                   mode: str,
@@ -62,7 +62,7 @@ class AuditLogger:
                   arbitration_log: Optional[List[Any]] = None) -> None:
         """
         Log a complete trading cycle.
-        
+
         Args:
             ts: Cycle timestamp
             mode: Trading mode (DRY_RUN, PAPER, LIVE)
@@ -87,7 +87,7 @@ class AuditLogger:
 
             if stage_latencies:
                 entry["stage_latencies"] = stage_latencies
-            
+
             # PnL summary from state_store
             if state_store:
                 try:
@@ -103,7 +103,7 @@ class AuditLogger:
                     entry["pnl"] = None
             else:
                 entry["pnl"] = None
-            
+
             # Universe summary
             if universe:
                 entry["universe"] = {
@@ -114,7 +114,7 @@ class AuditLogger:
                 }
             else:
                 entry["universe"] = None
-            
+
             # Triggers summary
             if triggers:
                 if hasattr(triggers, '__len__'):
@@ -142,14 +142,14 @@ class AuditLogger:
                     }
             else:
                 entry["triggers"] = None
-            
+
             # Proposals summary
             entry["proposals"] = {
                 "base_count": len(base_proposals),
                 "risk_approved_count": len(risk_approved),
                 "final_executed_count": len(final_orders),
             }
-            
+
             # Dual-trader arbitration log
             if arbitration_log:
                 entry["arbitration"] = [
@@ -168,14 +168,14 @@ class AuditLogger:
                     }
                     for decision in arbitration_log
                 ]
-            
+
             # Risk violations
             if risk_violations:
                 entry["risk_violations"] = risk_violations
 
             if proposal_rejections:
                 entry["proposal_rejections"] = proposal_rejections
-            
+
             # Final orders detail
             if final_orders:
                 entry["orders"] = [
@@ -184,16 +184,16 @@ class AuditLogger:
                 ]
             else:
                 entry["orders"] = []
-            
+
             # Write JSONL (one JSON per line)
             with open(self.audit_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(entry) + "\n")
-            
+
             logger.debug(f"Audited cycle: status={entry['status']}")
-            
+
         except Exception as e:
             logger.error(f"Failed to write audit log: {e}")
-    
+
     def _determine_status(self, final_orders: List[Any], no_trade_reason: Optional[str]) -> str:
         """Determine cycle status"""
         if no_trade_reason:
@@ -202,7 +202,7 @@ class AuditLogger:
             return "EXECUTED"
         else:
             return "NO_OPPORTUNITIES"
-    
+
     def _serialize_order(self, order: Any) -> Dict[str, Any]:
         """Serialize an order for logging"""
         if hasattr(order, '__dict__'):
@@ -227,24 +227,24 @@ class AuditLogger:
             }
         else:
             return {"raw": str(order)}
-    
+
     def get_recent_cycles(self, n: int = 10) -> List[Dict[str, Any]]:
         """
         Get the N most recent cycle logs.
-        
+
         Args:
             n: Number of cycles to retrieve
-            
+
         Returns:
             List of cycle log entries (most recent first)
         """
         if not self.audit_file.exists():
             return []
-        
+
         try:
             with open(self.audit_file, "r", encoding="utf-8") as f:
                 lines = f.readlines()
-            
+
             # Parse last N lines
             cycles = []
             for line in lines[-n:]:
@@ -252,9 +252,9 @@ class AuditLogger:
                     cycles.append(json.loads(line))
                 except json.JSONDecodeError:
                     continue
-            
+
             return list(reversed(cycles))  # Most recent first
-            
+
         except Exception as e:
             logger.error(f"Failed to read audit log: {e}")
             return []

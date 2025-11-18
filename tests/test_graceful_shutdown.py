@@ -8,12 +8,10 @@ Validates that SIGTERM/SIGINT triggers proper cleanup:
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock, call
-from datetime import datetime, timezone
+from unittest.mock import Mock, patch
 
 from runner.main_loop import TradingLoop
 from core.order_state import OrderStatus, OrderState
-from core.execution import ExecutionResult
 
 
 class TestGracefulShutdown:

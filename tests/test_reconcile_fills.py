@@ -10,10 +10,10 @@ Verifies:
 """
 
 import pytest
-from unittest.mock import Mock, patch
-from datetime import datetime, timezone, timedelta
+from unittest.mock import Mock
+from datetime import datetime, timezone
 from core.execution import ExecutionEngine
-from core.order_state import OrderStateMachine, OrderStatus
+from core.order_state import OrderStatus
 
 
 class TestReconcileFills:

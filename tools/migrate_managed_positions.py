@@ -89,7 +89,7 @@ def migrate_state():
     with open(state_path, "w") as f:
         json.dump(state, f, indent=2)
     
-    print(f"\n" + "="*60)
+    print("\n" + "="*60)
     print(f"MIGRATION COMPLETE: {migrated_count} positions migrated")
     print("="*60 + "\n")
     print("Next steps:")

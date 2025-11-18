@@ -5,7 +5,7 @@ Defines the contract between the trading loop and AI advisory layer.
 All inputs/outputs are strongly typed for safety and auditability.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Literal, Optional
 
 # Risk modes: AI can suggest these but cannot violate policy.yaml caps

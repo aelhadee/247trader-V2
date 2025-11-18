@@ -40,17 +40,17 @@ class CycleResult:
 class TradingCyclePipeline:
     """
     Reusable trading cycle pipeline.
-    
+
     Implements the core flow:
     1. Build universe
     2. Scan triggers
     3. Generate proposals (multi-strategy)
     4. Risk approval
     5. Execution (delegated)
-    
+
     Used by both live trading and backtesting.
     """
-    
+
     def __init__(self,
                  universe_mgr: UniverseManager,
                  trigger_engine: TriggerEngine,
@@ -60,7 +60,7 @@ class TradingCyclePipeline:
                  policy_config: Optional[Dict] = None):
         """
         Initialize pipeline with core components.
-        
+
         Args:
             universe_mgr: Universe manager
             trigger_engine: Trigger scanner
@@ -75,9 +75,9 @@ class TradingCyclePipeline:
         self.risk_engine = risk_engine
         self.strategy_registry = strategy_registry
         self.policy_config = policy_config or {}
-        
+
         logger.info("Initialized TradingCyclePipeline with shared components")
-    
+
     def execute_cycle(self,
                       current_time: datetime,
                       portfolio: PortfolioState,
@@ -87,7 +87,7 @@ class TradingCyclePipeline:
                       trigger_provider: Optional[callable] = None) -> CycleResult:
         """
         Execute one trading cycle through the pipeline.
-        
+
         Args:
             current_time: Current timestamp
             portfolio: Current portfolio state
@@ -96,7 +96,7 @@ class TradingCyclePipeline:
             state: Optional state dict for strategies
             trigger_provider: Optional callback(universe, current_time, regime) -> List[TriggerSignal]
                             Used by backtesting to provide historical triggers
-            
+
         Returns:
             CycleResult with universe, triggers, proposals, approvals
         """
@@ -104,7 +104,7 @@ class TradingCyclePipeline:
             # Step 1: Build universe
             logger.debug(f"Pipeline Step 1: Building universe (regime={regime})")
             universe = self.universe_mgr.get_universe(regime=regime)
-            
+
             if not universe or universe.total_eligible == 0:
                 return CycleResult(
                     success=False,
@@ -115,13 +115,13 @@ class TradingCyclePipeline:
                     executed=[],
                     no_trade_reason="empty_universe"
                 )
-            
+
             logger.debug(
                 f"Universe: {universe.total_eligible} eligible "
                 f"(T1:{len(universe.tier_1_assets)}, T2:{len(universe.tier_2_assets)}, "
                 f"T3:{len(universe.tier_3_assets)})"
             )
-            
+
             # Step 2: Scan for triggers
             logger.debug("Pipeline Step 2: Scanning for triggers")
             if trigger_provider:
@@ -131,7 +131,7 @@ class TradingCyclePipeline:
                 # Live mode: use trigger engine with live exchange data
                 all_assets = universe.get_all_eligible()
                 triggers = self.trigger_engine.scan(all_assets, regime=regime)
-            
+
             if not triggers or len(triggers) == 0:
                 return CycleResult(
                     success=False,
@@ -142,9 +142,9 @@ class TradingCyclePipeline:
                     executed=[],
                     no_trade_reason="no_candidates_from_triggers"
                 )
-            
+
             logger.debug(f"Triggers: {len(triggers)} detected")
-            
+
             # Step 3: Generate proposals (multi-strategy or fallback to RulesEngine)
             logger.debug("Pipeline Step 3: Generating trade proposals")
             if self.strategy_registry:
@@ -157,7 +157,7 @@ class TradingCyclePipeline:
                     cycle_number=cycle_number,
                     state=state or {}
                 )
-                
+
                 base_proposals = self.strategy_registry.aggregate_proposals(strategy_context)
             else:
                 # Fallback to RulesEngine for backward compatibility
@@ -168,7 +168,7 @@ class TradingCyclePipeline:
                     triggers=triggers,
                     regime=regime
                 )
-            
+
             if not base_proposals:
                 return CycleResult(
                     success=False,
@@ -179,13 +179,13 @@ class TradingCyclePipeline:
                     executed=[],
                     no_trade_reason="no_proposals_from_strategies"
                 )
-            
+
             logger.debug(f"Proposals: {len(base_proposals)} generated from strategies")
-            
+
             # Step 4: Risk approval
             logger.debug("Pipeline Step 4: Risk approval")
             risk_result = self.risk_engine.check_all(base_proposals, portfolio, regime=regime)
-            
+
             if not risk_result.approved:
                 logger.debug(f"Risk rejection: {risk_result.reason}")
                 return CycleResult(
@@ -197,9 +197,9 @@ class TradingCyclePipeline:
                     executed=[],
                     no_trade_reason=f"risk_blocked_{risk_result.reason or 'unknown'}"
                 )
-            
+
             logger.debug(f"Risk approved: {len(base_proposals)} proposals passed")
-            
+
             # Return cycle result (execution is delegated to caller)
             return CycleResult(
                 success=True,
@@ -210,7 +210,7 @@ class TradingCyclePipeline:
                 executed=[],  # Caller handles execution
                 no_trade_reason=None
             )
-            
+
         except Exception as e:
             logger.error(f"Pipeline cycle failed: {e}", exc_info=True)
             return CycleResult(

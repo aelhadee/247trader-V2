@@ -9,7 +9,7 @@ Ensures idempotent order submission by verifying:
 """
 
 import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 from core.execution import ExecutionEngine
 from infra.state_store import StateStore

@@ -1,10 +1,7 @@
 """
 Test Coinbase product constraint enforcement.
 """
-import pytest
 from core.execution import ExecutionEngine
-from core.exchange_coinbase import CoinbaseExchange
-from unittest.mock import Mock, patch
 
 
 class MockExchange:

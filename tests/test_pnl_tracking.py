@@ -7,11 +7,10 @@ is calculated accurately from fill prices and fees.
 
 import pytest
 from datetime import datetime, timezone, timedelta
-from unittest.mock import Mock, MagicMock, patch
-from dataclasses import dataclass
+from unittest.mock import Mock
 
-from infra.state_store import StateStore, DEFAULT_STATE
-from core.execution import ExecutionEngine, ExecutionResult
+from infra.state_store import StateStore
+from core.execution import ExecutionEngine
 
 
 class TestPositionTracking:

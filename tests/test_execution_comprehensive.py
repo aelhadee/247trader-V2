@@ -18,9 +18,7 @@ Coverage target: 80%+ of core/execution.py
 
 import pytest
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal
-from unittest.mock import MagicMock, Mock, patch, call
-from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
 import json
 
 from core.execution import ExecutionEngine, ExecutionResult, PostOnlyTTLResult
@@ -292,7 +290,7 @@ def test_order_state_machine_tracking(execution_engine, mock_exchange):
     """ExecutionEngine should track orders in order state machine"""
     execution_engine.mode = "DRY_RUN"
     
-    result = execution_engine.execute("BTC-USD", "BUY", 1000.0)
+    execution_engine.execute("BTC-USD", "BUY", 1000.0)
     
     # Should create order in state machine
     execution_engine.order_state_machine.create_order.assert_called_once()
@@ -332,7 +330,7 @@ def test_slippage_check_rejects_wide_spread(execution_engine, mock_exchange):
             error="Slippage check failed"
         )
         
-        result = execution_engine.execute("BTC-USD", "BUY", 1000.0)
+        execution_engine.execute("BTC-USD", "BUY", 1000.0)
         
         # Should call _execute_live which does slippage check
         assert mock_live.called
@@ -362,7 +360,7 @@ def test_slippage_bypass_flag_skips_check(execution_engine, mock_exchange):
             route="live_market_ioc"
         )
         
-        result = execution_engine.execute(
+        execution_engine.execute(
             "BTC-USD", "BUY", 1000.0,
             bypass_slippage_budget=True
         )
@@ -645,7 +643,7 @@ def test_insufficient_balance_reduces_trade_size(execution_engine, mock_exchange
             route="live_limit_post_only"
         )
         
-        result = execution_engine.execute("BTC", "BUY", 1000.0)
+        execution_engine.execute("BTC", "BUY", 1000.0)
         
         # Should call _execute_live with reduced size
         if mock_live.called:
@@ -740,7 +738,7 @@ def test_cooldown_expires_after_timeout(execution_engine, mock_exchange):
             route="live_limit_post_only"
         )
         
-        result = execution_engine.execute("BTC-USD", "BUY", 1000.0)
+        execution_engine.execute("BTC-USD", "BUY", 1000.0)
         
         # Cooldown expired, should execute
         mock_live.assert_called_once()
@@ -754,7 +752,7 @@ def test_order_lifecycle_pending_to_filled(execution_engine, mock_exchange):
     """Order should transition: PENDING → SUBMITTED → FILLED"""
     execution_engine.mode = "DRY_RUN"
     
-    result = execution_engine.execute("BTC-USD", "BUY", 1000.0)
+    execution_engine.execute("BTC-USD", "BUY", 1000.0)
     
     # Check state machine transitions
     execution_engine.order_state_machine.create_order.assert_called_once()
@@ -803,9 +801,9 @@ def test_failed_order_updates_last_fail_timestamp(execution_engine, mock_exchang
             error="Insufficient liquidity"
         )
         
-        before_ts = datetime.now(timezone.utc).timestamp()
+        datetime.now(timezone.utc).timestamp()
         result = execution_engine.execute("BTC-USD", "BUY", 1000.0)
-        after_ts = datetime.now(timezone.utc).timestamp()
+        datetime.now(timezone.utc).timestamp()
         
         assert result.success is False
         
@@ -858,7 +856,7 @@ def test_min_notional_enforcement(execution_engine, mock_exchange):
             error="Below min notional"
         )
         
-        result = execution_engine.execute("BTC-USD", "BUY", 5.0)
+        execution_engine.execute("BTC-USD", "BUY", 5.0)
         
         # Implementation may check min_notional in _execute_live
         # This test verifies the rejection logic exists
@@ -880,7 +878,7 @@ def test_symbol_normalization_btc_to_btc_usd(execution_engine, mock_exchange):
         )
         
         # Pass "BTC" instead of "BTC-USD"
-        result = execution_engine.execute("BTC", "SELL", 500.0)
+        execution_engine.execute("BTC", "SELL", 500.0)
         
         # Should convert BTC → BTC-USD internally
         if mock_live.called:

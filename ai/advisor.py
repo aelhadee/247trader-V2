@@ -7,13 +7,12 @@ Handles model calls, response parsing, safety clamping, and fallback logic.
 
 import logging
 import time
-from typing import List, Optional
+from typing import List
 
 from .schemas import (
     AIAdvisorInput,
     AIAdvisorOutput,
     AIProposalDecision,
-    RiskMode,
 )
 from .model_client import ModelClient
 

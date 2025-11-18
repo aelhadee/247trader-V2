@@ -13,12 +13,10 @@ NOTE: These tests use time mocking for deterministic timing.
 Run: pytest tests/test_alert_sla.py -v
 """
 
-import time
-from typing import Dict, Any
 from unittest.mock import Mock, patch, MagicMock
 import pytest
 
-from infra.alerting import AlertService, AlertConfig, AlertSeverity, AlertRecord
+from infra.alerting import AlertService, AlertConfig, AlertSeverity
 
 
 @pytest.fixture

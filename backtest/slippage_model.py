@@ -409,7 +409,7 @@ if __name__ == "__main__":
         entry_order_type="taker",
         exit_order_type="taker"
     )
-    print(f"Entry: $50,000 | Exit: $52,000")
-    print(f"Gross gain: $2,000 (4.00%)")
+    print("Entry: $50,000 | Exit: $52,000")
+    print("Gross gain: $2,000 (4.00%)")
     print(f"Fees: ${fees:,.2f}")
     print(f"Net PnL: ${pnl_usd:,.2f} ({pnl_pct:.2f}%)")

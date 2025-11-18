@@ -48,7 +48,7 @@ for curr, bal, usd in holdings:
     print(f"  {curr:8s}: {bal:12.6f} = ${usd:8.2f} ({pct:5.1f}%)")
 
 # Check state
-print(f"\n📝 State Store:")
+print("\n📝 State Store:")
 data = state.load()
 managed = data.get('managed_positions', {})
 open_orders = data.get('open_orders', [])
@@ -73,10 +73,10 @@ if positions:
 non_quote_value = sum(usd for curr, bal, usd in holdings if curr not in ['USD', 'USDC', 'USDT'])
 at_risk_pct = (non_quote_value / total_usd * 100) if total_usd > 0 else 0
 
-print(f"\n💰 Exposure Calculation:")
+print("\n💰 Exposure Calculation:")
 print(f"  Non-quote currency value: ${non_quote_value:.2f}")
 print(f"  Exposure %: {at_risk_pct:.1f}%")
-print(f"  Cap: 25.0%")
+print("  Cap: 25.0%")
 print(f"  Excess: ${max(0, non_quote_value - (total_usd * 0.25)):.2f}")
 
 print("\n" + "=" * 80)

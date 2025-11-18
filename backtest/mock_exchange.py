@@ -9,13 +9,12 @@ Pattern: Jesse-style simulation with realistic costs via CostModel.
 
 import uuid
 import random
-from datetime import datetime, timezone, timedelta
-from typing import Dict, List, Optional, Tuple
+from datetime import datetime, timezone
+from typing import Dict, List, Optional
 from dataclasses import dataclass, field
-from decimal import Decimal
 import logging
 
-from core.exchange_coinbase import Quote, OHLCV, OrderbookSnapshot
+from core.exchange_coinbase import Quote, OHLCV
 from core.cost_model import get_cost_model, CostModel
 from backtest.data_loader import DataLoader
 

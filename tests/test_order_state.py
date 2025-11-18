@@ -9,7 +9,6 @@ from datetime import datetime, timezone, timedelta
 from core.order_state import (
     OrderStateMachine,
     OrderStatus,
-    OrderSide,
     OrderState,
     get_order_state_machine
 )

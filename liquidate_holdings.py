@@ -5,7 +5,6 @@ Liquidation Script: Convert all holdings to a target currency
 This frees up capital for trading by consolidating everything into one currency.
 """
 
-import sys
 from core.exchange_coinbase import CoinbaseExchange
 from core.execution import ExecutionEngine
 import yaml

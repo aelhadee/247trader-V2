@@ -1,7 +1,7 @@
 """Tests for REQ-SCH1: Jittered scheduling to prevent lockstep behavior."""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch, MagicMock
 import sys
 
 from runner.main_loop import TradingLoop

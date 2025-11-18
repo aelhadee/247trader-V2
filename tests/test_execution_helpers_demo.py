@@ -5,7 +5,6 @@ Shows how to use Quote, OHLCV, and MockExchangeBuilder for cleaner tests.
 Run with: pytest tests/test_execution_helpers_demo.py -v
 """
 
-import pytest
 from tests.helpers import (
     Quote,
     OHLCV,
@@ -37,7 +36,7 @@ def test_convenience_functions():
     
     stale = create_stale_quote(50000.0, age_seconds=120)
     # Quote is 2 minutes old
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timezone
     age = (datetime.now(timezone.utc) - stale.timestamp).total_seconds()
     assert age >= 119  # Allow 1s tolerance
 

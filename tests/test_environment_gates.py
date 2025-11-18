@@ -15,10 +15,9 @@ Per system safety requirements:
 """
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from core.execution import ExecutionEngine
 from core.exchange_coinbase import CoinbaseExchange
-from runner.main_loop import TradingLoop
 
 
 # ============================================================================
@@ -198,24 +197,24 @@ def test_trading_loop_read_only_enforcement():
     mode = "DRY_RUN"
     exchange_config_read_only_false = False
     result = (mode != "LIVE") or exchange_config_read_only_false
-    assert result == True  # DRY_RUN forces read_only
+    assert result  # DRY_RUN forces read_only
     
     # PAPER mode: always read_only
     mode = "PAPER"
     result = (mode != "LIVE") or exchange_config_read_only_false
-    assert result == True  # PAPER forces read_only
+    assert result  # PAPER forces read_only
     
     # LIVE mode with read_only=true: stays read_only
     mode = "LIVE"
     exchange_config_read_only_true = True
     result = (mode != "LIVE") or exchange_config_read_only_true
-    assert result == True  # Explicit read_only=true
+    assert result  # Explicit read_only=true
     
     # LIVE mode with read_only=false: allows real trading
     mode = "LIVE"
     exchange_config_read_only_false = False
     result = (mode != "LIVE") or exchange_config_read_only_false
-    assert result == False  # Only this combo allows real trading
+    assert not result  # Only this combo allows real trading
 
 
 # ============================================================================
@@ -239,7 +238,7 @@ def test_default_read_only_is_true():
     read_only_cfg = exchange_config.get("read_only", True)
     mode = "LIVE"
     read_only = (mode != "LIVE") or read_only_cfg
-    assert read_only == True  # Default to safe
+    assert read_only  # Default to safe
 
 
 # ============================================================================
@@ -249,7 +248,7 @@ def test_exchange_respects_read_only():
     """CoinbaseExchange should respect read_only parameter."""
     # read_only=true should block mutating operations
     exchange_ro = CoinbaseExchange(read_only=True)
-    assert exchange_ro.read_only == True
+    assert exchange_ro.read_only
     
     # Verify place_order raises
     with pytest.raises(ValueError, match="Cannot place orders in READ_ONLY mode"):
@@ -262,7 +261,7 @@ def test_exchange_respects_read_only():
     
     # With credentials, read_only=False should work
     exchange_rw = CoinbaseExchange(read_only=False, api_key="test_api_key_10", api_secret="test_secret_20_chars_long")
-    assert exchange_rw.read_only == False
+    assert not exchange_rw.read_only
     # (Would allow place_order with valid API keys)
 
 
@@ -274,7 +273,7 @@ def test_execution_engine_logs_mode(caplog):
     import logging
     caplog.set_level(logging.INFO)
     
-    engine = ExecutionEngine(mode="LIVE", policy={})
+    ExecutionEngine(mode="LIVE", policy={})
     
     # Should log mode in initialization
     assert "mode=LIVE" in caplog.text

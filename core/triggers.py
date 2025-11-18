@@ -28,7 +28,7 @@ class TriggerSignal:
     reason: str
     timestamp: datetime
     current_price: float
-    
+
     # Supporting data (optional)
     volume_ratio: Optional[float] = None
     price_change_pct: Optional[float] = None
@@ -41,25 +41,25 @@ class TriggerSignal:
 class TriggerEngine:
     """
     Deterministic trigger detection.
-    
+
     Rules-based only. No AI. No magic.
     Pattern: Jesse-style pure functions + Freqtrade-style indicators
-    
+
     Responsibilities:
     - Detect volume spikes
     - Detect breakouts (price action)
     - Detect reversals
     - Compute momentum scores
-    
+
     Output: Ranked list of assets with trigger signals
     """
-    
+
     def __init__(self, config_path: str = "config/signals.yaml", policy_path: str = "config/policy.yaml"):
         self.exchange = get_exchange()
-        
+
         import yaml
         from pathlib import Path
-        
+
         # Load legacy signals.yaml configuration
         try:
             with open(Path(config_path)) as f:
@@ -67,7 +67,7 @@ class TriggerEngine:
         except Exception as e:
             logger.warning(f"Could not load signals config: {e}, using defaults")
             self.config = {}
-        
+
         # Load policy.yaml triggers section (spec-compliant)
         try:
             with open(Path(policy_path)) as f:
@@ -78,7 +78,7 @@ class TriggerEngine:
             logger.warning(f"Could not load policy triggers: {e}, using defaults")
             self.policy_triggers = {}
             self.circuit_breakers = {}
-        
+
         # Extract regime-aware thresholds (from signals.yaml)
         self.regime_thresholds = self.config.get("regime_thresholds", {
             "chop": {
@@ -104,20 +104,20 @@ class TriggerEngine:
         # Confirmation rules for reversal triggers (Option A tuning)
         self.reversal_confirm_config = self.config.get("reversal_confirm", {})
         self.trend_filter_config = self.config.get("trend_filter", {})
-        
+
         # Fallback to policy.yaml if signals.yaml doesn't have regime thresholds (backward compat)
         price_move_config = self.policy_triggers.get("price_move", {})
         self.pct_15m = price_move_config.get("pct_15m", 2.5)  # Fallback default
         self.pct_60m = price_move_config.get("pct_60m", 4.5)  # Fallback default
-        
+
         volume_spike_config = self.policy_triggers.get("volume_spike", {})
         self.ratio_1h_vs_24h = volume_spike_config.get("ratio_1h_vs_24h", 1.9)
-        
+
         breakout_config = self.policy_triggers.get("breakout", {})
         self.lookback_hours = breakout_config.get("lookback_hours", 24)
-        
+
         self.min_score = self.policy_triggers.get("min_score", 0.2)
-        
+
         # Legacy parameters (backward compatibility with signals.yaml)
         self.volume_spike_min_ratio = self.config.get("volume_spike_min_ratio", 1.5)
         self.volume_lookback_periods = self.config.get("volume_lookback_periods", 24)
@@ -129,7 +129,7 @@ class TriggerEngine:
         self.regime_multipliers = self.config.get("regime_multipliers", {
             "bull": 1.2, "chop": 1.0, "bear": 0.8, "crash": 0.0
         })
-        
+
         # ATR filter parameters
         self.enable_atr_filter = self.circuit_breakers.get("enable_atr_filter", True)
         self.atr_lookback = self.circuit_breakers.get("atr_lookback_periods", 14)
@@ -141,7 +141,7 @@ class TriggerEngine:
         # Fallback configuration (policy overrides signals.yaml defaults)
         self.fallback_config = self.policy_triggers.get("fallback", {}) or {}
         self._no_trigger_streak = 0
-        
+
         logger.info(f"Initialized TriggerEngine (regime_aware={bool(self.regime_thresholds)}, "
                    f"lookback={self.lookback_hours}h, atr_filter={self.enable_atr_filter}, "
                    f"only_upside={self.only_upside}, max_triggers={self.max_triggers_per_cycle})")
@@ -149,69 +149,69 @@ class TriggerEngine:
                    f"60m={self.regime_thresholds['chop']['pct_change_60m']}%, "
                    f"vol={self.regime_thresholds['chop']['volume_ratio_1h']}x, "
                    f"atr={self.regime_thresholds['chop']['atr_filter_min_mult']}x")
-    
+
     def scan(self, assets: List[UniverseAsset], 
              regime: str = "chop") -> List[TriggerSignal]:
         """
         Scan eligible assets for triggers.
-        
+
         Args:
             assets: List of eligible universe assets
             regime: Current market regime
-            
+
         Returns:
             List of TriggerSignals, sorted by strength
         """
         logger.info(f"Scanning {len(assets)} assets for triggers (regime={regime})")
-        
+
         signals = []
         asset_contexts: List[Tuple[UniverseAsset, List[OHLCV]]] = []
-        
+
         for asset in assets:
             try:
                 # Get OHLCV data
                 candles = self.exchange.get_ohlcv(asset.symbol, interval="1h", limit=168)  # 7 days
-                
+
                 if not candles:
                     continue
-                
+
                 # Validate price data for outliers (bad ticks, flash crashes/spikes)
                 outlier_reason = self._validate_price_outlier(asset.symbol, candles)
                 if outlier_reason:
                     logger.warning(f"{asset.symbol}: {outlier_reason}")
                     continue  # Skip this asset for this cycle
-                
+
                 # Check ATR volatility filter (skip low-volatility chop)
                 atr_reason = self._check_atr_filter(asset.symbol, candles, regime)
                 if atr_reason:
                     logger.debug(f"{asset.symbol}: {atr_reason}")
                     continue  # Skip this asset for this cycle
-                
+
                 asset_contexts.append((asset, candles))
 
                 # Check various trigger types
                 triggers = []
-                
+
                 # Price move (regime-aware thresholds)
                 price_move_trigger = self._check_price_move(asset, candles, regime)
                 if price_move_trigger:
                     triggers.append(price_move_trigger)
-                
+
                 # Volume spike (regime-aware threshold)
                 vol_trigger = self._check_volume_spike(asset, candles, regime)
                 if vol_trigger:
                     triggers.append(vol_trigger)
-                
+
                 # Breakout
                 breakout_trigger = self._check_breakout(asset, candles, regime)
                 if breakout_trigger:
                     triggers.append(breakout_trigger)
-                
+
                 # Momentum
                 momentum_trigger = self._check_momentum(asset, candles, regime)
                 if momentum_trigger:
                     triggers.append(momentum_trigger)
-                
+
                 # Take strongest trigger
                 if triggers:
                     strongest = max(triggers, key=lambda t: t.strength * t.confidence)
@@ -220,10 +220,10 @@ class TriggerEngine:
                         f"{asset.symbol}: {strongest.trigger_type} "
                         f"(strength={strongest.strength:.2f}, conf={strongest.confidence:.2f})"
                     )
-                
+
             except Exception as e:
                 logger.warning(f"Failed to scan {asset.symbol}: {e}")
-        
+
         if not signals:
             signals = self._maybe_run_fallback_scan(asset_contexts, regime)
         else:
@@ -231,9 +231,9 @@ class TriggerEngine:
 
         # Sort by strength × confidence
         signals.sort(key=lambda s: s.strength * s.confidence, reverse=True)
-        
+
         logger.info(f"Found {len(signals)} triggers")
-        
+
         # Log top 5 triggers for visibility
         for i, sig in enumerate(signals[:5]):
             logger.info(
@@ -245,7 +245,7 @@ class TriggerEngine:
                 f"strength={sig.strength:.2f} conf={sig.confidence:.2f} "
                 f"price_chg={sig.price_change_pct or 0.0:.2f}%"
             )
-        
+
         return signals
 
     def _maybe_run_fallback_scan(
@@ -318,17 +318,17 @@ class TriggerEngine:
         )
         self._no_trigger_streak = 0
         return limited
-    
+
     def _validate_price_outlier(self, symbol: str, candles: List[OHLCV]) -> Optional[str]:
         """
         Validate price data for outliers (bad ticks, flash crashes/spikes).
-        
+
         Returns rejection reason if outlier detected, None if valid.
-        
+
         Guards against:
         - Price deviation >max_price_deviation_pct from moving average (default 10%)
         - Without volume confirmation (min_volume_ratio, default 0.1 = 10%)
-        
+
         Per policy.yaml circuit_breakers:
         - check_price_outliers: enable/disable
         - max_price_deviation_pct: maximum allowed deviation from MA
@@ -338,37 +338,37 @@ class TriggerEngine:
         # Check if outlier detection is enabled
         if not self.circuit_breakers.get("check_price_outliers", True):
             return None  # Outlier detection disabled
-        
+
         max_dev_pct = self.circuit_breakers.get("max_price_deviation_pct", 10.0)
         min_vol_ratio = self.circuit_breakers.get("min_volume_ratio", 0.1)
         lookback = self.circuit_breakers.get("outlier_lookback_periods", 20)
-        
+
         # Need at least lookback periods + 1 for validation
         if len(candles) < lookback + 1:
             return None  # Insufficient data, skip validation
-        
+
         current = candles[-1]
         historical = candles[-(lookback+1):-1]  # Last N periods, excluding current
-        
+
         # Calculate moving average of close prices
         avg_price = sum(c.close for c in historical) / len(historical)
-        
+
         # Calculate deviation
         if avg_price <= 0:
             return f"Invalid average price: {avg_price}"
-        
+
         deviation_pct = abs(current.close - avg_price) / avg_price * 100.0
-        
+
         # If deviation exceeds threshold, check volume confirmation
         if deviation_pct > max_dev_pct:
             # Calculate average volume
             avg_volume = sum(c.volume for c in historical) / len(historical)
-            
+
             if avg_volume <= 0:
                 return f"Invalid average volume: {avg_volume}"
-            
+
             volume_ratio = current.volume / avg_volume
-            
+
             # Extreme move without volume confirmation = outlier
             if volume_ratio < min_vol_ratio:
                 return (
@@ -376,31 +376,31 @@ class TriggerEngine:
                     f"(>{max_dev_pct}%) with low volume "
                     f"({volume_ratio:.2f}x < {min_vol_ratio}x)"
                 )
-        
+
         return None  # Valid price data
-    
+
     def _calculate_atr_pct(self, candles: List[OHLCV], period: int = 14) -> float:
         """
         Calculate Average True Range as percentage of price.
-        
+
         ATR measures volatility. Low ATR = tight range = chop.
-        
+
         Args:
             candles: OHLCV data
             period: Lookback period (default 14)
-            
+
         Returns:
             ATR as percentage of current price
         """
         if len(candles) < period + 1:
             return 0.0
-        
+
         true_ranges = []
         for i in range(-period, 0):
             high = candles[i].high
             low = candles[i].low
             prev_close = candles[i-1].close
-            
+
             # True Range = max of:
             # 1) Current High - Current Low
             # 2) |Current High - Previous Close|
@@ -411,43 +411,43 @@ class TriggerEngine:
                 abs(low - prev_close)
             )
             true_ranges.append(tr)
-        
+
         # Average True Range
         atr = sum(true_ranges) / len(true_ranges)
-        
+
         # Express as percentage of current price
         current_price = candles[-1].close
         if current_price <= 0:
             return 0.0
-        
+
         atr_pct = (atr / current_price) * 100.0
         return atr_pct
-    
+
     def _check_atr_filter(self, symbol: str, candles: List[OHLCV], regime: str = "chop") -> Optional[str]:
         """
         Check if asset passes ATR volatility filter (regime-aware).
-        
+
         Returns rejection reason if fails, None if passes.
-        
+
         Filters out low-volatility chop/tight ranges where signals
         tend to be false positives.
-        
+
         Uses regime-specific atr_filter_min_mult from signals.yaml regime_thresholds.
         """
         if not self.enable_atr_filter:
             return None  # Filter disabled
-        
+
         # Need sufficient data
         if len(candles) < self.atr_lookback * 2:
             return None  # Insufficient data, skip filter
-        
+
         # Get regime-specific ATR multiplier
         regime_key = regime if regime in self.regime_thresholds else "chop"
         atr_min_mult = self.regime_thresholds[regime_key].get("atr_filter_min_mult", 1.1)
-        
+
         # Calculate current ATR
         current_atr_pct = self._calculate_atr_pct(candles, self.atr_lookback)
-        
+
         # Calculate median ATR over last 7 days (168 hours)
         atr_samples = []
         for i in range(-168, -self.atr_lookback):
@@ -457,38 +457,38 @@ class TriggerEngine:
                 if len(window) >= self.atr_lookback + 1:
                     atr_pct = self._calculate_atr_pct(window, self.atr_lookback)
                     atr_samples.append(atr_pct)
-        
+
         if not atr_samples:
             return None  # Can't calculate median
-        
+
         # Calculate median
         sorted_samples = sorted(atr_samples)
         median_atr_pct = sorted_samples[len(sorted_samples) // 2]
-        
+
         # Check if current ATR meets minimum threshold
         if median_atr_pct <= 0:
             return None  # Invalid median
-        
+
         atr_ratio = current_atr_pct / median_atr_pct
-        
+
         if atr_ratio < atr_min_mult:
             return (
                 f"Low volatility: ATR {current_atr_pct:.2f}% "
                 f"({atr_ratio:.2f}x median {median_atr_pct:.2f}%, "
                 f"need {atr_min_mult:.1f}x for {regime})"
             )
-        
+
         return None  # Passes filter
-    
+
     def _calculate_volatility(self, candles: List[OHLCV]) -> float:
         """
         Calculate annualized volatility from hourly returns.
-        
+
         Returns volatility as percentage (e.g., 50.0 for 50% annualized).
         """
         if len(candles) < 24:
             return 50.0  # Default moderate volatility
-        
+
         # Calculate hourly returns for last 7 days (168 hours)
         returns = []
         lookback = min(168, len(candles) - 1)
@@ -496,21 +496,21 @@ class TriggerEngine:
             if candles[i-1].close > 0:
                 ret = (candles[i].close - candles[i-1].close) / candles[i-1].close
                 returns.append(ret)
-        
+
         if not returns:
             return 50.0
-        
+
         # Standard deviation of returns
         import math
         mean_ret = sum(returns) / len(returns)
         variance = sum((r - mean_ret) ** 2 for r in returns) / len(returns)
         hourly_vol = math.sqrt(variance)
-        
+
         # Annualize: hourly vol × sqrt(24 × 365)
         annualized_vol = hourly_vol * math.sqrt(24 * 365) * 100  # Convert to percentage
-        
+
         return min(annualized_vol, 200.0)  # Cap at 200% to avoid extreme outliers
-    
+
     def _check_price_move(
         self,
         asset: UniverseAsset,
@@ -521,12 +521,12 @@ class TriggerEngine:
     ) -> Optional[TriggerSignal]:
         """
         Check for significant price moves (regime-aware thresholds).
-        
+
         Uses regime-specific pct_change_15m and pct_change_60m from signals.yaml.
         """
         if len(candles) < 60:
             return None
-        
+
         # Get regime-specific thresholds
         regime_key = regime if regime in self.regime_thresholds else "chop"
         pct_15m = self.regime_thresholds[regime_key].get("pct_change_15m", 2.0)
@@ -536,19 +536,19 @@ class TriggerEngine:
             override_15, override_60 = threshold_override
             pct_15m = max(override_15, 0.0)
             pct_60m = max(override_60, 0.0)
-        
+
         current_price = candles[-1].close
-        
+
         # 15-minute move (15 bars ago with 1h candles)
         # Note: With 1h candles, we can't get true 15m moves, so we use closest approximation
         # For now, use 1h candle as proxy for short-term move
         price_1h_ago = candles[-2].close if len(candles) >= 2 else current_price
-        move_1h = abs((current_price - price_1h_ago) / price_1h_ago * 100)
-        
+        abs((current_price - price_1h_ago) / price_1h_ago * 100)
+
         # 60-minute move is just the 1h candle move
         price_60m_ago = candles[-2].close if len(candles) >= 2 else current_price
         move_60m = abs((current_price - price_60m_ago) / price_60m_ago * 100)
-        
+
         # For better 15m detection, check last 4h for any large single-hour move
         max_1h_move = 0.0
         if len(candles) >= 5:
@@ -557,16 +557,16 @@ class TriggerEngine:
                 curr_price = candles[-i].close
                 move = abs((curr_price - prev_price) / prev_price * 100)
                 max_1h_move = max(max_1h_move, move)
-        
+
         # Check 15m threshold (using max 1h move as proxy)
         triggered_15m = max_1h_move >= pct_15m
-        
+
         # Check 60m threshold  
         triggered_60m = move_60m >= pct_60m
-        
+
         if not (triggered_15m or triggered_60m):
             return None
-        
+
         # Determine which triggered and build reason
         if triggered_15m and triggered_60m:
             reason = f"Price move {max_1h_move:.1f}% (1h) - exceeds both {regime} thresholds"
@@ -583,13 +583,13 @@ class TriggerEngine:
             strength = 0.7
             confidence = 0.75
             move_pct = move_60m
-        
+
         if reason_suffix:
             reason = f"{reason} {reason_suffix}".strip()
 
         # Calculate volatility for sizing
         volatility = self._calculate_volatility(candles)
-        
+
         return TriggerSignal(
             symbol=asset.symbol,
             trigger_type="price_move",
@@ -601,26 +601,26 @@ class TriggerEngine:
             price_change_pct=move_pct,
             volatility=volatility
         )
-    
+
     def _check_volume_spike(self, asset: UniverseAsset, 
                            candles: List[OHLCV], regime: str = "chop") -> Optional[TriggerSignal]:
         """
         Check for volume spike (regime-aware threshold).
-        
+
         Uses regime-specific volume_ratio_1h from signals.yaml regime_thresholds.
-        
+
         Also calculates volatility for downstream sizing.
         """
         if len(candles) < 24:
             return None
-        
+
         # Get regime-specific volume threshold
         regime_key = regime if regime in self.regime_thresholds else "chop"
         volume_threshold = self.regime_thresholds[regime_key].get("volume_ratio_1h", 1.9)
-        
+
         # Current 1h volume (last candle)
         current_volume = candles[-1].volume
-        
+
         # Calculate 24h average hourly volume (spec-compliant)
         if len(candles) >= 24:
             # Use last 24 hours for average
@@ -629,26 +629,26 @@ class TriggerEngine:
         else:
             # Fallback for insufficient data
             avg_hourly = sum(c.volume for c in candles) / len(candles)
-        
+
         if avg_hourly == 0:
             return None
-        
+
         # Calculate ratio: 1h / avg_hourly
         volume_ratio = current_volume / avg_hourly
-        
+
         # Use regime-specific threshold
         if volume_ratio < volume_threshold:
             return None
-        
+
         # Strength: 1.8x = 0.27, 2.0x = 0.33, 3.0x = 0.67, 4.0x+ = 1.0
         strength = min((volume_ratio - 1.0) / 3.0, 1.0)
-        
+
         # Confidence: Higher for bigger spikes
         confidence = min(volume_ratio / 4.0, 1.0)
-        
+
         # Calculate volatility for sizing
         volatility = self._calculate_volatility(candles)
-        
+
         # CRITICAL FIX: Calculate price change for rules engine
         # _rule_volume_spike requires price_change_pct to determine trade direction
         price_change_pct = None
@@ -657,7 +657,7 @@ class TriggerEngine:
             current_close = candles[-1].close
             if prev_close > 0:
                 price_change_pct = ((current_close - prev_close) / prev_close) * 100.0
-        
+
         return TriggerSignal(
             symbol=asset.symbol,
             trigger_type="volume_spike",
@@ -670,39 +670,39 @@ class TriggerEngine:
             volatility=volatility,
             price_change_pct=price_change_pct
         )
-    
+
     def _check_breakout(self, asset: UniverseAsset,
                        candles: List[OHLCV],
                        regime: str = "chop") -> Optional[TriggerSignal]:
         """
         Check for price breakout (spec: new high/low within lookback period).
-        
+
         Uses policy.yaml triggers.breakout.lookback_hours (default 24)
         """
         # Use spec-compliant lookback from policy.yaml
         lookback = self.lookback_hours
         if len(candles) < lookback:
             return None
-        
+
         current_price = candles[-1].close
-        
+
         # Get high/low over lookback period
         high_lookback = max(c.high for c in candles[-lookback:])
         low_lookback = min(c.low for c in candles[-lookback:])
         range_lookback = high_lookback - low_lookback
-        
+
         if range_lookback == 0:
             return None
-        
+
         # Calculate volatility for sizing
         volatility = self._calculate_volatility(candles)
-        
+
         # Check if breaking to new high
         if current_price >= high_lookback * 0.995:  # Within 0.5% of high
             strength = 0.7
             confidence = 0.8
             reason = f"Breaking {lookback}h high (${current_price:,.2f} near ${high_lookback:,.2f})"
-            
+
             return TriggerSignal(
                 symbol=asset.symbol,
                 trigger_type="breakout",
@@ -714,7 +714,7 @@ class TriggerEngine:
                 price_change_pct=(current_price - low_lookback) / low_lookback * 100,
                 volatility=volatility
             )
-        
+
         # Check if recovering from low (V-shape)
         if current_price <= low_lookback * 1.10:  # Within 10% of low
             # Check if we bounced at least 5% from the low
@@ -732,7 +732,7 @@ class TriggerEngine:
                     return None
                 if self.trend_filter_config.get("enabled", False):
                     qualifiers["trend_filter_passed"] = True
-                
+
                 return TriggerSignal(
                     symbol=asset.symbol,
                     trigger_type="reversal",
@@ -746,9 +746,9 @@ class TriggerEngine:
                     qualifiers=qualifiers,
                     metrics=metrics
                 )
-        
+
         return None
-    
+
     def _compute_reversal_confirmations(self, symbol: str,
                                         candles_1h: List[OHLCV]) -> Tuple[Dict[str, bool], Dict[str, float]]:
         """Evaluate configured reversal confirmation rules for conviction boosts."""
@@ -962,32 +962,32 @@ class TriggerEngine:
                        regime: str) -> Optional[TriggerSignal]:
         """
         Check for sustained momentum (trending price).
-        
+
         Uses simple slope of 24h returns.
         """
         if len(candles) < 24:
             return None
-        
+
         # Calculate 24h return
         price_24h_ago = candles[-24].close
         current_price = candles[-1].close
         return_24h = (current_price - price_24h_ago) / price_24h_ago
-        
+
         # Lowered threshold: 2% move (aggressive to ensure triggers fire)
         if abs(return_24h) < 0.02:
             return None
-        
+
         # Direction filter for long-only strategies
         if self.only_upside and return_24h < 0:
             return None  # Skip downward momentum if only_upside=true
-        
+
         # In bear/crash, only flag downward momentum
         if regime in ["bear", "crash"] and return_24h > 0:
             return None
-        
+
         # Strength = magnitude of return
         strength = min(abs(return_24h) / 0.10, 1.0)  # 10% return = max strength
-        
+
         # Confidence = consistency (check if all recent candles moved same direction)
         recent_returns = [
             (candles[i].close - candles[i-1].close) / candles[i-1].close
@@ -995,12 +995,12 @@ class TriggerEngine:
         ]
         same_direction = sum(1 for r in recent_returns if (r > 0) == (return_24h > 0))
         confidence = same_direction / len(recent_returns)
-        
+
         direction = "up" if return_24h > 0 else "down"
-        
+
         # Calculate volatility for sizing
         volatility = self._calculate_volatility(candles)
-        
+
         return TriggerSignal(
             symbol=asset.symbol,
             trigger_type="momentum",
@@ -1013,18 +1013,18 @@ class TriggerEngine:
             technical_score=strength * confidence,
             volatility=volatility
         )
-    
+
     def filter_by_threshold(self, signals: List[TriggerSignal],
                            min_strength: float = 0.3,
                            min_confidence: float = 0.5) -> List[TriggerSignal]:
         """
         Filter signals by minimum thresholds.
-        
+
         Args:
             signals: List of trigger signals
             min_strength: Minimum signal strength
             min_confidence: Minimum confidence
-            
+
         Returns:
             Filtered list
         """
@@ -1032,10 +1032,10 @@ class TriggerEngine:
             s for s in signals
             if s.strength >= min_strength and s.confidence >= min_confidence
         ]
-        
+
         logger.info(
             f"Filtered {len(signals)} signals -> {len(filtered)} "
             f"(min_strength={min_strength}, min_confidence={min_confidence})"
         )
-        
+
         return filtered

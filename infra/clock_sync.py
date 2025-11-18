@@ -312,8 +312,8 @@ class ClockSyncValidator:
             
             if status["drift_ms"] and status["drift_ms"] > self.max_drift_ms:
                 diagnostics["recommendations"].append(
-                    f"Enable NTP sync: sudo systemctl enable --now systemd-timesyncd (Linux) "
-                    f"or System Preferences → Date & Time → Set time automatically (macOS)"
+                    "Enable NTP sync: sudo systemctl enable --now systemd-timesyncd (Linux) "
+                    "or System Preferences → Date & Time → Set time automatically (macOS)"
                 )
                 diagnostics["recommendations"].append(
                     "Verify NTP service is running: timedatectl status (Linux) or sudo sntp -d pool.ntp.org (macOS)"

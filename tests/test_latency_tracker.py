@@ -5,7 +5,7 @@ Tests for latency tracking infrastructure.
 import time
 import pytest
 from datetime import datetime, timezone
-from infra.latency_tracker import LatencyTracker, LatencyStats, LatencyMeasurement
+from infra.latency_tracker import LatencyTracker
 
 
 class TestLatencyTracker:

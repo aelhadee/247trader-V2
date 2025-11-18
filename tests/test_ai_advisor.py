@@ -11,17 +11,14 @@ Validates:
 """
 
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from datetime import datetime, timezone
 
 from ai.schemas import (
     AIAdvisorInput,
-    AIAdvisorOutput,
     AIMarketSnapshot,
     AIPortfolioSnapshot,
     AIProposalIn,
-    AIProposalDecision,
-    RiskMode,
 )
 from ai.advisor import AIAdvisorService
 from ai.model_client import MockClient, create_model_client

@@ -10,12 +10,11 @@ NO component (rules, AI, or human) can violate these.
 from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from collections import Counter, defaultdict
+from collections import defaultdict
 from collections.abc import Iterable
 import logging
 
 from strategy.rules_engine import TradeProposal
-from infra.alerting import AlertSeverity
 from infra.symbols import merge_symbol_value_map, normalize_symbol
 
 logger = logging.getLogger(__name__)
@@ -30,7 +29,7 @@ class RiskCheckResult:
     approved_proposals: Optional[List] = None  # Filtered list of approved proposals
     filtered_proposals: Optional[List] = None  # Optional filtered proposal set for downstream stages
     proposal_rejections: Optional[Dict[str, List[str]]] = None  # Map of symbol → rejection reasons
-    
+
     def __post_init__(self):
         if self.violated_checks is None:
             self.violated_checks = []
@@ -56,13 +55,13 @@ class CapAllocationResult:
 class PortfolioState:
     """
     Snapshot of portfolio state for risk checks.
-    
+
     Position Schema (ENFORCED):
     open_positions = {
         "BTC-USD": {"units": 0.12, "usd": 8400.0},
         "ETH-USD": {"units": 1.5, "usd": 4200.0}
     }
-    
+
     The "usd" field is used for all risk calculations (exposure, limits, etc).
     The "units" field is for reference only.
     """
@@ -148,7 +147,7 @@ class PortfolioState:
             else:
                 canonical[symbol] = payload
         return canonical
-    
+
     @property
     def nav(self) -> float:
         """
@@ -156,7 +155,7 @@ class PortfolioState:
         Alias for account_value_usd for backward compatibility.
         """
         return self.account_value_usd
-    
+
     def get_position_usd(self, symbol: str) -> float:
         """Get USD value of a position (enforces schema)"""
         symbol = normalize_symbol(symbol)
@@ -174,7 +173,7 @@ class PortfolioState:
             except (TypeError, ValueError):
                 return 0.0
         return 0.0
-    
+
     def get_total_exposure_usd(self) -> float:
         """Get total USD exposure across all positions"""
         total = 0.0
@@ -244,7 +243,7 @@ class PortfolioState:
 class RiskEngine:
     """
     Enforces hard risk constraints from policy.yaml.
-    
+
     Checks (in order):
     1. Kill switch
     2. Daily stop loss
@@ -253,10 +252,10 @@ class RiskEngine:
     5. Position size limits
     6. Correlation/cluster limits
     7. Microstructure quality
-    
+
     Returns: approved=True + vetoed proposals, OR approved=False + reason
     """
-    
+
     def __init__(self, policy: Dict, universe_manager=None, exchange=None, state_store=None, alert_service=None):
         self.policy = policy
         self.risk_config = policy.get("risk", {})
@@ -269,7 +268,7 @@ class RiskEngine:
         self.exchange = exchange
         self._state_store = state_store  # Optional: for testing or explicit state management
         self.alert_service = alert_service  # Optional: AlertService for critical notifications (kill switch, stops, etc.)
-        
+
         # Import Prometheus exporter (will be None if not initialized)
         try:
             from infra.prometheus_exporter import get_exporter
@@ -285,16 +284,16 @@ class RiskEngine:
         self._external_exposure_buffer_pct = max(
             0.0, float(self.risk_config.get("external_exposure_buffer_pct", 0.0) or 0.0)
         )
-        
+
         # Circuit breaker state tracking
         self._api_error_count = 0
         self._last_api_success = None
         self._last_rate_limit_time = None
-        
+
         # Initialize TradeLimits for trade pacing and cooldown management
         from core.trade_limits import TradeLimits
         self.trade_limits = TradeLimits(config=self.risk_config, state_store=state_store)
-        
+
         logger.info("Initialized RiskEngine with policy constraints, circuit breakers, and trade limits")
 
     @staticmethod
@@ -676,13 +675,13 @@ class RiskEngine:
         """Emit structured risk rejection log message."""
 
         snapshot = getattr(self, "last_caps_snapshot", None)
-        
+
         # Add context for below_min_after_caps rejections
         if code == "below_min_after_caps" and details:
             requested = details.get("requested_usd", 0)  # Original request from rules
             assigned = details.get("assigned_usd", 0)    # What caps could provide
             min_notional = snapshot.get("min_notional_usd", 0) if snapshot else 0
-            
+
             if requested > 0 and assigned > 0:
                 # If min_notional is involved, show all three values for clarity
                 if min_notional > 0 and assigned < min_notional:
@@ -711,7 +710,7 @@ class RiskEngine:
                         shortage,
                     )
                 return
-        
+
         logger.warning(
             "RISK_REJECT %s %s reason=%s details=%s caps=%s",
             proposal.symbol,
@@ -732,19 +731,19 @@ class RiskEngine:
             return float(getattr(quote, "mid", 0.0) or 0.0)
         except Exception:
             return 0.0
-    
+
     def check_all(self, 
                   proposals: List[TradeProposal],
                   portfolio: PortfolioState,
                   regime: str = "chop") -> RiskCheckResult:
         """
         Run all risk checks on trade proposals.
-        
+
         Args:
             proposals: List of proposed trades
             portfolio: Current portfolio state
             regime: Market regime
-            
+
         Returns:
             RiskCheckResult with approved proposals or rejection reason
         """
@@ -763,7 +762,7 @@ class RiskEngine:
                 for reason in reasons or []:
                     if reason and reason not in bucket:
                         bucket.append(reason)
-        
+
         # CRITICAL: Handle empty proposals correctly
         if not proposals:
             return RiskCheckResult(
@@ -772,7 +771,7 @@ class RiskEngine:
                 approved_proposals=[],
                 proposal_rejections=proposal_rejections,
             )
-        
+
         # 0. Circuit breakers (fail closed on data/exchange issues)
         result = self._check_circuit_breakers(portfolio, regime)
         if not result.approved:
@@ -783,7 +782,7 @@ class RiskEngine:
                 violated_checks=result.violated_checks,
                 proposal_rejections=proposal_rejections,
             )
-        
+
         # 0b. Exchange product status (block degraded markets)
         original_symbols = [proposal.symbol for proposal in proposals]
         proposals = self._filter_degraded_products(proposals)
@@ -798,7 +797,7 @@ class RiskEngine:
                 violated_checks=["exchange_product_status"],
                 proposal_rejections=proposal_rejections,
             )
-        
+
         # 1. Kill switch
         result = self._check_kill_switch()
         if not result.approved:
@@ -809,7 +808,7 @@ class RiskEngine:
                 violated_checks=result.violated_checks,
                 proposal_rejections=proposal_rejections,
             )
-        
+
         # 2. Daily stop loss
         result = self._check_daily_stop(portfolio)
         if not result.approved:
@@ -819,7 +818,7 @@ class RiskEngine:
                 violated_checks=result.violated_checks,
                 proposal_rejections=proposal_rejections,
             )
-        
+
         # 2b. Weekly stop loss
         result = self._check_weekly_stop(portfolio)
         if not result.approved:
@@ -829,7 +828,7 @@ class RiskEngine:
                 violated_checks=result.violated_checks,
                 proposal_rejections=proposal_rejections,
             )
-        
+
         # 3. Max drawdown
         result = self._check_max_drawdown(portfolio)
         if not result.approved:
@@ -839,7 +838,7 @@ class RiskEngine:
                 violated_checks=result.violated_checks,
                 proposal_rejections=proposal_rejections,
             )
-        
+
         # Use portfolio.pending_orders which has already been filtered for ghost orders
         # No need to fetch from exchange again - that would bypass ghost order filtering
         combined_pending_map = self._build_pending_buy_map(portfolio)
@@ -883,7 +882,7 @@ class RiskEngine:
                 violated_checks=result.violated_checks,
                 proposal_rejections=proposal_rejections,
             )
-        
+
         # 4. Global trade spacing (pacing control)
         result = self._check_global_trade_spacing()
         if not result.approved:
@@ -893,7 +892,7 @@ class RiskEngine:
                 violated_checks=result.violated_checks,
                 proposal_rejections=proposal_rejections,
             )
-        
+
         # 4a. Trade frequency caps (backup guardrails)
         result = self._check_trade_frequency(proposals, portfolio)
         if not result.approved:
@@ -903,7 +902,7 @@ class RiskEngine:
                 violated_checks=result.violated_checks,
                 proposal_rejections=proposal_rejections,
             )
-        
+
         # 4b. Consecutive loss cooldown
         result = self._check_loss_cooldown(portfolio)
         if not result.approved:
@@ -913,7 +912,7 @@ class RiskEngine:
                 violated_checks=result.violated_checks,
                 proposal_rejections=proposal_rejections,
             )
-        
+
         # 4b-TradeLimits. Comprehensive trade timing checks (TradeLimits module)
         # This integrates: global spacing, per-symbol spacing, frequency limits, loss cooldowns
         timing_result = self.trade_limits.check_all(
@@ -924,7 +923,7 @@ class RiskEngine:
             last_loss_time=portfolio.last_loss_time,
             current_time=portfolio.current_time
         )
-        
+
         if not timing_result.approved:
             # Timing check failed - block all trades
             return RiskCheckResult(
@@ -933,23 +932,23 @@ class RiskEngine:
                 violated_checks=timing_result.violated_checks,
                 proposal_rejections=proposal_rejections,
             )
-        
+
         # Filter proposals by per-symbol timing constraints
         approved_timing, rejected_timing = self.trade_limits.filter_proposals_by_timing(proposals)
-        
+
         if rejected_timing:
             # Track which symbols were rejected by timing
             for proposal in rejected_timing:
                 _merge_rejections({proposal.symbol: ["trade_limits_timing"]})
-            
+
             logger.info(
                 f"TradeLimits filtered {len(rejected_timing)} proposals: "
                 f"{[p.symbol for p in rejected_timing]}"
             )
-        
+
         # Continue with timing-approved proposals
         proposals = approved_timing
-        
+
         if not proposals:
             return RiskCheckResult(
                 approved=False,
@@ -957,7 +956,7 @@ class RiskEngine:
                 violated_checks=["trade_limits_timing"],
                 proposal_rejections=proposal_rejections,
             )
-        
+
         # 4c. Max open positions (spec requirement)
         result = self._check_max_open_positions(
             proposals,
@@ -975,7 +974,7 @@ class RiskEngine:
         if result.filtered_proposals is not None:
             _merge_rejections(result.proposal_rejections)
             proposals = result.filtered_proposals
-        
+
         # 5. Per-symbol cooldowns (filter proposals)
         cooled_original = [proposal.symbol for proposal in proposals]
         proposals = self._filter_cooled_symbols(proposals)
@@ -990,7 +989,7 @@ class RiskEngine:
                 violated_checks=["per_symbol_cooldown"],
                 proposal_rejections=proposal_rejections,
             )
-        
+
         proposals, caps_rejections, degrade_count = self._apply_caps_to_proposals(
             proposals,
             portfolio,
@@ -1034,7 +1033,7 @@ class RiskEngine:
                 if reasons:
                     _merge_rejections({proposal.symbol: reasons})
                 logger.debug(f"Rejected {proposal.symbol}: {result.reason}")
-        
+
         if not approved_proposals:
             return RiskCheckResult(
                 approved=False,
@@ -1042,7 +1041,7 @@ class RiskEngine:
                 violated_checks=violated,
                 proposal_rejections=proposal_rejections,
             )
-        
+
         # 7. Cluster limits
         result = self._check_cluster_limits(
             approved_proposals,
@@ -1058,21 +1057,21 @@ class RiskEngine:
                 proposal_rejections=proposal_rejections,
             )
         _merge_rejections(result.proposal_rejections)
-        
+
         logger.info(f"Risk checks passed: {len(approved_proposals)}/{original_proposal_count} proposals approved")
-        
+
         return RiskCheckResult(
             approved=True,
             violated_checks=violated if violated else [],
             approved_proposals=approved_proposals,
             proposal_rejections=proposal_rejections,
         )
-    
+
     def _check_kill_switch(self) -> RiskCheckResult:
         """Check if kill switch file exists"""
         import os
         kill_switch_file = self.governance_config.get("kill_switch_file", "data/KILL_SWITCH")
-        
+
         if os.path.exists(kill_switch_file):
             logger.error("🚨 KILL SWITCH ACTIVATED - All trading halted")
             # Record circuit breaker trip
@@ -1093,20 +1092,20 @@ class RiskEngine:
                 reason="KILL_SWITCH file exists - trading halted",
                 violated_checks=["kill_switch"]
             )
-        
+
         return RiskCheckResult(approved=True)
-    
+
     def _check_daily_stop(self, portfolio: PortfolioState) -> RiskCheckResult:
         """
         Check if daily stop loss hit using REAL PnL from exchange fills.
-        
+
         PnL is tracked in StateStore.record_fill() from actual execution prices/fees.
         portfolio.daily_pnl_pct is computed from state['pnl_today'] in main_loop._init_portfolio_state().
         """
         # Support both naming conventions: daily_stop_pnl_pct (policy.yaml) and daily_stop_loss_pct (legacy)
         max_daily_loss_pct = abs(self.risk_config.get("daily_stop_pnl_pct", 
                                                       self.risk_config.get("daily_stop_loss_pct", 3.0)))
-        
+
         # CRITICAL: portfolio.daily_pnl_pct is derived from REAL fills, not simulated
         if portfolio.daily_pnl_pct <= -max_daily_loss_pct:
             logger.error(
@@ -1134,20 +1133,20 @@ class RiskEngine:
                 reason=f"Daily stop loss hit: {portfolio.daily_pnl_pct:.2f}% loss (real PnL)",
                 violated_checks=["daily_stop_loss"]
             )
-        
+
         return RiskCheckResult(approved=True)
-    
+
     def _check_weekly_stop(self, portfolio: PortfolioState) -> RiskCheckResult:
         """
         Check if weekly stop loss hit using REAL PnL from exchange fills.
-        
+
         PnL is tracked in StateStore.record_fill() from actual execution prices/fees.
         portfolio.weekly_pnl_pct is computed from state['pnl_week'] in main_loop._init_portfolio_state().
         """
         # Support both naming conventions
         max_weekly_loss_pct = abs(self.risk_config.get("weekly_stop_pnl_pct",
                                                        self.risk_config.get("weekly_stop_loss_pct", 7.0)))
-        
+
         # CRITICAL: portfolio.weekly_pnl_pct is derived from REAL fills, not simulated
         weekly_pnl = getattr(portfolio, 'weekly_pnl_pct', None)
         if weekly_pnl is not None and weekly_pnl <= -max_weekly_loss_pct:
@@ -1173,19 +1172,19 @@ class RiskEngine:
                 reason=f"Weekly stop loss hit: {weekly_pnl:.2f}% loss (real PnL)",
                 violated_checks=["weekly_stop_loss"]
             )
-        
+
         return RiskCheckResult(approved=True)
-    
+
     def _check_max_drawdown(self, portfolio: PortfolioState) -> RiskCheckResult:
         """
         Check if max drawdown exceeded.
-        
+
         NOTE: Currently portfolio.max_drawdown_pct is set to 0.0 in _init_portfolio_state().
         TODO: Calculate from equity curve history once we track high-water mark in StateStore.
         For now, this check is effectively disabled but structure is in place.
         """
         max_dd_pct = self.risk_config.get("max_drawdown_pct", 10.0)
-        
+
         if portfolio.max_drawdown_pct >= max_dd_pct:
             logger.error(
                 f"🚨 MAX DRAWDOWN EXCEEDED: {portfolio.max_drawdown_pct:.2f}% "
@@ -1209,9 +1208,9 @@ class RiskEngine:
                 reason=f"Max drawdown {portfolio.max_drawdown_pct:.2f}% exceeds limit",
                 violated_checks=["max_drawdown"]
             )
-        
+
         return RiskCheckResult(approved=True)
-    
+
     def _check_strategy_caps(
         self,
         proposals: List[TradeProposal],
@@ -1220,16 +1219,16 @@ class RiskEngine:
     ) -> RiskCheckResult:
         """
         Enforce per-strategy risk budgets (REQ-STR3).
-        
+
         Checks each strategy's:
         - max_at_risk_pct: Existing exposure + proposed for this strategy
         - max_trades_per_cycle: Already enforced by BaseStrategy.validate_proposals()
-        
+
         Args:
             proposals: All proposals (may contain multiple strategies)
             portfolio: Current portfolio state
             pending_buy_override_usd: Optional override for pending buy exposure
-            
+
         Returns:
             RiskCheckResult with filtered proposals and rejections
         """
@@ -1238,52 +1237,52 @@ class RiskEngine:
         for proposal in proposals:
             strategy_name = proposal.metadata.get("strategy", "unknown")
             proposals_by_strategy.setdefault(strategy_name, []).append(proposal)
-        
+
         approved_proposals = []
         proposal_rejections: Dict[str, List[str]] = {}
-        
+
         for strategy_name, strategy_proposals in proposals_by_strategy.items():
             # Get strategy risk budget from first proposal's metadata
             if not strategy_proposals:
                 continue
-            
+
             first_proposal = strategy_proposals[0]
             # Strategy risk budgets would need to be passed via metadata or config
             # For now, extract from proposal metadata if available
             # This will be set by BaseStrategy when it validates proposals
             strategy_max_at_risk_pct = first_proposal.metadata.get("strategy_max_at_risk_pct")
-            
+
             if strategy_max_at_risk_pct is None:
                 # No strategy-specific cap, approve all from this strategy
                 approved_proposals.extend(strategy_proposals)
                 continue
-            
+
             # Calculate strategy's current exposure
             # We need to track which positions were opened by which strategy
             # For now, approximate: all managed exposure divided by number of active strategies
             # TODO: Enhance StateStore to track strategy_name per position
             strategy_exposure_usd = 0.0  # Placeholder: needs strategy tagging in state
-            
+
             # Calculate proposed exposure for this strategy
             proposed_usd = sum(
                 p.size_pct * portfolio.account_value_usd / 100.0
                 for p in strategy_proposals
             )
-            
+
             total_strategy_exposure = strategy_exposure_usd + proposed_usd
             strategy_at_risk_pct = (
                 (total_strategy_exposure / portfolio.account_value_usd) * 100.0
                 if portfolio.account_value_usd > 0
                 else 0.0
             )
-            
+
             if strategy_at_risk_pct > strategy_max_at_risk_pct:
                 logger.warning(
                     f"Strategy '{strategy_name}' would exceed risk budget: "
                     f"{strategy_at_risk_pct:.2f}% > {strategy_max_at_risk_pct:.2f}% "
                     f"(existing=${strategy_exposure_usd:.2f}, proposed=${proposed_usd:.2f})"
                 )
-                
+
                 # Reject all proposals from this strategy
                 for proposal in strategy_proposals:
                     proposal_rejections.setdefault(proposal.symbol, []).append(
@@ -1296,7 +1295,7 @@ class RiskEngine:
                     f"Strategy '{strategy_name}' within risk budget: "
                     f"{strategy_at_risk_pct:.2f}% / {strategy_max_at_risk_pct:.2f}%"
                 )
-        
+
         if not approved_proposals:
             return RiskCheckResult(
                 approved=False,
@@ -1304,14 +1303,14 @@ class RiskEngine:
                 violated_checks=["strategy_caps"],
                 proposal_rejections=proposal_rejections,
             )
-        
+
         return RiskCheckResult(
             approved=True,
             approved_proposals=approved_proposals,
             filtered_proposals=approved_proposals,
             proposal_rejections=proposal_rejections if proposal_rejections else None,
         )
-    
+
     def _check_global_at_risk(
         self,
         proposals: List[TradeProposal],
@@ -1320,9 +1319,9 @@ class RiskEngine:
     ) -> RiskCheckResult:
         """Check if total at-risk (existing + proposed) exceeds global limit"""
         max_total_at_risk_pct = self.risk_config.get("max_total_at_risk_pct", 15.0)
-        
+
         # Calculate current exposure from open positions (using enforced schema)
-        total_exposure_usd = portfolio.get_total_exposure_usd()
+        portfolio.get_total_exposure_usd()
         managed_exposure_usd = portfolio.get_managed_exposure_usd()
         external_exposure_usd = portfolio.get_external_exposure_usd()
         pending_buy_usd = portfolio.get_pending_notional_usd("buy")
@@ -1350,7 +1349,7 @@ class RiskEngine:
         current_positions_pct = managed_positions_pct + counted_external_pct
         pending_buy_pct = _pct(pending_buy_usd)
         current_exposure_pct = current_positions_pct + pending_buy_pct
-        
+
         nav = portfolio.account_value_usd if portfolio.account_value_usd > 0 else 0.0
         min_trade_notional = max(
             0.0, float(self.risk_config.get("min_trade_notional_usd", 0.0) or 0.0)
@@ -1365,9 +1364,9 @@ class RiskEngine:
             requested_usd = (requested_pct / 100.0) * nav
             effective_usd = max(requested_usd, min_trade_notional) if min_trade_notional > 0 else requested_usd
             proposed_buy_pct += _pct(effective_usd)
-        
+
         total_at_risk_pct = current_exposure_pct + proposed_buy_pct
-        
+
         if total_at_risk_pct > max_total_at_risk_pct:
             exposures_detail: List[Tuple[str, float]] = []
             for symbol in portfolio.open_positions.keys():
@@ -1394,7 +1393,7 @@ class RiskEngine:
                 reason=f"Total at-risk {total_at_risk_pct:.1f}% exceeds cap of {max_total_at_risk_pct:.1f}%",
                 violated_checks=["max_total_at_risk_pct"]
             )
-        
+
         logger.debug(
             "Global at-risk check passed: %.1f%%/%.1f%% (managed: %.1f%%, external_counted: %.1f%%, pending buys: %.1f%%, proposed buys: %.1f%%)",
             total_at_risk_pct,
@@ -1404,36 +1403,36 @@ class RiskEngine:
             pending_buy_pct,
             proposed_buy_pct,
         )
-        
+
         return RiskCheckResult(approved=True)
-    
+
     def _check_global_trade_spacing(self) -> RiskCheckResult:
         """
         Check minimum time between ANY trades (global pacing).
-        
+
         Prevents burning through hourly quota in first few minutes.
         Uses min_seconds_between_trades from policy.yaml (e.g., 120s).
         """
         min_spacing = self.risk_config.get("min_seconds_between_trades", 0)
         if min_spacing <= 0:
             return RiskCheckResult(approved=True)
-        
+
         from infra.state_store import get_state_store
         state_store = getattr(self, '_state_store', None) or get_state_store()
         state = state_store.load()
-        
+
         last_trade_ts_str = state.get("last_trade_timestamp")
         if not last_trade_ts_str:
             return RiskCheckResult(approved=True)
-        
+
         try:
             last_trade_ts = datetime.fromisoformat(last_trade_ts_str)
             if last_trade_ts.tzinfo is None:
                 last_trade_ts = last_trade_ts.replace(tzinfo=timezone.utc)
-            
+
             now = datetime.now(timezone.utc)
             elapsed = (now - last_trade_ts).total_seconds()
-            
+
             if elapsed < min_spacing:
                 remaining = min_spacing - elapsed
                 return RiskCheckResult(
@@ -1443,14 +1442,14 @@ class RiskEngine:
                 )
         except Exception as e:
             logger.warning(f"Error checking global trade spacing: {e}")
-        
+
         return RiskCheckResult(approved=True)
-    
+
     def _check_trade_frequency(self, proposals: List[TradeProposal],
                               portfolio: PortfolioState) -> RiskCheckResult:
         """
         Check trade frequency limits (backup guardrails).
-        
+
         Primary throttle is pacing (min_seconds_between_trades + per_symbol_trade_spacing).
         These caps are last-resort protection against logic bugs or crazy markets.
         """
@@ -1458,28 +1457,28 @@ class RiskEngine:
         # Spec uses "max_new_trades_per_hour"
         max_per_hour = self.risk_config.get("max_new_trades_per_hour", 
                                             self.risk_config.get("max_trades_per_hour", 8))
-        
+
         if portfolio.trades_today >= max_per_day:
             return RiskCheckResult(
                 approved=False,
                 reason=f"Daily trade limit reached ({portfolio.trades_today}/{max_per_day})",
                 violated_checks=["trade_frequency_daily"]
             )
-        
+
         if portfolio.trades_this_hour >= max_per_hour:
             return RiskCheckResult(
                 approved=False,
                 reason=f"Hourly trade limit reached ({portfolio.trades_this_hour}/{max_per_hour})",
                 violated_checks=["trade_frequency_hourly"]
             )
-        
+
         return RiskCheckResult(approved=True)
-    
+
     def _check_loss_cooldown(self, portfolio: PortfolioState) -> RiskCheckResult:
         """Check if in cooldown period after consecutive losses"""
         cooldown_after = self.risk_config.get("cooldown_after_loss_trades", 3)
         cooldown_minutes = self.risk_config.get("cooldown_minutes", 60)
-        
+
         if portfolio.consecutive_losses >= cooldown_after:
             # Check if cooldown period has expired
             if portfolio.last_loss_time:
@@ -1495,7 +1494,7 @@ class RiskEngine:
                         now = now.replace(tzinfo=timezone.utc)
                 else:
                     now = datetime.now(timezone.utc)
-                
+
                 if now < cooldown_expires:
                     minutes_left = (cooldown_expires - now).total_seconds() / 60
                     logger.warning(
@@ -1509,9 +1508,9 @@ class RiskEngine:
                     )
                 else:
                     logger.info(f"Cooldown period expired at {cooldown_expires}, resuming trading")
-        
+
         return RiskCheckResult(approved=True)
-    
+
     def _check_max_open_positions(
         self,
         proposals: List[TradeProposal],
@@ -1520,7 +1519,7 @@ class RiskEngine:
     ) -> RiskCheckResult:
         """
         Check max open positions limit (spec requirement).
-        
+
         Only applies to BUY proposals that would create NEW positions.
         Reads strategy.max_open_positions from policy.yaml (default 8).
         """
@@ -1706,42 +1705,42 @@ class RiskEngine:
             filtered_proposals=filtered if trimmed > 0 else None,
             proposal_rejections=proposal_rejections,
         )
-    
+
     def _filter_cooled_symbols(self, proposals: List[TradeProposal]) -> List[TradeProposal]:
         """
         Filter out proposals for symbols currently in cooldown or trade pacing window.
-        
+
         Two types of per-symbol filtering:
         1. Loss cooldowns: Set after losses/stop-outs (30-60 min)
         2. Trade pacing: Minimum time between ANY trades on same symbol (10 min)
-        
+
         Only filters if per_symbol_cooldown_enabled=true in policy.
-        
+
         Returns:
             Filtered list of proposals (symbols not in cooldown or pacing window)
         """
         if not self.risk_config.get("per_symbol_cooldown_enabled", True):
             return proposals
-        
+
         from infra.state_store import get_state_store
         # Use state_store from risk engine if available, otherwise get default
         state_store = getattr(self, '_state_store', None) or get_state_store()
         state = state_store.load()
-        
+
         # Get trade pacing config
         trade_spacing_seconds = self.risk_config.get("per_symbol_trade_spacing_seconds", 0)
-        
+
         filtered = []
         now = datetime.now(timezone.utc)
-        
+
         for proposal in proposals:
             symbol = proposal.symbol
-            
+
             # Check 1: Loss-based cooldown (existing logic)
             if state_store.is_cooldown_active(symbol):
                 logger.info(f"Filtered {symbol}: per-symbol loss cooldown active")
                 continue
-            
+
             # Check 2: Trade pacing (prevent same symbol churning)
             if trade_spacing_seconds > 0:
                 last_trade_ts_str = state.get("per_symbol_last_trade", {}).get(symbol)
@@ -1750,7 +1749,7 @@ class RiskEngine:
                         last_trade_ts = datetime.fromisoformat(last_trade_ts_str)
                         if last_trade_ts.tzinfo is None:
                             last_trade_ts = last_trade_ts.replace(tzinfo=timezone.utc)
-                        
+
                         elapsed = (now - last_trade_ts).total_seconds()
                         if elapsed < trade_spacing_seconds:
                             remaining = trade_spacing_seconds - elapsed
@@ -1761,16 +1760,16 @@ class RiskEngine:
                             continue
                     except Exception as e:
                         logger.warning(f"Error checking trade spacing for {symbol}: {e}")
-            
+
             filtered.append(proposal)
-        
+
         if len(filtered) < len(proposals):
             logger.info(
                 f"Per-symbol filtering: {len(filtered)}/{len(proposals)} proposals remain"
             )
-        
+
         return filtered
-    
+
     def _check_position_size(
         self,
         proposal: TradeProposal,
@@ -1808,17 +1807,17 @@ class RiskEngine:
                 return 0.0
 
         existing_exposure_pct = _pct(existing_position_usd + effective_pending_usd)
-        
+
         # Get base limits
         max_pos_pct = self.risk_config.get("max_position_size_pct", 5.0)
         min_pos_pct = self.risk_config.get("min_position_size_pct", 0.5)
-        
+
         # Apply regime adjustment if enabled
         if self.regime_config.get("enabled", True):
             regime_settings = self.regime_config.get(regime, {})
             multiplier = regime_settings.get("position_size_multiplier", 1.0)
             max_pos_pct *= multiplier
-        
+
         # CRITICAL FIX: Check combined exposure (existing + pending + proposed) for BUY orders
         # This ensures pending orders count toward per-symbol cap
         side_upper = proposal.side.upper() if proposal.side else "BUY"
@@ -1866,11 +1865,11 @@ class RiskEngine:
         # For SELL orders, just check the proposal size alone
         elif proposal.size_pct > max_pos_pct:
             violated.append(f"position_size_too_large ({proposal.size_pct:.2f}% > {max_pos_pct:.1f}% cap)")
-        
+
         # Check min
         if proposal.size_pct < min_pos_pct:
             violated.append(f"position_size_too_small ({proposal.size_pct:.1f}% < {min_pos_pct:.1f}%)")
-        
+
         # Check if already have position
         if (
             side_upper == "BUY"
@@ -1889,16 +1888,16 @@ class RiskEngine:
             and is_existing_position  # Only block if there's BOTH pending AND existing position
         ):
             violated.append(f"pending_buy_exists ({proposal.symbol})")
-        
+
         if violated:
             return RiskCheckResult(
                 approved=False,
                 reason="; ".join(violated),
                 violated_checks=violated
             )
-        
+
         return RiskCheckResult(approved=True)
-    
+
     def _check_cluster_limits(
         self,
         proposals: List[TradeProposal],
@@ -1997,62 +1996,62 @@ class RiskEngine:
             violated_checks=violated_reasons,
             proposal_rejections=cluster_rejections,
         )
-    
+
     def adjust_proposal_size(self, proposal: TradeProposal,
                             portfolio: PortfolioState,
                             regime: str) -> TradeProposal:
         """
         Adjust proposal size to fit within risk constraints.
-        
+
         Returns: Adjusted proposal (or None if no valid size exists)
         """
         max_pos_pct = self.risk_config.get("max_position_size_pct", 5.0)
         min_pos_pct = self.risk_config.get("min_position_size_pct", 0.5)
-        
+
         # Apply regime adjustment
         if self.regime_config.get("enabled", True):
             regime_settings = self.regime_config.get(regime, {})
             multiplier = regime_settings.get("position_size_multiplier", 1.0)
             max_pos_pct *= multiplier
-        
+
         # Clamp to limits
         adjusted_size = max(min_pos_pct, min(proposal.size_pct, max_pos_pct))
-        
+
         if adjusted_size != proposal.size_pct:
             logger.debug(
                 f"Adjusted {proposal.symbol} size: {proposal.size_pct:.1f}% → {adjusted_size:.1f}%"
             )
             proposal.size_pct = adjusted_size
-        
+
         return proposal
-    
+
     def _filter_degraded_products(self, proposals: List[TradeProposal]) -> List[TradeProposal]:
         """
         Filter out proposals for products with degraded exchange status.
-        
+
         Blocks trading on products flagged as:
         - POST_ONLY (can only add liquidity, no market orders)
         - LIMIT_ONLY (no market orders allowed)
         - CANCEL_ONLY (can only cancel, no new orders)
         - offline (not tradeable)
-        
+
         Args:
             proposals: List of trade proposals
-            
+
         Returns:
             Filtered list of proposals (only products with normal status)
         """
         if not self.exchange:
             # No exchange adapter, can't check status
             return proposals
-        
+
         if not self.circuit_breakers_config.get("check_product_status", True):
             # Product status checks disabled
             return proposals
-        
+
         filtered = []
         blocked = []
-        
+
         for proposal in proposals:
             product_id = proposal.symbol
             try:
@@ -2061,50 +2060,49 @@ class RiskEngine:
                     logger.warning(f"No metadata found for {product_id}, blocking trade")
                     blocked.append((product_id, "no_metadata"))
                     continue
-                
+
                 status = metadata.get("status", "").upper()
-                
+
                 # Block degraded or restricted statuses
                 restricted_statuses = ["POST_ONLY", "LIMIT_ONLY", "CANCEL_ONLY", "OFFLINE"]
                 if status in restricted_statuses:
                     logger.warning(f"Blocking {product_id}: exchange status={status}")
                     blocked.append((product_id, status))
                     continue
-                
+
                 # Product is tradeable
                 filtered.append(proposal)
-                
+
             except Exception as e:
                 logger.error(f"Error checking product status for {product_id}: {e}")
                 # Fail closed: block trade on error
                 blocked.append((product_id, f"error: {e}"))
                 continue
-        
+
         if blocked:
             logger.warning(f"Filtered {len(blocked)} proposals due to exchange product status: {blocked}")
-        
+
         return filtered
-    
+
     def _check_circuit_breakers(self, portfolio: PortfolioState, regime: str) -> RiskCheckResult:
         """
         Check circuit breakers for data staleness, API health, exchange status, and volatility.
-        
+
         Fail CLOSED on any of:
         - Stale data (quotes/candles too old)
         - API health issues (consecutive errors, rate limits)
         - Exchange degraded (maintenance, status issues)
         - Extreme volatility (crash regime)
         - Insufficient universe (too few eligible assets)
-        
+
         Returns:
             RiskCheckResult with approval or rejection reason
         """
         if not self.circuit_breakers_config:
             # Circuit breakers not configured, skip checks
             return RiskCheckResult(approved=True)
-        
-        violated = []
-        
+
+
         # 1. Check for rate limit cooldown
         if self.circuit_breakers_config.get("pause_on_rate_limit", True):
             if self._last_rate_limit_time:
@@ -2121,7 +2119,7 @@ class RiskEngine:
                         reason=f"Rate limit cooldown ({remaining:.0f}s remaining)",
                         violated_checks=["rate_limit_cooldown"]
                     )
-        
+
         # 2. Check API health (consecutive errors)
         max_errors = self.circuit_breakers_config.get("max_consecutive_api_errors", 3)
         if self._api_error_count >= max_errors:
@@ -2149,7 +2147,7 @@ class RiskEngine:
                     reason=f"API health critical ({self._api_error_count} errors)",
                     violated_checks=["api_health"]
                 )
-        
+
         # 3. Check exchange status (if exchange adapter provided)
         if self.exchange and self.circuit_breakers_config.get("check_exchange_status", True):
             try:
@@ -2168,9 +2166,9 @@ class RiskEngine:
                     reason=f"Exchange health check error: {e}",
                     violated_checks=["exchange_health"]
                 )
-        
+
         # 4. Check volatility circuit breaker (crash regime)
-        max_vol = self.circuit_breakers_config.get("max_realized_volatility_pct", 150)
+        self.circuit_breakers_config.get("max_realized_volatility_pct", 150)
         if regime == "crash":
             logger.warning("Crash regime detected - halting new trades")
             return RiskCheckResult(
@@ -2178,9 +2176,9 @@ class RiskEngine:
                 reason="Crash regime active (extreme volatility)",
                 violated_checks=["volatility_crash"]
             )
-        
+
         # 5. Check minimum eligible assets
-        min_assets = self.circuit_breakers_config.get("min_eligible_assets", 2)
+        self.circuit_breakers_config.get("min_eligible_assets", 2)
         if self.universe_manager:
             try:
                 # This would require universe snapshot to be passed or cached
@@ -2188,21 +2186,21 @@ class RiskEngine:
                 pass
             except Exception:
                 pass
-        
+
         # All checks passed
         return RiskCheckResult(approved=True)
-    
+
     def record_api_success(self):
         """Record successful API call for circuit breaker tracking"""
         self._api_error_count = 0
         self._last_api_success = datetime.now(timezone.utc)
         logger.debug("API success recorded, error counter reset")
-    
+
     def record_api_error(self):
         """Record API error for circuit breaker tracking"""
         self._api_error_count += 1
         logger.warning(f"API error recorded (count: {self._api_error_count})")
-        
+
         # Alert on API error burst (2+ consecutive errors)
         if self._api_error_count >= 2 and self.alert_service:
             from infra.alerting import AlertSeverity
@@ -2216,12 +2214,12 @@ class RiskEngine:
                     "action": "monitoring_for_circuit_breaker"
                 }
             )
-    
+
     def record_rate_limit(self):
         """Record rate limit hit for circuit breaker tracking"""
         self._last_rate_limit_time = datetime.now(timezone.utc)
         logger.warning("Rate limit hit recorded")
-    
+
     def circuit_snapshot(self) -> Dict[str, Any]:
         cooldown_seconds = self.circuit_breakers_config.get("rate_limit_cooldown_seconds", 60)
         last_rate_limit_iso = None
@@ -2244,25 +2242,25 @@ class RiskEngine:
     def apply_symbol_cooldown(self, symbol: str, is_stop_loss: bool = False):
         """
         Apply per-symbol cooldown after a loss or stop-out.
-        
+
         Args:
             symbol: Trading symbol (e.g., "BTC-USD")
             is_stop_loss: If True, use longer cooldown for stop-loss hits
         """
         if not self.risk_config.get("per_symbol_cooldown_enabled", True):
             return
-        
+
         from infra.state_store import get_state_store
         # Use state_store from risk engine if available, otherwise get default
         state_store = getattr(self, '_state_store', None) or get_state_store()
         state = state_store.load()
-        
+
         # Determine cooldown duration
         if is_stop_loss:
             cooldown_minutes = self.risk_config.get("per_symbol_cooldown_after_stop", 60)
         else:
             cooldown_minutes = self.risk_config.get("per_symbol_cooldown_minutes", 30)
-        
+
         # Set cooldown (use timezone-aware datetime to match is_cooldown_active check)
         cooldown_until = datetime.now(timezone.utc) + timedelta(minutes=cooldown_minutes)
         state.setdefault("cooldowns", {})[symbol] = cooldown_until.isoformat()

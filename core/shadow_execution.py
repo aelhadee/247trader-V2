@@ -28,28 +28,28 @@ class ShadowOrder:
     quote_ask: float
     quote_spread_bps: float
     quote_age_ms: float
-    
+
     # Execution plan
     intended_route: str  # "maker" | "taker" | "ioc"
     intended_price: float
     expected_slippage_bps: float
     expected_fees_usd: float
-    
+
     # Risk context
     tier: str
     confidence: Optional[float]
     conviction: Optional[float]
-    
+
     # Liquidity checks
     passed_spread_check: bool
     passed_depth_check: bool
     orderbook_depth_20bps_usd: Optional[float]
-    
+
     # Order details
     client_order_id: str
     would_place: bool  # False if failed validation
     rejection_reason: Optional[str]
-    
+
     # Metadata
     mode: str  # Should be "SHADOW_DRY_RUN"
     config_hash: str
@@ -58,30 +58,30 @@ class ShadowOrder:
 class ShadowExecutionLogger:
     """
     Logs detailed execution plans without submitting orders.
-    
+
     Purpose:
     - Production validation before scaling capital
     - Parallel comparison with live execution
     - Debugging and tuning without risk
-    
+
     Usage:
         shadow_logger = ShadowExecutionLogger("logs/shadow_orders.jsonl")
         shadow_logger.log_order(...)
     """
-    
+
     def __init__(self, log_file: str = "logs/shadow_orders.jsonl"):
         self.log_file = Path(log_file)
         self.log_file.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Create file if it doesn't exist
         if not self.log_file.exists():
             self.log_file.touch()
             logger.info(f"Created shadow execution log: {self.log_file}")
-    
+
     def log_order(self, shadow_order: ShadowOrder) -> None:
         """
         Log a shadow order to JSONL file.
-        
+
         Each line is a complete JSON object for easy parsing.
         """
         try:
@@ -90,7 +90,7 @@ class ShadowExecutionLogger:
                 f.write(json_line + '\n')
         except Exception as e:
             logger.error(f"Failed to write shadow order log: {e}")
-    
+
     def log_rejection(self,
                      symbol: str,
                      side: str,
@@ -99,7 +99,7 @@ class ShadowExecutionLogger:
                      context: Optional[Dict[str, Any]] = None) -> None:
         """
         Log an order that would have been rejected.
-        
+
         Args:
             symbol: Trading pair symbol
             side: BUY or SELL
@@ -116,38 +116,38 @@ class ShadowExecutionLogger:
             "reason": reason,
             "context": context or {}
         }
-        
+
         try:
             with open(self.log_file, 'a') as f:
                 json_line = json.dumps(rejection_entry)
                 f.write(json_line + '\n')
         except Exception as e:
             logger.error(f"Failed to write rejection log: {e}")
-    
+
     def get_stats(self) -> Dict[str, Any]:
         """
         Get statistics from shadow log.
-        
+
         Returns:
             Dictionary with counts and metrics
         """
         if not self.log_file.exists():
             return {"total": 0, "placed": 0, "rejected": 0}
-        
+
         total = 0
         placed = 0
         rejected = 0
         rejections_by_reason = {}
-        
+
         try:
             with open(self.log_file, 'r') as f:
                 for line in f:
                     if not line.strip():
                         continue
-                    
+
                     entry = json.loads(line)
                     total += 1
-                    
+
                     if entry.get("type") == "rejection":
                         rejected += 1
                         reason = entry.get("reason", "unknown")
@@ -158,18 +158,18 @@ class ShadowExecutionLogger:
                         rejected += 1
                         reason = entry.get("rejection_reason", "unknown")
                         rejections_by_reason[reason] = rejections_by_reason.get(reason, 0) + 1
-        
+
         except Exception as e:
             logger.error(f"Failed to read shadow log stats: {e}")
             return {"error": str(e)}
-        
+
         return {
             "total": total,
             "would_place": placed,
             "rejected": rejected,
             "rejection_reasons": rejections_by_reason
         }
-    
+
     def clear_log(self) -> None:
         """Clear the shadow log file (use with caution)"""
         if self.log_file.exists():
@@ -208,14 +208,14 @@ def create_shadow_order(
             quote_ts = quote.timestamp
         else:
             quote_ts = datetime.fromisoformat(str(quote.timestamp))
-        
+
         if quote_ts.tzinfo is None:
             quote_ts = quote_ts.replace(tzinfo=timezone.utc)
-        
+
         age = (datetime.now(timezone.utc) - quote_ts).total_seconds() * 1000
     else:
         age = 0.0
-    
+
     return ShadowOrder(
         timestamp=datetime.now(timezone.utc).isoformat(),
         symbol=symbol,

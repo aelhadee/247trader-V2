@@ -85,7 +85,7 @@ def main():
     )
     
     if result['success']:
-        print(f"\n✅ Conversion successful!")
+        print("\n✅ Conversion successful!")
         print(f"   Trade ID: {result['trade_id']}")
         print(f"   Exchange Rate: {result['exchange_rate']}")
         print(f"   Fee: {result['fee']}")

@@ -20,13 +20,9 @@ Update: pytest tests/test_backtest_regression.py --update-baseline
 
 import pytest
 import json
-import tempfile
-from pathlib import Path
-from datetime import datetime, timedelta, timezone
-from unittest.mock import Mock, patch
-from typing import Dict, List
+from datetime import datetime, timedelta
 
-from backtest.engine import BacktestEngine, BacktestMetrics, Trade
+from backtest.engine import BacktestEngine, Trade
 from backtest.compare_baseline import (
     calculate_deviation_pct,
     compare_metrics,

@@ -13,7 +13,6 @@ Per policy.yaml circuit_breakers:
 """
 
 import pytest
-import yaml
 from datetime import datetime, timezone
 from typing import List
 from unittest.mock import MagicMock, patch

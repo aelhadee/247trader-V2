@@ -8,9 +8,8 @@ to prevent over-allocation while orders are working.
 import pytest
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
-from decimal import Decimal
 
-from core.risk import RiskEngine, PortfolioState, RiskCheckResult
+from core.risk import RiskEngine, PortfolioState
 from strategy.rules_engine import TradeProposal
 
 

@@ -5,7 +5,6 @@ Quick Liquidation Script: Convert all holdings to USDC
 This frees up capital for trading by converting everything to USDC.
 """
 
-import sys
 from core.exchange_coinbase import CoinbaseExchange
 from core.execution import ExecutionEngine
 import yaml
@@ -134,7 +133,7 @@ def main():
     
     print("\n" + "="*70)
     print(f"Conversions complete: {successful} successful, {failed} failed")
-    print(f"Check your Coinbase account for USDC balance")
+    print("Check your Coinbase account for USDC balance")
     print("="*70 + "\n")
 
 

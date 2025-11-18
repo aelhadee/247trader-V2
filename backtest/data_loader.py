@@ -11,8 +11,7 @@ Compatible with MockExchange for realistic backtesting.
 
 import time
 import requests
-import json
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
 from pathlib import Path

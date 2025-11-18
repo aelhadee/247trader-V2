@@ -8,7 +8,7 @@ Test critical safety fixes identified in code review:
 
 import pytest
 from datetime import datetime, timezone
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 from pathlib import Path
 import tempfile
 import json

@@ -9,7 +9,7 @@ import sys
 import json
 import logging
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # Add parent to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -149,7 +149,7 @@ def run_simple_backtest(
         print(f"Average Hold Time: {avg_hold:.1f} hours (max hold: 48h)")
         
         # Worst losses
-        print(f"\nWorst 5 Losing Trades:")
+        print("\nWorst 5 Losing Trades:")
         worst = sorted(losing_trades, key=lambda t: t.pnl_pct)[:5]
         for i, trade in enumerate(worst, 1):
             hold_hours = trade.hold_time.total_seconds() / 3600 if trade.hold_time else 0

@@ -7,7 +7,6 @@ Use these instead of raw dicts to ensure type safety and catch API contract chan
 
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
-from decimal import Decimal
 from typing import Dict, List, Optional
 
 

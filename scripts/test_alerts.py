@@ -12,11 +12,9 @@ Environment Variables:
 """
 
 import argparse
-import json
 import os
 import sys
 import time
-from typing import Dict, Any
 
 from infra.alerting import AlertService, AlertSeverity, AlertConfig
 
@@ -51,7 +49,7 @@ def test_alert_delivery(
         print(f"   Webhook URL: {webhook_url}")
         return False
     
-    print(f"✅ AlertService initialized")
+    print("✅ AlertService initialized")
     print(f"   Webhook URL: {webhook_url[:50]}..." if len(webhook_url) > 50 else f"   Webhook URL: {webhook_url}")
     print(f"   Dry Run: {dry_run}")
     print(f"   Timeout: {config.timeout}s\n")
@@ -102,7 +100,7 @@ def test_alert_delivery(
                 context=test_case["context"]
             )
             
-            print(f"   ✅ Alert sent successfully")
+            print("   ✅ Alert sent successfully")
             print(f"      Title: {test_case['title']}")
             print(f"      Message: {test_case['message']}")
             
@@ -138,7 +136,7 @@ def test_production_alert_scenarios(webhook_url: str, dry_run: bool = False) -> 
     """Test realistic production alert scenarios."""
     
     print(f"\n{'='*70}")
-    print(f"  Production Alert Scenario Tests")
+    print("  Production Alert Scenario Tests")
     print(f"{'='*70}\n")
     
     config = AlertConfig(
@@ -233,7 +231,7 @@ def test_production_alert_scenarios(webhook_url: str, dry_run: bool = False) -> 
                 context=scenario["context"]
             )
             
-            print(f"   ✅ Alert delivered")
+            print("   ✅ Alert delivered")
             success_count += 1
             time.sleep(1)
             

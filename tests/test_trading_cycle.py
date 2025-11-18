@@ -6,12 +6,11 @@ Validates that the pipeline works correctly in both live and backtest modes.
 
 import pytest
 from datetime import datetime, timezone
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
 from core.trading_cycle import TradingCyclePipeline, CycleResult
 from core.universe import UniverseSnapshot, UniverseAsset
 from core.triggers import TriggerSignal
-from strategy.rules_engine import TradeProposal
 from core.risk import PortfolioState, RiskCheckResult
 
 

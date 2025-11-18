@@ -9,8 +9,7 @@ import os
 import pytest
 import tempfile
 from datetime import datetime, timezone, timedelta
-from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from infra.secret_rotation import SecretRotationTracker
 
@@ -295,7 +294,7 @@ class TestSecretRotationMetadataPersistence:
         with tempfile.TemporaryDirectory() as tmpdir:
             metadata_path = os.path.join(tmpdir, "subdir", "nested", "rotation.json")
             
-            tracker = SecretRotationTracker(metadata_path=metadata_path)
+            SecretRotationTracker(metadata_path=metadata_path)
             
             assert os.path.exists(metadata_path)
             assert os.path.exists(os.path.dirname(metadata_path))

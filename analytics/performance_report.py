@@ -18,16 +18,15 @@ Outputs:
 """
 
 import json
-import sqlite3
 from collections import defaultdict
 from dataclasses import dataclass, asdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import logging
 import math
 
-from analytics.trade_log import TradeLog, TradeRecord
+from analytics.trade_log import TradeLog
 
 logger = logging.getLogger(__name__)
 

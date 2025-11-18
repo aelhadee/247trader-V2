@@ -12,9 +12,8 @@ Coverage:
 
 import pytest
 from datetime import datetime, timedelta, timezone
-from typing import Dict
 
-from core.trade_limits import TradeLimits, TradeTimingResult
+from core.trade_limits import TradeLimits
 from strategy.rules_engine import TradeProposal
 from infra.state_store import StateStore, JsonFileBackend
 

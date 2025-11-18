@@ -125,7 +125,7 @@ def test_validate_credentials_helper():
         valid, error = validate_credentials_available(require_credentials=False)
         assert not valid
         assert "missing" in error.lower()
-        print(f"✅ Helper detects missing credentials")
+        print("✅ Helper detects missing credentials")
     
     # Test with valid credentials
     with patch.dict(os.environ, {

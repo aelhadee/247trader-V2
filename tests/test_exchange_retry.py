@@ -9,8 +9,7 @@ Verifies exponential backoff with full jitter for:
 """
 
 import pytest
-import time
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from requests.exceptions import HTTPError, Timeout, ConnectionError
 
 from core.exchange_coinbase import CoinbaseExchange
@@ -258,7 +257,7 @@ class TestExponentialBackoff:
     def test_full_jitter_randomizes_delay(self, exchange):
         """Test full jitter: random(0, exp_backoff) spreads retries."""
         with patch('core.exchange_coinbase.requests.request') as mock_request, \
-             patch('time.sleep') as mock_sleep, \
+             patch('time.sleep'), \
              patch('random.uniform') as mock_random:
             
             # Track that random.uniform was called with correct bounds

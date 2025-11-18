@@ -17,7 +17,6 @@ NOTE: Run these tests in isolation to avoid Prometheus registry conflicts:
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List
 from unittest.mock import Mock, MagicMock, patch
 import pytest
 
@@ -32,7 +31,6 @@ if 'infra.metrics' not in sys.modules:
     sys.modules['infra.metrics'] = mock_metrics
 
 from runner.main_loop import TradingLoop
-from core.order_state import OrderStatus
 from infra.alerting import AlertSeverity
 
 
@@ -192,7 +190,7 @@ def test_kill_switch_alert_sla_under_5s(mock_lock, kill_switch_file, mock_exchan
     )
     
     start_time = time.monotonic()
-    result = loop.risk_engine.check_all(proposals=[proposal], portfolio=portfolio)
+    loop.risk_engine.check_all(proposals=[proposal], portfolio=portfolio)
     alert_latency = time.monotonic() - start_time
     
     # Assert: Alert fired

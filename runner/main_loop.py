@@ -29,7 +29,7 @@ from core.exchange_coinbase import CoinbaseExchange
 from core.exceptions import CriticalDataUnavailable
 from core.universe import UniverseManager
 from core.triggers import TriggerEngine
-from strategy.rules_engine import RulesEngine, TradeProposal
+from strategy.rules_engine import TradeProposal
 from core.risk import RiskEngine, PortfolioState
 from core.execution import ExecutionEngine, ExecutionResult
 from core.position_manager import PositionManager
@@ -47,7 +47,7 @@ logger = logging.getLogger(__name__)
 class TradingLoop:
     """
     Main trading loop orchestrator.
-    
+
     Responsibilities:
     - Load config
     - Run periodic cycles
@@ -59,7 +59,7 @@ class TradingLoop:
     def __init__(self, config_dir: str = "config", mode_override: Optional[str] = None):
         """
         Initialize TradingLoop.
-        
+
         Args:
             config_dir: Path to configuration directory
             mode_override: Optional mode override for testing (DRY_RUN, PAPER, LIVE)
@@ -78,7 +78,7 @@ class TradingLoop:
                 logger.error(f"{idx:>2}. {lines[0]}")
             logger.error("=" * 80)
             raise ValueError(f"Invalid configuration: {len(validation_errors)} error(s) found")
-        
+
         # Load configs
         self.app_config = self._load_yaml("app.yaml")
         self.policy_config = self._load_yaml("policy.yaml")
@@ -86,7 +86,7 @@ class TradingLoop:
         self.policy = self.policy_config
         self.signals_config = self._load_yaml("signals.yaml")
         self.universe_config = self._load_yaml("universe.yaml")
-        
+
         # Compute config hash for audit trail (configuration drift detection)
         self.config_hash = self._compute_config_hash()
         logger.info(f"Configuration hash: {self.config_hash} (policy+signals+universe)")
@@ -112,32 +112,32 @@ class TradingLoop:
                     interval_seconds = None
 
         self.loop_interval_seconds = float(interval_seconds) if interval_seconds else None
-        
+
         # Jitter configuration (REQ-SCH1: prevent lockstep behavior)
         jitter_pct = loop_policy_cfg.get("jitter_pct", 10.0)  # Default 10%
         self.loop_jitter_pct = max(0.0, min(float(jitter_pct), 20.0))  # Clamp 0-20%
-        
+
         # Mode & safety (allow test override)
         config_mode = self.app_config.get("app", {}).get("mode", "LIVE").upper()
         self.mode = mode_override.upper() if mode_override else config_mode
         allowed_modes = {"DRY_RUN", "PAPER", "LIVE"}
         if self.mode not in allowed_modes:
             raise ValueError(f"Invalid mode: {self.mode}")
-        
+
         if mode_override:
             logger.info(f"Mode override active: {self.mode} (config had {config_mode})")
-        
+
         # Exchange read_only: True unless explicitly false in LIVE mode
         exchange_config = self.app_config.get("exchange", {}) or {}
         read_only_cfg = exchange_config.get("read_only", True)
         self.read_only = (self.mode != "LIVE") or bool(read_only_cfg)
-        
+
         # Logging setup
         log_cfg = self.app_config.get("logging", {}) or {}
         log_file = log_cfg.get("file", "logs/247trader-v2.log")
         log_path = Path(log_file)
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         logging.basicConfig(
             level=getattr(logging, log_cfg.get("level", "INFO").upper()),
             format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -145,7 +145,7 @@ class TradingLoop:
         )
 
         logger.info(f"Starting 247trader-v2 in mode={self.mode}, read_only={self.read_only}")
-        
+
         # CRITICAL: Acquire single-instance lock to prevent double-trading
         from infra.instance_lock import check_single_instance
         self.instance_lock = check_single_instance("247trader-v2", lock_dir="data")
@@ -162,7 +162,7 @@ class TradingLoop:
             logger.error("  rm data/247trader-v2.pid")
             logger.error("=" * 80)
             raise RuntimeError("Another trading bot instance is already running")
-        
+
         logger.info("✅ Single-instance lock acquired")
 
         monitoring_cfg = self.app_config.get("monitoring", {}) or {}
@@ -173,7 +173,7 @@ class TradingLoop:
         metrics_port = int(monitoring_cfg.get("metrics_port", 9090))
         self.metrics = MetricsRecorder(enabled=metrics_enabled, port=metrics_port)
         self.metrics.start()
-        
+
         # Initialize Prometheus exporter if enabled
         self.prometheus_exporter = None
         prometheus_enabled = monitoring_cfg.get("prometheus_enabled", False)
@@ -183,15 +183,15 @@ class TradingLoop:
             self.prometheus_exporter = get_exporter(port=prometheus_port)
             self.prometheus_exporter.start()
             logger.info(f"✅ Prometheus metrics exposed on port {prometheus_port}")
-        
+
         # Initialize latency tracker
         from infra.latency_tracker import LatencyTracker
         self.latency_tracker = LatencyTracker(retention_per_operation=1000)
-        
+
         # Initialize core components
         self.exchange = CoinbaseExchange(read_only=self.read_only, metrics=self.metrics, 
                                         latency_tracker=self.latency_tracker)
-        
+
         # Configure rate limits from policy (preferred) or fallback to app.yaml
         rate_limit_cfg = self.policy_config.get("rate_limits") or exchange_config.get("rate_limit")
         self.exchange.configure_rate_limits(rate_limit_cfg)
@@ -229,12 +229,12 @@ class TradingLoop:
                 "Alerting enabled (min_severity=%s)",
                 monitoring_cfg.get("alerts", {}).get("min_severity", "warning"),
             )
-        
+
         # Load universe config
         universe_config_path = self.config_dir / "universe.yaml"
         with open(universe_config_path) as f:
             universe_config = yaml.safe_load(f)
-        
+
         self.universe_mgr = UniverseManager(
             config=universe_config,
             exchange=self.exchange,
@@ -242,18 +242,18 @@ class TradingLoop:
             alert_service=self.alerts,  # Wire alerts for empty universe detection
         )
         self.trigger_engine = TriggerEngine()
-        
+
         # Initialize multi-strategy framework (REQ-STR1-3)
         from strategy.registry import StrategyRegistry
         self.strategy_registry = StrategyRegistry(config_path=self.config_dir / "strategies.yaml")
-        
+
         # Keep legacy rules_engine reference for backward compatibility
         self.rules_engine = self.strategy_registry.strategies.get("rules_engine")
         if not self.rules_engine:
             logger.warning("rules_engine strategy not found in registry, creating fallback")
             from strategy.rules_engine import RulesEngine
             self.rules_engine = RulesEngine(config={})
-        
+
         self.risk_engine = RiskEngine(
             self.policy_config, 
             universe_manager=self.universe_mgr,
@@ -269,12 +269,12 @@ class TradingLoop:
             alert_service=self.alerts,  # Wire alerts for rejection bursts and reconcile mismatches
             risk_engine=self.risk_engine,  # Wire RiskEngine for TradeLimits cooldowns/spacing
         )
-        
+
         self.position_manager = PositionManager(
             policy=self.policy_config,
             state_store=self.state_store,
         )
-        
+
         # Initialize AI Advisor (Phase 1: proposal filtering)
         ai_cfg = self.app_config.get("ai", {}) or {}
         self.ai_enabled = ai_cfg.get("enabled", False)
@@ -282,7 +282,7 @@ class TradingLoop:
         self.ai_model_client = None
         self.runtime_trade_size_multiplier = 1.0  # Runtime multiplier from AI risk mode
         self.runtime_max_at_risk_pct = self.policy_config.get("max_at_risk_pct", 15.0)
-        
+
         # Dual-trader mode configuration
         ai_trader_cfg = ai_cfg.get("dual_trader", {}) or {}
         self.dual_trader_enabled = ai_trader_cfg.get("enabled", False)
@@ -290,17 +290,17 @@ class TradingLoop:
         self.ai_trader_strategy = None
         self.meta_arbitrator = None
         self.ai_arbiter_client = None
-        
+
         if self.ai_enabled:
             try:
                 from ai.advisor import AIAdvisorService
                 from ai.model_client import create_model_client
                 import os
-                
+
                 # Create model client
                 provider = ai_cfg.get("provider", "mock")
                 api_key = None
-                
+
                 if provider != "mock":
                     api_key_env = ai_cfg.get("api_key", "")
                     if api_key_env.startswith("${") and api_key_env.endswith("}"):
@@ -311,13 +311,13 @@ class TradingLoop:
                             provider = "mock"
                     else:
                         api_key = api_key_env
-                
+
                 self.ai_model_client = create_model_client(
                     provider=provider,
                     api_key=api_key,
                     model=ai_cfg.get("model"),
                 )
-                
+
                 # Create advisor service
                 self.ai_advisor = AIAdvisorService(
                     enabled=True,
@@ -325,21 +325,21 @@ class TradingLoop:
                     max_scale_up=ai_cfg.get("max_scale_up", 1.0),
                     fallback_on_error=ai_cfg.get("fallback_on_error", True),
                 )
-                
+
                 self.ai_allow_risk_mode_override = ai_cfg.get("allow_risk_mode_override", False)
                 self.ai_log_decisions = ai_cfg.get("log_decisions", True)
-                
+
                 logger.info(
                     f"AI Advisor initialized: provider={provider}, "
                     f"timeout={ai_cfg.get('timeout_s', 1.0)}s, "
                     f"risk_mode_override={self.ai_allow_risk_mode_override}"
                 )
-                
+
             except Exception as e:
                 logger.error(f"Failed to initialize AI advisor: {e}", exc_info=True)
                 self.ai_enabled = False
                 self.ai_advisor = None
-        
+
         # Initialize dual-trader components (if enabled)
         if self.dual_trader_enabled:
             try:
@@ -347,13 +347,13 @@ class TradingLoop:
                 from strategy.ai_trader_strategy import AiTraderStrategy
                 from strategy.meta_arb import MetaArbitrator
                 import os
-                
+
                 logger.info("Initializing dual-trader system...")
-                
+
                 # Create AI trader client
                 ai_trader_provider = ai_trader_cfg.get("provider", "mock")
                 ai_trader_api_key = None
-                
+
                 if ai_trader_provider != "mock":
                     api_key_env = ai_trader_cfg.get("api_key", "")
                     if api_key_env.startswith("${") and api_key_env.endswith("}"):
@@ -364,14 +364,14 @@ class TradingLoop:
                             ai_trader_provider = "mock"
                     else:
                         ai_trader_api_key = api_key_env
-                
+
                 self.ai_trader_client = create_ai_trader_client(
                     provider=ai_trader_provider,
                     model=ai_trader_cfg.get("model", "gpt-5-mini-2025-08-07"),
                     api_key=ai_trader_api_key or "",
                     timeout_s=ai_trader_cfg.get("timeout_s", 2.0),
                 )
-                
+
                 # Create AI trader strategy
                 ai_trader_strategy_config = {
                     "enabled": True,
@@ -379,25 +379,25 @@ class TradingLoop:
                     "min_confidence": ai_trader_cfg.get("min_confidence", 0.0),
                     "enable_hold_signals": ai_trader_cfg.get("enable_hold_signals", False),
                 }
-                
+
                 self.ai_trader_strategy = AiTraderStrategy(
                     name="ai_trader",
                     config=ai_trader_strategy_config,
                     ai_client=self.ai_trader_client,
                 )
-                
+
                 # Create meta-arbitrator
                 arb_cfg = ai_trader_cfg.get("arbitration", {}) or {}
                 self.meta_arbitrator = MetaArbitrator(config=arb_cfg)
-                
+
                 # Optionally create AI arbiter (Model #2)
                 arbiter_cfg = ai_trader_cfg.get("arbiter", {}) or {}
                 if arbiter_cfg.get("enabled", False):
                     from ai.arbiter_client import create_ai_arbiter_client
-                    
+
                     arbiter_provider = arbiter_cfg.get("provider", "mock")
                     arbiter_api_key = None
-                    
+
                     if arbiter_provider != "mock":
                         api_key_env = arbiter_cfg.get("api_key", "")
                         if api_key_env.startswith("${") and api_key_env.endswith("}"):
@@ -407,7 +407,7 @@ class TradingLoop:
                                 logger.warning(f"Arbiter API key {env_var} not set, disabling arbiter")
                         else:
                             arbiter_api_key = api_key_env
-                    
+
                     if arbiter_provider != "mock" and arbiter_api_key:
                         self.ai_arbiter_client = create_ai_arbiter_client(
                             provider=arbiter_provider,
@@ -416,13 +416,13 @@ class TradingLoop:
                             timeout_s=arbiter_cfg.get("timeout_s", 1.5),
                         )
                         logger.info(f"AI arbiter enabled: provider={arbiter_provider}")
-                
+
                 logger.info(
                     f"Dual-trader system initialized: "
                     f"ai_trader_provider={ai_trader_provider}, "
                     f"arbiter={'enabled' if self.ai_arbiter_client else 'disabled'}"
                 )
-                
+
             except Exception as e:
                 logger.error(f"Failed to initialize dual-trader system: {e}", exc_info=True)
                 self.dual_trader_enabled = False
@@ -430,7 +430,7 @@ class TradingLoop:
                 self.ai_trader_strategy = None
                 self.meta_arbitrator = None
                 self.ai_arbiter_client = None
-        
+
         # Initialize ReportGenerator for daily performance reports
         from analytics.performance_report import ReportGenerator
         self.report_generator = ReportGenerator(trade_log=self.executor.trade_log)
@@ -458,35 +458,35 @@ class TradingLoop:
             self.executor.reconcile_open_orders()
         except Exception as exc:
             logger.debug("Initial open-order reconciliation skipped: %s", exc)
-        
+
         # State
         self.portfolio = self._init_portfolio_state()
         self.current_regime = "chop"  # TODO: Replace with regime detector
         self.cycle_count = 0  # Track cycle number for strategy context
-        
+
         # Exception burst tracking for alert detection
         self._exception_history = []  # List of (timestamp, exception_type) tuples
         self._exception_window_seconds = 300  # 5 minutes
         self._exception_threshold = 2
-        
+
         # REQ-SEC2: Secret rotation tracking
         from infra.secret_rotation import SecretRotationTracker
         self.secret_rotation_tracker = SecretRotationTracker()
-        
+
         # REQ-TIME1: Clock sync validation
         from infra.clock_sync import ClockSyncValidator
         self.clock_sync_validator = ClockSyncValidator()
-        
+
         # Perform startup validations
         self._startup_validations()
-        
+
         # Shutdown flag
         self._running = True
         signal.signal(signal.SIGINT, self._handle_stop)
         signal.signal(signal.SIGTERM, self._handle_stop)
-        
+
         logger.info(f"Initialized TradingLoop in {self.mode} mode")
-    
+
     def _handle_stop(self, *_):
         """Handle shutdown signals with graceful cleanup.
 
@@ -504,40 +504,40 @@ class TradingLoop:
         logger.warning("=" * 80)
         logger.warning("SHUTDOWN SIGNAL RECEIVED - Initiating graceful shutdown")
         logger.warning("=" * 80)
-        
+
         # Stop loop after current cycle
         self._running = False
 
         self._stop_state_store_supervisor()
         self._stop_health_server()
-        
+
         # Graceful cleanup (only if not DRY_RUN)
         if self.mode == "DRY_RUN":
             logger.info("DRY_RUN mode - skipping order cancellation")
             return
-        
+
         cleanup_summary = {
             "orders_canceled": 0,
             "cancel_errors": 0,
             "state_flushed": False,
         }
-        
+
         try:
             # Step 1: Cancel all active orders
             logger.info("Step 1: Canceling active orders...")
-            
+
             # Get all active (non-terminal) orders from OrderStateMachine
             active_orders = self.executor.order_state_machine.get_active_orders()
-            
+
             if not active_orders:
                 logger.info("No active orders to cancel")
             else:
                 logger.info(f"Found {len(active_orders)} active orders to cancel")
-                
+
                 # Group by exchange order ID for batch cancellation
                 order_ids_to_cancel = []
                 client_id_map = {}
-                
+
                 for order in active_orders:
                     if order.order_id:
                         order_ids_to_cancel.append(order.order_id)
@@ -545,7 +545,7 @@ class TradingLoop:
                         logger.info(f"  - {order.symbol} {order.side} (order_id={order.order_id})")
                     else:
                         logger.warning(f"  - {order.symbol} {order.side} (no exchange order_id, skipping)")
-                
+
                 # Cancel orders via exchange
                 if order_ids_to_cancel:
                     try:
@@ -567,7 +567,7 @@ class TradingLoop:
                             else:
                                 cleanup_summary["cancel_errors"] = len(order_ids_to_cancel)
                                 logger.warning(f"⚠️ Batch cancel failed: {result.get('error')}")
-                        
+
                         # Transition canceled orders to CANCELED state
                         from core.order_state import OrderStatus
                         for order_id, client_id in client_id_map.items():
@@ -586,11 +586,11 @@ class TradingLoop:
                                         )
                                 except Exception as e:
                                     logger.warning(f"Failed to transition order {client_id} to CANCELED: {e}")
-                        
+
                     except Exception as e:
                         cleanup_summary["cancel_errors"] = len(order_ids_to_cancel)
                         logger.error(f"Failed to cancel orders: {e}", exc_info=True)
-            
+
             # Step 2: Flush StateStore to disk
             logger.info("Step 2: Flushing StateStore to disk...")
             try:
@@ -601,7 +601,7 @@ class TradingLoop:
                 logger.info("✅ StateStore flushed to disk")
             except Exception as e:
                 logger.error(f"Failed to flush StateStore: {e}", exc_info=True)
-            
+
             # Step 3: Log cleanup summary
             logger.warning("=" * 80)
             logger.warning("GRACEFUL SHUTDOWN COMPLETE")
@@ -609,11 +609,11 @@ class TradingLoop:
             logger.warning(f"  Cancel errors: {cleanup_summary['cancel_errors']}")
             logger.warning(f"  State flushed: {cleanup_summary['state_flushed']}")
             logger.warning("=" * 80)
-            
+
         except Exception as e:
             logger.error(f"Error during graceful shutdown: {e}", exc_info=True)
             logger.warning("Shutdown will continue despite cleanup errors")
-        
+
         finally:
             # CRITICAL: Release single-instance lock
             if hasattr(self, 'instance_lock') and self.instance_lock:
@@ -639,7 +639,7 @@ class TradingLoop:
             supervisor.stop()
         except Exception as exc:
             logger.warning("State store supervisor stop failed: %s", exc)
-    
+
     def _stop_health_server(self) -> None:
         server = getattr(self, "health_server", None)
         if not server:
@@ -754,15 +754,15 @@ class TradingLoop:
         payload["issues"] = issues
         payload["ok"] = len(issues) == 0
         return payload
-    
+
     def _startup_validations(self) -> None:
         """
         Run startup validations per REQ-SEC2 and REQ-TIME1.
-        
+
         Validations:
         1. REQ-SEC2: Check secret rotation status (CRITICAL alert if overdue)
         2. REQ-TIME1: Validate clock sync (fail startup if drift >100ms in LIVE)
-        
+
         Mode Behavior:
         - DRY_RUN: Skip clock sync (no real orders)
         - PAPER: Validate with warnings only
@@ -771,12 +771,12 @@ class TradingLoop:
         logger.info("=" * 80)
         logger.info("STARTUP VALIDATIONS (REQ-SEC2, REQ-TIME1)")
         logger.info("=" * 80)
-        
+
         # REQ-SEC2: Secret rotation tracking
         try:
             logger.info("Checking secret rotation status (REQ-SEC2)...")
             self.secret_rotation_tracker.check_and_alert(alert_service=self.alerts)
-            
+
             status = self.secret_rotation_tracker.get_status()
             if status["rotation_due"]:
                 logger.critical(
@@ -798,12 +798,12 @@ class TradingLoop:
         except Exception as e:
             logger.error(f"Secret rotation check failed: {e}")
             # Don't fail startup - just log error
-        
+
         # REQ-TIME1: Clock sync validation
         try:
             logger.info(f"Validating clock sync (REQ-TIME1, mode={self.mode})...")
             clock_status = self.clock_sync_validator.validate_or_fail(mode=self.mode)
-            
+
             if clock_status["synced"]:
                 logger.info(
                     f"✅ Clock sync validated: "
@@ -827,32 +827,32 @@ class TradingLoop:
                     f"Clock sync validation required for LIVE mode (REQ-TIME1). "
                     f"Error: {e}"
                 )
-        
+
         logger.info("=" * 80)
         logger.info("STARTUP VALIDATIONS COMPLETE")
         logger.info("=" * 80)
-    
+
     def _load_yaml(self, filename: str) -> dict:
         """Load YAML config file"""
         path = self.config_dir / filename
         with open(path) as f:
             return yaml.safe_load(f)
-    
+
     def _compute_config_hash(self) -> str:
         """
         Compute SHA256 hash of critical configuration files.
-        
+
         Used for configuration drift detection in audit logs and multi-instance deployments.
         Includes: policy.yaml, signals.yaml, universe.yaml
-        
+
         Returns:
             Hex-encoded SHA256 hash (first 16 chars for brevity)
         """
         import hashlib
-        
+
         config_files = ["policy.yaml", "signals.yaml", "universe.yaml"]
         hasher = hashlib.sha256()
-        
+
         for filename in config_files:
             config_path = self.config_dir / filename
             try:
@@ -861,86 +861,86 @@ class TradingLoop:
             except Exception as e:
                 logger.warning(f"Failed to read {filename} for config hash: {e}")
                 hasher.update(b"ERROR")
-        
+
         full_hash = hasher.hexdigest()
         # Return first 16 chars for brevity (64 bits, collision-resistant for our use case)
         return full_hash[:16]
-    
+
     def _apply_bounded_auto_loosen(self) -> None:
         """
         Apply bounded auto-loosening to regime thresholds after prolonged zero-trigger period.
-        
+
         Uses auto_tune configuration from app.yaml:
         - Reads loosen deltas and floors
         - Applies adjustments to signals.yaml regime_thresholds (chop regime)
         - Respects hard floors to prevent runaway loosening
         - One-shot adjustment (flag prevents repeated loosening)
-        
+
         IMPORTANT: This modifies signals.yaml on disk. Bot should detect file changes
         and reload configuration (or require restart).
         """
         signals_path = self.config_dir / "signals.yaml"
-        
+
         try:
             # Load auto_tune configuration
             auto_tune_cfg = self.app_config.get("auto_tune", {})
             loosen_cfg = auto_tune_cfg.get("loosen", {})
             floors_cfg = auto_tune_cfg.get("floors", {})
-            
+
             pct_15m_delta = loosen_cfg.get("pct_change_15m_delta", -0.2)
             pct_60m_delta = loosen_cfg.get("pct_change_60m_delta", -0.3)
             conviction_delta = loosen_cfg.get("min_conviction_delta", -0.02)
-            
+
             floor_15m = floors_cfg.get("pct_change_15m", 1.2)
             floor_60m = floors_cfg.get("pct_change_60m", 2.5)
             floor_conviction = floors_cfg.get("min_conviction", 0.30)
-            
+
             # Load current signals config
             with open(signals_path, 'r') as f:
                 signals = yaml.safe_load(f)
-            
+
             # Adjust chop regime thresholds
             regime_thresholds = signals.get("triggers", {}).get("regime_thresholds", {})
             chop = regime_thresholds.get("chop", {})
-            
+
             current_15m = chop.get("pct_change_15m", 2.0)
             current_60m = chop.get("pct_change_60m", 4.0)
-            
+
             new_15m = max(current_15m + pct_15m_delta, floor_15m)
             new_60m = max(current_60m + pct_60m_delta, floor_60m)
-            
+
             chop["pct_change_15m"] = new_15m
             chop["pct_change_60m"] = new_60m
-            
+
             logger.warning(f"Auto-loosened chop thresholds: 15m {current_15m:.1f}% → {new_15m:.1f}%, "
                           f"60m {current_60m:.1f}% → {new_60m:.1f}%")
-            
+
             # Also adjust min_conviction in policy.yaml
             policy_path = self.config_dir / "policy.yaml"
             with open(policy_path, 'r') as f:
                 policy = yaml.safe_load(f)
-            
+
             strategy = policy.get("strategy", {})
             current_conviction = strategy.get("min_conviction_to_propose", 0.34)
             new_conviction = max(current_conviction + conviction_delta, floor_conviction)
             strategy["min_conviction_to_propose"] = new_conviction
-            
+
             logger.warning(f"Auto-loosened min_conviction: {current_conviction:.2f} → {new_conviction:.2f}")
-            
+
             # Write updated configs back to disk
             with open(signals_path, 'w') as f:
                 yaml.dump(signals, f, default_flow_style=False, sort_keys=False)
-            
+
             with open(policy_path, 'w') as f:
                 yaml.dump(policy, f, default_flow_style=False, sort_keys=False)
-            
+
             logger.warning("=" * 80)
             logger.warning("BOUNDED AUTO-TUNE APPLIED - RESTART BOT TO APPLY CHANGES")
             logger.warning("Modified: config/signals.yaml (chop thresholds)")
             logger.warning("Modified: config/policy.yaml (min_conviction)")
             logger.warning(f"Floors enforced: 15m>={floor_15m}%, 60m>={floor_60m}%, conviction>={floor_conviction}")
             logger.warning("=" * 80)
-            
+
             # Send alert if enabled
             if self.alerts.is_enabled():
                 self.alerts.send(
@@ -949,10 +949,10 @@ class TradingLoop:
                     details=f"Zero triggers for {auto_tune_cfg.get('zero_trigger_cycles', 12)} cycles. "
                             f"Loosened chop thresholds and min_conviction within bounded floors. Restart bot to apply."
                 )
-            
+
         except Exception as e:
             logger.error(f"Failed to apply bounded auto-loosen: {e}")
-    
+
     def _init_portfolio_state(self) -> PortfolioState:
         """Initialize portfolio state from state store"""
         state = self.state_store.load()
@@ -1061,10 +1061,10 @@ class TradingLoop:
             pending_orders=pending_orders,
             managed_positions=dict(state.get("managed_positions", {})),
         )
-        
+
         # Record portfolio metrics
         self._record_portfolio_metrics(portfolio_state)
-        
+
         return portfolio_state
 
     def _build_account_snapshot(self, accounts: List[dict]) -> Dict[str, Any]:
@@ -1159,13 +1159,13 @@ class TradingLoop:
         )
 
         return snapshot
-    
+
     def _build_pending_orders_from_state(self, state: Dict[str, Any]) -> Dict[str, Dict[str, float]]:
         """
         Build pending_orders dict from persisted open_orders for risk accounting.
-        
+
         Returns: {"buy": {"BTC-USD": notional_usd, ...}, "sell": {"ETH-USD": notional_usd, ...}}
-        
+
         CRITICAL: This ensures open orders count toward exposure caps in RiskEngine.
         Without this, we can over-allocate while orders are working.
         """
@@ -1175,7 +1175,7 @@ class TradingLoop:
             self.state_store.purge_expired_pending()
         except Exception:
             pass
-        
+
         open_orders = state.get("open_orders", {})
         if not open_orders:
             # Even without tracked open orders, pending markers may exist
@@ -1195,17 +1195,17 @@ class TradingLoop:
                     notional = self.executor.min_notional_usd
                 pending["buy"][product_id] = max(pending["buy"].get(product_id, 0.0), float(notional))
             return pending
-        
+
         for order_id, order_data in open_orders.items():
             if not isinstance(order_data, dict):
                 continue
-            
+
             # Extract order details
             side = order_data.get("side", "").lower()  # "buy" or "sell"
             symbol = order_data.get("symbol") or order_data.get("product_id") or ""
             if symbol and '-' not in symbol:
                 symbol = f"{symbol}-USD"
-            
+
             # Calculate notional value
             # For BUY: use order_value or (size * price)
             # For SELL: we don't count sell orders toward buy exposure
@@ -1220,10 +1220,10 @@ class TradingLoop:
                     size = float(order_data.get("size", 0.0) or 0.0)
                     price = float(order_data.get("price", 0.0) or 0.0)
                     notional_usd = size * price
-                
+
                 if symbol and notional_usd > 0:
                     pending["buy"][symbol] = pending["buy"].get(symbol, 0.0) + notional_usd
-            
+
             elif side == "sell":
                 # Track sell orders separately (not counted in buy exposure)
                 notional_usd = float(order_data.get("order_value_usd", 0.0) or 0.0)
@@ -1233,7 +1233,7 @@ class TradingLoop:
                     size = float(order_data.get("size", 0.0) or 0.0)
                     price = float(order_data.get("price", 0.0) or 0.0)
                     notional_usd = size * price
-                
+
                 if symbol and notional_usd > 0:
                     pending["sell"][symbol] = pending["sell"].get(symbol, 0.0) + notional_usd
 
@@ -1254,7 +1254,7 @@ class TradingLoop:
             if notional is None or notional <= 0:
                 notional = self.executor.min_notional_usd
             pending["buy"][product_id] = max(pending["buy"].get(product_id, 0.0), float(notional))
-        
+
         logger.debug(f"Pending orders from state: buy={pending['buy']}, sell={pending['sell']}")
         return pending
 
@@ -1360,7 +1360,7 @@ class TradingLoop:
             logger.debug("Portfolio snapshot refreshed after trade fills.")
         except Exception as exc:  # pragma: no cover - defensive
             logger.warning("Failed to refresh portfolio after fills: %s", exc)
-    
+
     def _apply_cooldowns_after_trades(
         self, 
         executed_orders: List[ExecutionResult],
@@ -1368,25 +1368,25 @@ class TradingLoop:
     ) -> None:
         """
         Apply per-symbol cooldowns after trade execution.
-        
+
         For SELL orders (position closes), we apply cooldowns to prevent
         repeatedly trading losing positions. Currently applies cooldown to
         all SELL orders; future enhancement: track PnL to differentiate wins/losses.
-        
+
         Args:
             executed_orders: Successfully executed orders
             proposals: Original proposals that led to these orders
         """
         if not self.policy_config.get("risk", {}).get("per_symbol_cooldown_enabled", True):
             return
-        
+
         # Build proposal lookup by symbol
         proposal_by_symbol = {p.symbol: p for p in proposals}
-        
+
         for order in executed_orders:
             if not order.success:
                 continue
-            
+
             # Extract symbol - handle both dict and object
             if isinstance(order, dict):
                 symbol = order.get('symbol')
@@ -1396,10 +1396,10 @@ class TradingLoop:
                 # ExecutionResult doesn't have side, need to look up from proposal
                 proposal = proposal_by_symbol.get(symbol)
                 side = proposal.side if proposal else None
-            
+
             if not symbol or not side:
                 continue
-            
+
             # Apply cooldown to SELL orders (position closes)
             # TODO: Track PnL to differentiate wins/losses and apply appropriate cooldown
             if side == "SELL":
@@ -1452,7 +1452,7 @@ class TradingLoop:
             raise
         except Exception as exc:
             raise CriticalDataUnavailable(f"accounts:{context}", exc) from exc
-    
+
     def _count_open_positions(self) -> int:
         """Return number of meaningful open positions (ignores dust)."""
         if not isinstance(self.portfolio.open_positions, dict):
@@ -1541,7 +1541,7 @@ class TradingLoop:
     def run_cycle(self):
         """
         Execute one trading cycle with full safety guarantees.
-        
+
         Any exception -> NO_TRADE, audit, continue
         """
         cycle_started = datetime.now(timezone.utc)
@@ -1553,7 +1553,7 @@ class TradingLoop:
         logger.info(f"CYCLE START: {cycle_started.isoformat()} (Cycle #{self.cycle_count})")
         logger.info("=" * 80)
         self._stage_timings = {}
-        
+
         try:
             logger.info("📋 Step 0: Purging expired pending orders...")
             try:
@@ -1581,9 +1581,9 @@ class TradingLoop:
             logger.info("📊 Step 2: Reconciling open orders...")
             try:
                 with self._stage_timer("order_reconcile"):
-                    reconcile_result = self.executor.reconcile_open_orders()
+                    self.executor.reconcile_open_orders()
                     self.state_store.purge_expired_pending()
-                    logger.info(f"✅ Order reconciliation complete (open orders synced)")
+                    logger.info("✅ Order reconciliation complete (open orders synced)")
             except Exception as exc:
                 logger.debug("Cycle reconciliation skipped: %s", exc)
 
@@ -1702,8 +1702,8 @@ class TradingLoop:
                 pm_cfg = self.policy_config.get("portfolio_management", {})
                 if self.mode != "DRY_RUN" and pm_cfg.get("auto_liquidate_ineligible", False):
                     with self._stage_timer("purge_ineligible"):
-                        purge_result = self._purge_ineligible_holdings(universe)
-                        logger.info(f"✅ Purge check complete (auto_liquidate_ineligible=True)")
+                        self._purge_ineligible_holdings(universe)
+                        logger.info("✅ Purge check complete (auto_liquidate_ineligible=True)")
                 else:
                     logger.info(f"✅ Purge skipped (mode={self.mode}, auto_liquidate_ineligible={pm_cfg.get('auto_liquidate_ineligible', False)})")
             except CriticalDataUnavailable as data_exc:
@@ -1715,7 +1715,7 @@ class TradingLoop:
                 return
             except Exception as e:
                 logger.warning(f"Purge step skipped: {e}")
-            
+
             if not universe or universe.total_eligible == 0:
                 reason = "empty_universe"
                 logger.info(f"NO_TRADE: {reason}")
@@ -1738,41 +1738,41 @@ class TradingLoop:
                     started_at=cycle_started,
                 )
                 return
-            
+
             logger.info(
                 f"Universe: {universe.total_eligible} eligible "
                 f"({len(universe.tier_1_assets)} core, "
                 f"{len(universe.tier_2_assets)} rotational, "
                 f"{len(universe.tier_3_assets)} event-driven)"
             )
-            
+
             # Step 8: Scan for triggers
             logger.info(f"🔎 Step 8: Scanning {universe.total_eligible} assets for triggers (regime={self.current_regime})...")
             with self._stage_timer("trigger_scan"):
                 all_assets = universe.get_all_eligible()
                 triggers = self.trigger_engine.scan(all_assets, regime=self.current_regime)
                 logger.info(f"✅ Trigger scan complete: {len(triggers) if triggers else 0} signals detected")
-            
+
             if not triggers or len(triggers) == 0:
                 reason = "no_candidates_from_triggers"
                 logger.warning(f"⚠️  NO_TRADE: {reason} (0 triggers detected)")
-                
+
                 # Zero-trigger sentinel: Track consecutive cycles with 0 triggers
                 zero_trigger_count = self.state_store.get("zero_trigger_cycles", 0) + 1
                 state = self.state_store.load()
                 state["zero_trigger_cycles"] = zero_trigger_count
                 self.state_store.save(state)
-                
+
                 # Auto-loosen if stuck at 0 triggers for configured cycles (bounded)
                 auto_tune_cfg = self.app_config.get("auto_tune", {})
                 trigger_threshold = auto_tune_cfg.get("zero_trigger_cycles", 12)
-                
+
                 if zero_trigger_count >= trigger_threshold and not state.get("auto_tune_applied", False):
                     logger.warning(f"Zero-trigger sentinel triggered after {zero_trigger_count} cycles - applying bounded auto-loosen")
                     self._apply_bounded_auto_loosen()
                     state["auto_tune_applied"] = True
                     self.state_store.save(state)
-                
+
                 self._audit_cycle(
                     ts=cycle_started,
                     mode=self.mode,
@@ -1792,16 +1792,16 @@ class TradingLoop:
                     started_at=cycle_started,
                 )
                 return
-            
+
             # Triggers detected - reset zero-trigger counter
             state = self.state_store.load()
             if state.get("zero_trigger_cycles", 0) > 0:
                 state["zero_trigger_cycles"] = 0
                 state["auto_tune_applied"] = False  # Reset flag when triggers resume
                 self.state_store.save(state)
-            
+
             logger.info(f"Triggers: {len(triggers)} detected")
-            
+
             # Step 9: Generate trade proposals (multi-strategy framework)
             logger.info(f"💡 Step 9: Generating trade proposals from {len(self.strategy_registry.get_enabled_strategies())} enabled strategies...")
             with self._stage_timer("rules_engine"):
@@ -1816,21 +1816,21 @@ class TradingLoop:
                     nav=float(self.portfolio.account_value_usd or 0.0),
                     state=self.state_store.load(),
                 )
-                
+
                 # Generate proposals from local rules engine
                 local_proposals = self.strategy_registry.aggregate_proposals(
                     context=strategy_context,
                     dedupe_by_symbol=True  # Keep highest confidence per symbol
                 )
-                
+
                 # Log per-strategy breakdown
                 enabled_strategies = self.strategy_registry.get_enabled_strategies()
                 logger.info(f"✅ Local strategy execution complete: {[s.name for s in enabled_strategies]} → {len(local_proposals)} proposals")
-                
+
                 # If dual-trader mode enabled, generate AI trader proposals and arbitrate
                 if self.dual_trader_enabled and self.ai_trader_strategy and self.meta_arbitrator:
-                    logger.info(f"🤖 Dual-trader mode: generating AI trader proposals...")
-                    
+                    logger.info("🤖 Dual-trader mode: generating AI trader proposals...")
+
                     # Enrich context for AI trader
                     ai_context = StrategyContext(
                         universe=strategy_context.universe,
@@ -1852,39 +1852,39 @@ class TradingLoop:
                             "max_trades_per_day": self.policy_config.get("max_trades_per_day", 10),
                         },
                     )
-                    
+
                     ai_proposals = self.ai_trader_strategy.generate_proposals(ai_context)
                     logger.info(f"✅ AI trader generated {len(ai_proposals)} proposals")
-                    
+
                     # Arbitrate between local and AI proposals
                     proposals, arbitration_log = self.meta_arbitrator.aggregate_proposals(
                         local_proposals=local_proposals,
                         ai_proposals=ai_proposals,
                     )
-                    
+
                     # Log arbitration decisions
                     for decision in arbitration_log:
                         logger.info(
                             f"  ⚖️  {decision.symbol}: {decision.resolution} - {decision.reason}"
                         )
-                    
+
                     # Store arbitration log for audit trail
                     self._current_arbitration_log = arbitration_log
-                    
+
                 else:
                     # Standard mode: use local proposals only
                     proposals = local_proposals
-            
+
             proposals_count = len(proposals or [])
             logger.info(f"✅ Generated {proposals_count} final trade proposal(s)")
-            
+
             if not proposals:
                 reason = "rules_engine_no_proposals"
                 logger.warning(f"⚠️  NO_TRADE: {reason} (strategies generated 0 proposals)")
-                
+
                 # Note: Zero-trigger sentinel already handled earlier in cycle
                 # No need for separate zero-proposal tracking
-                
+
                 self._audit_cycle(
                     ts=cycle_started,
                     mode=self.mode,
@@ -1904,7 +1904,7 @@ class TradingLoop:
                     started_at=cycle_started,
                 )
                 return
-            
+
             # Step 9.5: AI Advisor (filter/resize proposals)
             if self.ai_enabled and self.ai_advisor and self.ai_model_client:
                 logger.info(f"🤖 Step 9.5: AI advisor reviewing {len(proposals)} proposal(s)...")
@@ -1915,23 +1915,23 @@ class TradingLoop:
                         AIPortfolioSnapshot,
                         AIProposalIn,
                     )
-                    
+
                     # Build AI input context
                     nav = float(self.portfolio.account_value_usd or 0.0)
                     exposure_pct = (self.portfolio.total_exposure_usd / nav * 100.0) if nav > 0 else 0.0
-                    
+
                     # Get 24h metrics if available
                     state = self.state_store.load()
                     drawdown_24h = state.get("drawdown_24h_pct")
                     realized_vol_24h = state.get("realized_vol_24h")
                     realized_pnl_24h = state.get("realized_pnl_24h", 0.0)
-                    
+
                     # Build position snapshot
                     positions_usd = {}
                     for symbol, pos_data in (state.get("positions", {}) or {}).items():
                         if isinstance(pos_data, dict):
                             positions_usd[symbol] = pos_data.get("market_value_usd", 0.0)
-                    
+
                     ai_input = AIAdvisorInput(
                         run_id=self.run_id,
                         timestamp_iso=cycle_started.isoformat(),
@@ -1959,25 +1959,25 @@ class TradingLoop:
                             for p in proposals
                         ],
                     )
-                    
+
                     # Call AI advisor
                     with self._stage_timer("ai_advisor"):
                         ai_output = self.ai_advisor.advise(ai_input, self.ai_model_client)
-                    
+
                     # Record metrics
                     if ai_output.latency_ms:
                         self.metrics.record_ai_latency(ai_output.latency_ms)
-                    
+
                     # Apply risk mode if enabled
                     if ai_output.risk_mode:
                         self._apply_risk_mode(ai_output.risk_mode)
-                    
+
                     # Apply decisions to proposals
                     proposals = self._apply_ai_decisions(proposals, ai_output)
-                    
+
                     # Update proposals count after AI filtering
                     proposals_count = len(proposals)
-                    
+
                     if not proposals:
                         reason = "ai_skipped_all_proposals"
                         logger.warning(f"⚠️  NO_TRADE: {reason} (AI advisor skipped all proposals)")
@@ -2000,28 +2000,28 @@ class TradingLoop:
                             started_at=cycle_started,
                         )
                         return
-                    
+
                 except Exception as e:
                     logger.error(f"AI advisor error (continuing with original proposals): {e}", exc_info=True)
                     # Continue with original proposals on error (safe fallback)
-            
+
             # Avoid stacking buys while there are outstanding orders for the same base asset
             # Use pending_buy_notional from portfolio snapshot (aggregated from open_orders)
-            logger.info(f"🔍 Step 10: Filtering proposals for pending orders and capacity...")
+            logger.info("🔍 Step 10: Filtering proposals for pending orders and capacity...")
             pending_buy_notional = (pending_orders or {}).get("buy", {})
-            
+
             # Build lightweight cap snapshot for NAV-aware filtering (avoid pointless proposals)
             # This prevents generating proposals that risk engine will always block with below_min_after_caps
             nav = self.portfolio.account_value_usd
             min_notional = self.executor.min_notional_usd
-            
+
             filtered = []
             skipped_pending = 0
             skipped_capacity = 0
-            
+
             for proposal in proposals:
                 base = proposal.symbol.split('-')[0]
-                
+
                 # Filter 1: Skip if pending orders already exist
                 if (
                     proposal.side.upper() == "BUY"
@@ -2032,13 +2032,13 @@ class TradingLoop:
                     )
                     skipped_pending += 1
                     continue
-                
+
                 # Filter 2: NAV-aware capacity check for BUY orders
                 # If size_pct * NAV < min_notional, this proposal will always be blocked by risk engine
                 # Skip it early to avoid pointless processing
                 if proposal.side.upper() == "BUY":
                     proposal_notional = (proposal.size_pct / 100.0) * nav if proposal.size_pct else 0
-                    
+
                     # If proposal is already below min_notional, it's DOA
                     # This catches the HBAR-like case where 0.8% * $256 = $2.06 < $5 min
                     if proposal_notional > 0 and proposal_notional < min_notional:
@@ -2049,11 +2049,11 @@ class TradingLoop:
                         )
                         skipped_capacity += 1
                         continue
-                
+
                 # Note: removed "fast guard" short-circuit - let RiskEngine see true state
                 # and make the decision based on actual live orders after reconciliation
                 filtered.append(proposal)
-            
+
             logger.info(
                 f"✅ Filtered {len(filtered)}/{proposals_count} proposals "
                 f"(removed {skipped_pending} with pending orders, {skipped_capacity} below min_notional)"
@@ -2090,7 +2090,7 @@ class TradingLoop:
             proposals = filtered
 
             logger.info(f"Proposals: {len(proposals)} generated")
-            
+
             # Step 11: Apply risk checks (including circuit breakers)
             logger.info(f"🛡️  Step 11: Running risk engine checks on {len(proposals)} proposal(s)...")
             with self._stage_timer("risk_engine"):
@@ -2100,37 +2100,37 @@ class TradingLoop:
                     regime=self.current_regime
                 )
                 logger.info(f"✅ Risk checks complete: approved={risk_result.approved}, filtered={len(risk_result.approved_proposals)}/{len(proposals)}")
-            
+
             # Record successful API operations for circuit breaker tracking
             self.risk_engine.record_api_success()
             logger.debug("✅ API success recorded for circuit breaker tracking")
-            
+
             # Reset consecutive API error count in metrics
             self.metrics.reset_consecutive_api_errors()
-            
+
             # Clear circuit breaker states (all passed)
             for breaker_name in ['rate_limit_cooldown', 'api_health', 'exchange_connectivity', 
                                 'exchange_health', 'volatility_crash']:
                 self.metrics.record_circuit_breaker_state(breaker_name, False)
-            
+
             if not risk_result.approved or not risk_result.approved_proposals:
                 reason = risk_result.reason or "all_proposals_blocked_by_risk"
                 logger.warning(f"⚠️  Risk engine BLOCKED all proposals: {reason}")
-                
+
                 # Record no-trade reason for metrics
                 self.metrics.record_no_trade_reason(reason)
-                
+
                 # Check if this was a circuit breaker trip
                 circuit_breaker_checks = ['rate_limit_cooldown', 'api_health', 'exchange_connectivity', 
                                          'exchange_health', 'volatility_crash']
                 if any(check in circuit_breaker_checks for check in risk_result.violated_checks):
                     logger.error(f"CIRCUIT BREAKER TRIPPED: {reason}")
-                    
+
                     # Record circuit breaker trip metrics
                     for check in risk_result.violated_checks:
                         if check in circuit_breaker_checks:
                             self.metrics.record_circuit_breaker_trip(check)
-                    
+
                     self.alerts.notify(
                         AlertSeverity.CRITICAL,
                         "Circuit breaker tripped",
@@ -2146,7 +2146,7 @@ class TradingLoop:
                         for symbol, reasons in risk_result.proposal_rejections.items():
                             for rejection_reason in reasons:
                                 self.metrics.record_order_rejection(rejection_reason)
-                        
+
                         logger.warning(
                             "Risk check FAILED: %s | rejections=%s",
                             reason,
@@ -2154,7 +2154,7 @@ class TradingLoop:
                         )
                     else:
                         logger.warning(f"Risk check FAILED: {reason}")
-                
+
                 self._audit_cycle(
                     ts=cycle_started,
                     mode=self.mode,
@@ -2176,7 +2176,7 @@ class TradingLoop:
                     started_at=cycle_started,
                 )
                 return
-            
+
             # Use the filtered approved proposals from risk engine
             approved_proposals = risk_result.approved_proposals
             approved_count = len(approved_proposals or [])
@@ -2185,7 +2185,7 @@ class TradingLoop:
                 logger.info(
                     f"📊 Rejected proposals: {len(risk_result.proposal_rejections)} filtered by risk engine",
                 )
-            
+
             # Step 12: Execute trades (respects mode: DRY_RUN/PAPER/LIVE)
             logger.info(f"💰 Step 12: Executing {len(approved_proposals)} approved trade(s) in {self.mode} mode...")
 
@@ -2332,7 +2332,7 @@ class TradingLoop:
                             final_orders.append(result)
                         else:
                             logger.warning(f"⚠️ Trade failed: {proposal.symbol} - {result.error}")
-            
+
             # Update state after fills
             executed_count = len(final_orders)
             logger.info(f"✅ Execution complete: {executed_count} order(s) submitted successfully")
@@ -2342,20 +2342,20 @@ class TradingLoop:
                 with self._stage_timer("fills_reconcile"):
                     self.state_store.update_from_fills(final_orders, self.portfolio)
                     logger.info(f"✅ State updated with {executed_count} fill(s)")
-                
+
                 # Record fill metrics
                 total_attempts = len(adjusted_proposals)
                 fill_count = len(final_orders)
                 if total_attempts > 0:
                     self.metrics.record_fill_ratio(fill_count, total_attempts)
-                
+
                 # Record each fill by side and update managed positions
                 for order, (proposal, _) in zip(final_orders, adjusted_proposals):
                     if order.success:
                         # Record fill metric
                         side = proposal.side.lower() if hasattr(proposal, 'side') else "buy"
                         self.metrics.record_fill(side)
-                        
+
                         # Update managed position targets (for BUY orders only)
                         if proposal.side.upper() == "BUY":
                             symbol = proposal.symbol.replace("-USD", "")
@@ -2365,14 +2365,14 @@ class TradingLoop:
                                 take_profit_pct=proposal.take_profit_pct,
                                 max_hold_hours=proposal.max_hold_hours,
                             )
-                
+
                 self._post_trade_refresh(final_orders)
                 self._apply_cooldowns_after_trades(final_orders, approved_proposals)
                 logger.info(f"✅ Executed {len(final_orders)} order(s) successfully")
             else:
                 logger.info("ℹ️  No fills to reconcile")
                 logger.info("⚠️  NO_TRADE: execution layer filtered all proposals (liquidity/slippage/notional/etc)")
-            
+
             # Audit cycle
             logger.info("📝 Step 14: Writing cycle audit log...")
             self._audit_cycle(
@@ -2388,7 +2388,7 @@ class TradingLoop:
                 arbitration_log=getattr(self, '_current_arbitration_log', None),
             )
             logger.info("✅ Audit log written")
-            
+
             logger.info("📊 Step 15: Recording cycle metrics...")
             self._record_cycle_metrics(
                 status="executed" if final_orders else "no_orders_after_execution_filter",
@@ -2408,7 +2408,7 @@ class TradingLoop:
                         self.executor.manage_open_orders()
             except Exception as e:
                 logger.warning(f"Open order maintenance skipped: {e}")
-            
+
             # Position exit management: check for stop-loss/take-profit (LIVE/PAPER/DRY_RUN)
             try:
                 with self._stage_timer("exit_checks"):
@@ -2420,17 +2420,17 @@ class TradingLoop:
                         self._execute_exit_proposals(exit_proposals)
             except Exception as exit_exc:
                 logger.warning(f"Position exit check failed: {exit_exc}", exc_info=True)
-            
+
             cycle_end = datetime.now(timezone.utc)
             cycle_duration = (cycle_end - cycle_started).total_seconds()
             logger.info(f"CYCLE COMPLETE: {cycle_duration:.2f}s")
-            
+
             # Generate daily performance report (23:50-23:59 UTC)
             try:
                 current_date = cycle_end.date()
                 current_hour = cycle_end.hour
                 current_minute = cycle_end.minute
-                
+
                 # Check if we're in the daily report window (23:50-23:59 UTC)
                 if current_hour == 23 and current_minute >= 50:
                     if self._last_report_date != current_date:
@@ -2440,19 +2440,19 @@ class TradingLoop:
                         logger.info(f"✅ Daily report saved: {report_file}")
             except Exception as report_exc:
                 logger.warning(f"Daily report generation failed: {report_exc}", exc_info=True)
-            
+
             # Update latency stats in state store and check thresholds
             self._update_and_check_latency_thresholds()
-            
+
         except Exception as e:
             # Hard rule: any unexpected error => NO_TRADE this cycle
             logger.exception(f"Error in run_cycle: {e}")
-            
+
             # Track API errors for circuit breaker
             import requests
             if isinstance(e, (requests.exceptions.RequestException, requests.exceptions.HTTPError)):
                 self.risk_engine.record_api_error()
-                
+
                 # Record API error metrics
                 error_type = type(e).__name__
                 if isinstance(e, requests.exceptions.HTTPError) and e.response:
@@ -2460,30 +2460,30 @@ class TradingLoop:
                     if e.response.status_code == 429:
                         self.risk_engine.record_rate_limit()
                         self.metrics.record_circuit_breaker_state("rate_limit", True)
-                
+
                 # Get consecutive error count from risk engine (via circuit snapshot)
                 circuit_state = self.risk_engine.circuit_snapshot()
                 consecutive_errors = circuit_state.get("api_error_count", 0)
                 self.metrics.record_api_error(error_type, consecutive_errors)
-            
+
             # Track exception for burst detection
             now = datetime.now(timezone.utc)
             exc_type = type(e).__name__
             self._exception_history.append((now, exc_type))
-            
+
             # Clean old exceptions
             cutoff = now - timedelta(seconds=self._exception_window_seconds)
             self._exception_history = [
                 (ts, et) for ts, et in self._exception_history if ts > cutoff
             ]
-            
+
             # Check for exception burst
             if len(self._exception_history) >= self._exception_threshold:
                 # Count exception types
                 exc_counts = {}
                 for _, et in self._exception_history:
                     exc_counts[et] = exc_counts.get(et, 0) + 1
-                
+
                 # Alert with enhanced context
                 self.alerts.notify(
                     AlertSeverity.CRITICAL,
@@ -2534,7 +2534,7 @@ class TradingLoop:
         """Record portfolio state metrics for dashboards"""
         if not self.metrics.is_enabled():
             return
-        
+
         # Calculate at-risk exposure (open positions value / NAV)
         nav = portfolio.account_value_usd
         if nav > 0:
@@ -2543,17 +2543,17 @@ class TradingLoop:
                 for pos in portfolio.open_positions.values()
             )
             at_risk_pct = (positions_value / nav) * 100.0
-            
+
             # Calculate pending exposure (pending orders / NAV)
             pending_value = sum(
                 float(order.get("usd", 0.0) or 0.0)
                 for order in portfolio.pending_orders.values()
             )
             pending_pct = (pending_value / nav) * 100.0
-            
+
             # Record exposure gauges
             self.metrics.record_exposure(at_risk_pct, pending_pct)
-        
+
         # Count open positions (excluding dust)
         threshold = max(self.executor.min_notional_usd, 5.0)
         open_count = sum(
@@ -2561,11 +2561,11 @@ class TradingLoop:
             if float(pos.get("usd", 0.0) or pos.get("usd_value", 0.0) or 0.0) >= threshold
         )
         self.metrics.record_open_positions(open_count)
-        
+
         # Count pending orders
         pending_count = len(portfolio.pending_orders)
         self.metrics.record_pending_orders(pending_count)
-    
+
     def _record_cycle_metrics(
         self,
         *,
@@ -2591,7 +2591,7 @@ class TradingLoop:
         if not status.startswith("executed"):
             metrics.record_no_trade_reason(status)
         self._log_cycle_latency_summary(status=status, total_duration=duration)
-        
+
         # Update Prometheus metrics if enabled
         if self.prometheus_exporter:
             self.prometheus_exporter.update_from_cycle_stats(stats)
@@ -2685,24 +2685,24 @@ class TradingLoop:
                     "total_budget": total_budget,
                 },
             )
-    
+
     def _update_and_check_latency_thresholds(self) -> None:
         """
         Update latency stats in StateStore and check for threshold violations.
-        
+
         Checks API latency thresholds and alerts on persistent slowness.
         """
         if not self.latency_tracker:
             return
-        
+
         # Persist latency stats to state store
         latency_data = self.latency_tracker.to_state_dict()
         self.state_store.update_latency_stats(latency_data)
-        
+
         # Check API latency thresholds from policy
         latency_cfg = self.policy_config.get("latency", {}) or {}
         api_thresholds = latency_cfg.get("api_thresholds_ms", {}) or {}
-        
+
         violations = []
         for operation, threshold_ms in api_thresholds.items():
             mean_latency = self.latency_tracker.check_threshold(operation, threshold_ms)
@@ -2712,7 +2712,7 @@ class TradingLoop:
                     "mean_ms": mean_latency,
                     "threshold_ms": threshold_ms,
                 })
-        
+
         if violations and self.alerts.is_enabled():
             message = "; ".join(
                 f"{v['operation']} {v['mean_ms']:.1f}ms > {v['threshold_ms']}ms"
@@ -2774,30 +2774,30 @@ class TradingLoop:
 
             if value_usd < min_value:
                 continue
-            
+
             # Check purge failure backoff (skip if recently failed multiple times)
             state = self.state_store.load()
             purge_failures = state.get("purge_failures", {})
             failure_entry = purge_failures.get(symbol)
-            
+
             if failure_entry:
                 failure_count = failure_entry.get("failure_count", 0)
                 last_failed_iso = failure_entry.get("last_failed_at_iso")
-                
+
                 if last_failed_iso and failure_count >= 3:
                     # Apply exponential backoff: 3 failures = skip for 1 hour, 4 = 2 hours, 5+ = 4 hours
                     from datetime import timedelta
                     backoff_hours = min(2 ** (failure_count - 2), 4)  # 1, 2, 4 hours max
                     last_failed = datetime.fromisoformat(last_failed_iso)
                     now_utc = datetime.now(timezone.utc)
-                    
+
                     # Handle timezone-naive datetime from old state
                     if last_failed.tzinfo is None:
                         last_failed = last_failed.replace(tzinfo=timezone.utc)
-                    
+
                     elapsed = now_utc - last_failed
                     backoff_duration = timedelta(hours=backoff_hours)
-                    
+
                     if elapsed < backoff_duration:
                         remaining = backoff_duration - elapsed
                         logger.info(
@@ -2842,15 +2842,15 @@ class TradingLoop:
                     logger.info(f"✅ Purge success for {symbol}, cleared failure tracking")
             else:
                 logger.warning(f"⚠️ Purge sell failed for {symbol}")
-                
+
                 # Track purge failure in state (backoff for future cycles)
                 state = self.state_store.load()
                 purge_failures = state.get("purge_failures", {})
-                
+
                 failure_entry = purge_failures.get(symbol, {})
                 failure_count = failure_entry.get("failure_count", 0) + 1
                 now_iso = datetime.now(timezone.utc).isoformat()
-                
+
                 purge_failures[symbol] = {
                     "failure_count": failure_count,
                     "last_failed_at_iso": now_iso,
@@ -2858,15 +2858,15 @@ class TradingLoop:
                     "balance": balance,
                     "value_usd": value_usd,
                 }
-                
+
                 state["purge_failures"] = purge_failures
                 self.state_store.save(state)
-                
+
                 logger.info(
                     f"📝 Tracked purge failure for {symbol}: "
                     f"count={failure_count}, balance={balance:.6f}, value=${value_usd:.2f}"
                 )
-    
+
     def _reconcile_exchange_state(self) -> None:
         """Refresh the persistent state store with the latest exchange snapshot."""
         if self.mode == "DRY_RUN":
@@ -3019,14 +3019,14 @@ class TradingLoop:
 
     def _auto_trim_to_risk_cap(self) -> bool:
         """Liquidate enough exposure to fall back under the global risk cap."""
-        
+
         logger.info("🔧 ==== AUTO-TRIM FUNCTION ENTERED ====")
         logger.info("🔧 TRIM STEP 1: Checking if auto-trim is needed...")
 
         pm_cfg = self.policy_config.get("portfolio_management", {})
         auto_trim_enabled = pm_cfg.get("auto_trim_to_risk_cap", False)
         logger.info(f"  📊 Config check: portfolio_management.auto_trim_to_risk_cap = {auto_trim_enabled}")
-        
+
         if not auto_trim_enabled:
             logger.warning("  ❌ AUTO-TRIM DISABLED IN CONFIG - returning False immediately")
             return False
@@ -3040,46 +3040,46 @@ class TradingLoop:
         risk_cfg = self.policy_config.get("risk", {})
         max_total_at_risk = float(risk_cfg.get("max_total_at_risk_pct", 0.0) or 0.0)
         logger.info(f"🔧 TRIM STEP 2: Loading risk cap from config: {max_total_at_risk:.1f}%")
-        
+
         if max_total_at_risk <= 0:
             logger.debug("  ❌ Auto trim skipped: invalid max_total_at_risk_pct")
             return False
 
         nav = float(self.portfolio.account_value_usd or 0.0)
         logger.info(f"🔧 TRIM STEP 3: Calculating current exposure (NAV=${nav:.2f})")
-        
+
         if nav <= 0:
             logger.debug("  ❌ Auto trim skipped: no account value data")
             return False
 
         exposure_usd = self.portfolio.get_total_exposure_usd()
         logger.info(f"  📊 Base exposure: ${exposure_usd:.2f}")
-        
+
         exposure_usd += self.portfolio.get_pending_notional_usd("buy")
         logger.info(f"  📊 + Pending buys: ${self.portfolio.get_pending_notional_usd('buy'):.2f}")
-        
+
         exposure_pct = (exposure_usd / nav) * 100 if nav else 0.0
         logger.info(f"  📊 Total exposure: ${exposure_usd:.2f} ({exposure_pct:.1f}%)")
 
         tolerance_pct = float(pm_cfg.get("trim_tolerance_pct", 0.25) or 0.0)
         logger.info(f"🔧 TRIM STEP 4: Checking if over cap (cap={max_total_at_risk:.1f}%, tolerance={tolerance_pct:.2f}%)")
-        
+
         if exposure_pct <= max_total_at_risk + tolerance_pct:
             logger.info(f"  ✅ Exposure {exposure_pct:.1f}% within cap {max_total_at_risk:.1f}% + tolerance {tolerance_pct:.2f}%, no trim needed")
             return False
-        
+
         logger.warning(f"  ⚠️  Exposure {exposure_pct:.1f}% EXCEEDS cap {max_total_at_risk:.1f}% (tolerance={tolerance_pct:.2f}%), trim required")
 
         buffer_pct = float(pm_cfg.get("trim_target_buffer_pct", 1.0) or 0.0)
         target_pct = max(0.0, max_total_at_risk - buffer_pct)
         tolerance_usd = max((tolerance_pct / 100.0) * nav, 0.0)
 
-        logger.info(f"🔧 TRIM STEP 5: Calculating trim target")
+        logger.info("🔧 TRIM STEP 5: Calculating trim target")
         logger.info(f"  📊 Target = cap {max_total_at_risk:.1f}% - buffer {buffer_pct:.1f}% = {target_pct:.1f}%")
 
         excess_pct = max(0.0, exposure_pct - target_pct)
         excess_usd = (excess_pct / 100.0) * nav
-        
+
         logger.info(f"  📊 Excess = {exposure_pct:.1f}% - {target_pct:.1f}% = {excess_pct:.1f}% (${excess_usd:.2f})")
         logger.info(f"  📊 Tolerance USD = ${tolerance_usd:.2f}, Min notional = ${self.executor.min_notional_usd:.2f}")
 
@@ -3150,7 +3150,7 @@ class TradingLoop:
                 sort_by="value",  # Switch to lowest-value first for forced trim
             )
             logger.info(f"  Found {len(candidates)} candidates with lower threshold")
-        
+
         # Fallback 2: if still no candidates, allow liquidating BTC/ETH (normally exempt as preferred quotes)
         # This handles the case where portfolio is mostly BTC/ETH but exceeds risk cap
         if not candidates:
@@ -3161,21 +3161,21 @@ class TradingLoop:
                 curr = acc['currency']
                 if curr not in ['BTC', 'ETH']:  # Only scan BTC/ETH, never liquidate USDC/USD/USDT
                     continue
-                
+
                 btc_eth_checked += 1
                 bal = float(acc.get('available_balance', {}).get('value', 0))
                 logger.info(f"  Checking {curr}: balance={bal:.8f}")
-                
+
                 if bal == 0:
                     logger.info(f"    ❌ {curr} balance is zero, skipping")
                     continue
-                
+
                 try:
                     pair = f"{curr}-USD"
                     quote = self.executor.exchange.get_quote(pair)
                     value_usd = bal * quote.mid
                     logger.info(f"    💰 {curr} value: ${value_usd:.2f} (min_notional=${self.executor.min_notional_usd:.2f})")
-                    
+
                     if value_usd >= self.executor.min_notional_usd:
                         candidates.append({
                             'currency': curr,
@@ -3191,7 +3191,7 @@ class TradingLoop:
                         logger.info(f"    ❌ {curr} below min_notional, skipping")
                 except Exception as e:
                     logger.warning(f"    ⚠️  Failed to check {curr} for emergency trim: {e}")
-            
+
             logger.info(f"  Emergency scan results: checked {btc_eth_checked} BTC/ETH accounts, found {len(candidates)} candidates")
 
         if not candidates:
@@ -3236,11 +3236,11 @@ class TradingLoop:
                         )
             else:
                 self._trim_skip_counter = 1
-            
+
             # Record metrics
             self.metrics.record_trim_attempt("no_candidates", consecutive_failures=self._trim_skip_counter)
             return False
-        
+
         # Reset counter on success finding candidates
         self._trim_skip_counter = 0
 
@@ -3257,22 +3257,22 @@ class TradingLoop:
         trimmed_any = False
 
         logger.info(f"🔧 TRIM STEP 9: Processing {len(candidates)} liquidation candidates (max_liqs={max_liqs})")
-        
+
         for idx, candidate in enumerate(candidates, 1):
             logger.info(f"  🎯 Candidate {idx}/{len(candidates)}: {candidate.get('currency')}")
-            
+
             if remaining_excess_usd <= tolerance_usd:
                 logger.info(f"    ✅ Trim complete: remaining excess ${remaining_excess_usd:.2f} <= tolerance ${tolerance_usd:.2f}")
                 break
             if max_liqs <= 0:
-                logger.info(f"    ⛔ Stopping: reached liquidation limit")
+                logger.info("    ⛔ Stopping: reached liquidation limit")
                 break
 
             balance = float(candidate.get("balance", 0.0) or 0.0)
             price = float(candidate.get("price", 0.0) or 0.0)
             value_usd = float(candidate.get("value_usd", 0.0) or 0.0)
             account_uuid = candidate.get("account_uuid")
-            
+
             logger.info(f"    📊 Balance={balance:.8f}, Price=${price:.6f}, Value=${value_usd:.2f}")
 
             if balance <= 0 or price <= 0 or value_usd <= 0 or not account_uuid:
@@ -3281,21 +3281,21 @@ class TradingLoop:
 
             available_usd = min(value_usd, balance * price)
             logger.info(f"    📊 Available USD: ${available_usd:.2f}")
-            
+
             if available_usd < self.executor.min_notional_usd:
                 logger.info(f"    ❌ Skipping: available ${available_usd:.2f} < min_notional ${self.executor.min_notional_usd:.2f}")
                 continue
 
             usd_to_free = min(remaining_excess_usd, available_usd)
             logger.info(f"    📊 USD to free: ${usd_to_free:.2f} (min={remaining_excess_usd:.2f}, {available_usd:.2f})")
-            
+
             if usd_to_free < self.executor.min_notional_usd:
                 logger.info(f"    ❌ Skipping: usd_to_free ${usd_to_free:.2f} < min_notional ${self.executor.min_notional_usd:.2f}")
                 continue
 
             units_to_liquidate = min(balance, (usd_to_free / price) * (1.0 + slippage_buffer_pct))
             logger.info(f"    📊 Units to liquidate: {units_to_liquidate:.8f} (slippage_buffer={slippage_buffer_pct:.2%})")
-            
+
             if units_to_liquidate * price < self.executor.min_notional_usd:
                 logger.info(f"    ❌ Skipping: units value ${units_to_liquidate * price:.2f} < min_notional ${self.executor.min_notional_usd:.2f}")
                 continue
@@ -3314,7 +3314,7 @@ class TradingLoop:
                     currency, target_currency
                 )
             )
-            
+
             logger.info(f"    🔍 Convert check: target={target_currency}, uuid={target_account_uuid is not None}, can_convert={can_attempt_convert}")
 
             if can_attempt_convert:
@@ -3328,7 +3328,7 @@ class TradingLoop:
                 )
                 success = bool(convert_result and convert_result.get("success"))
                 if success:
-                    logger.info(f"    ✅ Convert successful")
+                    logger.info("    ✅ Convert successful")
                 else:
                     logger.warning(f"    ❌ Convert failed: {convert_result.get('error') if convert_result else 'no result'}")
             else:
@@ -3339,13 +3339,13 @@ class TradingLoop:
                         target_currency,
                     )
                 else:
-                    logger.debug(f"    ⏭️  Skipping convert (no target configured)")
+                    logger.debug("    ⏭️  Skipping convert (no target configured)")
 
             if not success:
-                logger.info(f"    🔄 Fallback: attempting market order via TWAP")
+                logger.info("    🔄 Fallback: attempting market order via TWAP")
                 tier = self._infer_tier_from_config(candidate.get("pair")) or 3
                 logger.info(f"    📊 Inferred tier: T{tier}, pair: {candidate.get('pair')}")
-                
+
                 # For emergency trims (BTC/ETH that are normally exempt), force immediate execution
                 is_emergency = currency in ['BTC', 'ETH']
                 if is_emergency:
@@ -3353,10 +3353,10 @@ class TradingLoop:
                         f"    ⚡ EMERGENCY TRIM for {currency}: forcing taker execution to bypass maker-first delays"
                     )
                 else:
-                    logger.info(f"    ⏱️  Standard TWAP liquidation (maker-first)")
-                
+                    logger.info("    ⏱️  Standard TWAP liquidation (maker-first)")
+
                 logger.info(f"    🚀 Executing _sell_via_market_order({currency}, {units_to_liquidate:.8f}, ${min(freed_usd, remaining_excess_usd):.2f}, T{tier}, force_taker={is_emergency})")
-                
+
                 success = self._sell_via_market_order(
                     currency,
                     units_to_liquidate,
@@ -3378,14 +3378,14 @@ class TradingLoop:
                     f"    ✅ CONVERT SUCCESS: {units_to_liquidate:.6f} {currency} → {target_currency} (~${freed_usd:.2f})"
                 )
 
-            logger.info(f"    ✅ Liquidation complete, updating counters")
+            logger.info("    ✅ Liquidation complete, updating counters")
             trimmed_any = True
             remaining_excess_usd = max(0.0, remaining_excess_usd - freed_usd)
             max_liqs -= 1
             logger.info(f"    📊 Remaining excess: ${remaining_excess_usd:.2f}, remaining max_liqs: {max_liqs}")
 
         logger.info(f"🔧 TRIM STEP 10: Candidate processing complete (trimmed_any={trimmed_any})")
-        
+
         if not trimmed_any:
             logger.error(f"  ❌ NO LIQUIDATIONS SUCCEEDED despite {len(candidates)} candidates")
             self.metrics.record_trim_attempt("failed", consecutive_failures=0)
@@ -3396,16 +3396,16 @@ class TradingLoop:
         logger.info(f"🔧 TRIM STEP 11: Recording successful trim (liquidated=${liquidated_usd:.2f})")
         self.metrics.record_trim_attempt("success", consecutive_failures=0, liquidated_usd=liquidated_usd)
 
-        logger.info(f"🔧 TRIM STEP 12: Reconciling exchange state post-trim")
+        logger.info("🔧 TRIM STEP 12: Reconciling exchange state post-trim")
         try:
             self._reconcile_exchange_state()
-            logger.info(f"  ✅ Exchange state reconciled")
+            logger.info("  ✅ Exchange state reconciled")
         except CriticalDataUnavailable:
             raise
         except Exception as exc:
             logger.warning(f"  ⚠️  Post-trim reconcile skipped: {exc}")
 
-        logger.info(f"🔧 TRIM STEP 13: Refreshing portfolio state")
+        logger.info("🔧 TRIM STEP 13: Refreshing portfolio state")
         try:
             self.portfolio = self._init_portfolio_state()
             new_exposure_usd = self.portfolio.get_total_exposure_usd()
@@ -3426,54 +3426,54 @@ class TradingLoop:
     def _auto_rebalance_for_trade(self, proposals: List[TradeProposal], deficit_usd: float) -> bool:
         """
         Automatically liquidate worst-performing position to raise capital.
-        
+
         Strategy:
         1. Find worst-performing holdings (by 24h change)
         2. Liquidate enough to cover the new trade
         3. Skip if new opportunity is worse than current holdings
-        
+
         Returns:
             True if rebalancing succeeded, False otherwise
         """
         logger.info("💡 Auto-rebalancing: liquidating worst performer to raise capital...")
-        
+
         try:
             # Get liquidation candidates (worst performers first)
             candidates = self.executor.get_liquidation_candidates(
                 min_value_usd=10.0,  # Only consider holdings > $10
                 sort_by="performance"
             )
-            
+
             if not candidates:
                 logger.warning("No liquidation candidates found")
                 return False
-            
+
             worst = candidates[0]
             logger.info(
                 f"Worst performer: {worst['currency']} "
                 f"({worst['change_24h_pct']:+.2f}% 24h, ${worst['value_usd']:.2f})"
             )
-            
+
             # Check if new opportunity is better than worst holding
             # (Don't sell something that's only down -2% to buy something with low conviction)
             best_proposal = max(proposals, key=lambda p: p.confidence)
-            
+
             if worst['change_24h_pct'] > -5.0 and best_proposal.confidence < 0.7:
                 logger.info(
                     f"Skipping rebalance: worst holding only {worst['change_24h_pct']:.1f}% down, "
                     f"new opportunity confidence {best_proposal.confidence:.2f} not high enough"
                 )
                 return False
-            
+
             # Get account UUIDs for conversion
             accounts = self._require_accounts("auto_rebalance")
             from_account = next((a for a in accounts if a['currency'] == worst['currency']), None)
             to_account = next((a for a in accounts if a['currency'] == 'USDC'), None)
-            
+
             if not from_account or not to_account:
                 logger.error(f"Cannot find account UUIDs for {worst['currency']} or USDC")
                 return False
-            
+
             price = max(worst.get('price', 0.0), 1e-8)
             usd_needed = max(deficit_usd, self.executor.min_notional_usd)
             units_needed = min(worst['balance'], (usd_needed * 1.05) / price)
@@ -3517,13 +3517,13 @@ class TradingLoop:
                     tier=tier,
                     preferred_pair=pair,
                 )
-                
+
         except CriticalDataUnavailable:
             raise
         except Exception as e:
             logger.error(f"Auto-rebalance failed: {e}")
             return False
-    
+
     def _infer_tier_from_config(self, symbol: str) -> Optional[int]:
         """Infer asset tier from universe configuration for slippage budgets."""
         tiers_cfg = (self.universe_config or {}).get("tiers", {}) if hasattr(self, "universe_config") else {}
@@ -3554,7 +3554,7 @@ class TradingLoop:
         This replaces the legacy market-order purge path with a safer post-only flow that
         respects slippage budgets, quote freshness, and depth checks. Orders are sliced
         into configurable USD notional chunks and refreshed on a fixed cadence.
-        
+
         Args:
             force_taker: If True, bypass maker-first TWAP and immediately execute with IOC
                          for emergency trims (BTC/ETH over risk cap).
@@ -3636,19 +3636,19 @@ class TradingLoop:
                 pair,
                 tier,
             )
-            
+
             client_order_id = f"emergency_taker_{uuid4().hex[:14]}"
             logger.info(f"  📝 Client order ID: {client_order_id}")
-            
-            logger.info(f"  🚀 Calling executor.execute with:")
+
+            logger.info("  🚀 Calling executor.execute with:")
             logger.info(f"     - symbol={pair}")
-            logger.info(f"     - side=SELL")
+            logger.info("     - side=SELL")
             logger.info(f"     - size_usd=${target_value_usd:.2f}")
-            logger.info(f"     - force_order_type=limit_ioc (immediate-or-cancel)")
-            logger.info(f"     - skip_liquidity_checks=True")
-            logger.info(f"     - bypass_slippage_budget=True")
+            logger.info("     - force_order_type=limit_ioc (immediate-or-cancel)")
+            logger.info("     - skip_liquidity_checks=True")
+            logger.info("     - bypass_slippage_budget=True")
             logger.info(f"     - tier=T{tier}")
-            
+
             try:
                 taker_result = self.executor.execute(
                     symbol=pair,
@@ -3661,12 +3661,12 @@ class TradingLoop:
                     bypass_slippage_budget=True,
                     bypass_failed_order_cooldown=True,
                 )
-                
+
                 logger.info(f"  📊 Execution result: success={taker_result.success}, filled_size={taker_result.filled_size:.8f}, filled_price=${taker_result.filled_price:.6f}")
-                
+
                 filled_usd = taker_result.filled_size * taker_result.filled_price
                 logger.info(f"  💰 Filled USD: {taker_result.filled_size:.8f} × ${taker_result.filled_price:.6f} = ${filled_usd:.2f}")
-                
+
                 if taker_result.success and filled_usd > 0:
                     logger.info(
                         "  ✅ EMERGENCY TAKER SUCCESS: filled $%.2f (%.6f %s @ $%.6f), fees=$%.4f",
@@ -3692,7 +3692,7 @@ class TradingLoop:
             except Exception as exc:
                 logger.error(f"  ❌ EMERGENCY TAKER EXCEPTION for {pair}: {exc}", exc_info=True)
                 return False
-        
+
         logger.info(
             "TWAP purge start: %.6f %s (~$%.2f) via %s (tier T%d, slice=$%.2f, replace=%.1fs)",
             balance,
@@ -3820,14 +3820,14 @@ class TradingLoop:
                         status,
                         max_consecutive_no_fill,
                     )
-                    
+
                     # Aggressive purge fallback: use taker/market for tiny junk positions
                     allow_taker = purge_cfg.get("allow_taker_fallback", False)
                     taker_threshold = float(purge_cfg.get("taker_fallback_threshold_usd", 50.0))
                     taker_max_slippage = float(purge_cfg.get("taker_max_slippage_bps", 100))
-                    
+
                     remaining_usd = max(target_value_usd - total_filled_usd, 0.0)
-                    
+
                     if allow_taker and remaining_usd > 0 and remaining_usd <= taker_threshold:
                         logger.warning(
                             "TWAP: activating aggressive purge mode for %s (remaining=$%.2f < $%.2f threshold)",
@@ -3835,7 +3835,7 @@ class TradingLoop:
                             remaining_usd,
                             taker_threshold,
                         )
-                        
+
                         # Try one final taker/IOC order to force completion
                         try:
                             taker_client_id = f"purge_taker_{uuid4().hex[:14]}"
@@ -3845,7 +3845,7 @@ class TradingLoop:
                                 pair,
                                 taker_max_slippage / 100,
                             )
-                            
+
                             taker_result = self.executor.execute(
                                 symbol=pair,
                                 side="SELL",
@@ -3857,7 +3857,7 @@ class TradingLoop:
                                 bypass_slippage_budget=True,
                                 bypass_failed_order_cooldown=True,
                             )
-                            
+
                             taker_filled_usd = taker_result.filled_size * taker_result.filled_price
                             if taker_result.success and taker_filled_usd > 0:
                                 total_filled_usd += taker_filled_usd
@@ -3880,7 +3880,7 @@ class TradingLoop:
                                 )
                         except Exception as exc:
                             logger.error("TWAP: taker fallback exception for %s: %s", pair, exc)
-                    
+
                     break
 
                 logger.info(
@@ -4036,11 +4036,11 @@ class TradingLoop:
                 logger.debug("TWAP: state store close failed for %s: %s", order_id, exc)
 
         return filled_value, filled_units, fees, fills, last_status or "unknown"
-    
+
     def run_forever(self, interval_seconds: Optional[float] = None):
         """
         Run trading loop continuously with time-aware sleep.
-        
+
         Args:
             interval_seconds: Seconds between cycle starts
         """
@@ -4048,35 +4048,35 @@ class TradingLoop:
         configured_interval = max(configured_interval, 1.0)
 
         logger.info(f"Starting continuous loop (interval={configured_interval}s, jitter={self.loop_jitter_pct:.1f}%)")
-        
+
         while self._running:
             start = time.monotonic()
             self.run_cycle()
             elapsed = time.monotonic() - start
-            
+
             # Apply jitter (REQ-SCH1): randomize sleep to prevent lockstep behavior
             import random
             jitter_factor = self.loop_jitter_pct / 100.0  # Convert percentage to decimal
             jitter = random.uniform(0, jitter_factor) * configured_interval  # 0 to jitter_pct%
             base_sleep = configured_interval - elapsed
             sleep_for = max(1.0, base_sleep + jitter)
-            
+
             # Auto-backoff if cycle utilization > 70%
             utilization = elapsed / configured_interval
             if utilization > 0.7:
                 backoff = 15.0
                 sleep_for += backoff
                 logger.warning(f"High cycle utilization ({utilization:.1%}), adding {backoff}s backoff")
-            
+
             # Track jitter telemetry
             actual_interval = elapsed + sleep_for
             jitter_applied_pct = (jitter / configured_interval) * 100.0
-            
+
             logger.info(
                 f"Cycle took {elapsed:.2f}s, sleeping {sleep_for:.2f}s "
                 f"(util: {utilization:.1%}, jitter: +{jitter_applied_pct:.1f}%, total: {actual_interval:.1f}s)"
             )
-            
+
             # Store jitter telemetry in state for monitoring
             try:
                 state = self.state_store.load()
@@ -4089,11 +4089,11 @@ class TradingLoop:
                 self.state_store.save(state)
             except Exception as e:
                 logger.debug(f"Failed to save jitter stats: {e}")
-            
+
             time.sleep(sleep_for)
-        
+
         logger.info("Trading loop stopped cleanly.")
-    
+
     def _apply_ai_decisions(
         self,
         proposals: List[TradeProposal],
@@ -4101,41 +4101,41 @@ class TradingLoop:
     ) -> List[TradeProposal]:
         """
         Apply AI advisor decisions to proposals.
-        
+
         Args:
             proposals: Original proposals from rules_engine
             ai_output: AIAdvisorOutput with decisions
-            
+
         Returns:
             Filtered/adjusted proposals
         """
         from ai.schemas import AIAdvisorOutput
-        
+
         if not isinstance(ai_output, AIAdvisorOutput):
             return proposals
-        
+
         if not ai_output.proposal_decisions:
             logger.debug("AI advisor returned no decisions, keeping all proposals")
             return proposals
-        
+
         # Build decision lookup
         decision_map = {
             (d.symbol, d.side): d 
             for d in ai_output.proposal_decisions
         }
-        
+
         adjusted = []
         skipped_by_ai = 0
         reduced_by_ai = 0
-        
+
         for p in proposals:
             d = decision_map.get((p.symbol, p.side))
-            
+
             if not d:
                 # No specific guidance → default accept
                 adjusted.append(p)
                 continue
-            
+
             if d.decision == "skip" or d.size_factor <= 0.0:
                 # AI skipped this proposal
                 skipped_by_ai += 1
@@ -4144,79 +4144,79 @@ class TradingLoop:
                         f"AI SKIP: {p.symbol} {p.side} - {d.comment}"
                     )
                 continue
-            
+
             # Reduce size (cannot increase because size_factor≤1)
             if d.size_factor < 1.0:
                 reduced_by_ai += 1
                 original_size = p.size_pct
                 p.size_pct = p.size_pct * d.size_factor
-                
+
                 if self.ai_log_decisions:
                     logger.info(
                         f"AI REDUCE: {p.symbol} {p.side} - "
                         f"{original_size:.2f}% → {p.size_pct:.2f}% "
                         f"({d.size_factor:.2f}x) - {d.comment}"
                     )
-            
+
             # Add AI metadata to proposal for audit
             if not hasattr(p, 'notes'):
                 p.notes = {}
             p.notes['ai_decision'] = d.decision
             p.notes['ai_size_factor'] = d.size_factor
             p.notes['ai_comment'] = d.comment
-            
+
             adjusted.append(p)
-        
+
         logger.info(
             f"AI advisor filtered: {len(adjusted)}/{len(proposals)} kept "
             f"(skipped: {skipped_by_ai}, reduced: {reduced_by_ai})"
         )
-        
+
         return adjusted
-    
+
     def _apply_risk_mode(self, risk_mode: Optional[str]) -> None:
         """
         Apply AI-suggested risk mode to runtime parameters.
-        
+
         Args:
             risk_mode: AI-suggested risk mode (OFF, DEFENSIVE, NORMAL, AGGRESSIVE)
         """
         if not self.ai_allow_risk_mode_override or not risk_mode:
             return
-        
+
         try:
             from ai.risk_profile import apply_risk_profile_to_caps
-            
+
             # Get policy caps (these are ceilings)
             policy_max_at_risk_pct = self.policy_config.get("max_at_risk_pct", 15.0)
             policy_max_positions = self.policy_config.get("max_positions", 5)
-            
+
             # Apply risk profile (clamped to policy)
             runtime_caps = apply_risk_profile_to_caps(
                 mode=risk_mode,
                 policy_max_at_risk_pct=policy_max_at_risk_pct,
                 policy_max_positions=policy_max_positions,
             )
-            
+
             # Update runtime multipliers
             old_multiplier = self.runtime_trade_size_multiplier
             self.runtime_trade_size_multiplier = runtime_caps["trade_size_multiplier"]
             self.runtime_max_at_risk_pct = runtime_caps["max_at_risk_pct"]
-            
+
             if old_multiplier != self.runtime_trade_size_multiplier:
                 logger.info(
                     f"AI risk mode: {risk_mode} → "
                     f"size_multiplier={self.runtime_trade_size_multiplier:.2f}, "
                     f"max_at_risk={self.runtime_max_at_risk_pct:.1f}%"
                 )
-                
+
         except Exception as e:
             logger.error(f"Failed to apply risk mode: {e}", exc_info=True)
-    
+
     def _check_position_exits(self) -> List[TradeProposal]:
         """
         Check all open positions for exit conditions (stop-loss, take-profit, max hold).
-        
+
         Returns:
             List of SELL TradeProposal objects for positions meeting exit criteria
         """
@@ -4225,7 +4225,7 @@ class TradingLoop:
             state = self.state_store.load()
             positions = state.get("positions", {})
             managed_positions = state.get("managed_positions", {})
-            
+
             # Get current prices from exchange
             current_prices = {}
             for symbol in positions.keys():
@@ -4236,52 +4236,52 @@ class TradingLoop:
                         current_prices[symbol] = quote.ask
                 except Exception as price_exc:
                     logger.debug(f"Failed to get price for {symbol}: {price_exc}")
-            
+
             # Evaluate positions via PositionManager
             exit_proposals = self.position_manager.evaluate_positions(
                 positions=positions,
                 managed_positions=managed_positions,
                 current_prices=current_prices,
             )
-            
+
             return exit_proposals
-            
+
         except Exception as e:
             logger.warning(f"Position exit check failed: {e}", exc_info=True)
             return []
-    
+
     def _execute_exit_proposals(self, exit_proposals: List[TradeProposal]) -> None:
         """
         Execute exit proposals (SELL orders) immediately without risk approval.
-        
+
         Exits bypass normal risk checks since they:
         - Reduce risk (closing positions)
         - Are time-sensitive (protect capital)
         - Have high confidence (rules-based)
-        
+
         Args:
             exit_proposals: List of SELL TradeProposal objects
         """
         if not exit_proposals:
             return
-        
+
         logger.info(f"Executing {len(exit_proposals)} position exit(s)")
-        
+
         executed_exits = []
         for proposal in exit_proposals:
             logger.info(
                 f"EXIT: {proposal.side.upper()} {proposal.symbol} "
                 f"({proposal.trigger_name}) - {proposal.notes.get('exit_reason', 'unknown')}"
             )
-            
+
             if self.mode == "DRY_RUN":
                 logger.info(f"DRY_RUN: Would execute exit {proposal.symbol}")
                 continue
-            
+
             try:
                 # Extract exit reason from proposal metadata
                 exit_reason = proposal.notes.get('exit_reason', 'unknown') if hasattr(proposal, 'notes') else 'unknown'
-                
+
                 # Execute via ExecutionEngine
                 result = self.executor.execute(
                     symbol=proposal.symbol,
@@ -4291,7 +4291,7 @@ class TradingLoop:
                     confidence=proposal.confidence,
                     exit_reason=exit_reason,
                 )
-                
+
                 if result.success:
                     logger.info(
                         f"✅ Exit filled: {proposal.symbol} "
@@ -4299,20 +4299,20 @@ class TradingLoop:
                         f"(PnL: {proposal.notes.get('pnl_pct', 0):.2f}%)"
                     )
                     executed_exits.append(result)
-                    
+
                     # Remove from managed_positions after successful exit
                     self._remove_managed_position(proposal.symbol)
                 else:
                     logger.warning(f"⚠️ Exit failed: {proposal.symbol} - {result.error}")
-                    
+
             except Exception as exec_exc:
                 logger.error(f"Exit execution exception for {proposal.symbol}: {exec_exc}", exc_info=True)
-        
+
         # Update state after successful exits
         if executed_exits:
             self.state_store.update_from_fills(executed_exits, self.portfolio)
             logger.info(f"Completed {len(executed_exits)} position exit(s)")
-    
+
     def _remove_managed_position(self, symbol: str) -> None:
         """Remove a symbol from managed_positions after full exit."""
         try:
@@ -4331,17 +4331,17 @@ class TradingLoop:
 def main():
     """Entry point"""
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="247trader-v2 Trading Bot")
     parser.add_argument("--once", action="store_true", help="Run once and exit")
     parser.add_argument("--interval", type=float, default=300, help="Seconds between cycles (default: 300)")
     parser.add_argument("--config-dir", default="config", help="Config directory")
-    
+
     args = parser.parse_args()
-    
+
     # Create loop (logging configured in __init__)
     loop = TradingLoop(config_dir=args.config_dir)
-    
+
     if args.once:
         # Run once
         loop.run_cycle()

@@ -5,8 +5,7 @@ Verifies exponential backoff with full jitter for 429/5xx errors.
 """
 
 import pytest
-import time
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from requests.exceptions import HTTPError, Timeout, ConnectionError
 
 from core.exchange_coinbase import CoinbaseExchange

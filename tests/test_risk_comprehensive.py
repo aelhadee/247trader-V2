@@ -15,10 +15,8 @@ Target: 90%+ coverage of risk.py critical paths
 
 import pytest
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List
-from unittest.mock import Mock, patch, MagicMock
 
-from core.risk import RiskEngine, RiskCheckResult, PortfolioState
+from core.risk import RiskEngine, PortfolioState
 from strategy.rules_engine import TradeProposal
 from infra.state_store import StateStore
 

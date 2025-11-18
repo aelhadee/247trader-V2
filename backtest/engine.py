@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import logging
 
-from core.universe import UniverseManager, UniverseAsset
+from core.universe import UniverseManager
 from core.triggers import TriggerEngine, TriggerSignal
 from core.regime import RegimeDetector
 from strategy.rules_engine import RulesEngine, TradeProposal

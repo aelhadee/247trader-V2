@@ -3,10 +3,9 @@ Tests for exchange product status circuit breaker.
 """
 import pytest
 from unittest.mock import Mock
-from datetime import datetime, timezone
 from dataclasses import dataclass, field
 
-from core.risk import RiskEngine, RiskCheckResult, PortfolioState
+from core.risk import RiskEngine, PortfolioState
 
 
 @dataclass
@@ -255,7 +254,7 @@ class TestExchangeStatusCircuitBreaker:
             )
         ]
         
-        result = engine.check_all(
+        engine.check_all(
             proposals=proposals,
             portfolio=portfolio,
         )
@@ -397,7 +396,7 @@ class TestExchangeStatusCircuitBreaker:
             )
         ]
         
-        result = engine.check_all(
+        engine.check_all(
             proposals=proposals,
             portfolio=portfolio,
         )

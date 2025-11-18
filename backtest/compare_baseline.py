@@ -17,7 +17,6 @@ Exit codes:
 import json
 import sys
 import argparse
-from pathlib import Path
 from typing import Dict, Tuple
 import logging
 

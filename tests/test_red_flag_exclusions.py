@@ -15,7 +15,7 @@ import tempfile
 import yaml
 
 from infra.state_store import StateStore, JsonFileBackend
-from core.universe import UniverseManager, UniverseSnapshot
+from core.universe import UniverseManager
 
 
 @pytest.fixture
@@ -206,7 +206,7 @@ class TestUniverseRedFlagIntegration:
         state_store.flag_asset_red_flag("SCAM-USD", "team_rug", ban_hours=168)
         
         # Build universe
-        mgr = UniverseManager.from_config_path(str(universe_config))
+        UniverseManager.from_config_path(str(universe_config))
         
         # NOTE: This would require mocking exchange.get_quote() and exchange.get_orderbook()
         # Skipping actual universe building in this test
@@ -250,7 +250,7 @@ class TestRedFlagEdgeCases:
         state_store.flag_asset_red_flag("REFLAG-USD", "team_rug", ban_hours=72)
         
         banned = state_store.get_red_flag_banned_symbols()
-        first_reason = banned["REFLAG-USD"]["reason"]
+        banned["REFLAG-USD"]["reason"]
         first_expires = banned["REFLAG-USD"]["expires_at_iso"]
         
         # Re-flag with different reason and duration

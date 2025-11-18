@@ -8,9 +8,7 @@ This script runs backtests and analyzes:
 - Regime-specific loss patterns
 """
 
-import json
 from datetime import datetime
-from pathlib import Path
 from collections import defaultdict
 import logging
 
@@ -61,7 +59,7 @@ def run_analysis_backtest(start_date: str, end_date: str, period_name: str):
     for trade in losing_trades:
         exit_reasons[trade.exit_reason].append(trade)
     
-    print(f"\nLoss Breakdown by Exit Reason:")
+    print("\nLoss Breakdown by Exit Reason:")
     for reason, trades in sorted(exit_reasons.items(), key=lambda x: len(x[1]), reverse=True):
         avg_loss = sum(t.pnl_pct for t in trades) / len(trades)
         print(f"  {reason:15s}: {len(trades):3d} trades | Avg Loss: {avg_loss:6.2f}%")
@@ -81,12 +79,12 @@ def run_analysis_backtest(start_date: str, end_date: str, period_name: str):
     for trade in losing_trades:
         asset_losses[trade.symbol] += 1
     
-    print(f"\nMost Frequently Lost Assets:")
+    print("\nMost Frequently Lost Assets:")
     for symbol, count in sorted(asset_losses.items(), key=lambda x: x[1], reverse=True)[:5]:
         print(f"  {symbol:12s}: {count} losses")
     
     # Detailed loss examples
-    print(f"\nWorst 5 Losing Trades:")
+    print("\nWorst 5 Losing Trades:")
     worst_losses = sorted(losing_trades, key=lambda t: t.pnl_pct)[:5]
     for i, trade in enumerate(worst_losses, 1):
         hold_hours = trade.hold_time.total_seconds() / 3600 if trade.hold_time else 0

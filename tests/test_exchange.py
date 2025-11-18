@@ -3,13 +3,12 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, ANY
 
-import pytest
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from core.exchange_coinbase import CB_BASE, CoinbaseExchange  # noqa: E402
+from core.exchange_coinbase import CoinbaseExchange  # noqa: E402
 
 
 def test_req_includes_query_string(monkeypatch):

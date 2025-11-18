@@ -24,8 +24,7 @@ These tests are skipped if credentials are not available.
 """
 
 import pytest
-import os
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from core.exchange_coinbase import CoinbaseExchange
 from core.execution import ExecutionEngine
 from core.universe import UniverseManager
@@ -56,7 +55,7 @@ def test_coinbase_connection():
     assert exchange.api_key is not None, "API key not configured"
     assert exchange.api_secret is not None, "API secret not configured"
     
-    print(f"✅ Coinbase connection established")
+    print("✅ Coinbase connection established")
 
 
 @skip_without_creds

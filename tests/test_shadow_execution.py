@@ -8,7 +8,7 @@ import pytest
 import json
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock
 
 from core.execution import ExecutionEngine
 from core.exchange_coinbase import Quote

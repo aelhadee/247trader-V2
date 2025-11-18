@@ -69,25 +69,25 @@ class PostOnlyTTLResult:
 class ExecutionEngine:
     """
     Order execution engine.
-    
+
     Responsibilities:
     - Preview orders before placement
     - Select best route (limit post-only vs market IOC)
     - Place orders with idempotency
     - Track fills and fees
-    
+
     Safety:
     - DRY_RUN mode prevents real orders
     - Liquidity checks before placement
     - Slippage protection
     """
-    
+
     def __init__(self, mode: str = "DRY_RUN", exchange: Optional[CoinbaseExchange] = None,
                  policy: Optional[Dict] = None, state_store: Optional[StateStore] = None,
                  alert_service=None, risk_engine=None):
         """
         Initialize execution engine.
-        
+
         Args:
                 product_metadata = constraints.get("metadata") or product_metadata
             mode: "DRY_RUN" | "PAPER" | "LIVE"
@@ -103,48 +103,48 @@ class ExecutionEngine:
         self.alert_service = alert_service
         self.risk_engine = risk_engine
         self.order_state_machine = get_order_state_machine()
-        
+
         # Import Prometheus exporter (will be None if not initialized)
         try:
             from infra.prometheus_exporter import get_exporter
             self.prometheus_exporter = get_exporter() if get_exporter() else None
         except (ImportError, RuntimeError):
             self.prometheus_exporter = None
-        
+
         # Initialize TradeLog for trade recording and PnL attribution
         from analytics.trade_log import TradeLog
         self.trade_log = TradeLog(log_dir="data/trades", backend="csv", enable_sqlite=True)
-        
+
         # Track open trades for exit logging (keyed by symbol)
         self.open_trades: Dict[str, Any] = {}
-        
+
         # Order rejection tracking for burst detection
         self._rejection_history = []  # List of (timestamp, symbol, reason) tuples
         self._rejection_window_seconds = 600  # 10 minutes
         self._rejection_threshold = 3
-        
+
         # Shadow execution logger for DRY_RUN mode
         self.shadow_logger = ShadowExecutionLogger("logs/shadow_orders.jsonl")
-        
+
         # Load limits from policy or use defaults
         execution_config = self.policy.get("execution", {})
         microstructure_config = self.policy.get("microstructure", {})
         risk_config = self.policy.get("risk", {})
         portfolio_config = self.policy.get("portfolio_management", {})
-        
+
         self.max_slippage_bps = microstructure_config.get("max_expected_slippage_bps", 50.0)
         self.max_spread_bps = microstructure_config.get("max_spread_bps", 100.0)
         self.min_notional_usd = risk_config.get("min_trade_notional_usd", 100.0)  # From policy.yaml
         self.min_depth_multiplier = 2.0  # Want 2x order size in depth
-        
+
         # Fee structure (basis points)
         self.maker_fee_bps = execution_config.get("maker_fee_bps", 40)  # 0.40% default
         self.taker_fee_bps = execution_config.get("taker_fee_bps", 60)  # 0.60% default
-        
+
         # Order type preference
         self.default_order_type = execution_config.get("default_order_type", "limit")
         self.limit_post_only = (self.default_order_type == "limit_post_only")
-        
+
         # Quote currency preferences
         self.preferred_quotes = execution_config.get(
             "preferred_quote_currencies",
@@ -244,14 +244,14 @@ class ExecutionEngine:
 
         if self.execution_min_notional_usd and self.execution_min_notional_usd > self.min_notional_usd:
             self.min_notional_usd = self.execution_min_notional_usd
-    
+
     def _get_slippage_budget(self, tier: Optional[int]) -> float:
         """
         Get slippage budget for a given tier.
-        
+
         Args:
             tier: Asset tier (1, 2, or 3), or None for default
-            
+
         Returns:
             Slippage budget in bps
         """
@@ -264,55 +264,55 @@ class ExecutionEngine:
         else:
             # Default to Tier 3 budget (most permissive) if tier unknown
             return self.slippage_budget_t3_bps
-    
+
     def _validate_quote_freshness(self, quote, symbol: str) -> Optional[str]:
         """
         Validate quote timestamp is fresh enough for trading decisions.
-        
+
         Args:
             quote: Quote object with timestamp field
             symbol: Symbol name for logging
-            
+
         Returns:
             Error string if stale, None if fresh
         """
         if quote is None:
             return f"Quote is None for {symbol}"
-        
+
         if not hasattr(quote, 'timestamp') or quote.timestamp is None:
             return f"Quote missing timestamp for {symbol}"
-        
+
         now = datetime.now(timezone.utc)
-        
+
         # Ensure quote timestamp is timezone-aware
         quote_ts = quote.timestamp
         if quote_ts.tzinfo is None:
             # Assume UTC if naive
             quote_ts = quote_ts.replace(tzinfo=timezone.utc)
-        
+
         age_seconds = (now - quote_ts).total_seconds()
-        
+
         if age_seconds > self.max_quote_age_seconds:
             return (f"Quote too stale for {symbol}: {age_seconds:.1f}s old "
                    f"(max: {self.max_quote_age_seconds}s)")
-        
+
         if age_seconds < 0:
             # Future timestamp - clock skew issue
             return (f"Quote timestamp in future for {symbol}: {age_seconds:.1f}s ahead "
                    f"(possible clock skew)")
-        
+
         logger.debug(f"Quote freshness OK for {symbol}: {age_seconds:.1f}s old")
         return None
-    
+
     def _quantize_price(self, price: float, increment: str, cushion_ticks: int = 0) -> str:
         """
         Floor price to product increment with optional maker cushion.
-        
+
         Args:
             price: Raw price value
             increment: Price increment from product spec (e.g. "0.01")
             cushion_ticks: Number of ticks to subtract for maker cushion (default 0)
-            
+
         Returns:
             Quantized price as string
         """
@@ -331,15 +331,15 @@ class ExecutionEngine:
         except (InvalidOperation, ValueError) as e:
             logger.warning(f"Price quantization failed: {e}, returning raw")
             return str(price)
-    
+
     def _quantize_size(self, size: float, increment: str) -> str:
         """
         Floor size to product base increment.
-        
+
         Args:
             size: Raw size value
             increment: Base increment from product spec (e.g. "0.1")
-            
+
         Returns:
             Quantized size as string
         """
@@ -354,7 +354,7 @@ class ExecutionEngine:
         except (InvalidOperation, ValueError) as e:
             logger.warning(f"Size quantization failed: {e}, returning raw")
             return str(size)
-    
+
     @staticmethod
     def _sanitize_client_prefix(prefix: str) -> str:
         """Ensure client order prefix is lowercase and ASCII-safe."""
@@ -372,20 +372,20 @@ class ExecutionEngine:
                                   timestamp: Optional[datetime] = None) -> str:
         """
         Generate deterministic client order ID from trade proposal attributes.
-        
+
         This ensures that retries of the same trade proposal generate the same ID,
         enabling idempotent order submission and preventing duplicate orders on
         network failures.
-        
+
         Args:
             symbol: Trading pair (e.g., "BTC-USD")
             side: "BUY" or "SELL"
             size_usd: Order size in USD
             timestamp: Optional timestamp (defaults to now, truncated to minute)
-            
+
         Returns:
             Deterministic client order ID string
-            
+
         Notes:
             - Timestamp is truncated to minute granularity to allow brief retries
             - Uses SHA256 hash for collision resistance
@@ -393,21 +393,21 @@ class ExecutionEngine:
         """
         if timestamp is None:
             timestamp = datetime.now(timezone.utc)
-        
+
         # Truncate timestamp to minute for brief retry window
         ts_minute = timestamp.replace(second=0, microsecond=0)
         ts_str = ts_minute.isoformat()
-        
+
         # Round size to avoid floating point noise
         size_rounded = round(size_usd, 2)
-        
+
         # Build deterministic input string
         input_str = f"{symbol}|{side.upper()}|{size_rounded}|{ts_str}"
-        
+
         # Hash to deterministic ID
         hash_obj = hashlib.sha256(input_str.encode('utf-8'))
         hash_hex = hash_obj.hexdigest()[:16]  # First 16 chars for brevity
-        
+
         base_id = f"coid_{hash_hex}"
         if self.client_order_prefix:
             return f"{self.client_order_prefix}_{base_id}"
@@ -449,46 +449,46 @@ class ExecutionEngine:
             )
             return False
         return pair not in self._convert_denylist
-    
+
     def estimate_fee(self, size_usd: float, is_maker: bool = True) -> float:
         """
         Estimate trading fee for a given order size.
-        
+
         Args:
             size_usd: Order size in USD
             is_maker: True for maker orders (limit post-only), False for taker (market/IOC)
-            
+
         Returns:
             Estimated fee in USD
         """
         fee_bps = self.maker_fee_bps if is_maker else self.taker_fee_bps
         return size_usd * (fee_bps / 10000.0)
-    
+
     def size_after_fees(self, gross_size_usd: float, is_maker: bool = True) -> float:
         """
         Calculate net position size after deducting fees.
-        
+
         Args:
             gross_size_usd: Gross order size before fees
             is_maker: True for maker orders, False for taker
-            
+
         Returns:
             Net size after fees in USD
         """
         fee = self.estimate_fee(gross_size_usd, is_maker)
         return gross_size_usd - fee
-    
+
     def size_to_achieve_net(self, target_net_usd: float, is_maker: bool = True) -> float:
         """
         Calculate gross order size needed to achieve target net position after fees.
-        
+
         For BUY: gross_size = target_net / (1 - fee_rate)
         For SELL: net_proceeds = gross_size * (1 - fee_rate)
-        
+
         Args:
             target_net_usd: Desired net position size after fees
             is_maker: True for maker orders, False for taker
-            
+
         Returns:
             Gross order size needed (before fees)
         """
@@ -555,7 +555,7 @@ class ExecutionEngine:
         """
         Derive TTL for maker attempt using spread-aware heuristic.
         Adds ±1s random jitter to avoid synchronized cancels.
-        
+
         For purge orders (identified by client_order_id starting with 'purge_'),
         uses longer TTL from purge_execution config to improve fill rates on illiquid junk.
         """
@@ -572,20 +572,20 @@ class ExecutionEngine:
 
         # Check if this is a purge order - use special longer TTL
         is_purge = client_order_id and client_order_id.startswith("purge_")
-        
+
         if is_purge:
             # Load purge-specific TTL from policy config
             pm_cfg = self.policy.get("portfolio_management", {})
             purge_cfg = pm_cfg.get("purge_execution", {})
-            
+
             if attempt_index == 0:
                 ttl = int(purge_cfg.get("maker_first_ttl_sec", purge_cfg.get("maker_ttl_sec", 25)))
             else:
                 ttl = int(purge_cfg.get("maker_retry_ttl_sec", 20))
-            
+
             # Still respect overall max
             ttl = min(ttl, max(self.maker_max_ttl_seconds, 30))  # Allow purge to exceed normal max up to 30s
-            
+
             logger.debug(f"Purge order TTL: {ttl}s (attempt={attempt_index}, is_purge=True)")
             return max(ttl, 1)
 
@@ -619,17 +619,17 @@ class ExecutionEngine:
         ttl = int(round(ttl + jitter))
 
         return max(ttl, 1)
-    
+
     def _on_order_terminal(self, symbol: str, side: str, client_order_id: str, status: str):
         """
         Called when an order reaches a terminal state.
         Clears pending markers and updates order state machine.
-        
+
         Terminal states: rejected, canceled, failed, filled
         """
         logger.debug(f"Order terminal: {client_order_id} {symbol} {side} → {status}")
         self._clear_pending_marker(symbol, side, client_order_id=client_order_id)
-        
+
         # Transition order state machine if needed
         status_upper = status.upper()
         if status_upper == "REJECTED":
@@ -728,26 +728,26 @@ class ExecutionEngine:
             return False
         text = result.error.lower()
         return "post-only order canceled" in text
-    
+
     def get_min_gross_size(self, is_maker: bool = True) -> float:
         """
         Get minimum gross order size that results in acceptable net position after fees.
-        
+
         Returns:
             Minimum gross size in USD (accounts for fees)
         """
         # To achieve min_notional_usd net after fees, we need slightly more gross
         return self.size_to_achieve_net(self.min_notional_usd, is_maker=is_maker)
-    
+
     def round_to_increment(self, value: float, increment: float, round_up: bool = False) -> float:
         """
         Round value to nearest multiple of increment.
-        
+
         Args:
             value: Value to round
             increment: Increment size (e.g., 0.00000001 for BTC)
             round_up: If True, round up; if False, round down (default)
-            
+
         Returns:
             Rounded value
         """
@@ -757,21 +757,21 @@ class ExecutionEngine:
             import math
             return float(math.ceil(value / increment) * increment)
         return float(int(value / increment) * increment)
-    
+
     def enforce_product_constraints(self, symbol: str, size_usd: float, price: float, 
                                    is_maker: bool = True) -> dict:
         """
         Enforce Coinbase product constraints (increments, min size, min market funds).
-        
+
         CRITICAL: After rounding, ensures net amount (post-fee) still exceeds minimums.
         This prevents orders from being rejected due to falling below thresholds after fees.
-        
+
         Args:
             symbol: Trading pair (e.g., "BTC-USD")
             size_usd: Desired order size in USD (gross, before fees)
             price: Current price for size conversion
             is_maker: Whether order will be maker (for fee calculation)
-            
+
         Returns:
             Dict with:
                 - success: bool
@@ -793,7 +793,7 @@ class ExecutionEngine:
                 "fee_adjusted": False,
                 "warning": f"Product metadata unavailable: {e}"
             }
-        
+
         if not metadata:
             logger.warning(f"No product metadata found for {symbol}")
             return {
@@ -803,22 +803,22 @@ class ExecutionEngine:
                 "fee_adjusted": False,
                 "warning": "No product metadata found"
             }
-        
+
         # Extract constraints
         base_increment = float(metadata.get("base_increment") or 0)
         quote_increment = float(metadata.get("quote_increment") or 0)
         min_market_funds = float(metadata.get("min_market_funds") or 0)
-        
+
         # Check minimum market funds (initial check)
         if min_market_funds > 0 and size_usd < min_market_funds:
             return {
                 "success": False,
                 "error": f"Size ${size_usd:.2f} below exchange minimum ${min_market_funds:.2f}"
             }
-        
+
         # Calculate base size
         base_size = size_usd / price if price > 0 else 0
-        
+
         # Round to base increment if specified
         if base_increment > 0:
             rounded_base = self.round_to_increment(base_size, base_increment)
@@ -828,29 +828,29 @@ class ExecutionEngine:
                     "error": f"Rounded base size {rounded_base} too small (increment: {base_increment})"
                 }
             base_size = rounded_base
-        
+
         # Recalculate USD size from rounded base
         adjusted_size_usd = base_size * price
-        
+
         # Round to quote increment if specified
         if quote_increment > 0:
             adjusted_size_usd = self.round_to_increment(adjusted_size_usd, quote_increment)
-        
+
         # ===== FEE-ADJUSTED MINIMUM NOTIONAL CHECK =====
         # After rounding, verify net amount (post-fee) still exceeds minimums
         fee_adjusted = False
         fee_bps = self.maker_fee_bps if is_maker else self.taker_fee_bps
         fee_rate = fee_bps / 10000.0
         net_after_fees = adjusted_size_usd * (1.0 - fee_rate)
-        
+
         # Determine effective minimum (higher of exchange min and our policy min)
         effective_min = max(min_market_funds, self.min_notional_usd)
-        
+
         # If net amount falls below minimum after fees, bump up the gross size
         if effective_min > 0 and net_after_fees < effective_min:
             # Calculate required gross size to achieve effective minimum net
             required_gross = effective_min / (1.0 - fee_rate)
-            
+
             # Re-round to ensure compliance with increments
             if base_increment > 0:
                 required_base = required_gross / price if price > 0 else 0
@@ -858,20 +858,20 @@ class ExecutionEngine:
                 adjusted_size_usd = rounded_base * price
             else:
                 adjusted_size_usd = required_gross
-            
+
             # Re-apply quote increment rounding (round up to maintain minimum)
             if quote_increment > 0:
                 adjusted_size_usd = self.round_to_increment(adjusted_size_usd, quote_increment, round_up=True)
-            
+
             # Recalculate base size for return
             base_size = adjusted_size_usd / price if price > 0 else 0
             fee_adjusted = True
-            
+
             logger.debug(
                 f"{symbol}: Fee-adjusted rounding bumped size ${net_after_fees:.2f} net "
                 f"→ ${adjusted_size_usd:.2f} gross (min=${effective_min:.2f}, fee={fee_bps}bps)"
             )
-        
+
         return {
             "success": True,
             "adjusted_size_usd": adjusted_size_usd,
@@ -879,7 +879,7 @@ class ExecutionEngine:
             "fee_adjusted": fee_adjusted,
             "metadata": metadata
         }
-    
+
     def _require_accounts(self, context: str) -> List[Dict]:
         try:
             return self.exchange.get_accounts()
@@ -891,17 +891,17 @@ class ExecutionEngine:
     def adjust_proposals_to_capital(self, proposals: List, portfolio_value_usd: float) -> List[Tuple]:
         """
         Adjust trade sizes based on available capital.
-        
+
         Strategy:
         1. Get actual available balances (USDC, USD, etc.)
         2. Scale down position sizes to fit available capital
         3. Prioritize higher-conviction trades (by confidence score)
         4. Skip trades below minimum notional
-        
+
         Args:
             proposals: List of TradeProposal objects
             portfolio_value_usd: Total portfolio value (for reference)
-            
+
         Returns:
             List of (proposal, adjusted_size_usd) tuples
         """
@@ -912,14 +912,14 @@ class ExecutionEngine:
                 acc['currency']: float(acc.get('available_balance', {}).get('value', 0))
                 for acc in accounts
             }
-            
+
             # Convert all preferred quote currencies to USD
             available_capital = 0.0
             for quote in self.preferred_quotes:
                 balance = balances.get(quote, 0)
                 if balance == 0:
                     continue
-                
+
                 # USD/USDC/USDT are 1:1 with USD
                 if quote in ['USD', 'USDC', 'USDT']:
                     available_capital += balance
@@ -935,16 +935,16 @@ class ExecutionEngine:
                         logger.warning(f"Could not convert {quote} to USD: {e}")
                         # Skip this balance if conversion fails
                         continue
-            
+
             logger.info(f"Available capital: ${available_capital:.2f} across {len([q for q in self.preferred_quotes if balances.get(q, 0) > 0])} currencies")
-            
+
             if available_capital < self.min_notional_usd:
                 logger.warning(f"Insufficient capital: ${available_capital:.2f} < ${self.min_notional_usd} minimum")
                 return []
-            
+
             # Calculate total requested size
             total_requested = sum(portfolio_value_usd * (p.size_pct / 100.0) for p in proposals)
-            
+
             # If we have enough capital, no adjustment needed
             if total_requested <= available_capital:
                 logger.info(f"Sufficient capital: ${total_requested:.2f} requested, ${available_capital:.2f} available")
@@ -961,22 +961,22 @@ class ExecutionEngine:
                         continue
                     sized.append((p, raw_size))
                 return sized
-            
+
             # Capital constrained - need to adjust
             logger.warning(f"Capital constrained: ${total_requested:.2f} requested > ${available_capital:.2f} available")
-            
+
             # Sort proposals by confidence (highest first)
             sorted_proposals = sorted(proposals, key=lambda p: p.confidence, reverse=True)
-            
+
             # Allocate capital proportionally, respecting minimums
             adjusted = []
             remaining_capital = available_capital
-            
+
             for proposal in sorted_proposals:
                 if remaining_capital < self.min_notional_usd:
                     logger.debug(f"Skipping {proposal.symbol}: insufficient remaining capital (${remaining_capital:.2f})")
                     break
-                
+
                 # Calculate proportional size
                 requested_size = portfolio_value_usd * (proposal.size_pct / 100.0)
                 if self.clamp_small_trades and requested_size < self.min_notional_usd:
@@ -986,38 +986,38 @@ class ExecutionEngine:
                     requested_size = self.min_notional_usd
                 scale_factor = available_capital / total_requested
                 adjusted_size = min(requested_size * scale_factor, remaining_capital)
-                
+
                 # Respect minimum notional
                 if adjusted_size < self.min_notional_usd:
                     logger.debug(f"Skipping {proposal.symbol}: adjusted size ${adjusted_size:.2f} < ${self.min_notional_usd} minimum")
                     continue
-                
+
                 adjusted.append((proposal, adjusted_size))
                 remaining_capital -= adjusted_size
-                
+
                 logger.info(f"Adjusted {proposal.symbol}: ${requested_size:.2f} → ${adjusted_size:.2f} (confidence={proposal.confidence:.2f})")
-            
+
             return adjusted
-            
+
         except CriticalDataUnavailable:
             raise
         except Exception as e:
             logger.error(f"Error adjusting proposals to capital: {e}")
             raise CriticalDataUnavailable("capital_adjustment", e) from e
-    
+
     def get_liquidation_candidates(self, min_value_usd: float = 10.0, 
                                   sort_by: str = "performance") -> List[Dict]:
         """
         Identify holdings that could be liquidated for capital.
-        
+
         Strategy:
         - By default, prioritize worst-performing assets (largest 24h loss)
         - Can also sort by lowest value for dust cleanup
-        
+
         Args:
             min_value_usd: Only consider holdings worth more than this
             sort_by: "performance" (default) or "value"
-            
+
         Returns:
             List of holdings with value and performance, sorted accordingly
         """
@@ -1028,29 +1028,29 @@ class ExecutionEngine:
             skipped_preferred = 0
             skipped_below_min = 0
             failed_to_price = 0
-            
+
             for acc in accounts:
                 currency = acc['currency']
                 balance = float(acc.get('available_balance', {}).get('value', 0))
                 account_uuid = acc.get('uuid', '')
-                
+
                 # Skip if balance too low or is a quote currency we prefer
                 if balance == 0:
                     skipped_zero += 1
                     continue
-                
+
                 if currency in self.preferred_quotes:
                     skipped_preferred += 1
                     logger.debug(f"Skipping {currency} (balance={balance:.6f}): preferred quote currency")
                     continue
-                
+
                 # Try to get USD value and performance
                 try:
                     # Try direct USD pair first
                     pair = f"{currency}-USD"
                     quote = self.exchange.get_quote(pair)
                     value_usd = balance * quote.mid
-                    
+
                     if value_usd >= min_value_usd:
                         # Get 24h performance
                         change_24h_pct = 0.0
@@ -1060,7 +1060,7 @@ class ExecutionEngine:
                             change_24h_pct = ((quote.last - quote.mid) / quote.mid) * 100 if quote.mid > 0 else 0.0
                         except Exception:
                             pass
-                        
+
                         candidates.append({
                             'currency': currency,
                             'account_uuid': account_uuid,
@@ -1080,7 +1080,7 @@ class ExecutionEngine:
                         pair = f"{currency}-USDC"
                         quote = self.exchange.get_quote(pair)
                         value_usd = balance * quote.mid
-                        
+
                         if value_usd >= min_value_usd:
                             # Get 24h performance
                             change_24h_pct = 0.0
@@ -1088,7 +1088,7 @@ class ExecutionEngine:
                                 change_24h_pct = ((quote.last - quote.mid) / quote.mid) * 100 if quote.mid > 0 else 0.0
                             except Exception:
                                 pass
-                            
+
                             candidates.append({
                                 'currency': currency,
                                 'account_uuid': account_uuid,
@@ -1105,7 +1105,7 @@ class ExecutionEngine:
                     except Exception as e:
                         failed_to_price += 1
                         logger.debug(f"Failed to price {currency} (balance={balance:.6f}): {e}")
-            
+
             # Sort based on strategy
             if sort_by == "performance":
                 # Worst performers first (most negative change)
@@ -1113,7 +1113,7 @@ class ExecutionEngine:
             else:
                 # Lowest value first (for dust cleanup)
                 candidates.sort(key=lambda x: x['value_usd'])
-            
+
             # Log summary
             total_accounts = len(accounts)
             logger.info(
@@ -1122,21 +1122,21 @@ class ExecutionEngine:
                 f"Skipped: {skipped_zero} zero-balance, {skipped_preferred} preferred-quotes, "
                 f"{skipped_below_min} below-min-value (${min_value_usd:.2f}), {failed_to_price} failed-to-price"
             )
-            
+
             if candidates:
                 total_value = sum(c['value_usd'] for c in candidates)
                 logger.info(f"  💰 Total liquidation value: ${total_value:.2f} (sorted by {sort_by})")
                 worst = candidates[0]
                 logger.info(f"  🎯 Top candidate: {worst['currency']} (${worst['value_usd']:.2f}, {worst['change_24h_pct']:+.2f}% 24h)")
-            
+
             return candidates
-            
+
         except CriticalDataUnavailable:
             raise
         except Exception as e:
             logger.error(f"Error finding liquidation candidates: {e}")
             raise CriticalDataUnavailable("accounts:liquidation_candidates", e) from e
-    
+
     def _disable_convert_api(self, reason: str, status_code: Optional[int], pair: Tuple[str, str]) -> None:
         self._convert_api_disabled = True
         self._convert_api_disabled_at = datetime.now(timezone.utc)
@@ -1153,19 +1153,19 @@ class ExecutionEngine:
                      from_account_uuid: str, to_account_uuid: str) -> Dict:
         """
         Convert one crypto asset to another using Coinbase Convert API.
-        
+
         Flow:
         1. Get quote for conversion
         2. Review quote (exchange rate, fees)
         3. Commit if acceptable
-        
+
         Args:
             from_currency: Source currency (e.g., "PEPE")
             to_currency: Target currency (e.g., "USDC")
             amount: Amount in source currency
             from_account_uuid: Source account UUID
             to_account_uuid: Target account UUID
-            
+
         Returns:
             Dict with success status and details
         """
@@ -1337,20 +1337,20 @@ class ExecutionEngine:
             'to_currency': to_currency,
             'amount': amount
         }
-    
+
     def _find_best_trading_pair(self, base_symbol: str, size_usd: float) -> Optional[Tuple[str, str, float]]:
         """
         Find the best trading pair based on available balance.
-        
+
         Strategy:
         1. First try preferred quote currencies (USDC, USD, USDT, BTC, ETH)
         2. If none have sufficient balance, try ANY coin we hold
         3. This allows trading portfolio holdings against each other
-        
+
         Args:
             base_symbol: Base asset (e.g., "HBAR", "XRP")
             size_usd: USD-equivalent size needed
-            
+
         Returns:
             Tuple of (trading_pair, quote_currency, available_balance) or None
         """
@@ -1361,29 +1361,29 @@ class ExecutionEngine:
                 acc['currency']: float(acc.get('available_balance', {}).get('value', 0))
                 for acc in accounts
             }
-            
+
             logger.info(f"Looking for trading pair: {base_symbol} with ${size_usd:.2f} needed")
             logger.info(f"Current balances: {', '.join([f'{k}={v:.2f}' for k, v in balances.items() if v > 0])}")
 
             stable_currencies = {"USD", "USDC", "USDT"}
             total_stable = sum(balances.get(cur, 0.0) for cur in stable_currencies)
-            
+
             # Track best option even if insufficient
             best_option = None
             best_balance_usd = 0
-            
+
             # Build list of quote currencies to try:
             # 1. Preferred quotes first (USDC, USD, USDT, BTC, ETH)
             # 2. Then any coin we hold (for cross-pair trading)
             all_quote_candidates = list(self.preferred_quotes)
-            
+
             # Add all holdings as potential quote currencies
             for currency in balances.keys():
                 if currency not in all_quote_candidates and currency != base_symbol and balances[currency] > 0:
                     all_quote_candidates.append(currency)
-            
+
             logger.debug(f"Trying {len(all_quote_candidates)} quote candidates: {', '.join(all_quote_candidates[:10])}...")
-            
+
             # Try each quote currency
             for quote in all_quote_candidates:
                 balance = balances.get(quote, 0)
@@ -1391,7 +1391,7 @@ class ExecutionEngine:
                 if balance == 0:
                     logger.debug(f"  Skipping {quote}: zero balance")
                     continue
-                
+
                 # Convert balance to USD equivalent for comparison
                 balance_usd = balance
                 if quote in ['USD', 'USDC', 'USDT']:
@@ -1452,13 +1452,13 @@ class ExecutionEngine:
                         except Exception as e:
                             logger.debug(f"  Could not get USD value for {quote}: {e}")
                             continue
-                
+
                 # Check if trading pair exists
                 pair = f"{base_symbol}-{quote}"
                 try:
                     # Try to get a quote to verify pair exists
                     self.exchange.get_quote(pair)
-                    
+
                     # Check if we have enough balance (prefer full balance, but track best option)
                     if balance_usd >= size_usd:
                         logger.info(f"✅ Selected trading pair: {pair} (balance: {balance:.6f} {quote} = ${balance_usd:.2f})")
@@ -1473,13 +1473,13 @@ class ExecutionEngine:
                 except Exception as e:
                     logger.warning(f"Pair {pair} not available or error: {type(e).__name__}: {str(e)[:100]}")
                     continue
-            
+
             # If no quote has sufficient balance, use the best available (if above minimum)
             if best_option:
                 pair, quote, balance, balance_usd = best_option
                 logger.warning(f"Using best available: {pair} with ${balance_usd:.2f} (requested ${size_usd:.2f})")
                 return (pair, quote, balance)
-            
+
             # Last resort: suggest using Convert API for cross-pair trades
             # Find the largest holding that could be converted
             largest_holding = None
@@ -1503,36 +1503,36 @@ class ExecutionEngine:
                                 value_usd = balance * quote_obj.mid
                             except Exception:
                                 continue
-                    
+
                     if value_usd > largest_value and value_usd >= size_usd:
                         largest_holding = currency
                         largest_value = value_usd
                 except Exception:
                     continue
-            
+
             if largest_holding:
                 logger.info(f"💡 Suggestion: Convert {largest_holding} (${largest_value:.2f}) to USDC, then buy {base_symbol}")
                 logger.info("   This requires implementing two-step conversion flow (Convert API + Buy)")
-            
+
             logger.warning(f"No suitable trading pair found for {base_symbol} with size ${size_usd:.2f}")
             logger.warning(f"Available balances: {', '.join([f'{k}={v:.2f}' for k, v in balances.items() if v > 0])}")
             return None
-            
+
         except CriticalDataUnavailable:
             raise
         except Exception as e:
             logger.error(f"Error finding trading pair: {e}")
             raise CriticalDataUnavailable("accounts:find_best_pair", e) from e
-    
+
     def preview_order(self, symbol: str, side: str, size_usd: float, skip_liquidity_checks: bool = False) -> Dict:
         """
         Preview an order without placing it.
-        
+
         Args:
             symbol: e.g. "BTC-USD"
             side: "BUY" or "SELL"
             size_usd: USD amount to trade
-            
+
         Returns:
             Preview result with estimated fills, fees, slippage
         """
@@ -1541,11 +1541,11 @@ class ExecutionEngine:
                 "success": False,
                 "error": f"Size ${size_usd:.2f} below minimum ${self.min_notional_usd}"
             }
-        
+
         try:
             # Get quote for slippage estimate
             quote = self.exchange.get_quote(symbol)
-            
+
             # Validate quote freshness
             staleness_error = self._validate_quote_freshness(quote, symbol)
             if staleness_error:
@@ -1587,20 +1587,20 @@ class ExecutionEngine:
                         }
             else:
                 logger.debug(f"Skipping liquidity checks for {symbol} {side} purge/forced execution.")
-            
+
             # Estimate fill
             if side.upper() == "BUY":
                 estimated_price = quote.ask
             else:
                 estimated_price = quote.bid
-            
+
             estimated_size = size_usd / estimated_price
-            
+
             # Use configured fee structure (default to maker fees for limit post-only)
             is_maker = self.limit_post_only
             estimated_fees = self.estimate_fee(size_usd, is_maker=is_maker)
             estimated_slippage_bps = quote.spread_bps / 2
-            
+
             # If not DRY_RUN and auth available, call real preview API
             if self.mode != "DRY_RUN" and self.exchange.api_key:
                 try:
@@ -1611,7 +1611,7 @@ class ExecutionEngine:
                         pass
                 except Exception as e:
                     logger.warning(f"API preview failed, using estimates: {e}")
-            
+
             return {
                 "success": True,
                 "symbol": symbol,
@@ -1623,11 +1623,11 @@ class ExecutionEngine:
                 "estimated_slippage_bps": estimated_slippage_bps,
                 "spread_bps": quote.spread_bps,
             }
-            
+
         except Exception as e:
             logger.error(f"Preview failed for {symbol}: {e}")
             return {"success": False, "error": str(e)}
-    
+
     def execute(self, symbol: str, side: str, size_usd: float,
                 client_order_id: Optional[str] = None,
                 max_slippage_bps: Optional[str] = None,
@@ -1640,7 +1640,7 @@ class ExecutionEngine:
                 exit_reason: Optional[str] = None) -> ExecutionResult:
         """
         Execute a trade.
-        
+
         Args:
             symbol: Base asset symbol or trading pair (e.g., "HBAR", "BTC-USD")
             side: "BUY" or "SELL"
@@ -1649,7 +1649,7 @@ class ExecutionEngine:
             max_slippage_bps: Optional slippage limit (overrides default)
             bypass_slippage_budget: Skip tier slippage+fee budget enforcement (for forced purges)
             bypass_failed_order_cooldown: Ignore recent failure cooldown gate (for safety purges)
-            
+
         Returns:
             ExecutionResult with fill details
         """
@@ -1660,10 +1660,10 @@ class ExecutionEngine:
                 "Cannot execute LIVE orders with read_only exchange. "
                 "Set exchange.read_only=false in config/app.yaml to enable real trading."
             )
-        
+
         # Extract base symbol if full pair provided (e.g., "BTC-USD" -> "BTC")
         base_symbol = symbol.split('-')[0] if '-' in symbol else symbol
-        
+
         # Cooldown: skip if this symbol recently failed
         if not bypass_failed_order_cooldown and self.failed_order_cooldown_seconds > 0:
             now = datetime.now(timezone.utc).timestamp()
@@ -1690,14 +1690,14 @@ class ExecutionEngine:
                 symbol = pair_info[0]  # Use the found trading pair
                 quote_currency = pair_info[0].split('-')[1]  # Extract quote (USDC, USD, etc.)
                 available_balance = pair_info[2]  # Raw balance in quote currency
-                
+
                 # Adjust size if available balance is less than requested (for stablecoins)
                 if quote_currency in ['USD', 'USDC', 'USDT']:
                     available_balance_usd = available_balance
                     if available_balance_usd < size_usd:
                         logger.warning(f"Adjusting trade size: ${size_usd:.2f} → ${available_balance_usd:.2f} (limited by {quote_currency} balance)")
                         size_usd = max(self.min_notional_usd, available_balance_usd * 0.99)  # Use 99% to leave room for fees
-                
+
                 # If we ended up using a non-top preferred quote and auto-convert is enabled, 
                 # try to acquire the preferred quote (e.g., convert USD → USDC) and re-select pair
                 top_pref = self.preferred_quotes[0] if self.preferred_quotes else quote_currency
@@ -1738,7 +1738,7 @@ class ExecutionEngine:
         elif '-' not in symbol:
             # Default to USD if no pair specified and not buying
             symbol = f"{symbol}-USD"
-        
+
         # Validate mode
         if self.mode == "DRY_RUN":
             # Shadow execution - log comprehensive details without submitting
@@ -1751,11 +1751,11 @@ class ExecutionEngine:
                 confidence=confidence,
                 conviction=None  # Extract from metadata if needed
             )
-        
+
         if self.mode == "PAPER":
             # Simulate execution with live quotes
             return self._execute_paper(symbol, side, size_usd, client_order_id)
-        
+
         if self.mode == "LIVE":
             # Real execution
             return self._execute_live(
@@ -1771,9 +1771,9 @@ class ExecutionEngine:
                 confidence=confidence,
                 exit_reason=exit_reason,
             )
-        
+
         raise ValueError(f"Invalid mode: {self.mode}")
-    
+
     def _execute_shadow(self, symbol: str, side: str, size_usd: float,
                        client_order_id: Optional[str],
                        tier: Optional[int] = None,
@@ -1781,25 +1781,25 @@ class ExecutionEngine:
                        conviction: Optional[float] = None) -> ExecutionResult:
         """
         Shadow DRY_RUN mode - log comprehensive execution details without submitting.
-        
+
         This provides production validation by logging:
         - Live quotes (bid/ask/spread/age)
         - Intended execution route and price
         - Expected fees and slippage
         - Liquidity checks (spread/depth)
         - Risk context (tier/confidence/conviction)
-        
+
         Use for:
         - Validating rules engine before going LIVE
         - Comparing shadow vs actual LIVE execution
         - Debugging without risk
         """
         logger.info(f"SHADOW_DRY_RUN: Would execute {side} ${size_usd:.2f} of {symbol}")
-        
+
         # Generate deterministic ID if not provided
         if not client_order_id:
             client_order_id = self.generate_client_order_id(symbol, side, size_usd)
-        
+
         # Track order state for monitoring
         self.order_state_machine.create_order(
             client_order_id=client_order_id,
@@ -1808,13 +1808,13 @@ class ExecutionEngine:
             size_usd=size_usd,
             route="shadow_dry_run"
         )
-        
+
         # Get config hash for audit trail
         import hashlib
         import json
         config_str = json.dumps(self.policy, sort_keys=True)
         config_hash = hashlib.sha256(config_str.encode()).hexdigest()[:8]
-        
+
         would_place = True
         rejection_reason = None
         expected_slippage_bps = 0.0
@@ -1825,11 +1825,11 @@ class ExecutionEngine:
         passed_depth_check = False
         orderbook_depth_20bps_usd = None
         size_units = 0.0
-        
+
         try:
             # Fetch live quote to show what price would be
             quote = self.exchange.get_quote(symbol)
-            
+
             # Check quote freshness
             freshness_error = self._validate_quote_freshness(quote, symbol)
             if freshness_error:
@@ -1842,22 +1842,22 @@ class ExecutionEngine:
                     intended_price = quote.ask
                 else:
                     intended_price = quote.bid
-                
+
                 size_units = size_usd / intended_price
-                
+
                 # Estimate fees
                 is_maker = self.limit_post_only
                 expected_fees_usd = self.estimate_fee(size_usd, is_maker=is_maker)
-                
+
                 # Estimate slippage
                 expected_slippage_bps = quote.spread_bps / 2
-                
+
                 # Determine route
                 if self.limit_post_only:
                     intended_route = "limit_post"
                 else:
                     intended_route = "market_ioc"
-                
+
                 # Check spread
                 if quote.spread_bps > self.max_spread_bps:
                     passed_spread_check = False
@@ -1867,16 +1867,16 @@ class ExecutionEngine:
                     logger.warning(f"Shadow: {rejection_reason}")
                 else:
                     passed_spread_check = True
-                
+
                 # Check depth if available
                 try:
                     product_id = symbol
                     book = self.exchange.get_product_book(product_id, level=2)
-                    
+
                     # Calculate depth within 20bps of mid
                     mid = (quote.bid + quote.ask) / 2
                     depth_range_pct = 0.002  # 20bps = 0.2%
-                    
+
                     if side.upper() == "BUY":
                         # Check ask side depth
                         max_price = mid * (1 + depth_range_pct)
@@ -1893,9 +1893,9 @@ class ExecutionEngine:
                             for bid in book.get('bids', [])
                             if float(bid['price']) >= min_price
                         )
-                    
+
                     orderbook_depth_20bps_usd = depth_usd
-                    
+
                     # Check if depth sufficient (want 2x order size)
                     required_depth = size_usd * self.min_depth_multiplier
                     if depth_usd < required_depth:
@@ -1906,16 +1906,16 @@ class ExecutionEngine:
                         logger.warning(f"Shadow: {rejection_reason}")
                     else:
                         passed_depth_check = True
-                        
+
                 except Exception as depth_e:
                     logger.warning(f"Shadow: Could not check depth: {depth_e}")
                     passed_depth_check = False  # Conservative: assume failed if can't check
-                    
+
         except Exception as e:
             would_place = False
             rejection_reason = f"Failed to fetch quote: {str(e)}"
             logger.error(f"Shadow execution error: {e}")
-            
+
             # Use dummy quote for logging
             quote = Mock()
             quote.symbol = symbol
@@ -1926,7 +1926,7 @@ class ExecutionEngine:
             quote.last = 0.0
             quote.volume_24h = 0.0
             quote.timestamp = datetime.now(timezone.utc)
-        
+
         # Log shadow order
         try:
             tier_str = f"T{tier}" if tier else "unknown"
@@ -1952,7 +1952,7 @@ class ExecutionEngine:
                 orderbook_depth_20bps_usd=orderbook_depth_20bps_usd
             )
             self.shadow_logger.log_order(shadow_order)
-            
+
             # Also log rejection separately if applicable
             if not would_place and rejection_reason:
                 self.shadow_logger.log_rejection(
@@ -1970,10 +1970,10 @@ class ExecutionEngine:
                 )
         except Exception as log_e:
             logger.error(f"Failed to log shadow order: {log_e}")
-        
+
         # Immediately transition to terminal state (not actually submitted)
         self.order_state_machine.transition(client_order_id, OrderStatus.FILLED)
-        
+
         return ExecutionResult(
             success=True,
             order_id=f"shadow_{client_order_id}",  # Shadow prefix distinguishes from real orders
@@ -1985,18 +1985,18 @@ class ExecutionEngine:
             slippage_bps=0.0,
             route="shadow_dry_run"  # DRY_RUN uses shadow execution path
         )
-    
+
     def _execute_paper(self, symbol: str, side: str, size_usd: float,
                       client_order_id: Optional[str]) -> ExecutionResult:
         """
         Simulate execution with live quotes (paper trading).
         """
         logger.info(f"PAPER: Simulating {side} ${size_usd:.2f} of {symbol}")
-        
+
         # Generate deterministic ID if not provided
         if not client_order_id:
             client_order_id = self.generate_client_order_id(symbol, side, size_usd)
-        
+
         # Create order state
         self.order_state_machine.create_order(
             client_order_id=client_order_id,
@@ -2005,29 +2005,29 @@ class ExecutionEngine:
             size_usd=size_usd,
             route="paper"
         )
-        
+
         try:
             # Get live quote
             quote = self.exchange.get_quote(symbol)
-            
+
             # Transition to OPEN (simulated submission)
             self.order_state_machine.transition(
                 client_order_id,
                 OrderStatus.OPEN,
                 order_id=f"paper_{client_order_id}"
             )
-            
+
             # Simulate fill at ask (buy) or bid (sell)
             if side.upper() == "BUY":
                 fill_price = quote.ask
             else:
                 fill_price = quote.bid
-            
+
             filled_size = size_usd / fill_price
             # Use configured fees (paper/dry-run uses maker fees)
             fees = self.estimate_fee(size_usd, is_maker=self.limit_post_only)
             slippage_bps = quote.spread_bps / 2
-            
+
             # Update fill details and transition to FILLED
             self.order_state_machine.update_fill(
                 client_order_id=client_order_id,
@@ -2035,7 +2035,7 @@ class ExecutionEngine:
                 filled_value=size_usd,
                 fees=fees
             )
-            
+
             return ExecutionResult(
                 success=True,
                 order_id=f"paper_{client_order_id}",
@@ -2047,7 +2047,7 @@ class ExecutionEngine:
                 slippage_bps=slippage_bps,
                 route="paper_simulated"
             )
-            
+
         except Exception as e:
             logger.error(f"Paper execution failed: {e}")
             # Transition to FAILED
@@ -2068,7 +2068,7 @@ class ExecutionEngine:
                 route="paper_simulated",
                 error=str(e)
             )
-    
+
     def _execute_live(self, symbol: str, side: str, size_usd: float,
                      client_order_id: Optional[str],
                      max_slippage_bps: Optional[float],
@@ -2411,7 +2411,7 @@ class ExecutionEngine:
                 post_only_retry_count = 0
                 max_post_only_retries = 1  # Allow 1 retry with wider cushion
                 result = None
-                
+
                 while post_only_retry_count <= max_post_only_retries:
                     try:
                         result = self.exchange.place_order(
@@ -2422,7 +2422,7 @@ class ExecutionEngine:
                             order_type=order_type,
                             maker_cushion_ticks=maker_cushion_ticks if use_maker else 0,
                         )
-                        
+
                         # Check for post-only error
                         if (
                             use_maker
@@ -2448,7 +2448,7 @@ class ExecutionEngine:
                         logger.error("Order placement exception: %s", place_exc)
                         result = {"success": False, "error": str(place_exc)}
                         break
-                
+
                 # If post-only retries exhausted and still failing, attempt taker fallback
                 if (
                     use_maker
@@ -2461,12 +2461,12 @@ class ExecutionEngine:
                     )
                     # Clear pending marker for failed post-only
                     self._clear_pending_marker(symbol, side, client_order_id=attempt_client_order_id)
-                    
+
                     # Check if taker is allowed by slippage budget
                     if self._is_taker_slippage_allowed(est_slippage_bps, tier):
                         taker_total_cost = est_slippage_bps + self.taker_fee_bps
                         slippage_budget = self._get_slippage_budget(tier) if tier is not None else None
-                        
+
                         if slippage_budget is None or taker_total_cost <= slippage_budget:
                             logger.info(
                                 "Taker fallback: placing IOC order for %s @ %.1f bps total cost (slippage %.1f + fee %.1f)",
@@ -2511,7 +2511,7 @@ class ExecutionEngine:
                     error_detail = error_response.get('error', '')
                     error_message = error_response.get('message', '')
                     preview_failure_reason = error_response.get('preview_failure_reason', '')
-                    
+
                     # Build comprehensive error message
                     error_parts = [f"Order placement failed: {error_basic}"]
                     if error_detail:
@@ -2520,9 +2520,9 @@ class ExecutionEngine:
                         error_parts.append(f"message={error_message}")
                     if preview_failure_reason:
                         error_parts.append(f"preview_failure={preview_failure_reason}")
-                    
+
                     error_msg = " | ".join(error_parts)
-                    
+
                     logger.error(
                         "ORDER_REJECT %s %s client_id=%s | %s | raw_response=%s",
                         symbol,
@@ -2531,7 +2531,7 @@ class ExecutionEngine:
                         error_msg,
                         result  # Log full response for debugging
                     )
-                    
+
                     self.order_state_machine.transition(
                         attempt_client_order_id,
                         OrderStatus.REJECTED,
@@ -2558,7 +2558,7 @@ class ExecutionEngine:
                     ttl_seconds if use_maker else "na",
                     status,
                 )
-                
+
                 # Record order placed metric
                 if self.prometheus_exporter:
                     self.prometheus_exporter.record_order_placed(symbol, side.lower(), size_usd)
@@ -2681,12 +2681,12 @@ class ExecutionEngine:
                         route,
                         ttl_canceled,
                     )
-                    
+
                     # Record order filled metric
                     if self.prometheus_exporter:
                         fill_pct = (filled_size * filled_price) / size_usd if size_usd > 0 else 0.0
                         self.prometheus_exporter.record_order_filled(symbol, side.lower(), filled_size, fill_pct)
-                    
+
                     # Log trade entry/exit for analytics and apply cooldowns
                     try:
                         if side.lower() == "buy":
@@ -2717,14 +2717,14 @@ class ExecutionEngine:
                             trade_record.exit_fee = fees
                             trade_record.exit_is_maker = use_maker
                             trade_record.exit_reason = exit_reason or "manual"
-                            
+
                             # Calculate PnL and attribution
                             trade_record.calculate_pnl()
                             trade_record.calculate_attribution()
-                            
+
                             # Log the completed trade
                             self.trade_log.log_exit(trade_record)
-                            
+
                             # Apply cooldown based on outcome
                             try:
                                 # Determine outcome for cooldown
@@ -2735,14 +2735,14 @@ class ExecutionEngine:
                                     outcome = "win"
                                 else:
                                     outcome = "loss"
-                                
+
                                 # Apply cooldown if risk engine available
                                 if hasattr(self, 'risk_engine') and self.risk_engine and hasattr(self.risk_engine, 'trade_limits'):
                                     self.risk_engine.trade_limits.apply_cooldown(symbol, outcome=outcome)
                                     logger.debug("Applied %s cooldown for %s", outcome, symbol)
                             except Exception as cd_exc:
                                 logger.warning("Failed to apply cooldown for %s: %s", symbol, cd_exc)
-                            
+
                             logger.debug(
                                 "Trade exit logged: %s SELL @ %.6f (PnL: %.2f%%, net: $%.2f)",
                                 symbol,
@@ -2752,7 +2752,7 @@ class ExecutionEngine:
                             )
                         elif side.lower() == "sell":
                             logger.debug("SELL order for %s but no open trade found (may be direct liquidation)", symbol)
-                        
+
                         # Record trade for spacing checks (both BUY and SELL)
                         if hasattr(self, 'risk_engine') and self.risk_engine and hasattr(self.risk_engine, 'trade_limits'):
                             self.risk_engine.trade_limits.record_trade(symbol)
@@ -2836,28 +2836,28 @@ class ExecutionEngine:
 
         except Exception as e:
             logger.error(f"Live execution failed: {e}")
-            
+
             # Track rejection for burst detection
             now = datetime.now(timezone.utc)
             self._rejection_history.append((now, symbol, str(e)))
-            
+
             # Clean old rejections (>10 minutes)
             cutoff = now - timedelta(seconds=self._rejection_window_seconds)
             self._rejection_history = [
                 (ts, sym, reason) for ts, sym, reason in self._rejection_history
                 if ts > cutoff
             ]
-            
+
             # Alert on rejection burst
             if len(self._rejection_history) >= self._rejection_threshold:
                 if hasattr(self, 'alert_service') and self.alert_service:
                     from infra.alerting import AlertSeverity
-                    
+
                     # Count rejection reasons
                     rejection_reasons = {}
                     for _, sym, reason in self._rejection_history:
                         rejection_reasons[reason] = rejection_reasons.get(reason, 0) + 1
-                    
+
                     self.alert_service.notify(
                         severity=AlertSeverity.WARNING,
                         title="⚠️ Order Rejection Burst",
@@ -2871,7 +2871,7 @@ class ExecutionEngine:
                         }
                     )
                     logger.error(f"🚨 REJECTION BURST: {len(self._rejection_history)} orders rejected")
-            
+
             try:
                 self.order_state_machine.transition(
                     active_client_order_id,
@@ -3303,29 +3303,29 @@ class ExecutionEngine:
         """
         live_identifiers: Set[str] = set()
         remote_orders: List[Dict[str, Any]] = []
-        
+
         # Purge expired entries from recently-canceled cache
         self._purge_expired_recently_canceled()
-        
+
         # Fetch open orders from exchange
         try:
             remote_orders = self.exchange.list_open_orders()
         except Exception as exc:
             logger.debug("Open order fetch failed during reconciliation: %s", exc)
             return  # Early exit if fetch fails
-        
+
         # Filter out orders that were recently canceled (Coinbase eventual consistency)
         filtered_remote_orders = []
         for remote in remote_orders or []:
             order_id = remote.get("order_id") or remote.get("id")
             client_id = remote.get("client_order_id") or remote.get("client_order_id_v2")
-            
+
             # Check if this order was recently canceled
             is_recently_canceled = (
                 (order_id and order_id in self._recently_canceled) or
                 (client_id and client_id in self._recently_canceled)
             )
-            
+
             if is_recently_canceled:
                 logger.debug(
                     "Filtering out recently-canceled order %s (%s) from remote_orders (API eventual consistency)",
@@ -3333,7 +3333,7 @@ class ExecutionEngine:
                     client_id or "?",
                 )
                 continue
-            
+
             filtered_remote_orders.append(remote)
 
         # Use filtered list for rest of processing
@@ -3351,27 +3351,27 @@ class ExecutionEngine:
         # Check for stale orders in local state that aren't on exchange
         now_utc = datetime.now(timezone.utc)
         stale_local_orders: List[Dict[str, Any]] = []
-        
+
         if self.state_store:
             local_open = self.state_store.load().get("open_orders", {})
-            
+
             for key, local_order in local_open.items():
                 order_id = local_order.get("order_id")
                 client_id = local_order.get("client_order_id")
                 created_str = local_order.get("created_time")
-                
+
                 # Check if order exists on exchange
                 is_on_exchange = (
                     (order_id and order_id in live_identifiers) or
                     (client_id and client_id in live_identifiers)
                 )
-                
+
                 # If not on exchange and has created_time, check if stale
                 if not is_on_exchange and created_str:
                     try:
                         created_dt = datetime.fromisoformat(created_str.replace('Z', '+00:00'))
                         age_seconds = (now_utc - created_dt).total_seconds()
-                        
+
                         if age_seconds > self.MAX_ORDER_AGE_SECONDS:
                             stale_local_orders.append({
                                 "order_id": order_id,
@@ -3388,20 +3388,20 @@ class ExecutionEngine:
         # Process stale orders in remote list (still on exchange, need to cancel)
         stale_remote_orders: List[Dict[str, Any]] = []
         fresh_orders: List[Dict[str, Any]] = []
-        
+
         for remote in remote_orders:
             order_id = remote.get("order_id") or remote.get("id")
             if not order_id:
                 continue
-                
+
             created_str = remote.get("created_time")
             is_stale = False
-            
+
             if created_str:
                 try:
                     created_dt = datetime.fromisoformat(created_str.replace('Z', '+00:00'))
                     age_seconds = (now_utc - created_dt).total_seconds()
-                    
+
                     if age_seconds > self.MAX_ORDER_AGE_SECONDS:
                         is_stale = True
                         stale_remote_orders.append({
@@ -3414,7 +3414,7 @@ class ExecutionEngine:
                         })
                 except (ValueError, TypeError):
                     pass  # Treat unparseable dates as fresh
-            
+
             if not is_stale:
                 fresh_orders.append(remote)
 
@@ -3432,12 +3432,12 @@ class ExecutionEngine:
                 self.sync_open_orders_snapshot(fresh_orders)
             except Exception as exc:
                 logger.debug("Open order snapshot sync failed: %s", exc)
-            
+
             try:
                 self._backfill_pending_markers(fresh_orders)
             except Exception as exc:
                 logger.debug("Pending marker backfill failed: %s", exc)
-            
+
             self.state_store.purge_expired_pending()
 
         # Reconcile tracked orders against live identifiers
@@ -3451,7 +3451,7 @@ class ExecutionEngine:
     def _cancel_stale_orders_batch(self, stale_orders: List[Dict[str, Any]], on_exchange: bool = True) -> None:
         """
         Cancel multiple stale orders and update state atomically.
-        
+
         Args:
             stale_orders: List of stale order dicts
             on_exchange: If True, actually call exchange API to cancel (for remote orders).
@@ -3459,22 +3459,22 @@ class ExecutionEngine:
         """
         if not stale_orders:
             return
-        
+
         logger.warning(
             "STALE_ORDER_CLEANUP: %s %d order(s) older than %.1f min",
             "Canceling" if on_exchange else "Cleaning",
             len(stale_orders),
             self.MAX_ORDER_AGE_SECONDS / 60,
         )
-        
+
         canceled_count = 0
         failed_count = 0
-        
+
         for stale in stale_orders:
             order_id = stale["order_id"]
             client_id = stale.get("client_order_id")
             product_id = stale["product_id"]
-            
+
             logger.info(
                 "STALE_ORDER_%s: %s %s order %s age=%.1fmin created=%s",
                 "CANCEL" if on_exchange else "CLEANUP",
@@ -3484,7 +3484,7 @@ class ExecutionEngine:
                 stale["age_minutes"],
                 stale.get("created_time", "?"),
             )
-            
+
             try:
                 success = True
                 if on_exchange and order_id:
@@ -3501,17 +3501,17 @@ class ExecutionEngine:
                         continue
 
                 canceled_count += 1
-                
+
                 # Add to recently-canceled cache to prevent API re-adding (eventual consistency)
                 now = time.time()
                 if order_id:
                     self._recently_canceled[order_id] = now
                 if client_id:
                     self._recently_canceled[client_id] = now
-                
+
                 # Clear pending marker and transition state regardless of 404
                 self._cleanup_order_state(stale)
-                
+
             except Exception as cancel_exc:
                 failed_count += 1
                 logger.warning(
@@ -3520,7 +3520,7 @@ class ExecutionEngine:
                     order_id or "?",
                     cancel_exc,
                 )
-        
+
         if canceled_count > 0:
             logger.info(
                 "STALE_ORDER_CLEANUP: %s %d/%d stale orders (freed capacity)",
@@ -3528,7 +3528,7 @@ class ExecutionEngine:
                 canceled_count,
                 len(stale_orders),
             )
-        
+
         if failed_count > 0:
             logger.warning(
                 "STALE_ORDER_CLEANUP: Failed to cancel %d/%d orders (may need manual intervention)",
@@ -3542,7 +3542,7 @@ class ExecutionEngine:
             "STALE_LOCAL_CLEANUP: Removing %d stale order(s) from local state (already gone from exchange)",
             len(stale_orders),
         )
-        
+
         for stale in stale_orders:
             logger.info(
                 "STALE_LOCAL_CLEANUP: %s %s order %s age=%.1fmin (not on exchange)",
@@ -3551,10 +3551,10 @@ class ExecutionEngine:
                 stale.get("order_id", "?"),
                 stale["age_minutes"],
             )
-            
+
             # Clear pending markers and state
             self._cleanup_order_state(stale)
-    
+
     def _purge_expired_recently_canceled(self) -> None:
         """Remove entries from _recently_canceled that are older than TTL."""
         now = time.time()
@@ -3564,24 +3564,24 @@ class ExecutionEngine:
         ]
         for key in expired_keys:
             del self._recently_canceled[key]
-        
+
         if expired_keys:
             logger.debug(
                 "Purged %d expired entries from recently-canceled cache",
                 len(expired_keys),
             )
-    
+
     def is_recently_canceled(self, order_id: Optional[str] = None, client_order_id: Optional[str] = None) -> bool:
         """
         Check if an order was recently canceled (within TTL window).
-        
+
         This helps filter out ghost orders that may still appear in list_open_orders()
         due to API eventual consistency.
-        
+
         Args:
             order_id: Exchange order ID
             client_order_id: Client order ID
-            
+
         Returns:
             True if the order was canceled within the TTL window
         """
@@ -3589,16 +3589,16 @@ class ExecutionEngine:
             (order_id and order_id in self._recently_canceled) or
             (client_order_id and client_order_id in self._recently_canceled)
         )
-    
+
     def _cleanup_order_state(self, order_info: Dict[str, Any]) -> None:
         """Clear pending markers and transition order state for a canceled/stale order."""
         if not self.state_store:
             return
-        
+
         product_id = order_info.get("product_id")
         client_id = order_info.get("client_order_id")
         side = (order_info.get("side") or "").upper()
-        
+
         if product_id and side in ("BUY", "SELL") and client_id:
             self.state_store.clear_pending(product_id, side, client_order_id=client_id)
             logger.debug(
@@ -3607,7 +3607,7 @@ class ExecutionEngine:
                 side,
                 client_id,
             )
-        
+
         # Transition order state machine if tracked
         if client_id:
             try:
@@ -3734,26 +3734,26 @@ class ExecutionEngine:
         """Create pending markers from existing open orders during reconciliation."""
         if not self.state_store:
             return
-        
+
         for order in remote_orders:
             product_id = order.get("product_id") or order.get("symbol")
             side = (order.get("side") or "").upper()
-            
+
             if not product_id or side != "BUY":
                 continue
-            
+
             # Check if marker already exists
             if self.state_store.has_pending(product_id, side):
                 continue
-            
+
             order_id = order.get("order_id") or order.get("id")
             client_id = order.get("client_order_id") or order.get("client_order_id_v2")
-            
+
             # Estimate notional
             config = order.get("order_configuration") or {}
             limit_conf = config.get("limit_limit_gtc") or config.get("limit_limit_gtc_post_only")
             market_conf = config.get("market_market_ioc")
-            
+
             notional = 0.0
             if limit_conf:
                 try:
@@ -3768,10 +3768,10 @@ class ExecutionEngine:
                     notional = float(market_conf.get("quote_size") or 0.0)
                 except (TypeError, ValueError):
                     pass
-            
+
             if notional <= 0:
                 notional = self.min_notional_usd
-            
+
             # Set pending marker with TTL
             try:
                 ttl_hint = max(self.post_only_ttl_seconds * 2, 180) if self.post_only_ttl_seconds else 180
@@ -4086,14 +4086,14 @@ class ExecutionEngine:
                     logger.debug("Pending marker set failed for %s: %s", symbol, exc)
         except Exception as exc:
             logger.warning("State store update failed after execution: %s", exc)
-    
+
     def execute_batch(self, orders: List[Dict]) -> List[ExecutionResult]:
         """
         Execute multiple orders sequentially.
-        
+
         Args:
             orders: List of order dicts with keys: symbol, side, size_usd
-            
+
         Returns:
             List of ExecutionResults
         """
@@ -4107,19 +4107,19 @@ class ExecutionEngine:
                 max_slippage_bps=order.get("max_slippage_bps")
             )
             results.append(result)
-            
+
             # Stop on first failure if critical
             if not result.success and order.get("critical", False):
                 logger.warning("Critical order failed, stopping batch execution")
                 break
-        
+
         return results
 
     # ===== Fill reconciliation =====
     def reconcile_fills(self, lookback_minutes: int = 60) -> Dict[str, Any]:
         """
         Poll fills from exchange and reconcile with order states and positions.
-        
+
         Strategy:
         1. Fetch recent fills from exchange (lookback window)
         2. Match fills to tracked orders in OrderStateMachine
@@ -4127,10 +4127,10 @@ class ExecutionEngine:
         4. Transition orders to appropriate states (PARTIAL_FILL, FILLED)
         5. Update StateStore with fill details
         6. Return reconciliation summary
-        
+
         Args:
             lookback_minutes: How far back to query fills (default: 60 minutes)
-            
+
         Returns:
             Dict with:
                 - fills_processed: int
@@ -4141,30 +4141,30 @@ class ExecutionEngine:
         """
         if self.mode == "DRY_RUN":
             return {"fills_processed": 0, "orders_updated": 0, "total_fees": 0.0}
-        
+
         try:
             # Calculate lookback time
             start_time = datetime.now(timezone.utc) - timedelta(minutes=lookback_minutes)
-            
+
             # Fetch fills from exchange
             fills = self.exchange.list_fills(limit=1000, start_time=start_time)
-            
+
             if not fills:
                 logger.debug("No fills to reconcile")
                 return {"fills_processed": 0, "orders_updated": 0, "total_fees": 0.0}
-            
+
             logger.info(f"Reconciling {len(fills)} fills from last {lookback_minutes} minutes")
-            
+
             # Track reconciliation stats
             fills_processed = 0
             orders_updated = set()
             total_fees = 0.0
             fills_by_symbol = {}
             unmatched_fills = []
-            
+
             for fill in fills:
                 fills_processed += 1
-                
+
                 # Extract fill details
                 order_id = fill.get("order_id")
                 product_id = fill.get("product_id", "")
@@ -4209,10 +4209,10 @@ class ExecutionEngine:
 
                 # Track fees
                 total_fees += fees_value
-                
+
                 # Track fills by symbol
                 fills_by_symbol[product_id] = fills_by_symbol.get(product_id, 0) + 1
-                
+
                 # Track position and calculate PnL
                 if (
                     self.state_store
@@ -4258,7 +4258,7 @@ class ExecutionEngine:
                     except Exception as e:
                         logger.debug(f"Could not record fill for PnL tracking: {e}")
                         # Continue processing other fills
-                
+
                 # Find matching order in state machine
                 # We need to search by order_id since fills use exchange order_id
                 matching_order = None
@@ -4266,32 +4266,32 @@ class ExecutionEngine:
                     if order_state.order_id == order_id:
                         matching_order = (client_id, order_state)
                         break
-                
+
                 if not matching_order:
                     logger.debug(f"No tracked order for fill: {order_id} ({product_id})")
                     unmatched_fills.append(fill)
                     continue
-                
+
                 client_id, order_state = matching_order
                 orders_updated.add(client_id)
-                
+
                 # Calculate fill value from extracted metrics
                 fill_value = base_size * avg_price if base_size > 0 and avg_price > 0 else 0.0
-                
+
                 # Update order state with fill details
                 current_filled = order_state.filled_size or 0.0
                 current_filled_value = order_state.filled_value or 0.0
                 current_fees = order_state.fees or 0.0
-                
+
                 new_filled_size = current_filled + base_size
                 new_filled_value = current_filled_value + fill_value
                 new_fees = current_fees + fees_value
-                
+
                 # Store fill in order state
                 if not hasattr(order_state, 'fills') or order_state.fills is None:
                     order_state.fills = []
                 order_state.fills.append(fill)
-                
+
                 # Update fill totals
                 self.order_state_machine.update_fill(
                     client_order_id=client_id,
@@ -4300,7 +4300,7 @@ class ExecutionEngine:
                     fees=new_fees,
                     fills=order_state.fills
                 )
-                
+
                 # Determine if order is fully filled
                 # For now, we'll transition to FILLED when we see a fill (most are instant fills)
                 # In a more sophisticated system, we'd check order_state.size_usd vs filled_value
@@ -4320,7 +4320,7 @@ class ExecutionEngine:
                             OrderStatus.FILLED
                         )
                         logger.info(f"Order {client_id} fully filled: ${new_filled_value:.2f}")
-                        
+
                         # Close in state store
                         if self.state_store:
                             self._close_order_in_state_store(
@@ -4337,7 +4337,7 @@ class ExecutionEngine:
                                     "trade_time": trade_time
                                 }
                             )
-            
+
             # Get PnL metrics
             realized_pnl_usd = 0.0
             open_positions = 0
@@ -4348,7 +4348,7 @@ class ExecutionEngine:
                     open_positions = len(state.get("positions", {}))
                 except Exception as e:
                     logger.debug(f"Could not read PnL from state: {e}")
-            
+
             summary = {
                 "fills_processed": fills_processed,
                 "orders_updated": len(orders_updated),
@@ -4358,16 +4358,16 @@ class ExecutionEngine:
                 "realized_pnl_usd": realized_pnl_usd,
                 "open_positions": open_positions
             }
-            
+
             if fills_processed > 0:
                 logger.info(
                     f"Fill reconciliation complete: {fills_processed} fills processed, "
                     f"{len(orders_updated)} orders updated, ${total_fees:.4f} total fees, "
                     f"${realized_pnl_usd:.2f} daily PnL, {open_positions} open positions"
                 )
-            
+
             return summary
-            
+
         except Exception as e:
             logger.error(f"Fill reconciliation failed: {e}", exc_info=True)
             return {
@@ -4381,10 +4381,10 @@ class ExecutionEngine:
     def manage_open_orders(self) -> None:
         """
         Cancel stale open limit orders based on policy timings.
-        
+
         Uses OrderStateMachine to track order age and transitions canceled
         orders to CANCELED state for proper lifecycle tracking.
-        
+
         Strategy:
         1. Get stale orders from OrderStateMachine (reliable age tracking)
         2. Cancel via exchange API
@@ -4394,35 +4394,35 @@ class ExecutionEngine:
         try:
             execution_config = self.policy.get("execution", {})
             cancel_after = int(execution_config.get("cancel_after_seconds", 60))
-            
+
             if self.mode == "DRY_RUN":
                 return
-            
+
             if cancel_after <= 0:
                 logger.debug("Order cancellation disabled (cancel_after_seconds <= 0)")
                 return
-            
+
             # Use OrderStateMachine for reliable stale order detection
             stale_orders = self.order_state_machine.get_stale_orders(max_age_seconds=cancel_after)
-            
+
             if not stale_orders:
                 logger.debug("No stale orders to cancel")
                 return
-            
+
             logger.info(f"Found {len(stale_orders)} stale orders (age >= {cancel_after}s)")
-            
+
             # Group by exchange order ID for cancellation
             to_cancel = []
             order_id_to_client_id = {}
-            
+
             for order in stale_orders:
                 # Skip if already in terminal state (edge case)
                 if order.is_terminal():
                     continue
-                
+
                 order_id = order.order_id
                 client_order_id = order.client_order_id
-                
+
                 if order_id:
                     to_cancel.append(order_id)
                     order_id_to_client_id[order_id] = client_order_id
@@ -4448,7 +4448,7 @@ class ExecutionEngine:
                             "canceled",
                             {"reason": "stale_no_order_id"}
                         )
-            
+
             # Execute cancellations
             if to_cancel:
                 canceled_count = 0
@@ -4507,7 +4507,7 @@ class ExecutionEngine:
                     canceled_count,
                     failed_count,
                 )
-                
+
                 # Refresh open orders from exchange to sync state
                 try:
                     remaining = self.exchange.list_open_orders()
@@ -4515,7 +4515,7 @@ class ExecutionEngine:
                     logger.debug(f"Synced {len(remaining)} remaining open orders")
                 except Exception as refresh_exc:
                     logger.warning(f"Failed to refresh open orders after cancel: {refresh_exc}")
-            
+
         except Exception as e:
             logger.warning(f"manage_open_orders failed: {e}", exc_info=True)
 

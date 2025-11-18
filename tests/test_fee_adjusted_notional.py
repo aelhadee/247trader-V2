@@ -5,7 +5,7 @@ Critical production safety feature that prevents orders from being rejected
 after fees cause the net amount to fall below exchange minimums.
 """
 import pytest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 from core.execution import ExecutionEngine
 
 

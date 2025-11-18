@@ -41,13 +41,13 @@ def verify_metrics_endpoint(url: str = "http://localhost:8000/metrics") -> bool:
             else:
                 missing.append(metric)
         
-        print(f"\n✅ Metrics endpoint is accessible")
+        print("\n✅ Metrics endpoint is accessible")
         print(f"📊 Found {len(found)}/{len(expected_metrics)} expected metrics:")
         for metric in found:
             print(f"   ✓ {metric}")
         
         if missing:
-            print(f"\n⚠️  Missing metrics (may not be initialized yet):")
+            print("\n⚠️  Missing metrics (may not be initialized yet):")
             for metric in missing:
                 print(f"   ✗ {metric}")
         
@@ -56,15 +56,15 @@ def verify_metrics_endpoint(url: str = "http://localhost:8000/metrics") -> bool:
         metric_lines = [l for l in lines if l and not l.startswith('#')][:5]
         
         if metric_lines:
-            print(f"\n📝 Sample metrics:")
+            print("\n📝 Sample metrics:")
             for line in metric_lines:
                 print(f"   {line}")
         
         return True
         
     except requests.exceptions.ConnectionError:
-        print(f"❌ Connection failed: Is the trading bot running with prometheus_enabled: true?")
-        print(f"   Start the bot with: ./app_run_live.sh")
+        print("❌ Connection failed: Is the trading bot running with prometheus_enabled: true?")
+        print("   Start the bot with: ./app_run_live.sh")
         return False
     except Exception as e:
         print(f"❌ Error: {e}")
@@ -79,8 +79,8 @@ def verify_prometheus_scraping(url: str = "http://localhost:9090/api/v1/targets"
         response = requests.get(url, timeout=5)
         
         if response.status_code != 200:
-            print(f"❌ Prometheus not accessible (is Docker Compose running?)")
-            print(f"   Start with: ./scripts/start_monitoring.sh")
+            print("❌ Prometheus not accessible (is Docker Compose running?)")
+            print("   Start with: ./scripts/start_monitoring.sh")
             return False
         
         data = response.json()
@@ -89,8 +89,8 @@ def verify_prometheus_scraping(url: str = "http://localhost:9090/api/v1/targets"
         trader_targets = [t for t in targets if "247trader" in t.get("labels", {}).get("job", "")]
         
         if not trader_targets:
-            print(f"⚠️  No 247trader targets found in Prometheus")
-            print(f"   Check config/prometheus.yml and restart stack")
+            print("⚠️  No 247trader targets found in Prometheus")
+            print("   Check config/prometheus.yml and restart stack")
             return False
         
         for target in trader_targets:
@@ -108,8 +108,8 @@ def verify_prometheus_scraping(url: str = "http://localhost:9090/api/v1/targets"
         return True
         
     except requests.exceptions.ConnectionError:
-        print(f"❌ Prometheus not running")
-        print(f"   Start with: ./scripts/start_monitoring.sh")
+        print("❌ Prometheus not running")
+        print("   Start with: ./scripts/start_monitoring.sh")
         return False
     except Exception as e:
         print(f"❌ Error: {e}")
