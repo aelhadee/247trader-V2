@@ -181,8 +181,8 @@ def test_orderbook_depth():
             assert hasattr(orderbook, 'bids') and orderbook.bids, f"{pair}: No bids"
             assert hasattr(orderbook, 'asks') and orderbook.asks, f"{pair}: No asks"
             
-            bids = orderbook['bids']
-            asks = orderbook['asks']
+            bids = orderbook.bids
+            asks = orderbook.asks
             
             assert len(bids) > 0, f"{pair}: Empty bids"
             assert len(asks) > 0, f"{pair}: Empty asks"
