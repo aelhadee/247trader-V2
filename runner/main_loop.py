@@ -1905,9 +1905,9 @@ class TradingLoop:
             if 'proposals' not in locals() or proposals is None:
                 logger.info(f"💡 Step 9: Generating trade proposals from {len(self.strategy_registry.get_enabled_strategies())} enabled strategies...")
                 with self._stage_timer("rules_engine"):
-                # Build StrategyContext for all strategies
-                from strategy.base_strategy import StrategyContext
-                strategy_context = StrategyContext(
+                    # Build StrategyContext for all strategies
+                    from strategy.base_strategy import StrategyContext
+                    strategy_context = StrategyContext(
                     universe=universe,
                     triggers=triggers,
                     regime=self.current_regime,
