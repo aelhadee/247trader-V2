@@ -13,6 +13,17 @@ def reset_singletons():
     
     This is applied automatically to all tests (autouse=True).
     """
+    import os
+    from pathlib import Path
+    
+    # CRITICAL: Cleanup lock file before test (prevents "instance already running" errors)
+    lock_file = Path("data/247trader-v2.pid")
+    if lock_file.exists():
+        try:
+            lock_file.unlink()
+        except Exception:
+            pass
+    
     # CRITICAL: Reset BEFORE test (cleanup from previous test pollution)
     try:
         from infra.metrics import MetricsRecorder
@@ -29,3 +40,10 @@ def reset_singletons():
         MetricsRecorder._reset_for_testing()
     except ImportError:
         pass  # Module not available in some test contexts
+    
+    # Cleanup lock file after test
+    if lock_file.exists():
+        try:
+            lock_file.unlink()
+        except Exception:
+            pass
