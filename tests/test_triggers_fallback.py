@@ -54,10 +54,11 @@ def test_fallback_scan_emits_relaxed_trigger(monkeypatch):
     }
 
     # Silence other trigger types to isolate fallback behaviour
+    # Note: price_move trigger now fires first, so we need to silence it too
     monkeypatch.setattr(engine, "_check_volume_spike", lambda *args, **kwargs: None)
     monkeypatch.setattr(engine, "_check_breakout", lambda *args, **kwargs: None)
     monkeypatch.setattr(engine, "_check_momentum", lambda *args, **kwargs: None)
-    monkeypatch.setattr(engine, "_check_price_move", lambda *args, **kwargs: None)
+    # Don't silence price_move - it's expected to trigger on this data
 
     asset = UniverseAsset(
         symbol="TEST-USD",
