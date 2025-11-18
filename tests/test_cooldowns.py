@@ -1,8 +1,18 @@
 """
 Test per-symbol cooldown enforcement.
 """
+import pytest
 from datetime import datetime, timedelta, timezone
 from core.risk import RiskEngine
+
+
+@pytest.fixture(autouse=True)
+def reset_metrics():
+    """Reset Prometheus metrics between tests to avoid registry conflicts"""
+    from infra.metrics import MetricsRecorder
+    MetricsRecorder._reset_for_testing()
+    yield
+    MetricsRecorder._reset_for_testing()
 from strategy.rules_engine import TradeProposal
 from infra.state_store import StateStore
 import tempfile
