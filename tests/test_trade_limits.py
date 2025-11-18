@@ -73,7 +73,13 @@ def mock_state_store(tmp_path, request):
 @pytest.fixture
 def trade_limits(minimal_config, mock_state_store):
     """TradeLimits instance - fresh for each test"""
-    # Clear any existing state BEFORE creating instance
+    # AGGRESSIVELY clear state - delete file and recreate
+    import os
+    state_file = mock_state_store.state_file
+    if os.path.exists(state_file):
+        os.unlink(state_file)
+    
+    # Write completely fresh state
     mock_state_store.save({
         "last_trade_timestamp": None,
         "trades_this_hour": [],
@@ -82,11 +88,15 @@ def trade_limits(minimal_config, mock_state_store):
         "last_trade_time_by_symbol": {},
         "per_symbol_cooldowns": {},
     })
-    # Force reload to ensure clean state
-    mock_state_store.load()
     
     # Create fresh instance
     instance = TradeLimits(config=minimal_config, state_store=mock_state_store)
+    
+    # Verify state is actually clean
+    loaded_state = mock_state_store.load()
+    assert loaded_state.get("last_trade_timestamp") is None, "State not clean!"
+    assert loaded_state.get("last_trade_time_by_symbol") == {}, "Symbol timing not clean!"
+    
     return instance
 
 
