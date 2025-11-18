@@ -75,9 +75,11 @@ def trade_limits(minimal_config, mock_state_store):
     """TradeLimits instance - fresh for each test"""
     # AGGRESSIVELY clear state - delete file and recreate
     import os
-    state_file = mock_state_store.state_file
-    if os.path.exists(state_file):
-        os.unlink(state_file)
+    # Get the backend's path if it's a file backend
+    if hasattr(mock_state_store._backend, 'path'):
+        state_file = mock_state_store._backend.path
+        if os.path.exists(state_file):
+            os.unlink(state_file)
     
     # Write completely fresh state
     mock_state_store.save({
@@ -94,8 +96,8 @@ def trade_limits(minimal_config, mock_state_store):
     
     # Verify state is actually clean
     loaded_state = mock_state_store.load()
-    assert loaded_state.get("last_trade_timestamp") is None, "State not clean!"
-    assert loaded_state.get("last_trade_time_by_symbol") == {}, "Symbol timing not clean!"
+    assert loaded_state.get("last_trade_timestamp") is None, f"State not clean! Got: {loaded_state.get('last_trade_timestamp')}"
+    assert loaded_state.get("last_trade_time_by_symbol") == {}, f"Symbol timing not clean! Got: {loaded_state.get('last_trade_time_by_symbol')}"
     
     return instance
 
