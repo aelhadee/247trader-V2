@@ -110,12 +110,12 @@ monitoring:
 ai:
   # AI Advisor: filters/resizes proposals between rules_engine and risk_engine
   # Core principle: AI can only SHRINK, SKIP, or TAG - never increase size
-  enabled: false  # Start disabled - enable after testing
+  enabled: true  # ✅ AI ENABLED
   
   # Model provider and configuration
-  provider: "anthropic"  # openai | anthropic | mock
-  model: "claude-sonnet-4-5-20250929"  # Model name (provider-specific)
-  api_key: "${ANTHROPIC_API_KEY}"  # or ${OPENAI_API_KEY}
+  provider: "openai"  # openai | anthropic | mock
+  model: "gpt-4o-mini"  # Model name (provider-specific)
+  api_key: "${OPENAI_API_KEY}"  # or ${OPENAI_API_KEY}
   
   # Safety constraints
   timeout_s: 1.0              # Hard timeout for model calls (fail-closed)
