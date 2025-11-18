@@ -1773,9 +1773,6 @@ class TradingLoop:
                 logger.info(f"✅ Trigger scan complete: {len(triggers) if triggers else 0} signals detected")
 
             if not triggers or len(triggers) == 0:
-                reason = "no_candidates_from_triggers"
-                logger.warning(f"⚠️  NO_TRADE: {reason} (0 triggers detected)")
-
                 # Zero-trigger sentinel: Track consecutive cycles with 0 triggers
                 zero_trigger_count = self.state_store.get("zero_trigger_cycles", 0) + 1
                 state = self.state_store.load()
@@ -1792,25 +1789,105 @@ class TradingLoop:
                     state["auto_tune_applied"] = True
                     self.state_store.save(state)
 
-                self._audit_cycle(
-                    ts=cycle_started,
-                    mode=self.mode,
-                    universe=universe,
-                    triggers=triggers,
-                    base_proposals=[],
-                    risk_approved=[],
-                    final_orders=[],
-                    no_trade_reason=reason,
-                    state_store=self.state_store,
-                )
-                self._record_cycle_metrics(
-                    status=reason,
-                    proposals=proposals_count,
-                    approved=approved_count,
-                    executed=executed_count,
-                    started_at=cycle_started,
-                )
-                return
+                # === NEW: AI Trader path when no rule-based triggers ===
+                if self.ai_trader_agent:
+                    logger.info("🤖 Step 9: AI trader evaluating portfolio (0 rule triggers, AI taking lead)...")
+                    
+                    # Build guardrails snapshot
+                    guardrails_snapshot = self._build_ai_trader_guardrails()
+                    ai_agent_metadata = {
+                        "cycle_number": self.cycle_count + 1,
+                        "mode": self.mode,
+                        "timestamp": cycle_started.isoformat(),
+                        "config_hash": self.config_hash,
+                        "zero_trigger_count": zero_trigger_count,
+                    }
+                    
+                    try:
+                        ai_agent_proposals = self.ai_trader_agent.generate_proposals(
+                            universe=universe,
+                            triggers=triggers or [],  # Pass empty list instead of None
+                            portfolio=self.portfolio,
+                            guardrails=guardrails_snapshot,
+                            metadata=ai_agent_metadata,
+                        )
+                        
+                        if ai_agent_proposals:
+                            logger.info(f"✅ AI trader generated {len(ai_agent_proposals)} proposal(s) despite zero triggers")
+                            proposals = ai_agent_proposals
+                            proposals_count = len(proposals)
+                            
+                            # Continue to Step 10 (risk check) and Step 11 (execution)
+                            # Don't return early - let AI proposals flow through
+                        else:
+                            logger.info("🤖 AI trader evaluated portfolio but produced no actionable proposals this cycle")
+                            reason = "ai_trader_no_proposals"
+                            self._audit_cycle(
+                                ts=cycle_started,
+                                mode=self.mode,
+                                universe=universe,
+                                triggers=triggers,
+                                base_proposals=[],
+                                risk_approved=[],
+                                final_orders=[],
+                                no_trade_reason=reason,
+                                state_store=self.state_store,
+                            )
+                            self._record_cycle_metrics(
+                                status=reason,
+                                proposals=0,
+                                approved=0,
+                                executed=0,
+                                started_at=cycle_started,
+                            )
+                            return
+                            
+                    except Exception as e:
+                        logger.error(f"AI trader agent failed: {e}", exc_info=True)
+                        reason = "ai_trader_error"
+                        self._audit_cycle(
+                            ts=cycle_started,
+                            mode=self.mode,
+                            universe=universe,
+                            triggers=triggers,
+                            base_proposals=[],
+                            risk_approved=[],
+                            final_orders=[],
+                            no_trade_reason=reason,
+                            state_store=self.state_store,
+                        )
+                        self._record_cycle_metrics(
+                            status=reason,
+                            proposals=0,
+                            approved=0,
+                            executed=0,
+                            started_at=cycle_started,
+                        )
+                        return
+                else:
+                    # No AI trader - fall back to old behavior
+                    reason = "no_candidates_from_triggers"
+                    logger.warning(f"⚠️  NO_TRADE: {reason} (0 triggers detected, AI trader not enabled)")
+                    
+                    self._audit_cycle(
+                        ts=cycle_started,
+                        mode=self.mode,
+                        universe=universe,
+                        triggers=triggers,
+                        base_proposals=[],
+                        risk_approved=[],
+                        final_orders=[],
+                        no_trade_reason=reason,
+                        state_store=self.state_store,
+                    )
+                    self._record_cycle_metrics(
+                        status=reason,
+                        proposals=0,
+                        approved=0,
+                        executed=0,
+                        started_at=cycle_started,
+                    )
+                    return
 
             # Triggers detected - reset zero-trigger counter
             state = self.state_store.load()
