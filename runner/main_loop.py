@@ -1839,6 +1839,8 @@ class TradingLoop:
                 enabled_strategies = self.strategy_registry.get_enabled_strategies()
                 logger.info(f"✅ Local strategy execution complete: {[s.name for s in enabled_strategies]} → {len(local_proposals)} proposals")
 
+                proposals = local_proposals
+
                 # If dual-trader mode enabled, generate AI trader proposals and arbitrate
                 if self.dual_trader_enabled and self.ai_trader_strategy and self.meta_arbitrator:
                     logger.info("🤖 Dual-trader mode: generating AI trader proposals...")
@@ -1883,9 +1885,33 @@ class TradingLoop:
                     # Store arbitration log for audit trail
                     self._current_arbitration_log = arbitration_log
 
-                else:
-                    # Standard mode: use local proposals only
-                    proposals = local_proposals
+                elif self.ai_trader_agent:
+                    logger.info("🧠 Step 9A: AI trader agent evaluating portfolio allocations...")
+                    guardrails_snapshot = self._build_ai_trader_guardrails()
+                    ai_agent_metadata = {
+                        "cycle_number": strategy_context.cycle_number,
+                        "mode": self.mode,
+                        "timestamp": cycle_started.isoformat(),
+                        "config_hash": self.config_hash,
+                    }
+                    ai_agent_proposals = self.ai_trader_agent.generate_proposals(
+                        universe=strategy_context.universe,
+                        triggers=strategy_context.triggers,
+                        portfolio=self.portfolio,
+                        guardrails=guardrails_snapshot,
+                        metadata=ai_agent_metadata,
+                    )
+
+                    if ai_agent_proposals:
+                        proposals = self._merge_ai_local_proposals(local_proposals, ai_agent_proposals)
+                        logger.info(
+                            "✅ AI trader agent contributed %d proposal(s); merged total=%d",
+                            len(ai_agent_proposals),
+                            len(proposals),
+                        )
+                    else:
+                        logger.info("AI trader agent produced no actionable proposals this cycle")
+                        proposals = local_proposals
 
             proposals_count = len(proposals or [])
             logger.info(f"✅ Generated {proposals_count} final trade proposal(s)")
