@@ -29,7 +29,7 @@ from core.exchange_coinbase import CoinbaseExchange
 from core.exceptions import CriticalDataUnavailable
 from core.universe import UniverseManager
 from core.triggers import TriggerEngine
-from strategy.rules_engine import TradeProposal
+from strategy.rules_engine import TradeProposal, RulesEngine
 from core.risk import RiskEngine, PortfolioState
 from core.execution import ExecutionEngine, ExecutionResult
 from core.position_manager import PositionManager
