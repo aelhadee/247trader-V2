@@ -217,23 +217,6 @@ class MetricsRecorder:
         cls._initialized = False
 
     def start(self) -> None:
-        
-        # NEW: Auto-trim tracking
-        self._trim_attempts_counter = Counter(  # type: ignore[assignment]
-            "trader_trim_attempts_total",
-            "Total number of auto-trim attempts",
-            labelnames=("outcome",),  # outcome: "success", "no_candidates", "failed"
-        )
-        self._trim_consecutive_failures_gauge = Gauge(  # type: ignore[assignment]
-            "trader_trim_consecutive_failures",
-            "Number of consecutive trim failures due to no candidates",
-        )
-        self._trim_liquidated_usd_counter = Counter(  # type: ignore[assignment]
-            "trader_trim_liquidated_usd_total",
-            "Total USD value liquidated via auto-trim",
-        )
-
-    def start(self) -> None:
         if not self._enabled or self._started:
             return
         if start_http_server is None:  # pragma: no cover - guarded above
