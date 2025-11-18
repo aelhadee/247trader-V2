@@ -288,7 +288,7 @@ class PositionManager:
 
 def get_position_manager(
     policy: Dict,
-    state_store=None,
+    state_store: Optional[Any] = None,
 ) -> PositionManager:
     """Factory function to get PositionManager instance"""
     return PositionManager(policy=policy, state_store=state_store)
