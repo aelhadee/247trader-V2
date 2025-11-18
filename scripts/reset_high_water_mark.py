@@ -247,11 +247,14 @@ def main():
     print(f"High water mark reset: ${current_hwm:.2f} → ${new_hwm:.2f}")
     print(f"Drawdown reset: {current_dd:.2f}% → 0.00%")
     print(f"Backup saved: {backup_path}")
-    print("\n✅ Trading should now resume (if blocked by max drawdown)")
-    print("\nNext steps:")
-    print("  1. Monitor next trading cycle logs")
-    print("  2. Verify drawdown calculation shows ~0%")
-    print("  3. Check that risk engine approves proposals")
+    print("\n⚠️  IMPORTANT: You MUST restart the trading system!")
+    print("=" * 80)
+    print("The trading system caches state in memory and will overwrite")
+    print("this change within 60 seconds unless you restart it.")
+    print("\nTo restart:")
+    print("  1. Stop the running system: Ctrl+C or kill PID")
+    print("  2. Restart: ./app_run_live.sh --loop")
+    print("\n✅ After restart, trading should resume (drawdown will be ~0%)")
 
 
 if __name__ == "__main__":
