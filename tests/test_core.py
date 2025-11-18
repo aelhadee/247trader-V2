@@ -51,7 +51,6 @@ def test_universe_building():
     print(f"   Tier 1: {len(snapshot.tier_1_assets)} core")
     print(f"   Tier 2: {len(snapshot.tier_2_assets)} rotational")
     print(f"   Tier 3: {len(snapshot.tier_3_assets)} event-driven")
-    return True
 
 
 def test_trigger_scanning():
