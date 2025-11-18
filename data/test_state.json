@@ -57,10 +57,10 @@
       "symbol": "BTC-USD",
       "side": "SELL",
       "size_usd": 100.0,
-      "timestamp": "2025-11-17T13:22:09.344987+00:00",
+      "timestamp": "2025-11-17T13:25:01.919431+00:00",
       "status": "open",
-      "first_seen": "2025-11-17T13:22:09.345468+00:00",
-      "updated_at": "2025-11-17T13:22:09.345468+00:00"
+      "first_seen": "2025-11-17T13:25:01.919785+00:00",
+      "updated_at": "2025-11-17T13:25:01.919785+00:00"
     },
     "coid_47db88a9cc9b172c": {
       "order_id": "real-order-123",
@@ -569,26 +569,6 @@
   },
   "recent_orders": [],
   "pending_markers": {
-    "BTC-USD:SELL:247trader_coid_7ee00ac8b0eb10c9": {
-      "product_id": "BTC-USD",
-      "base": "BTC",
-      "side": "SELL",
-      "client_order_id": "247trader_coid_7ee00ac8b0eb10c9",
-      "order_id": "real-order-123",
-      "notional_usd": 100.61,
-      "since": "2025-11-17T13:19:39.148581+00:00",
-      "expires_at": "2025-11-17T13:22:39.148581+00:00"
-    },
-    "BTC-USD:SELL:247trader_coid_6f94a2031ea47cd0": {
-      "product_id": "BTC-USD",
-      "base": "BTC",
-      "side": "SELL",
-      "client_order_id": "247trader_coid_6f94a2031ea47cd0",
-      "order_id": "real-order-123",
-      "notional_usd": 100.61,
-      "since": "2025-11-17T13:20:42.221750+00:00",
-      "expires_at": "2025-11-17T13:23:42.221750+00:00"
-    },
     "BTC-USD:SELL:247trader_coid_32367c16a9a5b4b8": {
       "product_id": "BTC-USD",
       "base": "BTC",
@@ -598,6 +578,26 @@
       "notional_usd": 100.61,
       "since": "2025-11-17T13:22:09.335258+00:00",
       "expires_at": "2025-11-17T13:25:09.335258+00:00"
+    },
+    "BTC-USD:SELL:247trader_coid_1a8df9abe1d271ba": {
+      "product_id": "BTC-USD",
+      "base": "BTC",
+      "side": "SELL",
+      "client_order_id": "247trader_coid_1a8df9abe1d271ba",
+      "order_id": "real-order-123",
+      "notional_usd": 100.61,
+      "since": "2025-11-17T13:23:55.496867+00:00",
+      "expires_at": "2025-11-17T13:26:55.496867+00:00"
+    },
+    "BTC-USD:SELL:247trader_coid_3b9b3a6a92548d55": {
+      "product_id": "BTC-USD",
+      "base": "BTC",
+      "side": "SELL",
+      "client_order_id": "247trader_coid_3b9b3a6a92548d55",
+      "order_id": "real-order-123",
+      "notional_usd": 100.61,
+      "since": "2025-11-17T13:25:01.911171+00:00",
+      "expires_at": "2025-11-17T13:28:01.911171+00:00"
     }
   },
   "last_fill_times": {},
@@ -606,22 +606,6 @@
   "last_reset_date": "2025-11-17",
   "last_reset_hour": 13,
   "events": [
-    {
-      "at": "2025-11-11T21:14:32.622266+00:00",
-      "event": "order_opened",
-      "order_key": "coid_6207ffab7eaa1a4d",
-      "product_id": "BTC-USD",
-      "side": "sell",
-      "quote_size_usd": 100.0
-    },
-    {
-      "at": "2025-11-11T21:14:32.628454+00:00",
-      "event": "order_opened",
-      "order_key": "test_duplicate_123",
-      "product_id": null,
-      "side": "SELL",
-      "quote_size_usd": null
-    },
     {
       "at": "2025-11-11T21:26:51.264278+00:00",
       "event": "order_opened",
@@ -1400,6 +1384,22 @@
     },
     {
       "at": "2025-11-17T13:22:09.345468+00:00",
+      "event": "order_opened",
+      "order_key": "test_duplicate_123",
+      "product_id": null,
+      "side": "SELL",
+      "quote_size_usd": null
+    },
+    {
+      "at": "2025-11-17T13:23:55.507400+00:00",
+      "event": "order_opened",
+      "order_key": "test_duplicate_123",
+      "product_id": null,
+      "side": "SELL",
+      "quote_size_usd": null
+    },
+    {
+      "at": "2025-11-17T13:25:01.919785+00:00",
       "event": "order_opened",
       "order_key": "test_duplicate_123",
       "product_id": null,

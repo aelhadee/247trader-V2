@@ -72,8 +72,19 @@ def mock_state_store(tmp_path, request):
 
 @pytest.fixture
 def trade_limits(minimal_config, mock_state_store):
-    """TradeLimits instance"""
-    return TradeLimits(config=minimal_config, state_store=mock_state_store)
+    """TradeLimits instance - fresh for each test"""
+    # Ensure state is completely fresh
+    instance = TradeLimits(config=minimal_config, state_store=mock_state_store)
+    # Clear any existing state
+    mock_state_store.save({
+        "last_trade_timestamp": None,
+        "trades_this_hour": [],
+        "trades_today": [],
+        "consecutive_losses": 0,
+        "last_trade_time_by_symbol": {},
+        "per_symbol_cooldowns": {},
+    })
+    return instance
 
 
 @pytest.fixture
