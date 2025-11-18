@@ -2367,15 +2367,18 @@ class ExecutionEngine:
                             route="live_taker_blocked",
                             error=error_msg,
                         )
+                    # Apply tolerance: allow small overages (e.g., 60.4 bps vs 60.0 bps limit)
+                    effective_budget = slippage_budget + self.slippage_budget_tolerance_bps if slippage_budget is not None else None
+                    
                     if (
                         not bypass_slippage_budget
-                        and slippage_budget is not None
-                        and taker_total_cost_bps > slippage_budget
+                        and effective_budget is not None
+                        and taker_total_cost_bps > effective_budget
                     ):
                         budget_msg = (
-                            f"Total cost {taker_total_cost_bps:.1f}bps exceeds T{tier} budget {slippage_budget:.1f}bps"
+                            f"Total cost {taker_total_cost_bps:.1f}bps exceeds T{tier} budget {slippage_budget:.1f}bps (+{self.slippage_budget_tolerance_bps:.1f}bps tolerance)"
                             if tier is not None
-                            else f"Total cost {taker_total_cost_bps:.1f}bps exceeds slippage budget {slippage_budget:.1f}bps"
+                            else f"Total cost {taker_total_cost_bps:.1f}bps exceeds slippage budget {slippage_budget:.1f}bps (+{self.slippage_budget_tolerance_bps:.1f}bps tolerance)"
                         )
                         logger.warning("Skipping taker route for %s: %s", symbol, budget_msg)
                         return ExecutionResult(
