@@ -251,7 +251,6 @@ class TradingLoop:
         self.rules_engine = self.strategy_registry.strategies.get("rules_engine")
         if not self.rules_engine:
             logger.warning("rules_engine strategy not found in registry, creating fallback")
-            from strategy.rules_engine import RulesEngine
             self.rules_engine = RulesEngine(config={})
 
         self.risk_engine = RiskEngine(
