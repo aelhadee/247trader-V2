@@ -62,8 +62,8 @@ risk:
   per_symbol_cooldown_after_stop: 120
   per_symbol_cooldown_win_minutes: 10
   per_symbol_cooldown_loss_minutes: 60
-  min_trade_notional_usd: 2.5  # Lowered to allow AI-reduced trades on small account ($255 * 0.98% = $2.50)
-  dust_threshold_usd: 2.5  # Must be <= min_trade_notional_usd
+  min_trade_notional_usd: 1.0  # Lowered for $255 account + aggressive AI reductions (50-75% cuts)
+  dust_threshold_usd: 1.0  # Must be <= min_trade_notional_usd
   allow_adds_when_over_cap: false
   count_open_orders_in_cap: true
   allow_pyramiding: false
