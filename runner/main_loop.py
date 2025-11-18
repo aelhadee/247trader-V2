@@ -340,6 +340,11 @@ class TradingLoop:
                 self.ai_enabled = False
                 self.ai_advisor = None
 
+        trader_agent_cfg = ai_cfg.get("trader_agent", {}) or {}
+        self.ai_trader_agent = None
+        if trader_agent_cfg.get("enabled", False):
+            self.ai_trader_agent = self._init_ai_trader_agent(trader_agent_cfg, ai_cfg)
+
         # Initialize dual-trader components (if enabled)
         if self.dual_trader_enabled:
             try:
@@ -430,6 +435,12 @@ class TradingLoop:
                 self.ai_trader_strategy = None
                 self.meta_arbitrator = None
                 self.ai_arbiter_client = None
+
+        if self.dual_trader_enabled and self.ai_trader_agent:
+            logger.warning(
+                "Dual-trader mode enabled; disabling AiTraderAgent to avoid overlapping AI trade sources"
+            )
+            self.ai_trader_agent = None
 
         # Initialize ReportGenerator for daily performance reports
         from analytics.performance_report import ReportGenerator
