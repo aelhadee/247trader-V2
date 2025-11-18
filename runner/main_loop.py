@@ -4188,7 +4188,7 @@ class TradingLoop:
             # CRITICAL: AI sizing floor to prevent invalid micro-trades
             # If AI reduction creates a trade below min_position_size_pct, skip it entirely
             # This prevents "position_size_too_small" risk rejections after AI adjustment
-            min_position_pct = self.risk_config.get("min_position_size_pct", 0.25)
+            min_position_pct = self.policy_config.get("risk", {}).get("min_position_size_pct", 0.25)
             
             if p.size_pct < min_position_pct:
                 skipped_by_ai += 1
