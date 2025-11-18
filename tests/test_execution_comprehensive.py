@@ -368,9 +368,16 @@ def test_slippage_bypass_flag_skips_check(execution_engine, mock_exchange):
         )
         
         mock_live.assert_called_once()
-        # Should pass bypass flag through
-        assert 'bypass_slippage_budget' in mock_live.call_args.kwargs
-        assert mock_live.call_args.kwargs['bypass_slippage_budget'] is True
+        # Should pass bypass flag through (it's passed as positional arg, 9th position)
+        # Check if it was called (either as kwarg or positional)
+        call_args = mock_live.call_args
+        # bypass_slippage_budget should be True (9th arg, index 8)
+        if 'bypass_slippage_budget' in call_args.kwargs:
+            assert call_args.kwargs['bypass_slippage_budget'] is True
+        elif len(call_args.args) > 8:
+            assert call_args.args[8] is True
+        else:
+            raise AssertionError(f"bypass_slippage_budget not found in call: {call_args}")
 
 
 def test_stale_quote_rejected(execution_engine, mock_exchange):
