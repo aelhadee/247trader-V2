@@ -1974,6 +1974,7 @@ class TradingLoop:
 
                     # Apply decisions to proposals
                     original_proposal_count = len(proposals)
+                    proposals_before_ai = list(proposals)  # Save copy for safeguard
                     proposals = self._apply_ai_decisions(proposals, ai_output)
 
                     # Update proposals count after AI filtering
@@ -1986,10 +1987,10 @@ class TradingLoop:
                         
                         # Allow total veto only in crash/panic regimes
                         if market_regime not in ("crash", "panic"):
-                            # Get original proposals sorted by conviction
+                            # Get original proposals sorted by conviction/confidence
                             original_proposals_sorted = sorted(
-                                [p for p in step9_proposals],  # Use original proposals before AI
-                                key=lambda p: p.confidence if hasattr(p, 'confidence') else 0,
+                                proposals_before_ai,
+                                key=lambda p: getattr(p, 'confidence', getattr(p, 'conviction', 0)),
                                 reverse=True
                             )
                             
