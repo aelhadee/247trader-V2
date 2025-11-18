@@ -192,6 +192,7 @@ class CoinbaseExchange:
             rate_cfg: Dict with keys:
                 - 'public': requests/sec for public endpoints (default: 10)
                 - 'private': requests/sec for private endpoints (default: 15)
+                - 'alert_threshold': utilization % to trigger warnings (default: 0.8)
                 - 'endpoints': per-endpoint overrides, e.g. {'get_quote': 20}
         """
         cfg = rate_cfg or {}
@@ -199,6 +200,17 @@ class CoinbaseExchange:
         # Extract default quotas
         default_public = cfg.get("public")
         default_private = cfg.get("private")
+
+        # Update alert threshold if provided
+        alert_threshold = cfg.get("alert_threshold")
+        if alert_threshold is not None:
+            try:
+                alert_threshold = float(alert_threshold)
+                if 0.0 < alert_threshold <= 1.0:
+                    self.rate_limiter.alert_threshold = alert_threshold
+                    logger.info(f"Updated rate limiter alert threshold: {alert_threshold:.1%}")
+            except (TypeError, ValueError):
+                logger.warning(f"Invalid alert_threshold: {alert_threshold}, keeping default")
 
         # Extract per-endpoint overrides
         endpoint_quotas = cfg.get("endpoints", {})
