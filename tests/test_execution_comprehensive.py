@@ -513,16 +513,20 @@ def test_post_only_rejected_retries_as_market(execution_engine, mock_exchange):
 def test_maker_fee_calculation(execution_engine, mock_exchange):
     """Maker orders should apply maker fee (40 bps)"""
     # Mock maker fill
+    filled_value = 5005.0
+    maker_fee_bps = 40  # 40 bps = 0.40%
+    expected_fee = filled_value * (maker_fee_bps / 10000)  # 5005 * 0.004 = 20.02
+    
     mock_exchange.get_order_status.return_value = {
         "order_id": "test_order_123",
         "status": "FILLED",
         "filled_size": "0.1",
-        "filled_value": "5005.0",
+        "filled_value": str(filled_value),
         "fills": [
             {
                 "size": "0.1",
                 "price": "50050.0",
-                "fee": "2.002",  # 40 bps of 5005
+                "fee": str(expected_fee),  # 40 bps of 5005 = 20.02
                 "liquidity_indicator": "MAKER"
             }
         ]
@@ -532,12 +536,11 @@ def test_maker_fee_calculation(execution_engine, mock_exchange):
     fills = mock_exchange.get_order_status()["fills"]
     total_fees = sum(float(f["fee"]) for f in fills)
     
-    assert abs(total_fees - 2.002) < 0.01
+    assert abs(total_fees - expected_fee) < 0.01
     
     # Verify fee is roughly 40 bps
-    filled_value = 5005.0
-    expected_fee = filled_value * 0.004  # 40 bps
-    assert abs(total_fees - expected_fee) < 0.01
+    calculated_fee = filled_value * 0.004  # 40 bps
+    assert abs(total_fees - calculated_fee) < 0.01
 
 
 def test_taker_fee_calculation(execution_engine, mock_exchange):
