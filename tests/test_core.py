@@ -189,8 +189,6 @@ def test_full_cycle():
     print("✅ Full cycle: PASS")
     print(f"   Status: {cycle['status']}")
     print(f"   Proposals: {cycle['proposals']}")
-    
-    return True
 
 
 def main():
