@@ -206,4 +206,4 @@ class TestAiTraderAgent:
             metadata={"cycle_number": 99},
         )
 
-    assert proposals == []
+        assert proposals == []
