@@ -57,10 +57,10 @@
       "symbol": "BTC-USD",
       "side": "SELL",
       "size_usd": 100.0,
-      "timestamp": "2025-11-18T02:32:47.987472+00:00",
+      "timestamp": "2025-11-18T22:19:57.958275+00:00",
       "status": "open",
-      "first_seen": "2025-11-18T02:32:47.987867+00:00",
-      "updated_at": "2025-11-18T02:32:47.987867+00:00"
+      "first_seen": "2025-11-18T22:19:57.958682+00:00",
+      "updated_at": "2025-11-18T22:19:57.958682+00:00"
     },
     "coid_47db88a9cc9b172c": {
       "order_id": "real-order-123",
@@ -569,31 +569,23 @@
   },
   "recent_orders": [],
   "pending_markers": {
-    "BTC-USD:SELL:247trader_coid_7d88eba327cd77db": {
+    "BTC-USD:SELL:247trader_coid_caf35c98a1c2aee6": {
       "product_id": "BTC-USD",
       "base": "BTC",
       "side": "SELL",
-      "client_order_id": "247trader_coid_7d88eba327cd77db",
+      "client_order_id": "247trader_coid_caf35c98a1c2aee6",
       "order_id": "real-order-123",
       "notional_usd": 100.61,
-      "since": "2025-11-18T02:32:47.976756+00:00",
-      "expires_at": "2025-11-18T02:35:47.976756+00:00"
+      "since": "2025-11-18T22:19:57.950458+00:00",
+      "expires_at": "2025-11-18T22:22:57.950458+00:00"
     }
   },
   "last_fill_times": {},
   "fill_history": {},
   "last_reconcile_at": null,
   "last_reset_date": "2025-11-18",
-  "last_reset_hour": 2,
+  "last_reset_hour": 22,
   "events": [
-    {
-      "at": "2025-11-12T00:06:59.797378+00:00",
-      "event": "order_opened",
-      "order_key": "test_duplicate_123",
-      "product_id": null,
-      "side": "SELL",
-      "quote_size_usd": null
-    },
     {
       "at": "2025-11-12T00:11:14.460629+00:00",
       "event": "order_opened",
@@ -1380,6 +1372,14 @@
     },
     {
       "at": "2025-11-18T02:32:47.987867+00:00",
+      "event": "order_opened",
+      "order_key": "test_duplicate_123",
+      "product_id": null,
+      "side": "SELL",
+      "quote_size_usd": null
+    },
+    {
+      "at": "2025-11-18T22:19:57.958682+00:00",
       "event": "order_opened",
       "order_key": "test_duplicate_123",
       "product_id": null,

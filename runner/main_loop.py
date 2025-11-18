@@ -1329,7 +1329,14 @@ class TradingLoop:
             logger.debug("Post-trade refresh skipped: no fills recorded yet.")
             return
 
-        wait_cfg = self.app_config.get("execution", {}).get("post_trade_reconcile_wait_seconds")
+        wait_cfg = None
+        policy_exec_cfg = (self.policy_config or {}).get("execution", {})
+        if isinstance(policy_exec_cfg, dict):
+            wait_cfg = policy_exec_cfg.get("post_trade_reconcile_wait_seconds")
+
+        if wait_cfg is None:
+            wait_cfg = (self.app_config.get("execution", {}) or {}).get("post_trade_reconcile_wait_seconds")
+
         try:
             wait_seconds = float(wait_cfg) if wait_cfg is not None else 0.5
         except (TypeError, ValueError):
