@@ -480,18 +480,21 @@ def test_symbol_spacing_different_symbols(trade_limits, mock_state_store):
             size_pct=0.02,
             confidence=0.6,
             reason="test",
-            
+
             stop_loss_pct=10.0,
             take_profit_pct=15.0
         )
     ]
     
     approved, rejections = trade_limits.filter_proposals_by_timing(proposals, current_time=now)
+
+    # Debug: Print rejections to see why ETH-USD is blocked
+    if len(approved) != 1:
+        print(f"\nDEBUG different_symbols: Expected 1 approval, got {len(approved)}")
+        print(f"Rejections: {rejections}")
     
     assert len(approved) == 1
     assert len(rejections) == 0
-
-
 # Test: Record Trade
 
 def test_record_trade_updates_state(trade_limits, mock_state_store):
