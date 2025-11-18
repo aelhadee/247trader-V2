@@ -36,15 +36,15 @@ class ModelClient(ABC):
 
 
 class OpenAIClient(ModelClient):
-    """OpenAI GPT-4o client implementation."""
+    """OpenAI GPT-5 client implementation."""
     
-    def __init__(self, api_key: str, model: str = "gpt-4o-mini", base_url: Optional[str] = None):
+    def __init__(self, api_key: str, model: str = "gpt-5-mini-2025-08-07", base_url: Optional[str] = None):
         """
         Initialize OpenAI client.
         
         Args:
             api_key: OpenAI API key
-            model: Model name (gpt-4o-mini, gpt-4o, o1-preview, etc.)
+            model: Model name (gpt-5-mini-2025-08-07, gpt-4o, o1-preview, etc.)
             base_url: Optional custom base URL
         """
         self.api_key = api_key
