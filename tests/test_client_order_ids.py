@@ -174,7 +174,7 @@ class TestClientOrderIdIntegration:
         result = engine.execute("BTC-USD", "BUY", 100.0)
 
         assert result.success is True
-        assert result.order_id.startswith("dry_run_247trader_coid_")
+        assert result.order_id.startswith("shadow_247trader_coid_")  # DRY_RUN now uses shadow execution
         
         # Execute again with same params - should get same underlying ID
         result2 = engine.execute("BTC-USD", "BUY", 100.0)
