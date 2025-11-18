@@ -53,7 +53,7 @@ risk:
   max_trades_per_day: 120
   max_trades_per_hour: 5
   max_new_trades_per_hour: 3
-  min_seconds_between_trades: 180
+  min_seconds_between_trades: 90  # Relaxed from 180s for $256 test account (allows 2-3 trades per 5 cycles vs 1 per 3)
   per_symbol_trade_spacing_seconds: 900
   cooldown_after_loss_trades: 3
   cooldown_minutes: 60
