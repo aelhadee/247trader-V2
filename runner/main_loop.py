@@ -1816,6 +1816,7 @@ class TradingLoop:
                             logger.info(f"✅ AI trader generated {len(ai_agent_proposals)} proposal(s) despite zero triggers")
                             proposals = ai_agent_proposals
                             proposals_count = len(proposals)
+                            ai_generated_proposals = True  # Flag to skip rules_engine section
                             
                             # SKIP Step 9 (rules engine - no triggers to process)
                             # Jump directly to Step 9.5 (AI advisor) and then Step 10+ (risk/execution)
