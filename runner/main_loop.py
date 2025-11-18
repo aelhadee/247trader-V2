@@ -1931,7 +1931,7 @@ class TradingLoop:
 
                     # If dual-trader mode enabled, generate AI trader proposals and arbitrate
                     if self.dual_trader_enabled and self.ai_trader_strategy and self.meta_arbitrator:
-                    logger.info("🤖 Dual-trader mode: generating AI trader proposals...")
+                        logger.info("🤖 Dual-trader mode: generating AI trader proposals...")
 
                     # Enrich context for AI trader
                     ai_context = StrategyContext(
