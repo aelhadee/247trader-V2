@@ -559,8 +559,8 @@ def test_taker_fee_calculation(execution_engine, mock_exchange):
     
     total_fees = sum(float(f["fee"]) for f in fills)
     
-    expected_fee = filled_value * 0.006  # 60 bps
-    assert abs(total_fees - expected_fee) < 0.01
+    calculated_fee = filled_value * 0.006  # 60 bps
+    assert abs(total_fees - calculated_fee) < 0.01
 
 
 def test_mixed_fills_sum_fees_correctly(execution_engine, mock_exchange):
