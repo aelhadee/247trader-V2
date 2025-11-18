@@ -50,6 +50,18 @@ auto_tune:
     pct_change_60m: 2.5     # Do not go below 2.5% for 60m
     min_conviction: 0.30    # Do not go below 0.30 conviction
 
+ai_trader:
+  # AI-driven portfolio allocation (experimental sandbox mode)
+  enabled: false              # Toggle AI trader on/off (false = use rules_engine only)
+  sandbox: true               # Sandbox flag for experimental features
+  model: "gpt-4o-mini"        # LLM model for trade decisions
+  max_total_capital_to_use_pct: 0.40  # AI can target up to 40% of equity
+  max_decisions: 5            # Max number of positions AI can target per cycle
+  min_confidence: 0.55        # Minimum confidence threshold for AI proposals
+  min_rebalance_delta_pct: 0.35  # Min % change to trigger rebalance trade
+  max_position_pct: 7.0       # Max single position size (% of equity)
+  max_single_trade_pct: 4.0   # Max single trade size (% of equity)
+
 logging:
   level: "INFO"  # DEBUG | INFO | WARNING | ERROR
   format: "json"  # json | text
