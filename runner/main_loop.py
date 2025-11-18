@@ -4134,6 +4134,112 @@ class TradingLoop:
 
         logger.info("Trading loop stopped cleanly.")
 
+    def _init_ai_trader_agent(self, cfg: Dict[str, Any], root_ai_cfg: Dict[str, Any]):
+        """Initialize AiTraderAgent with provider + safety clamps."""
+        try:
+            from ai.trader_agent import AiTraderAgent, TraderAgentSettings
+            from ai.llm_client import create_ai_trader_client, MockAiTraderClient
+
+            provider = (cfg.get("provider") or root_ai_cfg.get("provider") or "mock").lower()
+            model_name = cfg.get("model") or root_ai_cfg.get("model") or "gpt-4o-mini"
+            timeout_s = float(cfg.get("timeout_s", root_ai_cfg.get("timeout_s", 2.5)) or 2.5)
+
+            if provider == "mock":
+                ai_client = MockAiTraderClient()
+            else:
+                api_key = self._resolve_secret_value(cfg.get("api_key") or root_ai_cfg.get("api_key"))
+                if not api_key:
+                    raise ValueError("AI trader agent provider requires api_key")
+                ai_client = create_ai_trader_client(
+                    provider=provider,
+                    model=model_name,
+                    api_key=api_key,
+                    timeout_s=timeout_s,
+                )
+
+            risk_cfg = self.policy_config.get("risk", {}) or {}
+            max_position_pct = float(cfg.get("max_position_pct", risk_cfg.get("max_position_size_pct", 5.0)))
+            settings = TraderAgentSettings(
+                max_decisions=int(cfg.get("max_decisions", 5)),
+                min_confidence=float(cfg.get("min_confidence", 0.55)),
+                min_rebalance_delta_pct=float(cfg.get("min_rebalance_delta_pct", 0.35)),
+                max_position_pct=max_position_pct,
+                max_single_trade_pct=float(cfg.get("max_single_trade_pct", max_position_pct)),
+                tag=cfg.get("tag", "ai_trader_agent"),
+            )
+
+            logger.info(
+                "AI trader agent configured: provider=%s model=%s max_decisions=%d",
+                provider,
+                model_name,
+                settings.max_decisions,
+            )
+            return AiTraderAgent(True, ai_client, settings)
+
+        except Exception as exc:  # pragma: no cover - configuration errors logged
+            logger.error("Failed to initialize AI trader agent: %s", exc, exc_info=True)
+            return None
+
+    def _build_ai_trader_guardrails(self) -> Dict[str, Any]:
+        """Construct guardrail snapshot for the AI trader agent."""
+        risk_cfg = self.policy_config.get("risk", {}) or {}
+        strategy_cfg = self.policy_config.get("strategy", {}) or {}
+        min_notional = risk_cfg.get("min_trade_notional_usd")
+        if min_notional is None:
+            min_notional = getattr(self.executor, "min_notional_usd", 5.0)
+
+        return {
+            "max_total_at_risk_pct": risk_cfg.get("max_total_at_risk_pct", 25.0),
+            "max_position_size_pct": risk_cfg.get("max_position_size_pct", 5.0),
+            "min_trade_notional": min_notional,
+            "max_trades_per_cycle": strategy_cfg.get("max_new_positions_per_cycle"),
+            "max_trades_per_day": risk_cfg.get("max_trades_per_day"),
+        }
+
+    def _merge_ai_local_proposals(
+        self,
+        local: List[TradeProposal],
+        ai: List[TradeProposal],
+    ) -> List[TradeProposal]:
+        """Merge AI trader proposals with locals, keeping higher-confidence per symbol."""
+        merged: Dict[str, TradeProposal] = {}
+
+        for proposal in local or []:
+            if proposal and proposal.symbol:
+                merged[proposal.symbol] = proposal
+
+        for proposal in ai or []:
+            if not proposal or not proposal.symbol:
+                continue
+            existing = merged.get(proposal.symbol)
+            if not existing:
+                merged[proposal.symbol] = proposal
+                continue
+
+            existing_conf = getattr(existing, "confidence", 0.0) or 0.0
+            new_conf = getattr(proposal, "confidence", 0.0) or 0.0
+
+            if new_conf >= existing_conf:
+                logger.info(
+                    "AI trader agent overriding %s proposal (%.2f → %.2f confidence)",
+                    proposal.symbol,
+                    existing_conf,
+                    new_conf,
+                )
+                merged[proposal.symbol] = proposal
+
+        return list(merged.values())
+
+    def _resolve_secret_value(self, raw_value: Optional[str]) -> Optional[str]:
+        """Resolve ${ENV} style placeholders to actual secrets."""
+        if not raw_value:
+            return None
+        value = str(raw_value)
+        if value.startswith("${") and value.endswith("}"):
+            env_key = value[2:-1]
+            return os.environ.get(env_key)
+        return value
+
     def _apply_ai_decisions(
         self,
         proposals: List[TradeProposal],
