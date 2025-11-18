@@ -1915,22 +1915,22 @@ class TradingLoop:
                     cycle_number=self.cycle_count + 1,
                     nav=float(self.portfolio.account_value_usd or 0.0),
                     state=self.state_store.load(),
-                )
+                    )
 
-                # Generate proposals from local rules engine
-                local_proposals = self.strategy_registry.aggregate_proposals(
-                    context=strategy_context,
-                    dedupe_by_symbol=True  # Keep highest confidence per symbol
-                )
+                    # Generate proposals from local rules engine
+                    local_proposals = self.strategy_registry.aggregate_proposals(
+                        context=strategy_context,
+                        dedupe_by_symbol=True  # Keep highest confidence per symbol
+                    )
 
-                # Log per-strategy breakdown
-                enabled_strategies = self.strategy_registry.get_enabled_strategies()
-                logger.info(f"✅ Local strategy execution complete: {[s.name for s in enabled_strategies]} → {len(local_proposals)} proposals")
+                    # Log per-strategy breakdown
+                    enabled_strategies = self.strategy_registry.get_enabled_strategies()
+                    logger.info(f"✅ Local strategy execution complete: {[s.name for s in enabled_strategies]} → {len(local_proposals)} proposals")
 
-                proposals = local_proposals
+                    proposals = local_proposals
 
-                # If dual-trader mode enabled, generate AI trader proposals and arbitrate
-                if self.dual_trader_enabled and self.ai_trader_strategy and self.meta_arbitrator:
+                    # If dual-trader mode enabled, generate AI trader proposals and arbitrate
+                    if self.dual_trader_enabled and self.ai_trader_strategy and self.meta_arbitrator:
                     logger.info("🤖 Dual-trader mode: generating AI trader proposals...")
 
                     # Enrich context for AI trader
