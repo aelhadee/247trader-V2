@@ -1973,10 +1973,36 @@ class TradingLoop:
                         self._apply_risk_mode(ai_output.risk_mode)
 
                     # Apply decisions to proposals
+                    original_proposal_count = len(proposals)
                     proposals = self._apply_ai_decisions(proposals, ai_output)
 
                     # Update proposals count after AI filtering
                     proposals_count = len(proposals)
+
+                    # AI Safeguard: Prevent 100% veto in non-crisis conditions
+                    # If AI skipped everything but we're NOT in crash/panic, rescue top proposal with reduced size
+                    if not proposals and original_proposal_count > 0:
+                        market_regime = ai_input.market.regime if ai_input else "unknown"
+                        
+                        # Allow total veto only in crash/panic regimes
+                        if market_regime not in ("crash", "panic"):
+                            # Get original proposals sorted by conviction
+                            original_proposals_sorted = sorted(
+                                [p for p in step9_proposals],  # Use original proposals before AI
+                                key=lambda p: p.confidence if hasattr(p, 'confidence') else 0,
+                                reverse=True
+                            )
+                            
+                            if original_proposals_sorted:
+                                # Rescue top proposal with 50% size reduction as AI safeguard
+                                rescued = original_proposals_sorted[0]
+                                rescued.size_pct = rescued.size_pct * 0.5  # Conservative 50% cut
+                                proposals = [rescued]
+                                logger.warning(
+                                    f"⚠️  AI SAFEGUARD: Rescued {rescued.symbol} at 50% size "
+                                    f"(AI vetoed all {original_proposal_count} proposals in {market_regime} regime, "
+                                    f"but total veto only allowed in crash/panic)"
+                                )
 
                     if not proposals:
                         reason = "ai_skipped_all_proposals"
