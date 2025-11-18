@@ -255,6 +255,28 @@ The utility replays recent fills in read-only mode, recomputes base units/entry 
 
 ## Configuration
 
+### AI Trader Agent (Step 9A)
+
+Enable the allocator inside `config/app.yaml`:
+
+```yaml
+ai:
+  trader_agent:
+    enabled: true
+    provider: "openai"          # mock|openai|anthropic
+    model: "gpt-4o-mini"
+    api_key: "${OPENAI_API_KEY}"
+    max_decisions: 4
+    min_confidence: 0.55
+    min_rebalance_delta_pct: 0.35
+    max_position_pct: 3.0
+    max_single_trade_pct: 2.0
+```
+
+- Start with `provider: mock` and DRY_RUN mode, then switch to real providers once logs show `Step 9A` activity.
+- The agent is mutually exclusive with `ai.dual_trader.enabled=true`; keep only one AI proposal source active at a time.
+- Every AI-originated trade carries the `ai_trader_agent` tag and still passes through AI Advisor (if enabled), RiskEngine, and ExecutionEngine in that order.
+
 ### Mode (app.yaml)
 
 ```yaml
