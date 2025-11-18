@@ -938,12 +938,13 @@ class RiskEngine:
 
         if rejected_timing:
             # Track which symbols were rejected by timing
-            for proposal in rejected_timing:
-                _merge_rejections({proposal.symbol: ["trade_limits_timing"]})
+            # rejected_timing is Dict[str, List[str]] where keys are symbols
+            for symbol, reasons in rejected_timing.items():
+                _merge_rejections({symbol: ["trade_limits_timing"] + reasons})
 
             logger.info(
-                f"TradeLimits filtered {len(rejected_timing)} proposals: "
-                f"{[p.symbol for p in rejected_timing]}"
+                f"TradeLimits filtered {len(rejected_timing)} symbols: "
+                f"{sorted(rejected_timing.keys())}"
             )
 
         # Continue with timing-approved proposals
