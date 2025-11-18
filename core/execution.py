@@ -4128,6 +4128,9 @@ class ExecutionEngine:
                     logger.debug("Pending marker set failed for %s: %s", symbol, exc)
         except Exception as exc:
             logger.warning("State store update failed after execution: %s", exc)
+            return False  # Signal failure on exception
+        
+        return True  # State update successful
 
     def execute_batch(self, orders: List[Dict]) -> List[ExecutionResult]:
         """
