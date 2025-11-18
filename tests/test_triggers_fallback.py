@@ -57,6 +57,7 @@ def test_fallback_scan_emits_relaxed_trigger(monkeypatch):
     monkeypatch.setattr(engine, "_check_volume_spike", lambda *args, **kwargs: None)
     monkeypatch.setattr(engine, "_check_breakout", lambda *args, **kwargs: None)
     monkeypatch.setattr(engine, "_check_momentum", lambda *args, **kwargs: None)
+    monkeypatch.setattr(engine, "_check_price_move", lambda *args, **kwargs: None)
 
     asset = UniverseAsset(
         symbol="TEST-USD",

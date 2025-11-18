@@ -1,21 +1,16 @@
-profile: day_trader  # Active profile for ~$250 account with 2.0% T2 sizing
+profile: day_trader
 profiles:
-  # CONSERVATIVE: Mirrors Freqtrade (3 concurrent, -10% stop) and Jesse (1x leverage, $10k balance)
-  # Recommended for: Initial deployment, limited capital (<$5k), low-risk tolerance
   conservative:
-    min_conviction: 0.40  # High bar for entry (vs Freqtrade's default strategy filters)
+    min_conviction: 0.4
     tier_sizing:
-      T1: 0.015  # 1.5% of NAV per T1 trade (≈$150 on $10k)
-      T2: 0.010  # 1.0% of NAV per T2 trade
-      T3: 0.005  # 0.5% of NAV per T3 trade (disabled by default)
+      T1: 0.015
+      T2: 0.01
+      T3: 0.005
     max_position_pct:
-      T1: 0.03   # Max 3% per T1 asset (2 adds allowed)
-      T2: 0.02   # Max 2% per T2 asset
-      T3: 0.01   # Max 1% per T3 asset
-    min_trade_notional: 10.0  # $10 minimum (matches dust_threshold)
-  
-  # SWING_TRADER: Medium-term holds with lower conviction bar
-  # Recommended for: Multi-day holds, trend-following strategies
+      T1: 0.03
+      T2: 0.02
+      T3: 0.01
+    min_trade_notional: 10.0
   swing_trader:
     min_conviction: 0.34
     tier_sizing:
@@ -27,79 +22,55 @@ profiles:
       T2: 0.03
       T3: 0.02
     min_trade_notional: 9.0
-  
-  # DAY_TRADER: Original aggressive profile (95% at-risk, 40 trades/day)
-  # Recommended for: Advanced users, supervised operation, proven strategies
   day_trader:
     min_conviction: 0.3
     tier_sizing:
       T1: 0.03
-      T2: 0.020   # Increased from 0.018 (1.8%) to 0.020 (2.0%) for $250 accounts → $5.14 orders
+      T2: 0.02
       T3: 0.007
     max_position_pct:
       T1: 0.07
-      T2: 0.06   # Increased from 0.045 (4.5%) to 0.06 (6%) for small accounts
+      T2: 0.06
       T3: 0.025
-    min_trade_notional: 5.0  # Reduced from 15.0 to 5.0 for ~$250 accounts
+    min_trade_notional: 5.0
 risk:
-  # CONSERVATIVE DEFAULTS (aligned with Freqtrade/Jesse/Hummingbot)
-  # Freqtrade: 3 concurrent trades, -10% stop, 0.05 BTC stake (~$2.5k @ $50k BTC)
-  # Jesse: 1x leverage, $10k initial balance
-  # Hummingbot: Manual position sizing, no built-in pyramiding
-  max_total_at_risk_pct: 25.0  # Conservative LIVE profile (≤25% NAV at risk). Was 80% temporarily to stop trim thrashing.
+  max_total_at_risk_pct: 25.0
   count_external_positions: false
   managed_position_tag: 247trader
   external_exposure_buffer_pct: 5.0
-  max_position_size_pct: 3.0   # Was 7% - REDUCED to Freqtrade's ~3% per trade (1/3 of NAV÷10)
-  max_per_asset_pct: 4.0        # Was 5% - REDUCED to fit within theme caps (must be <= smallest theme cap)
+  max_position_size_pct: 3.0
+  max_per_asset_pct: 4.0
   min_position_size_pct: 0.5
-  max_open_positions: 5         # Was 12 - REDUCED to Freqtrade's 3-5 range for conservative operation
+  max_open_positions: 5
   max_per_theme_pct:
-    LAYER1: 10.0                # Layer 1 blockchains (BTC, ETH, SOL, etc.)
-    LAYER2: 6.0                 # Layer 2 scaling solutions (OP, ARB, etc.)
-    MEME: 4.0                   # Meme coins (high volatility) - must be >= max_per_asset_pct
-    DEFI: 5.0                   # DeFi protocols - total: 25% (fits max_total_at_risk_pct)
-  
-  # Stop-loss aligned with Freqtrade's -10% default
+    LAYER1: 10.0
+    LAYER2: 6.0
+    MEME: 4.0
+    DEFI: 5.0
   daily_stop_pnl_pct: -3.0
   weekly_stop_pnl_pct: -7.0
-  max_drawdown_pct: 10.0        # Matches Freqtrade's -10% stoploss
-  
-  # Trade pacing: Freqtrade has no explicit limits but recommends cooldowns via "Protections"
-  # Our defaults enforce similar behavior to prevent overtrading
-  max_trades_per_day: 120       # Was 15 - FIXED: must be ≥ hourly rate × 24 (5×24=120)
-  max_trades_per_hour: 5        # Was 8 - REDUCED to prevent rapid-fire entries
-  max_new_trades_per_hour: 3    # Was 8 - REDUCED to match conservative pace
-  min_seconds_between_trades: 180  # Was 120s - INCREASED to 3min (Hummingbot-style spacing)
-  per_symbol_trade_spacing_seconds: 900  # Was 600s - INCREASED to 15min cooldown
-  
-  # Cooldowns after losses (Freqtrade "Protections" analog)
+  max_drawdown_pct: 10.0
+  max_trades_per_day: 120
+  max_trades_per_hour: 5
+  max_new_trades_per_hour: 3
+  min_seconds_between_trades: 180
+  per_symbol_trade_spacing_seconds: 900
   cooldown_after_loss_trades: 3
   cooldown_minutes: 60
   per_symbol_cooldown_enabled: true
   per_symbol_cooldown_minutes: 30
-  per_symbol_cooldown_after_stop: 120  # Was 60min - INCREASED to 2h after stop-out
-  
-  # Differentiated per-symbol cooldowns by outcome (NEW)
-  per_symbol_cooldown_win_minutes: 10    # Short cooldown after win (prevents overtrading)
-  per_symbol_cooldown_loss_minutes: 60   # Longer cooldown after loss (time to reassess)
-  # Note: stop_loss uses per_symbol_cooldown_after_stop (120min)
-  
-  # Sizing minimums
-  min_trade_notional_usd: 5     # Reduced from 10 to 5 for small accounts (~$250)
-  dust_threshold_usd: 5.0        # Lowered to match min_trade_notional
-  
-  # Pyramiding: DISABLED by default (Freqtrade/Hummingbot don't pyramid)
-  # Advanced users can enable via day_trader profile
-  allow_adds_when_over_cap: false  # Was true - CHANGED to prevent cap breaches
+  per_symbol_cooldown_after_stop: 120
+  per_symbol_cooldown_win_minutes: 10
+  per_symbol_cooldown_loss_minutes: 60
+  min_trade_notional_usd: 5
+  dust_threshold_usd: 5.0
+  allow_adds_when_over_cap: false
   count_open_orders_in_cap: true
-  allow_pyramiding: false       # Was true - DISABLED to match reference apps
-  pyramid_cooldown_seconds: 600  # Was 300s - INCREASED to 10min if re-enabled
-  max_adds_per_asset_per_day: 1  # Was 2 - REDUCED to single add per day max
-  
-  # Stop/target levels (Freqtrade: -10% stop, +4% minimal ROI)
-  stop_loss_pct: 10.0           # Was 8% - INCREASED to match Freqtrade's -10% default
-  take_profit_pct: 12.0         # Was 15% - REDUCED to match Freqtrade's ~4-12% ROI targets
+  allow_pyramiding: false
+  pyramid_cooldown_seconds: 600
+  max_adds_per_asset_per_day: 1
+  stop_loss_pct: 10.0
+  take_profit_pct: 12.0
 exits:
   enabled: true
   check_stop_loss: true
@@ -115,12 +86,12 @@ position_sizing:
   method: risk_parity
   risk_per_trade_pct: 1.0
   fixed_size_usd: 100.0
-  min_order_usd: 5.0             # Reduced from 10.0 to 5.0 for small accounts
+  min_order_usd: 5.0
   max_order_usd: 10000.0
-  allow_pyramiding: false  # Aligned with risk.allow_pyramiding=false (conservative profile)
-  max_pyramid_positions: 0  # Pyramiding disabled
+  allow_pyramiding: false
+  max_pyramid_positions: 0
 liquidity:
-  min_24h_volume_usd: 5000000  # Reduced from $8M to $5M (global fallback)
+  min_24h_volume_usd: 5000000
   max_spread_bps: 80
   min_depth_20bps_usd: 10000
   require_depth_mult: 10
@@ -162,13 +133,13 @@ triggers:
 strategy:
   base_position_pct:
     tier1: 0.03
-    tier2: 0.020   # Increased from 0.018 (1.8%) to 0.020 (2.0%) for $250 accounts → $5.14 orders
+    tier2: 0.02
     tier3: 0.007
   momentum_downside_reversal_pct: 3.0
   max_open_positions: 12
   max_new_positions_per_cycle: 1
   prefer_add_to_existing: true
-  min_conviction_to_propose: 0.28  # Lowered from 0.30 (7% reduction) to capture more trades without going full degen
+  min_conviction_to_propose: 0.3
   conviction_weights:
     base: 0.0
     trigger_strength: 0.5
@@ -226,42 +197,39 @@ regime:
   bull:
     position_size_multiplier: 1.2
     max_positions: 5
-    allowed_signals:  # Signal filtering for regime
-      - momentum
-      - price_move
-    signal_confidence_boost: 0.05  # +5% confidence in trending regime
+    allowed_signals:
+    - momentum
+    - price_move
+    signal_confidence_boost: 0.05
   chop:
     position_size_multiplier: 0.8
     max_positions: 3
     allowed_signals:
-      - mean_reversion
-      - price_move
-    signal_confidence_penalty: 0.1  # -10% confidence (choppy regime harder)
+    - mean_reversion
+    - price_move
+    signal_confidence_penalty: 0.1
   bear:
     position_size_multiplier: 0.5
     max_positions: 2
     allowed_signals:
-      - price_move  # Only strong moves in bear
+    - price_move
     signal_confidence_boost: 0.0
   crash:
     position_size_multiplier: 0.0
     max_positions: 0
-    allowed_signals: []  # NO TRADE in crash
+    allowed_signals: []
 execution:
-  # CONSERVATIVE EXECUTION: Aligned with Freqtrade/Hummingbot timing patterns
-  # Freqtrade: 10min unfilled timeout, GTC orders
-  # Hummingbot: 30min max_order_age, periodic refresh
   maker_fee_bps: 40
   taker_fee_bps: 60
   default_order_type: limit_post_only
-  min_notional_usd: 5.0         # Reduced from 10.0 to 5.0 for small accounts (~$250)
+  min_notional_usd: 5.0
   maker_first: true
   maker_max_reprices: 1
-  maker_max_ttl_sec: 30         # Was 15s - INCREASED to 30s (less aggressive canceling)
-  maker_first_min_ttl_sec: 20   # Was 12s - INCREASED proportionally
-  maker_retry_min_ttl_sec: 15   # Was 8s - INCREASED proportionally
+  maker_max_ttl_sec: 30
+  maker_first_min_ttl_sec: 20
+  maker_retry_min_ttl_sec: 15
   maker_reprice_decay: 0.7
-  purge_maker_ttl_sec: 45       # Was 25s - INCREASED (allow more time for fills)
+  purge_maker_ttl_sec: 45
   taker_fallback: true
   prefer_ioc: true
   taker_max_slippage_bps:
@@ -269,12 +237,12 @@ execution:
     T2: 40
     T3: 60
     default: 60
-  auto_convert_preferred_quote: false  # Disabled - API lacks convert privileges
+  auto_convert_preferred_quote: false
   clamp_small_trades: true
   small_order_market_threshold_usd: 6.0
   allow_min_bump_in_risk: true
-  post_trade_reconcile_wait_seconds: 1.0  # Was 0.5s - INCREASED for reliable fills
-  failed_order_cooldown_seconds: 300     # Was 180s - INCREASED to 5min (less retry pressure)
+  post_trade_reconcile_wait_seconds: 1.0
+  failed_order_cooldown_seconds: 300
   preferred_quote_currencies:
   - USDC
   - USD
@@ -310,15 +278,14 @@ execution:
     size_reduction_factor: 0.5
 portfolio_management:
   auto_liquidate_ineligible: true
-  min_liquidation_value_usd: 5   # Reduced from 10 to 5 for small accounts
+  min_liquidation_value_usd: 5
   max_liquidations_per_cycle: 2
   auto_trim_to_risk_cap: true
   trim_target_buffer_pct: 10.0
   trim_tolerance_pct: 0.25
-  trim_min_value_usd: 5.0        # Reduced from 10.0 to 5.0 for small accounts
+  trim_min_value_usd: 5.0
   trim_max_liquidations: 5
-  # Auto-trim escalation alerting
-  max_trim_failures_before_alert: 3  # Alert after 3 consecutive trim failures
+  max_trim_failures_before_alert: 3
   trim_preferred_quotes:
   - USDC
   - USD
@@ -326,7 +293,7 @@ portfolio_management:
   trim_slippage_buffer_pct: 5.0
   auto_rebalance_worst_performer: true
   purge_execution:
-    slice_usd: 5.0               # Reduced from 10.0 to 5.0 to match min_notional (small accounts + T3 assets)
+    slice_usd: 5.0
     maker_ttl_sec: 25
     maker_first_ttl_sec: 25
     maker_retry_ttl_sec: 20
@@ -334,10 +301,10 @@ portfolio_management:
     max_duration_seconds: 240
     poll_interval_seconds: 2.0
     max_slices: 24
-    max_residual_usd: 8.0        # Reduced from 12.0 to 8.0 for small accounts
+    max_residual_usd: 8.0
     max_consecutive_no_fill: 2
     allow_taker_fallback: true
-    taker_fallback_threshold_usd: 25.0  # Lowered from 50.0 to use taker sooner
+    taker_fallback_threshold_usd: 25.0
     taker_max_slippage_bps: 100
     cushion_ticks: 1
     max_cushion_ticks: 3
@@ -350,9 +317,7 @@ cooldowns:
 loop:
   interval_seconds: 60
   universe_cache_seconds: 300
-  # Jitter applied to interval_seconds to avoid lockstep behavior with other bots
-  # Set to 0.0 to disable jitter
-  jitter_pct: 10.0  # 0-10% random jitter per cycle (prevents synchronized bursts)
+  jitter_pct: 10.0
 ai:
   enabled: false
   m1_model: gpt-4o
@@ -389,53 +354,36 @@ circuit_breaker:
   api_error_window_minutes: 5
   rate_limit_threshold: 3
   rate_limit_window_minutes: 10
-
-# Per-endpoint rate limit tracking (prevents API quota exhaustion)
 rate_limits:
-  # Coinbase Advanced Trade API limits (as of 2024):
-  # - Public endpoints: 10 requests/second
-  # - Private endpoints: 15 requests/second
-  # - Orders: 10 orders/second
-  
-  # Default quotas (used if endpoint-specific not configured)
-  public: 10.0   # req/sec for public endpoints
-  private: 15.0  # req/sec for private endpoints
-  
-  # Alert thresholds (0.0-1.0 utilization)
-  alert_threshold: 0.8  # Alert at 80% utilization
-  critical_threshold: 0.9  # Critical alert at 90%
-  
-  # Per-endpoint overrides (optional)
+  public: 10.0
+  private: 15.0
+  alert_threshold: 0.8
+  critical_threshold: 0.9
   endpoints:
-    get_quote: 10.0          # Quote fetching
-    get_ohlcv: 10.0          # Candle data
-    list_products: 5.0       # Product listing (less frequent)
-    get_accounts: 10.0       # Account balances
-    list_orders: 10.0        # Order listing
-    list_fills: 10.0         # Fill history
-    place_order: 10.0        # Order placement
-    cancel_order: 10.0       # Order cancellation
-    preview_order: 10.0      # Order preview
-    convert_quote: 5.0       # Currency conversion (less frequent)
-    convert_commit: 5.0      # Conversion execution
-
-# Latency thresholds for watchdog timers and alerting
+    get_quote: 10.0
+    get_ohlcv: 10.0
+    list_products: 5.0
+    get_accounts: 10.0
+    list_orders: 10.0
+    list_fills: 10.0
+    place_order: 10.0
+    cancel_order: 10.0
+    preview_order: 10.0
+    convert_quote: 5.0
+    convert_commit: 5.0
 latency:
-  # API call latency thresholds in milliseconds (mean over last N calls)
   api_thresholds_ms:
-    api_list_products: 2000        # Product list should complete in 2s
-    api_get_accounts: 1500          # Account fetch in 1.5s
-    api_list_open_orders: 1500      # Open orders in 1.5s
-    api_list_fills: 2000            # Fill history in 2s
-    api_get_quote: 500              # Single quote in 500ms
-    api_place_order: 2000           # Order placement in 2s
-    api_cancel_order: 1500          # Order cancellation in 1.5s
-    api_preview_order: 1000         # Order preview in 1s
-  
-  # Decision cycle stage budgets in seconds
+    api_list_products: 2000
+    api_get_accounts: 1500
+    api_list_open_orders: 1500
+    api_list_fills: 2000
+    api_get_quote: 500
+    api_place_order: 2000
+    api_cancel_order: 1500
+    api_preview_order: 1000
   stage_budgets:
     order_reconcile: 2.0
-    universe_build: 15.0 #was 6.0
+    universe_build: 15.0
     trigger_scan: 6.0
     rules_engine: 4.0
     risk_engine: 4.0
@@ -443,9 +391,5 @@ latency:
     open_order_maintenance: 3.0
     exit_checks: 3.0
     exit_execution: 3.0
-  
-  # Total cycle budget in seconds (fail-safe for runaway cycles)
   total_seconds: 45.0
-  
-  # Alert on persistent slowness (trigger after N consecutive violations)
   alert_after_violations: 3
