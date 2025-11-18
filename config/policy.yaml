@@ -357,8 +357,8 @@ circuit_breaker:
 rate_limits:
   public: 10.0
   private: 15.0
-  alert_threshold: 0.8
-  critical_threshold: 0.9
+  alert_threshold: 0.9  # Increased from 0.8 to reduce log noise - warnings still trigger before critical
+  critical_threshold: 0.95  # Increased from 0.9 for better margin
   endpoints:
     get_quote: 10.0
     get_ohlcv: 10.0
