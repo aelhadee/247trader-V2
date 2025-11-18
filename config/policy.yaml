@@ -64,9 +64,9 @@ risk:
   per_symbol_cooldown_loss_minutes: 60
   min_trade_notional_usd: 1.0  # Lowered for $255 account + aggressive AI reductions (50-75% cuts)
   dust_threshold_usd: 1.0  # Must be <= min_trade_notional_usd
-  allow_adds_when_over_cap: false
+  allow_adds_when_over_cap: true  # Allow micro-adds with AI sizing even near cap
   count_open_orders_in_cap: true
-  allow_pyramiding: false
+  allow_pyramiding: true  # Allow adding to existing positions (AI will size appropriately)
   pyramid_cooldown_seconds: 600
   max_adds_per_asset_per_day: 1
   stop_loss_pct: 10.0
