@@ -13,7 +13,6 @@ def reset_singletons():
     
     This is applied automatically to all tests (autouse=True).
     """
-    import os
     from pathlib import Path
     
     # CRITICAL: Cleanup lock file before test (prevents "instance already running" errors)

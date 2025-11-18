@@ -284,7 +284,7 @@ def get_global_tracker() -> LatencyTracker:
     return _global_tracker
 
 
-def reset_global_tracker():
+def reset_global_tracker() -> None:
     """Reset global tracker (mainly for tests)"""
     global _global_tracker
     _global_tracker = None
