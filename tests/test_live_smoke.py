@@ -206,19 +206,19 @@ def test_universe_building():
     
     manager = UniverseManager(exchange=exchange, config=universe_config)
     
-    # Build universe (method renamed to get_universe)
+    # Build universe (method renamed to get_universe, field renamed to tier_1_assets)
     snapshot = manager.get_universe()
     
     assert snapshot is not None, "Universe build failed"
-    assert len(snapshot.tier1) > 0, "No tier1 assets found"
+    assert len(snapshot.tier_1_assets) > 0, "No tier1 assets found"
     
     # Check that assets have metadata
-    for asset in snapshot.tier1[:3]:
+    for asset in snapshot.tier_1_assets[:3]:
         assert asset.symbol is not None, "Asset missing symbol"
         assert asset.volume_24h_usd > 0, "Asset missing volume"
         assert asset.spread_bps >= 0, "Asset missing spread"
     
-    print(f"✅ Universe built: {len(snapshot.tier1)} tier1 assets")
+    print(f"✅ Universe built: {len(snapshot.tier_1_assets)} tier1 assets")
 
 
 @skip_without_creds
