@@ -4077,7 +4077,7 @@ class ExecutionEngine:
                         fills,
                     )
                     # DO NOT update state store when mismatch detected
-                    return  # Exit without updating state
+                    return False  # Signal fatal error to caller
                 elif mismatch > 0.01:  # Info log for small but non-zero mismatches
                     logger.info(
                         "Fill notional variance: %s requested=%.6f filled=%.6f diff=%.6f (%.1f%%) - within tolerance",
