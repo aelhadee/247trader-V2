@@ -282,28 +282,20 @@ class TradeLimits:
         proposals: List[TradeProposal],
         now: datetime
     ) -> TradeTimingResult:
-        """Check per-symbol spacing and cooldowns for all proposals"""
-        cooled_symbols = set()
+        """
+        Check per-symbol spacing and cooldowns for all proposals.
 
-        for proposal in proposals:
-            symbol = proposal.symbol
+        NOTE: This method now always returns approved=True because per-symbol
+        filtering is handled by filter_proposals_by_timing() which is called
+        after check_all(). This prevents batch-rejecting all proposals when
+        only some symbols violate timing constraints.
 
-            # Check cooldown
-            if self._is_symbol_on_cooldown(symbol, now):
-                cooled_symbols.add(symbol)
-
-            # Check spacing
-            if self._violates_symbol_spacing(symbol, now):
-                cooled_symbols.add(symbol)
-
-        if cooled_symbols:
-            return TradeTimingResult(
-                approved=False,
-                reason=f"Per-symbol timing violated for: {', '.join(sorted(cooled_symbols))}",
-                violated_checks=["per_symbol_timing"],
-                cooled_symbols=cooled_symbols
-            )
-
+        Returns:
+            TradeTimingResult (always approved=True)
+        """
+        # Per-symbol filtering is handled by filter_proposals_by_timing()
+        # This method is kept for backwards compatibility but no longer
+        # performs batch-reject logic
         return TradeTimingResult(approved=True)
 
     def _is_symbol_on_cooldown(self, symbol: str, now: datetime) -> bool:
