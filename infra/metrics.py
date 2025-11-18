@@ -187,6 +187,21 @@ class MetricsRecorder:
             "exchange_api_consecutive_errors",
             "Current count of consecutive API errors",
         )
+        
+        # Auto-trim tracking
+        self._trim_attempts_counter = Counter(  # type: ignore[assignment]
+            "trader_trim_attempts_total",
+            "Total number of auto-trim attempts",
+            labelnames=("outcome",),  # outcome: "success", "no_candidates", "failed"
+        )
+        self._trim_consecutive_failures_gauge = Gauge(  # type: ignore[assignment]
+            "trader_trim_consecutive_failures",
+            "Number of consecutive trim failures due to no candidates",
+        )
+        self._trim_liquidated_usd_counter = Counter(  # type: ignore[assignment]
+            "trader_trim_liquidated_usd_total",
+            "Total USD value liquidated via auto-trim",
+        )
 
     @classmethod
     def _reset_for_testing(cls) -> None:
