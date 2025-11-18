@@ -159,16 +159,16 @@ class TestGracefulShutdown:
             mock_components["state_store"].save.assert_called_once()
     
     def test_cancel_single_active_order(self, mock_components):
-        """Shutdown with one active order should cancel it"""
+        """Shutdown with single active order should cancel it"""
         with patch('runner.main_loop.TradingLoop._load_yaml') as mock_load:
             mock_load.return_value = {
-                "app": {"mode": "LIVE"},
+                "app": {"mode": "PAPER"},
                 "exchange": {"read_only": False},
                 "logging": {"level": "INFO", "file": "logs/test.log"},
                 "monitoring": {},
             }
             
-            loop = TradingLoop(mode_override="DRY_RUN")
+            loop = TradingLoop(mode_override="PAPER")
             
             # One active order
             active_order = OrderState(
