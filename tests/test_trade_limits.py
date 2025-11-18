@@ -466,7 +466,8 @@ def test_symbol_spacing_blocked(trade_limits, mock_state_store):
 
 def test_symbol_spacing_different_symbols(trade_limits, mock_state_store):
     """Different symbols don't interfere with spacing"""
-    now = datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc)
+    # Use current time to avoid conflicts with other tests using fixed timestamps
+    now = datetime.now(timezone.utc)
     
     # Record trade on BTC-USD
     trade_limits.record_trade("BTC-USD", current_time=now - timedelta(minutes=5))
