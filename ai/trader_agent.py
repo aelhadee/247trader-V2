@@ -68,6 +68,7 @@ class AiTraderAgent:
         if not self.enabled or not self._client:
             return []
 
+        guardrails = guardrails or {}
         nav = float(portfolio.account_value_usd or 0.0)
         if nav <= 0:
             logger.warning("AiTraderAgent skipped: NAV<=0")
