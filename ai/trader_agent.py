@@ -208,11 +208,18 @@ class AiTraderAgent:
             if action == "SELL" and current_pct <= 0:
                 continue
 
+            if action == "BUY" and delta_pct <= 0:
+                continue
+            if action == "SELL" and delta_pct >= 0:
+                continue
+
             if abs(delta_pct) < self.settings.min_rebalance_delta_pct:
                 continue
 
             side = "BUY" if delta_pct > 0 else "SELL"
             size_pct = min(abs(delta_pct), self.settings.max_single_trade_pct)
+            if side == "SELL":
+                size_pct = min(size_pct, current_pct)
             if size_pct <= 0:
                 continue
 
