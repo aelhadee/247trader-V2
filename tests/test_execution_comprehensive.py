@@ -97,6 +97,14 @@ def mock_exchange():
         "ETH": 2.0
     }
     
+    # Default account responses (for _require_accounts in execution)
+    exchange.get_accounts.return_value = [
+        {"currency": "USDC", "available_balance": {"value": "10000.0"}},
+        {"currency": "USD", "available_balance": {"value": "5000.0"}},
+        {"currency": "BTC", "available_balance": {"value": "0.1"}},
+        {"currency": "ETH", "available_balance": {"value": "2.0"}}
+    ]
+    
     # Default product responses
     exchange.get_products.return_value = [
         {"id": "BTC-USDC", "base_currency": "BTC", "quote_currency": "USDC"},
