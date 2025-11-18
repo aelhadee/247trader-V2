@@ -545,16 +545,19 @@ def test_maker_fee_calculation(execution_engine, mock_exchange):
 
 def test_taker_fee_calculation(execution_engine, mock_exchange):
     """Market orders should apply taker fee (60 bps)"""
+    filled_value = 5005.0
+    taker_fee_bps = 60  # 60 bps = 0.60%
+    expected_fee = filled_value * (taker_fee_bps / 10000)  # 5005 * 0.006 = 30.03
+    
     # Mock taker fill
     fills = [{
         "size": "0.1",
         "price": "50050.0",
-        "fee": "3.003",  # 60 bps of 5005
+        "fee": str(expected_fee),  # 60 bps of 5005 = 30.03
         "liquidity_indicator": "TAKER"
     }]
     
     total_fees = sum(float(f["fee"]) for f in fills)
-    filled_value = 5005.0
     
     expected_fee = filled_value * 0.006  # 60 bps
     assert abs(total_fees - expected_fee) < 0.01
