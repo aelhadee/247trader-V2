@@ -41,7 +41,7 @@ risk:
   max_position_size_pct: 3.0
   max_per_asset_pct: 4.0
   min_position_size_pct: 0.5
-  max_open_positions: 8  # Increased from 5 to allow more diversification with AI-filtered small positions
+  max_open_positions: 12  # Increased to allow diversification with AI-filtered micro-positions on small account
   max_per_theme_pct:
     LAYER1: 10.0
     LAYER2: 6.0
