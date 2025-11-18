@@ -222,7 +222,7 @@ execution:
   maker_fee_bps: 40
   taker_fee_bps: 60
   default_order_type: limit_post_only
-  min_notional_usd: 2.5  # Lowered to match risk.min_trade_notional_usd for AI-reduced trades
+  min_notional_usd: 1.0  # Lowered to match risk.min_trade_notional_usd for aggressive AI cuts
   maker_first: true
   maker_max_reprices: 1
   maker_max_ttl_sec: 30
