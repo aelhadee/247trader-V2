@@ -472,10 +472,10 @@ def test_symbol_spacing_different_symbols(trade_limits, mock_state_store):
     # Record trade on BTC-USD
     trade_limits.record_trade("BTC-USD", current_time=now - timedelta(minutes=5))
     
-    # Try to trade ETH-USD (different symbol)
+    # Try to trade SOL-USD (different symbol, not used in other tests to avoid cooldown conflicts)
     proposals = [
         TradeProposal(
-            symbol="ETH-USD",
+            symbol="SOL-USD",
             side="buy",
             size_pct=0.02,
             confidence=0.6,
@@ -487,11 +487,6 @@ def test_symbol_spacing_different_symbols(trade_limits, mock_state_store):
     ]
     
     approved, rejections = trade_limits.filter_proposals_by_timing(proposals, current_time=now)
-
-    # Debug: Print rejections to see why ETH-USD is blocked
-    if len(approved) != 1:
-        print(f"\nDEBUG different_symbols: Expected 1 approval, got {len(approved)}")
-        print(f"Rejections: {rejections}")
     
     assert len(approved) == 1
     assert len(rejections) == 0
