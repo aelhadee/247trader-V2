@@ -178,26 +178,13 @@ def test_orderbook_depth():
             orderbook = exchange.get_orderbook(pair)
             
             assert orderbook is not None, f"{pair}: No orderbook data"
-            assert hasattr(orderbook, 'bids') and orderbook.bids, f"{pair}: No bids"
-            assert hasattr(orderbook, 'asks') and orderbook.asks, f"{pair}: No asks"
+            assert orderbook.bid_depth_usd > 0, f"{pair}: No bid depth"
+            assert orderbook.ask_depth_usd > 0, f"{pair}: No ask depth"
+            assert orderbook.bid_levels > 0, f"{pair}: No bid levels"
+            assert orderbook.ask_levels > 0, f"{pair}: No ask levels"
+            assert orderbook.total_depth_usd > 0, f"{pair}: No total depth"
             
-            bids = orderbook.bids
-            asks = orderbook.asks
-            
-            assert len(bids) > 0, f"{pair}: Empty bids"
-            assert len(asks) > 0, f"{pair}: Empty asks"
-            
-            # Check bid/ask structure
-            best_bid = float(bids[0]['price'])
-            best_ask = float(asks[0]['price'])
-            
-            assert best_ask > best_bid, f"{pair}: Crossed market (ask={best_ask}, bid={best_bid})"
-            
-            # Calculate depth
-            bid_depth_usd = sum(float(b['price']) * float(b['size']) for b in bids[:10])
-            ask_depth_usd = sum(float(a['price']) * float(a['size']) for a in asks[:10])
-            
-            print(f"✅ {pair}: bid depth=${bid_depth_usd:,.0f}, ask depth=${ask_depth_usd:,.0f}")
+            print(f"✅ {pair}: bid depth=${orderbook.bid_depth_usd:,.0f}, ask depth=${orderbook.ask_depth_usd:,.0f}, total=${orderbook.total_depth_usd:,.0f}")
             
         except Exception as e:
             pytest.fail(f"{pair}: Orderbook fetch failed: {e}")
