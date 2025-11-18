@@ -4027,7 +4027,7 @@ class ExecutionEngine:
         filled_price: float,
         fees: float,
         filled_value: float,
-    ) -> None:
+    ) -> bool:
         if not self.state_store:
             return
 
