@@ -11,6 +11,7 @@ Clean architecture trading bot for Coinbase Advanced Trade.
 - **Rules-first, AI-optional**: System must trade profitably without AI
 - **Hard constraints**: Policy.yaml rules cannot be violated by any component
 - **Clean separation**: Universe → Triggers → Rules → Risk → Execution
+- **AI as allocator, not overlord**: AI trader agent can originate trades, but RiskEngine and policy caps stay in charge
 - **Battle-tested patterns**: Inspired by Freqtrade, Jesse, Hummingbot
 
 ## Current Status (Nov 15, 2025)
@@ -60,6 +61,16 @@ Clean architecture trading bot for Coinbase Advanced Trade.
 - ✅ Outlier/bad-tick guards (rejects >10% price moves without volume confirmation)
 
 See `PRODUCTION_TODO.md` for detailed implementation status and `APP_REQUIREMENTS.md` for formal specifications.
+
+## AI layers
+
+| Layer | Location | What it does | Safety guardrails |
+| --- | --- | --- | --- |
+| **AI Trader Agent (NEW)** | Step 9A (before proposal merge) | Lets an LLM propose BUY/SELL deltas based on the full universe + portfolio snapshot | Enforces confidence floors, delta sizing, per-symbol caps, tags trades with `strategy_source=ai_trader_agent` and still routes through RiskEngine |
+| **AI Advisor** | Step 9.5 (after merge, before risk) | Can shrink/skip proposals, optionally tweak risk mode | Fail-closed timeout, cannot increase sizes, veto safeguard to prevent full freezes |
+| **Dual-Trader Mode** | Optional parallel path | Runs a dedicated AI strategy + MetaArbitrator against local rules | Mutually exclusive with trader agent; arbitration logs stored for audit |
+
+📘 See `docs/AI_TRADER_AGENT_OVERVIEW.md` for the JSON contract, guardrails, and enablement checklist.
 
 ## Structure
 
