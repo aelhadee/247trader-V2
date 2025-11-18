@@ -3049,8 +3049,24 @@ class ExecutionEngine:
             if price is None or price <= 0:
                 continue
 
-            base_size = _first_decimal(fill, ("size", "base_size", "filled_size"))
-            quote_size = _first_decimal(fill, ("size_in_quote", "quote_size", "filled_value"))
+            # CRITICAL: Check size_in_quote flag to determine field meaning
+            # When size_in_quote=True (Coinbase market orders with quote size):
+            #   - fill["size"] contains QUOTE currency amount (USD)
+            #   - Must calculate base size as: size / price
+            # When size_in_quote=False or missing (normal base-sized orders):
+            #   - fill["size"] contains BASE currency amount (ETH, BTC, etc)
+            #   - Calculate quote as: size * price
+            size_in_quote_flag = fill.get("size_in_quote", False)
+            
+            if size_in_quote_flag:
+                # size field contains quote currency (USD) - this is the correct notional
+                quote_size = _first_decimal(fill, ("size", "size_in_quote", "quote_size", "filled_value"))
+                base_size = None  # Will be calculated from quote_size / price
+            else:
+                # size field contains base currency (ETH, BTC, etc) - standard behavior
+                base_size = _first_decimal(fill, ("size", "base_size", "filled_size"))
+                quote_size = _first_decimal(fill, ("size_in_quote", "quote_size", "filled_value"))
+            
             fee = _first_decimal(fill, ("commission", "fee", "fee_amount")) or Decimal("0")
 
             effective_base = base_size

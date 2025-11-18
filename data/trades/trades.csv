@@ -1,3 +1,4 @@
 trade_id,symbol,side,entry_time,exit_time,size_quote,entry_price,exit_price,pnl_gross,pnl_net,pnl_pct,edge_pnl,fees_total,slippage,entry_fee,exit_fee,entry_is_maker,exit_is_maker,trigger_type,conviction,regime,stop_loss_pct,take_profit_pct,exit_reason,hold_duration_minutes,nav_before,nav_after,tags,notes
 247trader_coid_49429b69a908b170,XRP-USD,BUY,2025-11-18T03:59:36.222419+00:00,,3.8205,2.1601,,,,,,,,0.0212243822448,,False,False,,0.51,,,,,,,,[],
 247trader_coid_599404a4215b8399,SOL-USD,BUY,2025-11-18T04:14:55.763780+00:00,,210.36,133.14,,,,,,,,0.018959988096,,False,False,,0.53,,,,,,,,[],
+247trader_coid_0248a14a4642a1d7,ETH-USD,BUY,2025-11-18T04:29:44.764587+00:00,,7854.76,2975.32,,,,,,,,0.0316796601936,,False,False,,0.53,,,,,,,,[],
