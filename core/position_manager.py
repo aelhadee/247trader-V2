@@ -7,7 +7,7 @@ Implements trailing stops, max hold time, and regime-aware exits.
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 from strategy.rules_engine import TradeProposal
 
