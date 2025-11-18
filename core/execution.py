@@ -221,6 +221,10 @@ class ExecutionEngine:
         self.slippage_budget_t1_bps = execution_config.get("slippage_budget_t1_bps", 20.0)
         self.slippage_budget_t2_bps = execution_config.get("slippage_budget_t2_bps", 35.0)
         self.slippage_budget_t3_bps = execution_config.get("slippage_budget_t3_bps", 60.0)
+        
+        # Tolerance: allow slight overages to prevent rejection over fractions of a bp
+        # (e.g., 60.4 bps shouldn't fail against 60.0 bps limit on small trades)
+        self.slippage_budget_tolerance_bps = execution_config.get("slippage_budget_tolerance_bps", 2.0)
 
         raw_prefix = (
             portfolio_config.get("managed_order_prefix")
