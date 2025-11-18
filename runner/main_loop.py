@@ -1970,29 +1970,29 @@ class TradingLoop:
                             f"  ⚖️  {decision.symbol}: {decision.resolution} - {decision.reason}"
                         )
 
-                    # Store arbitration log for audit trail
-                    self._current_arbitration_log = arbitration_log
+                        # Store arbitration log for audit trail
+                        self._current_arbitration_log = arbitration_log
 
-                elif self.ai_trader_agent:
-                    logger.info("🧠 Step 9A: AI trader agent evaluating portfolio allocations...")
-                    guardrails_snapshot = self._build_ai_trader_guardrails()
-                    ai_agent_metadata = {
-                        "cycle_number": strategy_context.cycle_number,
-                        "mode": self.mode,
-                        "timestamp": cycle_started.isoformat(),
-                        "config_hash": self.config_hash,
-                    }
-                    ai_agent_proposals = self.ai_trader_agent.generate_proposals(
-                        universe=strategy_context.universe,
-                        triggers=strategy_context.triggers,
-                        portfolio=self.portfolio,
-                        guardrails=guardrails_snapshot,
-                        metadata=ai_agent_metadata,
-                    )
+                    elif self.ai_trader_agent:
+                        logger.info("🧠 Step 9A: AI trader agent evaluating portfolio allocations...")
+                        guardrails_snapshot = self._build_ai_trader_guardrails()
+                        ai_agent_metadata = {
+                            "cycle_number": strategy_context.cycle_number,
+                            "mode": self.mode,
+                            "timestamp": cycle_started.isoformat(),
+                            "config_hash": self.config_hash,
+                        }
+                        ai_agent_proposals = self.ai_trader_agent.generate_proposals(
+                            universe=strategy_context.universe,
+                            triggers=strategy_context.triggers,
+                            portfolio=self.portfolio,
+                            guardrails=guardrails_snapshot,
+                            metadata=ai_agent_metadata,
+                        )
 
-                    if ai_agent_proposals:
-                        proposals = self._merge_ai_local_proposals(local_proposals, ai_agent_proposals)
-                        logger.info(
+                        if ai_agent_proposals:
+                            proposals = self._merge_ai_local_proposals(local_proposals, ai_agent_proposals)
+                            logger.info(
                             "✅ AI trader agent contributed %d proposal(s); merged total=%d",
                             len(ai_agent_proposals),
                             len(proposals),
